@@ -441,6 +441,7 @@ public class Spreadsheet {
         if (strVal == null)
             return 0;
 
+        // if column not found, exit - report error if it was a required column
         Integer col = getColumn(colEnum);
         if (col == null) {
             // column not found. is it a required column?
@@ -454,6 +455,8 @@ public class Spreadsheet {
             return 0;
         }
 
+        // value passed is defined, but only write it if the spreadsheet currently has
+        //  no value posted to it, or the overwrite flag was set.
         if (sheetSel.getCellAt(col, row).getValue() == null ||
             sheetSel.getCellAt(col, row).getValue().toString().isBlank() || bOverwrite) {
             sheetSel.getCellAt(col, row).setValue(strVal);
@@ -482,6 +485,7 @@ public class Spreadsheet {
         if (iVal == null)
             return 0;
 
+        // if column not found, exit - report error if it was a required column
         Integer col = getColumn(colEnum);
         if (col == null) {
             // column not found. is it a required column?
@@ -495,6 +499,8 @@ public class Spreadsheet {
             return 0;
         }
 
+        // value passed is defined, but only write it if the spreadsheet currently has
+        //  no value posted to it, or the overwrite flag was set.
         if (sheetSel.getCellAt(col, row).getValue() == null ||
             sheetSel.getCellAt(col, row).getValue().toString().isBlank() || bOverwrite) {
             sheetSel.getCellAt(col, row).setValue(iVal);
@@ -523,6 +529,7 @@ public class Spreadsheet {
         if (iVal == null)
             return 0;
 
+        // if column not found, exit - report error if it was a required column
         Integer col = getColumn(colEnum);
         if (col == null) {
             // column not found. is it a required column?
@@ -536,6 +543,8 @@ public class Spreadsheet {
             return 0;
         }
 
+        // value passed is defined, but only write it if the spreadsheet currently has
+        //  no value posted to it, or the overwrite flag was set.
         String strVal = Utils.cvtAmountToString(iVal);
         BigDecimal bdVal = BigDecimal.valueOf(iVal);
         BigDecimal bd100 = BigDecimal.valueOf(100);
@@ -568,6 +577,7 @@ public class Spreadsheet {
         if (date == null)
             return 0;
 
+        // if column not found, exit - report error if it was a required column
         Integer col = getColumn(colEnum);
         if (col == null) {
             // column not found. is it a required column?
@@ -581,6 +591,8 @@ public class Spreadsheet {
             return 0;
         }
 
+        // value passed is defined, but only write it if the spreadsheet currently has
+        //  no value posted to it, or the overwrite flag was set.
         String strVal = DateFormat.convertDateToString(date, false);
         if (sheetSel.getCellAt(col,row).getValue() == null ||
             sheetSel.getCellAt(col,row).getValue().toString().isBlank() || bOverwrite) {

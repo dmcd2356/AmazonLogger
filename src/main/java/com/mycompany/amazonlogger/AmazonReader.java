@@ -247,7 +247,7 @@ public class AmazonReader {
                         frame.outputInfoMsg (UIFrame.STATUS_PARSER, "'ORDERS' clipboard");
                         ParseOrders parseOrd = new ParseOrders();
                         newList = parseOrd.parseOrders(line, eKeyId);
-                        // append list to current running list
+                        // merge list with current running list (in chronological order)
                         amazonList = addOrdersToList (amazonList, newList);
                         int itemCount = 0;
                         for (int ix = 0; ix < amazonList.size(); ix++) {
@@ -261,9 +261,22 @@ public class AmazonReader {
                         frame.outputInfoMsg (UIFrame.STATUS_PARSER, "'DETAILS' clipboard");
                         ParseDetails parseDet = new ParseDetails();
                         AmazonOrder newOrder = parseDet.parseDetails(line);
-                        // there should only be 1 order in list (may have multiple items in it, though)
-                        // append entry to any current detailed orders we have accumulated
-                        detailList.add(newOrder);
+                        // add the new order to the current detailed orders we have accumulated,
+                        //  but keep them in chronological order (oldest to newest)
+                        boolean bPlaced = false;
+                        for (int ix = 0; ix < detailList.size(); ix++) {
+                            if (newOrder.getOrderDate().isBefore(detailList.get(ix).getOrderDate())) {
+                                detailList.add(ix, newOrder);
+                                bPlaced = true;
+                                frame.outputInfoMsg (UIFrame.STATUS_PARSER, "- inserted entry at index " + ix);
+                                break;
+                            }
+                        }
+                        if (!bPlaced) {
+                            // later date than all the reast, add it to the end
+                            detailList.add(newOrder);
+                            frame.outputInfoMsg (UIFrame.STATUS_PARSER, "- added entry to end of list");
+                        }
                         itemCount = 0;
                         for (int ix = 0; ix < detailList.size(); ix++) {
                             itemCount += detailList.get(ix).item.size();
@@ -394,24 +407,12 @@ public class AmazonReader {
                     int row = lastRow;
                     for (int ixOrder = startIx; ixOrder >= 0; ixOrder--) {
                         AmazonOrder order = amazonList.get(ixOrder);
+                        showItemListing(ixOrder, order);
+                        
+                        // output order item(s) to spreadsheet
                         int count = Spreadsheet.setSpreadsheetOrderInfo (row, order, true);
                         row += count;
                         bUpdate = true;
-
-                        // show what we did
-                        int multi_count = order.item.size();
-                        for (int ixItem = 0; ixItem < multi_count; ixItem++) {
-                            AmazonItem item = order.item.get(ixItem);
-                            frame.outputInfoMsg( UIFrame.STATUS_NORMAL,
-                                             DateFormat.convertDateToString(order.getOrderDate(), true)
-                                    + '\t' + order.getOrderNumber()
-                                    + '\t' + order.getTotalCost()
-                                    + '\t' + DateFormat.convertDateToString(item.getDeliveryDate(), true)
-                                    + '\t' + ixItem + " of " + multi_count
-                                    + '\t' + item.getQuantity()
-                                    + '\t' + item.getDescription()
-                                    );
-                        }
                     }
                 }
             }
@@ -423,10 +424,14 @@ public class AmazonReader {
                     AmazonOrder order = detailList.get(ixOrder);
                     String strOrderNum = order.getOrderNumber();
                     int row = Spreadsheet.findItemNumber (strOrderNum);
-
-                    // save the detailed info to spreadsheet class
-                    Spreadsheet.setSpreadsheetOrderInfo (row, order, false);
-                    bUpdate = true;
+                    if (row < 0) {
+                        frame.outputInfoMsg(UIFrame.STATUS_WARN, "Index " + ixOrder + " Order " + order.getOrderNumber() + " not found in spreadsheet");
+                    } else {
+                        // save the detailed info to spreadsheet class
+                        showItemListing(ixOrder, order);
+                        Spreadsheet.setSpreadsheetOrderInfo (row, order, false);
+                        bUpdate = true;
+                    }
                 }
             }
 
@@ -449,6 +454,23 @@ public class AmazonReader {
         } catch (ParserException | IOException ex) {
             frame.outputInfoMsg(UIFrame.STATUS_ERROR, ex.getMessage());
             frame.disableAllButton();
+        }
+    }
+
+    private static void showItemListing (int ixOrder, AmazonOrder order) {
+        int multi_count = order.item.size();
+        for (int ixItem = 0; ixItem < multi_count; ixItem++) {
+            AmazonItem item = order.item.get(ixItem);
+            frame.outputInfoMsg( UIFrame.STATUS_NORMAL,
+                             "Order " + ixOrder + "-" + ixItem
+                    + '\t' + DateFormat.convertDateToString(order.getOrderDate(), true)
+                    + '\t' + order.getOrderNumber()
+                    + '\t' + order.getTotalCost()
+                    + '\t' + DateFormat.convertDateToString(item.getDeliveryDate(), true)
+                    + '\t' + (ixItem + 1) + " of " + multi_count
+                    + '\t' + item.getQuantity()
+                    + '\t' + item.getDescription()
+                    );
         }
     }
     
