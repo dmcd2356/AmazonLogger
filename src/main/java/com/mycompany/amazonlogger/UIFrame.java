@@ -1,0 +1,561 @@
+package com.mycompany.amazonlogger;
+
+import static com.mycompany.amazonlogger.AmazonReader.props;
+import com.mycompany.amazonlogger.PropertiesFile.Property;
+
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Font;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.ButtonGroup;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextPane;
+import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Document;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+
+/**
+ * this is the frame class for the user interface
+ * 
+ * @author dan
+ */
+public final class UIFrame extends JFrame implements ActionListener {
+
+    // type of text characteristics to print with 'outputInfoMsg'
+    public static final int STATUS_ERROR  = 0;  // fatal errors
+    public static final int STATUS_WARN   = 1;  // non-fatal warnings
+    public static final int STATUS_NORMAL = 2;  // output written to spreadsheet
+    public static final int STATUS_PARSER = 3;  // parser status
+    public static final int STATUS_SSHEET = 4;  // spreadsheet status
+    public static final int STATUS_INFO   = 5;  // processing of data from web clip and from PDF file
+    public static final int STATUS_DEBUG  = 6;  // low-level detailed messages
+    public static final int STATUS_PROPS  = 7;  // low-level properties interface messages
+    
+    private enum TextColor {
+        Black, DkGrey, DkRed, Red, LtRed, Orange, Brown,
+        Gold, Green, Cyan, LtBlue, Blue, Violet, DkVio;
+    }
+    
+    private static final String NEWLINE = System.getProperty("line.separator");
+
+    // Components of the Form
+    private final Container c;
+    private final JCheckBox cbox_parser;
+    private final JCheckBox cbox_ssheet;
+    private final JCheckBox cbox_info;
+    private final JCheckBox cbox_debug;
+    private final JCheckBox cbox_props;
+    private final ButtonGroup btn_group;
+    private final JButton btn_select;
+    private final JButton btn_clipboard;
+    private final JButton btn_update;
+    private final JButton btn_balance;
+    private final JButton btn_copy;
+    private final JLabel lbl_select;
+    private final JLabel lbl_clipboard;
+    private final JLabel lbl_update;
+    private final JLabel lbl_balance;
+    private final JLabel lbl_title;
+    private final JLabel lbl_order_tab;
+    private final JLabel lbl_orders;
+    private final JLabel lbl_items;
+    private final JScrollPane scroll_info;
+    private final JTextPane txt_info;
+
+    // constructor, to initialize the components
+    // with default values.
+    public UIFrame()
+    {
+        // setup the control sizes
+        int y_pane_height = 700;        // dimensions of the text pane
+        int x_pane_width = 1100;
+        
+        int y_button_height = 20;       // dimensions of the buttons
+        int x_button_width = 130;
+        int y_label_height = 20;        // dimensions of the button labels
+        int x_label_width = 800;
+        int y_cbox_height = 20;         // dimensions of the checkboxes
+        int x_cbox_width = 200;
+
+        int y_line_gap = 30;            // y gap between buttons and checkboxes
+        int x_label_gap = 20;           // x gap between button and its corresponding label
+        int x_cbox_offset = 250;        // x location for checkboxes
+        int x_info_offset = 600;        // x location for orders/items information labels
+        
+        int y_title_offset = 80;          // starting y offset beneath title
+
+        int border_size = 50;
+        int panel_width = x_pane_width + (2 * border_size);
+        int panel_height = y_pane_height + y_title_offset + (8 * y_line_gap) + y_button_height + (2 * border_size);
+
+        setTitle("Amazon shopping expenditures");
+        setBounds(300, 150, panel_width, panel_height);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setResizable(false);
+
+        c = getContentPane();
+        c.setLayout(null);
+
+        int title_height = 30;
+        int title_width = 300;
+        lbl_title = new JLabel("Amazon Expenses");
+        lbl_title.setFont(new Font("Arial", Font.PLAIN, 30));
+        lbl_title.setSize(title_width, title_height);
+        lbl_title.setLocation((panel_width - title_width) / 2, title_height);
+        c.add(lbl_title);
+
+        // TOP LEFT OF TOP PANEL
+        int loc_y = y_title_offset;
+        int loc_x = border_size;
+        int loc_xlab = loc_x + x_button_width + x_label_gap;
+        
+        btn_select = new JButton("Select");
+        btn_select.setFont(new Font("Arial", Font.BOLD, 15));
+        btn_select.setSize(x_button_width, y_button_height);
+        btn_select.setLocation(loc_x, loc_y);
+        btn_select.addActionListener((ActionListener) this);
+        c.add(btn_select);
+
+        lbl_select = new JLabel("Selects the Amazon-list.ods spreadsheet file to work on");
+        lbl_select.setFont(new Font("Arial", Font.PLAIN, 15));
+        lbl_select.setSize(x_label_width, y_label_height);
+        lbl_select.setLocation(loc_xlab, loc_y);
+        c.add(lbl_select);
+
+        loc_y += y_line_gap;
+        btn_clipboard = new JButton("Clipboard");
+        btn_clipboard.setFont(new Font("Arial", Font.BOLD, 15));
+        btn_clipboard.setSize(x_button_width, y_button_height);
+        btn_clipboard.setLocation(loc_x, loc_y);
+        btn_clipboard.addActionListener((ActionListener) this);
+        btn_clipboard.setVisible(false);
+        c.add(btn_clipboard);
+
+        lbl_clipboard = new JLabel("Loads the clipboard data selection");
+        lbl_clipboard.setFont(new Font("Arial", Font.PLAIN, 15));
+        lbl_clipboard.setSize(x_label_width, y_label_height);
+        lbl_clipboard.setLocation(loc_xlab, loc_y);
+        lbl_clipboard.setVisible(false);
+        c.add(lbl_clipboard);
+
+        loc_y += y_line_gap;
+        btn_update = new JButton("Update");
+        btn_update.setFont(new Font("Arial", Font.BOLD, 15));
+        btn_update.setSize(x_button_width, y_button_height);
+        btn_update.setLocation(loc_x, loc_y);
+        btn_update.addActionListener((ActionListener) this);
+        btn_update.setVisible(false);
+        c.add(btn_update);
+
+        lbl_update = new JLabel("Updates the spreadsheet from clipboard selection");
+        lbl_update.setFont(new Font("Arial", Font.PLAIN, 15));
+        lbl_update.setSize(x_label_width, y_label_height);
+        lbl_update.setLocation(loc_xlab, loc_y);
+        lbl_update.setVisible(false);
+        c.add(lbl_update);
+
+        loc_y += y_line_gap;
+        btn_balance = new JButton("Balance");
+        btn_balance.setFont(new Font("Arial", Font.BOLD, 15));
+        btn_balance.setSize(x_button_width, y_button_height);
+        btn_balance.setLocation(loc_x, loc_y);
+        btn_balance.addActionListener((ActionListener) this);
+        btn_balance.setVisible(false);
+        c.add(btn_balance);
+
+        lbl_balance = new JLabel("Marks the spreadsheet paid items from the credit card summary");
+        lbl_balance.setFont(new Font("Arial", Font.PLAIN, 15));
+        lbl_balance.setSize(x_label_width, y_label_height);
+        lbl_balance.setLocation(loc_xlab, loc_y);
+        lbl_balance.setVisible(false);
+        c.add(lbl_balance);
+
+        btn_group = new ButtonGroup();
+        btn_group.add(btn_select);
+        btn_group.add(btn_update);
+        btn_group.add(btn_balance);
+       
+        // MIDDLE PANEL
+        // this displays progress and debug msgs
+        loc_x = border_size;
+        loc_y += y_line_gap;
+
+        txt_info = new JTextPane();
+        txt_info.setText("");
+        txt_info.setFont(new Font("Courier", Font.PLAIN, 15));
+        txt_info.setSize(x_pane_width, y_pane_height);
+        txt_info.setLocation(loc_x, loc_y);
+        txt_info.setEditable(false);
+        c.add(txt_info);
+        // need it to be scrollable
+        scroll_info = new JScrollPane (txt_info);
+        scroll_info.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
+        scroll_info.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        scroll_info.setSize(x_pane_width, y_pane_height);
+        scroll_info.setLocation(loc_x, loc_y);
+        c.add(scroll_info);
+
+        // TOP LEFT OF BOTTOM PANEL
+        loc_y += y_line_gap + y_pane_height;
+        int y_bottom_panel = loc_y;
+        btn_copy = new JButton("Copy text");
+        btn_copy.setFont(new Font("Arial", Font.BOLD, 15));
+        btn_copy.setSize(x_button_width, y_button_height);
+        btn_copy.setLocation(loc_x, loc_y);
+//        btn_copy.addActionListener((ActionListener) this);
+        btn_copy.setVisible(true);
+        btn_copy.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent e){
+                String textToCopy = txt_info.getText();
+                StringSelection stringSelection=new StringSelection(textToCopy);
+                Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+                clipboard.setContents(stringSelection, null);
+            }
+        });    
+        c.add(btn_copy);
+
+        loc_x = x_cbox_offset;
+        cbox_parser = new JCheckBox("Parser msgs");
+        cbox_parser.setFont(new Font("Arial", Font.BOLD, 15));
+        cbox_parser.setSize(x_cbox_width, y_cbox_height);
+        cbox_parser.setLocation(loc_x, loc_y);
+        cbox_parser.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent e){
+                props.setPropertiesItem(Property.MsgParser, cbox_parser.isSelected() ? "1" : "0");
+            }
+        });    
+        c.add(cbox_parser);
+        
+        loc_y += y_line_gap;
+        cbox_ssheet = new JCheckBox("Spreadsheet msgs");
+        cbox_ssheet.setFont(new Font("Arial", Font.BOLD, 15));
+        cbox_ssheet.setSize(x_cbox_width, y_cbox_height);
+        cbox_ssheet.setLocation(loc_x, loc_y);
+        cbox_ssheet.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent e){
+                props.setPropertiesItem(Property.MsgSpreadsheet, cbox_ssheet.isSelected() ? "1" : "0");
+            }
+        });    
+        c.add(cbox_ssheet);
+        
+        loc_y += y_line_gap;
+        cbox_info = new JCheckBox("Info msgs");
+        cbox_info.setFont(new Font("Arial", Font.BOLD, 15));
+        cbox_info.setSize(x_cbox_width, y_cbox_height);
+        cbox_info.setLocation(loc_x, loc_y);
+        cbox_info.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent e){
+                props.setPropertiesItem(Property.MsgInfo, cbox_info.isSelected() ? "1" : "0");
+            }
+        });    
+        c.add(cbox_info);
+        
+        loc_y += y_line_gap;
+        cbox_debug = new JCheckBox("Debug msgs");
+        cbox_debug.setFont(new Font("Arial", Font.BOLD, 15));
+        cbox_debug.setSize(x_cbox_width, y_cbox_height);
+        cbox_debug.setLocation(loc_x, loc_y);
+        cbox_debug.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent e){
+                props.setPropertiesItem(Property.MsgDebug, cbox_debug.isSelected() ? "1" : "0");
+            }
+        });    
+        c.add(cbox_debug);
+        
+        loc_y += y_line_gap;
+        cbox_props = new JCheckBox("Properties msgs");
+        cbox_props.setFont(new Font("Arial", Font.BOLD, 15));
+        cbox_props.setSize(x_cbox_width, y_cbox_height);
+        cbox_props.setLocation(loc_x, loc_y);
+        cbox_props.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent e){
+                props.setPropertiesItem(Property.MsgProperties, cbox_props.isSelected() ? "1" : "0");
+            }
+        });    
+        c.add(cbox_props);
+        
+        // TOP RIGHT OF BOTTOM PANEL
+        loc_y = y_bottom_panel;
+        loc_x = x_info_offset;
+        x_label_width = 500;
+        
+        // this will display the tab owner of the clipboard data loaded
+        lbl_order_tab = new JLabel();
+        lbl_order_tab.setFont(new Font("Courier", Font.BOLD, 15));
+        lbl_order_tab.setSize(x_label_width, y_label_height);
+        lbl_order_tab.setLocation(loc_x, loc_y);
+        lbl_order_tab.setVisible(true);
+        c.add(lbl_order_tab);
+
+        // this displays the clipboard stats on what is loaded from the Orders
+        loc_y += y_line_gap;
+        lbl_orders = new JLabel();
+        lbl_orders.setFont(new Font("Courier", Font.BOLD, 15));
+        lbl_orders.setSize(x_label_width, y_label_height);
+        lbl_orders.setLocation(loc_x, loc_y);
+        lbl_orders.setVisible(true);
+        c.add(lbl_orders);
+
+        // this displays the clipboard stats on what is loaded from the Details
+        loc_y += y_line_gap;
+        lbl_items = new JLabel();
+        lbl_items.setFont(new Font("Courier", Font.BOLD, 15));
+        lbl_items.setSize(x_label_width, y_label_height);
+        lbl_items.setLocation(loc_x, loc_y);
+        lbl_items.setVisible(true);
+        c.add(lbl_items);
+
+        // init the values in the clipboard info
+        this.setTabOwner("NONE");
+        this.setOrderCount (0, 0, null);
+        this.setDetailCount (0, 0, null);
+
+        // default the message enable flags to on
+        cbox_parser.setSelected(true);
+        cbox_ssheet.setSelected(true);
+        cbox_info  .setSelected(true);
+        cbox_debug .setSelected(true);
+        cbox_props .setSelected(true);
+
+        setVisible(true);
+    }
+
+    public void clearMessages () {
+        txt_info.setText("");
+    }
+
+    public void enableMessage (int msgType, boolean bEnable) {
+        switch (msgType) {
+            case STATUS_PARSER:
+                cbox_parser.setSelected(bEnable);
+                break;
+            case STATUS_SSHEET:
+                cbox_ssheet.setSelected(bEnable);
+                break;
+            case STATUS_INFO:
+                cbox_info  .setSelected(bEnable);
+                break;
+            case STATUS_DEBUG:
+                cbox_debug .setSelected(bEnable);
+                break;
+            case STATUS_PROPS:
+                cbox_props .setSelected(bEnable);
+                break;
+            default:
+                break;
+        }
+    }
+    
+    public void disableAllButton () {
+        btn_clipboard.setVisible(false);
+        lbl_clipboard.setVisible(false);
+        btn_balance.setVisible(false);
+        lbl_balance.setVisible(false);
+        btn_update.setVisible(false);
+        lbl_update.setVisible(false);
+    }
+    
+    public void enableClipboardButton (boolean status) {
+        btn_clipboard.setVisible(status);
+        lbl_clipboard.setVisible(status);
+    }
+    
+    public void enableCheckBalanceButton (boolean status) {
+        btn_balance.setVisible(status);
+        lbl_balance.setVisible(status);
+    }
+    
+    public void enableUpdateButton (boolean status) {
+        btn_update.setVisible(status);
+        lbl_update.setVisible(status);
+    }
+
+    public void setTabOwner (String tab) {
+        lbl_order_tab.setText("TAB SELECT:  " + tab);
+    }
+    
+    public void setOrderCount (int orders, int items, String date) {
+        String strOrdVal = "   " + orders;
+        String strItmVal = "   " + items;
+        if (date == null || date.isBlank()) date = " ---  -  --- ";
+        lbl_orders.setText("ORDERS : " + strOrdVal.substring(strOrdVal.length() - 2) +
+                           "  ITEMS: " + strItmVal.substring(strItmVal.length() - 3) +
+                           "      " + date);
+    }
+    
+    public void setDetailCount (int orders, int items, String date) {
+        String strOrdVal = "   " + orders;
+        String strItmVal = "   " + items;
+        if (date == null || date.isBlank()) date = " ---  -  --- ";
+        lbl_items.setText("DETAILS: " + strOrdVal.substring(strOrdVal.length() - 2) +
+                          "  ITEMS: " + strItmVal.substring(strItmVal.length() - 3) +
+                          "      " + date);
+    }
+    
+    public void outputInfoMsg (int errLevel, String msg) {
+        SimpleAttributeSet attributes = new SimpleAttributeSet();
+        StyleConstants.setFontFamily(attributes,"Courier");
+        StyleConstants.setFontSize(attributes, 15);
+        switch (errLevel) {
+            default:
+            case STATUS_ERROR:
+                StyleConstants.setForeground(attributes, generateColor (TextColor.Red));
+                StyleConstants.setBold(attributes, true);
+                StyleConstants.setItalic(attributes, false);
+                break;
+            case STATUS_WARN:
+                StyleConstants.setForeground(attributes, generateColor (TextColor.Orange));
+                StyleConstants.setBold(attributes, true);
+                StyleConstants.setItalic(attributes, false);
+                break;
+            case STATUS_NORMAL:
+                StyleConstants.setForeground(attributes, generateColor (TextColor.Black));
+                StyleConstants.setBold(attributes, false);
+                StyleConstants.setItalic(attributes, false);
+                break;
+            case STATUS_PARSER:
+                if (!cbox_parser.isSelected()) {
+                    return;
+                }
+                StyleConstants.setForeground(attributes, generateColor (TextColor.Blue));
+                StyleConstants.setBold(attributes, false);
+                StyleConstants.setItalic(attributes, true);
+                break;
+            case STATUS_SSHEET:
+                if (!cbox_ssheet.isSelected()) {
+                    return;
+                }
+                StyleConstants.setForeground(attributes, generateColor (TextColor.Green));
+                StyleConstants.setBold(attributes, false);
+                StyleConstants.setItalic(attributes, true);
+                break;
+            case STATUS_INFO:
+                if (!cbox_info.isSelected()) {
+                    return;
+                }
+                StyleConstants.setForeground(attributes, generateColor (TextColor.DkVio));
+                StyleConstants.setBold(attributes, false);
+                StyleConstants.setItalic(attributes, false);
+                break;
+            case STATUS_DEBUG:
+                if (!cbox_debug.isSelected()) {
+                    return;
+                }
+                StyleConstants.setForeground(attributes, generateColor (TextColor.Brown));
+                StyleConstants.setBold(attributes, false);
+                StyleConstants.setItalic(attributes, false);
+                break;
+            case STATUS_PROPS:
+                if (!cbox_props.isSelected()) {
+                    return;
+                }
+                StyleConstants.setForeground(attributes, generateColor (TextColor.Gold));
+                StyleConstants.setBold(attributes, false);
+                StyleConstants.setItalic(attributes, true);
+                break;
+        }
+
+        txt_info.setCharacterAttributes(attributes, false);
+        Document doc = txt_info.getDocument();
+        try {
+            doc.insertString(doc.getLength(), msg + NEWLINE, attributes);
+        } catch (BadLocationException ex) {
+            Logger.getLogger(UIFrame.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    private static Color cvtHSBtoColor (int h, int s, int b) {
+        double hue    = (double) h / 360.0;
+        double sat    = (double) s / 100.0;
+        double bright = (double) b / 100.0;
+        return Color.getHSBColor((float)hue, (float)sat, (float)bright);
+    }
+    
+    /**
+     * generates the specified text color for the debug display.
+     * 
+     * @param colorName - name of the color to generate
+     * @return corresponding Color value representation
+     */
+    private static Color generateColor (TextColor colorName) {
+        switch (colorName) {
+            default:
+            case Black:   return Color.BLACK;
+            case DkGrey:  return Color.DARK_GRAY;
+            case DkRed:   return cvtHSBtoColor (0,   100, 66);
+            case Red:     return cvtHSBtoColor (0,   100, 90);
+            case LtRed:   return cvtHSBtoColor (0,   60,  100);
+            case Orange:  return cvtHSBtoColor (20,  100, 100);
+            case Brown:   return cvtHSBtoColor (20,  80,  66);
+            case Gold:    return cvtHSBtoColor (40,  100, 90);
+            case Green:   return cvtHSBtoColor (128, 100, 45);
+            case Cyan:    return cvtHSBtoColor (190, 80,  45);
+            case LtBlue:  return cvtHSBtoColor (210, 100, 90);
+            case Blue:    return cvtHSBtoColor (240, 100, 100);
+            case Violet:  return cvtHSBtoColor (267, 100, 100);
+            case DkVio:   return cvtHSBtoColor (267, 100, 66);
+        }
+    }
+
+    private void outputSeparatorLine (String heading) {
+        heading = "=====" + heading + "======================================================================";
+        heading = heading.substring(0, 75);
+        outputInfoMsg (STATUS_NORMAL, heading);
+    }
+    
+    /**
+     * Get the action performed by the user and act accordingly
+     * 
+     * @param e
+     */
+    @Override
+    public void actionPerformed(ActionEvent e)
+    {
+        boolean bSuccess;
+        
+        AmazonReader amazonReader = new AmazonReader();
+        PdfReader pdfReader = new PdfReader();
+//        Spreadsheet spreadsheet = new Spreadsheet();
+
+        if (e.getSource() == btn_select) {
+            outputSeparatorLine("LOAD SPREADSHEET");
+            bSuccess = Spreadsheet.loadSpreadsheet();
+            if (! bSuccess) {
+                disableAllButton();
+            }
+        }
+        else if (e.getSource() == btn_clipboard) {
+            outputSeparatorLine("PARSE CLIPBOARD");
+            bSuccess = amazonReader.parseWebData();
+            if (! bSuccess) {
+                disableAllButton();
+            }
+        }
+        else if (e.getSource() == btn_update) {
+            outputSeparatorLine("UPDATE FROM CLIPS");
+            amazonReader.updateSpreadsheet();
+        }
+        else if (e.getSource() == btn_balance) {
+            outputSeparatorLine("BALANCE FROM PDF");
+            pdfReader.readPdfContents();
+        }
+    }
+}
