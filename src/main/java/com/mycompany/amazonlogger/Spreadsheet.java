@@ -230,10 +230,6 @@ public class Spreadsheet {
                         BigDecimal bdValue = (BigDecimal) object;
                         dValue = bdValue.doubleValue();
                         break;
-//                    case "class java.math.BigInteger":
-//                        BigInteger biValue = (BigInteger) object;
-//                        dValue = biValue.doubleValue();
-//                        break;
                     case "class java.lang.Double":
                         dValue = (Double) object;
                         break;
@@ -311,10 +307,6 @@ public class Spreadsheet {
                             bdValue = bdValue.multiply(bdMult);
                         iValue = bdValue.intValue();
                         break;
-//                    case "class java.math.BigInteger":
-//                        BigInteger biValue = (BigInteger) object;
-//                        iValue = biValue.intValue();
-//                        break;
                     case "class java.lang.Double":
                         Double dValue = (Double) object;
                         iValue = dValue.intValue() * iMult;

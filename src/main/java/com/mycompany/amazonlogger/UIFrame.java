@@ -13,11 +13,14 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextPane;
 import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
@@ -72,6 +75,7 @@ public final class UIFrame extends JFrame implements ActionListener {
     private final JLabel lbl_orders;
     private final JLabel lbl_items;
     private final JScrollPane scroll_info;
+    private final JPanel txt_panel;
     private final JTextPane txt_info;
 
     // constructor, to initialize the components
@@ -199,8 +203,13 @@ public final class UIFrame extends JFrame implements ActionListener {
         txt_info.setLocation(loc_x, loc_y);
         txt_info.setEditable(false);
         c.add(txt_info);
+        // put it in a panel to make it non-wrap mode, so we can scroll horizontally
+        txt_panel = new JPanel();
+        txt_panel.add(txt_info);
+        txt_panel.setLayout(new BoxLayout(txt_panel, BoxLayout.Y_AXIS));
+        c.add(txt_panel);
         // need it to be scrollable
-        scroll_info = new JScrollPane (txt_info);
+        scroll_info = new JScrollPane (txt_panel);
         scroll_info.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
         scroll_info.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         scroll_info.setSize(x_pane_width, y_pane_height);
@@ -214,8 +223,8 @@ public final class UIFrame extends JFrame implements ActionListener {
         btn_copy.setFont(new Font("Arial", Font.BOLD, 15));
         btn_copy.setSize(x_button_width, y_button_height);
         btn_copy.setLocation(loc_x, loc_y);
-//        btn_copy.addActionListener((ActionListener) this);
         btn_copy.setVisible(true);
+        // this provides a way to copy the text to the clipboard
         btn_copy.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
@@ -338,6 +347,10 @@ public final class UIFrame extends JFrame implements ActionListener {
         setVisible(true);
     }
 
+    private void scrollToBottom() {
+        txt_info.setCaretPosition(txt_info.getDocument().getLength());
+    }
+    
     public void clearMessages () {
         txt_info.setText("");
     }
@@ -477,6 +490,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         Document doc = txt_info.getDocument();
         try {
             doc.insertString(doc.getLength(), msg + NEWLINE, attributes);
+            scrollToBottom();
         } catch (BadLocationException ex) {
             Logger.getLogger(UIFrame.class.getName()).log(Level.SEVERE, null, ex);
         }
