@@ -1,4 +1,8 @@
+TODO:
 - When updating Order Details, make sure on multi-item orders to match the descriptions with the current entry item before copying the data.
 - Add the Order Details list to the Your Orders list if present, prior to writing to spreadsheet.
-- Add button to save text pane info to file
 - Add tests for verifying functionality.
+
+Completed:
+- Add button to save text pane info to file
+
