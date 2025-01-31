@@ -159,85 +159,86 @@ public class PdfReader {
             ArrayList<CardTransaction> transactionList = new ArrayList<>();
             Boolean bValid = false;
 
-            // Read the contents of the PDF file line at a time
-            Scanner scanner = new Scanner(contenthandler.toString());
-            while (scanner.hasNextLine()) {
-
-                String line = scanner.nextLine();
-
-                // this will only be true if the previous line read was a valid Amazon entry.
-                // The line following that entry will contain the Amazon order number.
-                if (bValid) {
-                    if (line.length() < 36 || ! line.contains("Order Number")) {
-                        // we must be at a page crossing where we have some invalid lines
-                        // prior to the order number, so just skip to the next line.
-                        continue;
-                    }
-                    frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  order number: " + line);
-                    // we have a valid order number, let's post it to the list of transactions
+            try (
+                // Read the contents of the PDF file line at a time
+                Scanner scanner = new Scanner(contenthandler.toString())) {
+                while (scanner.hasNextLine()) {
                     
-                    String ordernum = line.substring(19);
-                    if (transactionList.isEmpty()) {
-                        throw new ParserException("Order # " + ordernum + " received prior to any transactions");
-                    }
-                    CardTransaction newEntry = transactionList.removeLast();
-                    if (newEntry.order_num == null || newEntry.order_num.isEmpty()) {
-                        newEntry.order_num = ordernum;
-                    } else {
-                        throw new ParserException("Order # " + ordernum + " received with no preceding data");
-                    }
-                    transactionList.add(newEntry);
-                    bValid = false;
-                }
-
-                // let's weed out the unimportant lines
-                Integer amountIx = line.length();
-                if (amountIx > 16) {
-                    // this is checking for the date section and the gap preceding the vendor name
-                    bValid = true;
-                    for (int ix = 0; ix < 9; ix++) {
-                        char c = line.charAt(ix);
-                        if ((ix < 2 && (c < '0' || c > '9')) ||
-                            (ix == 2 && c != '/') ||
-                            (ix > 2 && ix < 5 && (c < '0' || c > '9')) ||
-                            (ix >= 5 && c != ' ') ) {
-                            bValid = false;
-                            break;
-                        }
-                    }
-                    // this is checking for the cost at the end of the string
+                    String line = scanner.nextLine();
+                    
+                    // this will only be true if the previous line read was a valid Amazon entry.
+                    // The line following that entry will contain the Amazon order number.
                     if (bValid) {
-                        while (line.charAt(amountIx - 1) != ' ') {
-                            char c = line.charAt(amountIx - 1);
-                            if (c != '.' && c != '-' && (c < '0' || c > '9')) {
+                        if (line.length() < 36 || ! line.contains("Order Number")) {
+                            // we must be at a page crossing where we have some invalid lines
+                            // prior to the order number, so just skip to the next line.
+                            continue;
+                        }
+                        frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  order number: " + line);
+                        // we have a valid order number, let's post it to the list of transactions
+                        
+                        String ordernum = line.substring(19);
+                        if (transactionList.isEmpty()) {
+                            throw new ParserException("Order # " + ordernum + " received prior to any transactions");
+                        }
+                        CardTransaction newEntry = transactionList.removeLast();
+                        if (newEntry.order_num == null || newEntry.order_num.isEmpty()) {
+                            newEntry.order_num = ordernum;
+                        } else {
+                            throw new ParserException("Order # " + ordernum + " received with no preceding data");
+                        }
+                        transactionList.add(newEntry);
+                        bValid = false;
+                    }
+                    
+                    // let's weed out the unimportant lines
+                    Integer amountIx = line.length();
+                    if (amountIx > 16) {
+                        // this is checking for the date section and the gap preceding the vendor name
+                        bValid = true;
+                        for (int ix = 0; ix < 9; ix++) {
+                            char c = line.charAt(ix);
+                            if ((ix < 2 && (c < '0' || c > '9')) ||
+                                    (ix == 2 && c != '/') ||
+                                    (ix > 2 && ix < 5 && (c < '0' || c > '9')) ||
+                                    (ix >= 5 && c != ' ') ) {
                                 bValid = false;
                                 break;
                             }
-                            amountIx--;
                         }
-                    }
-                    if (bValid) {
-                        CardTransaction newEntry = new CardTransaction();
-                        frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  transaction: " + line);
-
-                        // we have a valid debit/credit line - save useful contents
-                        newEntry.completed = false;
-                        newEntry.vendor = line.substring(10, 20);
-                        newEntry.trans_date = line.substring(0, 5);
-                        newEntry.amount = Utils.getAmountValue(line.substring(amountIx));
-
-                        // now let's check for Amazon receipts only
-                        if (newEntry.vendor.contentEquals("AMAZON MKT") ||
-                            newEntry.vendor.contentEquals("AMZN Mktp ") ||
-                            newEntry.vendor.contentEquals("Amazon.com") ) {
-                            transactionList.add(newEntry);
-                        } else {
-                            bValid = false;
+                        // this is checking for the cost at the end of the string
+                        if (bValid) {
+                            while (line.charAt(amountIx - 1) != ' ') {
+                                char c = line.charAt(amountIx - 1);
+                                if (c != '.' && c != '-' && (c < '0' || c > '9')) {
+                                    bValid = false;
+                                    break;
+                                }
+                                amountIx--;
+                            }
+                        }
+                        if (bValid) {
+                            CardTransaction newEntry = new CardTransaction();
+                            frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  transaction: " + line);
+                            
+                            // we have a valid debit/credit line - save useful contents
+                            newEntry.completed = false;
+                            newEntry.vendor = line.substring(10, 20);
+                            newEntry.trans_date = line.substring(0, 5);
+                            newEntry.amount = Utils.getAmountValue(line.substring(amountIx));
+                            
+                            // now let's check for Amazon receipts only
+                            if (newEntry.vendor.contentEquals("AMAZON MKT") ||
+                                    newEntry.vendor.contentEquals("AMZN Mktp ") ||
+                                    newEntry.vendor.contentEquals("Amazon.com") ) {
+                                transactionList.add(newEntry);
+                            } else {
+                                bValid = false;
+                            }
                         }
                     }
                 }
             }
-            scanner.close();
 
             // combine the entries that have same order_num and positive amounts
             for (int ix = 0; ix < transactionList.size() - 1; ix++) {

@@ -50,7 +50,7 @@ public class ParseDetails {
                 if (savedKey.eKeyId == Keyword.KeyTyp.END_OF_RECORD) {
                     // exit if we completed loop
                     frame.outputInfoMsg (UIFrame.STATUS_PARSER, "END OF ITEMS");
-                    keywordInfo.eKeyId = Keyword.KeyTyp.COMPLETE;
+                    keywordInfo = keyword.makeKeyword("", Keyword.KeyTyp.COMPLETE, Keyword.DataTyp.NONE);
                     break;
                 }
             }
@@ -59,6 +59,9 @@ public class ParseDetails {
             bSkipRead = false;
             
             // see if we have a pending command (next line contains the data)
+            if (savedKey == null) {
+                savedKey = keyword.makeKeyword("", Keyword.KeyTyp.NONE, Keyword.DataTyp.NONE);
+            }
             if (keywordInfo == null || keywordInfo.eKeyId == Keyword.KeyTyp.NONE) {
                 keywordInfo = savedKey;
                 if (keywordInfo.eKeyId == Keyword.KeyTyp.NONE) {

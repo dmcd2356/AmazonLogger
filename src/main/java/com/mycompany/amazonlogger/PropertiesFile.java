@@ -14,7 +14,6 @@ import static com.mycompany.amazonlogger.AmazonReader.frame;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
@@ -40,6 +39,7 @@ public class PropertiesFile {
         MsgDebug,               // debug message enable flag for STATUS_DEBUG
         MsgProperties,          // debug message enable flag for STATUS_PROPS
         MaxLenDescription,      // max length of description to display
+        DebugFileOut,           // name of the output file to copy debug info to
     };
 
     PropertiesFile () {

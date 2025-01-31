@@ -64,7 +64,7 @@ public class Spreadsheet {
     // spreadsheet access information
     private static int firstRow = -1;           // the first row following the header
     private static int lastValidColumn = 0;     // the column index of the last valid entry
-    private static HashMap<Column, Integer> hmSheetColumns = new HashMap<>();
+    private static final HashMap<Column, Integer> hmSheetColumns = new HashMap<>();
 
     /**
      * returns the corresponding column index for the specified column name in the spreadsheet.
@@ -969,6 +969,9 @@ public class Spreadsheet {
             return false;
         }
 
+        // get the name of the file to store debug info to (if defined)
+        frame.setupDebugFile(props.getPropertiesItem(Property.DebugFileOut, ""));
+        
         iSheetYear = iYear0;
         frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet year: " + iSheetYear);
         return true;

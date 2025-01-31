@@ -11,8 +11,13 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
@@ -20,7 +25,6 @@ import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextPane;
 import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
@@ -46,6 +50,8 @@ public final class UIFrame extends JFrame implements ActionListener {
     public static final int STATUS_DEBUG  = 6;  // low-level detailed messages
     public static final int STATUS_PROPS  = 7;  // low-level properties interface messages
     
+    private PrintWriter debugFile = null;
+    
     private enum TextColor {
         Black, DkGrey, DkRed, Red, LtRed, Orange, Brown,
         Gold, Green, Cyan, LtBlue, Blue, Violet, DkVio;
@@ -66,6 +72,7 @@ public final class UIFrame extends JFrame implements ActionListener {
     private final JButton btn_update;
     private final JButton btn_balance;
     private final JButton btn_copy;
+    private final JButton btn_print;
     private final JLabel lbl_select;
     private final JLabel lbl_clipboard;
     private final JLabel lbl_update;
@@ -217,6 +224,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         c.add(scroll_info);
 
         // TOP LEFT OF BOTTOM PANEL
+        loc_x = border_size;
         loc_y += y_line_gap + y_pane_height;
         int y_bottom_panel = loc_y;
         btn_copy = new JButton("Copy text");
@@ -229,14 +237,37 @@ public final class UIFrame extends JFrame implements ActionListener {
             @Override
             public void actionPerformed(ActionEvent e){
                 String textToCopy = txt_info.getText();
-                StringSelection stringSelection=new StringSelection(textToCopy);
+                StringSelection stringSelection = new StringSelection(textToCopy);
                 Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
                 clipboard.setContents(stringSelection, null);
             }
         });    
         c.add(btn_copy);
 
+        loc_y += y_line_gap;
+        btn_print = new JButton("Print text");
+        btn_print.setFont(new Font("Arial", Font.BOLD, 15));
+        btn_print.setSize(x_button_width, y_button_height);
+        btn_print.setLocation(loc_x, loc_y);
+        btn_print.setVisible(false);
+        // this provides a way to copy the text to the clipboard
+        btn_print.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent e){
+                if (debugFile != null) {
+                    String textToCopy = txt_info.getText();
+                    Stream<String> lines = textToCopy.lines();
+                    lines.forEach(debugFile::println);
+                    debugFile.flush();
+                    debugFile.close();
+                }
+            }
+        });    
+        c.add(btn_print);
+
+        // NEXT COLUMN OF BOTTOM PANEL
         loc_x = x_cbox_offset;
+        loc_y = y_bottom_panel;
         cbox_parser = new JCheckBox("Parser msgs");
         cbox_parser.setFont(new Font("Arial", Font.BOLD, 15));
         cbox_parser.setSize(x_cbox_width, y_cbox_height);
@@ -302,8 +333,8 @@ public final class UIFrame extends JFrame implements ActionListener {
         c.add(cbox_props);
         
         // TOP RIGHT OF BOTTOM PANEL
-        loc_y = y_bottom_panel;
         loc_x = x_info_offset;
+        loc_y = y_bottom_panel;
         x_label_width = 500;
         
         // this will display the tab owner of the clipboard data loaded
@@ -401,6 +432,43 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_update.setVisible(status);
     }
 
+    public void setupDebugFile (String fname) {
+        if (fname == null || fname.isBlank()) {
+            outputInfoMsg (STATUS_WARN, "Debug file name missing from PropertiesFile - disabling Print to debug file");
+            debugFile = null;
+            return;
+        }
+        // we always put the file in the same location as where the spreadsheet file is
+        String ssPath = Utils.getPathFromPropertiesFile(Property.SpreadsheetPath);
+        if (ssPath == null) {
+            outputInfoMsg (STATUS_WARN, "Spreadsheet path missing from PropertiesFile - disabling Print to debug file");
+            debugFile = null;
+            return;
+        }
+        fname = ssPath + "/" + fname;
+        File newFile = new File(fname);
+        if (newFile.isDirectory()) {
+            outputInfoMsg (STATUS_WARN, "Debug file name invalid - disabling Print to debug file");
+            debugFile = null;
+            return;
+        }
+        // create a new file or overwrite the existing one
+        try {
+            if (newFile.exists()) {
+                outputInfoMsg (STATUS_NORMAL, "Deleting current existing debug file: " + fname);
+                newFile.delete();
+            }
+            outputInfoMsg (STATUS_NORMAL, "Creating debug file: " + fname);
+            newFile.createNewFile();
+            debugFile = new PrintWriter(fname);
+            btn_print.setVisible(true);
+        } catch (IOException ex) {
+            // file inaccessible
+            outputInfoMsg (STATUS_ERROR, "IOException for debug file: " + fname);
+            debugFile = null;
+        }
+    }
+    
     public void setTabOwner (String tab) {
         lbl_order_tab.setText("TAB SELECT:  " + tab);
     }

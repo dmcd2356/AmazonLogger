@@ -110,11 +110,12 @@ public class DateFormat {
     }
     
     /*********************************************************************
-    ** returns a date string (MM-DD) for a given Date value.
+    ** returns a date string for a given Date value.
     * 
-    *  @param date - the date to convert
+    *  @param date      - the date to convert
+     * @param bInclYear - true to format as YYYY-MM-DD, false for MM-DD
     * 
-    *  @return the corresponding Date formatted as: MM-DD
+    *  @return the corresponding Date formatted as: YYYY-MM-DD or MM-DD
     */
     public static String convertDateToString (LocalDate date, boolean bInclYear) {
         if (date == null)

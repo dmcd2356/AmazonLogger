@@ -82,6 +82,9 @@ public class ParseOrders {
             bSkipRead = false;
             
             // see if we have a pending command (next line contains the data)
+            if (savedKey == null) {
+                savedKey = keyword.makeKeyword("", Keyword.KeyTyp.NONE, Keyword.DataTyp.NONE);
+            }
             if (keywordInfo == null || keywordInfo.eKeyId == Keyword.KeyTyp.NONE) {
                 keywordInfo = savedKey;
                 if (keywordInfo.eKeyId == Keyword.KeyTyp.NONE) {
