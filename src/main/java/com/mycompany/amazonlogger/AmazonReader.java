@@ -2,6 +2,7 @@ package com.mycompany.amazonlogger;
 
 // Importing java input/output classes
 import com.mycompany.amazonlogger.PropertiesFile.Property;
+import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -12,13 +13,23 @@ public class AmazonReader {
     public  static UIFrame frame;
     public  static Keyword keyword;
     public  static PropertiesFile props;
-    
-    
+
+    private  ClipboardReader clipReader = null;
     private static String strSheetSel = null;
     private static ArrayList<AmazonOrder> amazonList = new ArrayList<>();
     private static ArrayList<AmazonOrder> detailList = new ArrayList<>();
 
 
+    public AmazonReader () {
+        // run using input from system clipboard
+        clipReader = new ClipboardReader();
+    }
+    
+    public AmazonReader (File clipFile) {
+        // run from using input from file
+        clipReader = new ClipboardReader (clipFile);
+    }
+    
     /**
      * finds the specified order number entry in the list
      * 
@@ -158,29 +169,6 @@ public class AmazonReader {
     }
 
     /**
-     * returns the start and end dates of an amazon list.
-     * 
-     * @param myList - the list to get the begin and end dates of
-     * 
-     * @return the date range in the form: "MM-DD - MM-DD" (null if empty list)
-     */
-    private String getListDateRange (ArrayList<AmazonOrder> myList) {
-        if (myList == null || myList.isEmpty()) {
-            return null;
-        }
-        LocalDate startDate = myList.get(myList.size()-1).getOrderDate();
-        LocalDate endDate = myList.get(0).getOrderDate();
-        if (startDate.isAfter(endDate)) {
-            LocalDate tempDate = startDate;
-            startDate = endDate;
-            endDate = tempDate;
-        }
-        String strStart = DateFormat.convertDateToString(startDate, false);
-        String strEnd   = DateFormat.convertDateToString(endDate, false);
-        return strStart + " - " + strEnd;
-    }
-    
-    /**
      * parses the data from the web text file (or clipboard).
      *  This extracts vital info from the web page data and saves it in an array.
      *  It then determines which page of the spreadsheet the page referred to and
@@ -198,17 +186,10 @@ public class AmazonReader {
         keyword = new Keyword();
 
 	try {
-            // read the clipboard
-            boolean bSuccess = ClipboardReader.webClipOpen();
-            if (! bSuccess) {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, "No data found in clipboard.");
-                return false;
-            }
-
             // first, we check for which type of file we are reading
             while (eClipType == Keyword.ClipTyp.NONE) {
                 // get next line from clipboard
-                line = ClipboardReader.webClipGetLine();
+                line = clipReader.getLine();
                 if (line == null)
                     break;
                 if (line.isBlank())
@@ -217,6 +198,7 @@ public class AmazonReader {
                 Keyword.KeywordClipEntry keywordInfo = keyword.getKeywordClip(line);
                 eClipType = keywordInfo.eClipType;
                 eKeyId = keywordInfo.eKeyId;
+                LocalDate startDate, endDate;
 
                 switch (eKeyId) {
                     default:
@@ -246,21 +228,24 @@ public class AmazonReader {
                     case Keyword.KeyTyp.ORDER_PLACED:
                         frame.outputInfoMsg (UIFrame.STATUS_PARSER, "'ORDERS' clipboard");
                         ParseOrders parseOrd = new ParseOrders();
-                        newList = parseOrd.parseOrders(line, eKeyId);
+                        newList = parseOrd.parseOrders(clipReader, line, eKeyId);
                         // merge list with current running list (in chronological order)
                         amazonList = addOrdersToList (amazonList, newList);
                         int itemCount = 0;
                         for (int ix = 0; ix < amazonList.size(); ix++) {
                             itemCount += amazonList.get(ix).item.size();
                         }
-                        String dateRange = getListDateRange (amazonList);
-                        frame.setOrderCount(amazonList.size(), itemCount, dateRange);
-                        frame.outputInfoMsg(UIFrame.STATUS_PARSER, "Total orders in list = " + amazonList.size());
+                        if (itemCount > 0) {
+                            startDate = amazonList.get(0).getOrderDate();
+                            endDate = amazonList.get(amazonList.size()-1).getOrderDate();
+                            frame.setOrderCount(amazonList.size(), itemCount, startDate, endDate);
+                            frame.outputInfoMsg(UIFrame.STATUS_PARSER, "Total orders in list = " + amazonList.size());
+                        }
                         break;
                     case Keyword.KeyTyp.DETAILS:
                         frame.outputInfoMsg (UIFrame.STATUS_PARSER, "'DETAILS' clipboard");
                         ParseDetails parseDet = new ParseDetails();
-                        AmazonOrder newOrder = parseDet.parseDetails(line);
+                        AmazonOrder newOrder = parseDet.parseDetails(clipReader, line);
                         // add the new order to the current detailed orders we have accumulated,
                         //  but keep them in chronological order (oldest to newest)
                         boolean bPlaced = false;
@@ -281,9 +266,12 @@ public class AmazonReader {
                         for (int ix = 0; ix < detailList.size(); ix++) {
                             itemCount += detailList.get(ix).item.size();
                         }
-                        dateRange = getListDateRange (detailList);
-                        frame.setDetailCount(detailList.size(), itemCount, dateRange);
-                        frame.outputInfoMsg(UIFrame.STATUS_PARSER, "Total items in detailed list = " + itemCount);
+                        if (itemCount > 0) {
+                            startDate = amazonList.get(0).getOrderDate();
+                            endDate = amazonList.get(amazonList.size()-1).getOrderDate();
+                            frame.setDetailCount(detailList.size(), itemCount, startDate, endDate);
+                            frame.outputInfoMsg(UIFrame.STATUS_PARSER, "Total items in detailed list = " + itemCount);
+                        }
                         break;
                     case Keyword.KeyTyp.INVOICE:
                         frame.outputInfoMsg (UIFrame.STATUS_PARSER, "'INVOICE' clipboard");
@@ -294,7 +282,7 @@ public class AmazonReader {
             }
 
             // file has been parsed, close the file
-            ClipboardReader.webClipClose();
+            clipReader.close();
             
             // if we captured any orders, we can now allow the spreadsheet to be updated
             if (! amazonList.isEmpty() || ! detailList.isEmpty()) {
@@ -312,7 +300,7 @@ public class AmazonReader {
     /**
      * updates the spreadsheet file with the lists of AmazonOrders
      */
-    public void updateSpreadsheet () {
+    public static void updateSpreadsheet () {
         if (strSheetSel == null) {
             frame.outputInfoMsg(UIFrame.STATUS_WARN, "updateSpreadsheet: spreadsheet sheet selection not made");
             return;
@@ -444,12 +432,12 @@ public class AmazonReader {
             frame.enableUpdateButton(false);
 
             // reset the lists, since we used it already
+            strSheetSel = null;
             amazonList.clear();
             detailList.clear();
-            strSheetSel = null;
-            frame.setTabOwner("NONE");
-            frame.setOrderCount(0, 0, null);
-            frame.setDetailCount(0, 0, null);
+            frame.clearTabOwner();
+            frame.clearOrderCount();
+            frame.clearDetailCount();
 
         } catch (ParserException | IOException ex) {
             frame.outputInfoMsg(UIFrame.STATUS_ERROR, ex.getMessage());
@@ -473,20 +461,172 @@ public class AmazonReader {
                     );
         }
     }
+
+    private static File checkFilename (String fname, String type, String filetype, boolean bWritable) {
+        if (!fname.endsWith(type)) {
+            System.out.println("ERROR: Invalid " + filetype + " filename: " + fname);
+            System.exit(1);
+        }
+        String pathname = null;
+        if (props != null) {
+            pathname = props.getPropertiesItem(Property.TestPath, "");
+        }
+        if (pathname == null || pathname.isBlank()) {
+            pathname = System.getProperty("user.dir");
+            System.out.println("No TestPath defined, using current path");
+        }
+        File myFile = new File(pathname);
+        if (!myFile.isDirectory()) {
+            System.out.println("ERROR: Invalid " + filetype + " path not found: " + pathname);
+            System.exit(1);
+        }
+        System.out.println("TestPath used: " + pathname);
+        myFile = new File(pathname + "/" + fname);
+        if (!myFile.canRead()) {
+            System.out.println("ERROR: Invalid " + filetype + " file - no read access: " + fname);
+            System.exit(1);
+        }
+        if (bWritable && !myFile.canWrite()) {
+            System.out.println("ERROR: Invalid " + filetype + " file - no write access: " + fname);
+            System.exit(1);
+        }
+        return myFile;
+    }
     
     // Main driver method
-    public static void main(String[] args) throws Exception
+    public static void main(String[] args)
     {
-        // create the user interface to control things
-        frame = new UIFrame();
-        props = new PropertiesFile();
-        
-        // enable the messages as they were from prevous run
-        frame.enableMessage(UIFrame.STATUS_PARSER, props.getPropertiesItem(Property.MsgParser     , "0").contentEquals("1"));
-        frame.enableMessage(UIFrame.STATUS_SSHEET, props.getPropertiesItem(Property.MsgSpreadsheet, "0").contentEquals("1"));
-        frame.enableMessage(UIFrame.STATUS_INFO  , props.getPropertiesItem(Property.MsgInfo       , "0").contentEquals("1"));
-        frame.enableMessage(UIFrame.STATUS_DEBUG , props.getPropertiesItem(Property.MsgDebug      , "0").contentEquals("1"));
-        frame.enableMessage(UIFrame.STATUS_PROPS , props.getPropertiesItem(Property.MsgProperties , "0").contentEquals("1"));
+        // check for arguments passed (non-GUI interface for testing):
+        if (args.length > 0) {
+            frame = new UIFrame(false);
+            props = new PropertiesFile();
+
+            File ssheetFile = null;
+            File pdfFile = null;
+            ArrayList<File> clipFiles = new ArrayList<>();
+            Integer debugFlags = 0;
+            String fname;
+            String filetype;
+            String option = "";
+            boolean bArgError = false;
+            for (int ix = 0; ix < args.length && !bArgError; ix++) {
+                option = args[ix];
+                switch (option) {
+                    case "-h":
+                        System.out.println(" -h            = to print this message");
+                        System.out.println(" -s <ssheet>   = the name of the spreadsheet file to modify");
+                        System.out.println(" -p <pdffile>  = the name of the PDF file to run");
+                        System.out.println(" -c <clipfile> = the name of the clipboard file to run");
+                        System.out.println(" -d <flags>    = the debug messages to enable when running");
+                        System.out.println("     The debug flag values are hex bit values and defined as:");
+                        System.out.println("     01 = STATUS_PARSER");
+                        System.out.println("     02 = STATUS_SPREADSHEET");
+                        System.out.println("     04 = STATUS_INFO");
+                        System.out.println("     08 = STATUS_DEBUG");
+                        System.out.println("     10 = STATUS_PROPS");
+                        System.out.println("     e.g. -d 1F will enable all msgs");
+                        System.out.println();
+                        System.out.println(" The -s option is required, since it specifies the spreadsheet to");
+                        System.out.println("  work with. Only 1 is allowed.");
+                        System.out.println(" The -p and the -c options are optional and specify the input files");
+                        System.out.println("  to parse. Ony 1 PDF file can be specified, but multiple Clipboard");
+                        System.out.println("  files can be specified. If neither is specified, it will simply");
+                        System.out.println("  open the Spreadsheet file and close it.");
+                        System.out.println(" The path used for the all files is the value of the");
+                        System.out.println("  amazonreader/site.properties file 'TestPath' entry definition.");
+                        System.out.println("  If the site.properties file is not found is not found in the");
+                        System.out.println("  current directory or the 'TestPath' entry is not defined,");
+                        System.out.println("  the current directory will be used as the path.");
+                        System.out.println(" All debug messages will be directed to standard output, which can");
+                        System.out.println("  be redirected to a file for comparing to an expected result.");
+                        System.out.println();
+                        System.exit(0);
+                        break;
+                    case "-d":
+                        if (ix >= args.length - 1)  { bArgError = true;   break; }
+                        debugFlags = Integer.parseUnsignedInt(args[++ix], 16);
+                        frame.enableMessage(UIFrame.STATUS_PARSER, (0 != (debugFlags & 1)));
+                        frame.enableMessage(UIFrame.STATUS_SSHEET, (0 != (debugFlags & 2)));
+                        frame.enableMessage(UIFrame.STATUS_INFO  , (0 != (debugFlags & 4)));
+                        frame.enableMessage(UIFrame.STATUS_DEBUG , (0 != (debugFlags & 8)));
+                        frame.enableMessage(UIFrame.STATUS_PROPS , (0 != (debugFlags & 16)));
+                        break;
+                    case "-s":
+                        if (ix >= args.length - 1)  { bArgError = true;   break; }
+                        filetype = "Spreadsheet";
+                        fname = args[++ix];
+                        ssheetFile = checkFilename (fname, ".ods", filetype, true);
+                        System.out.println(filetype + " file: " + ssheetFile.getAbsolutePath());
+                        break;
+                    case "-c":
+                        if (ix >= args.length - 1)  { bArgError = true;   break; }
+                        filetype = "Clipboard";
+                        fname = args[++ix];
+                        File fClip = checkFilename (fname, ".txt", filetype, false);
+                        clipFiles.add(fClip);
+                        System.out.println(filetype + " file: " + fClip.getAbsolutePath());
+                        break;
+                    case "-p":
+                        if (ix >= args.length - 1)  { bArgError = true;   break; }
+                        filetype = "PDF";
+                        fname = args[++ix];
+                        pdfFile = checkFilename (fname, ".pdf", filetype, false);
+                        System.out.println(filetype + " file: " + pdfFile.getAbsolutePath());
+                        break;
+                    default:
+                        System.out.println("Invalid option: " + args[ix]);
+                        System.exit(1);
+                        break;
+                }
+            }
+            if (bArgError) {
+                System.out.println("ERROR: Missing parameter for " + option + " option");
+                System.exit(1);
+            }
+            if (ssheetFile == null) {
+                System.out.println("ERROR: Spreadsheet file (-s option) missing");
+                System.exit(1);
+            }
+            if (debugFlags != 0) {
+                frame.enableMessage(UIFrame.STATUS_PARSER, props.getPropertiesItem(Property.MsgParser     , "0").contentEquals("1"));
+                frame.enableMessage(UIFrame.STATUS_SSHEET, props.getPropertiesItem(Property.MsgSpreadsheet, "0").contentEquals("1"));
+                frame.enableMessage(UIFrame.STATUS_INFO  , props.getPropertiesItem(Property.MsgInfo       , "0").contentEquals("1"));
+                frame.enableMessage(UIFrame.STATUS_DEBUG , props.getPropertiesItem(Property.MsgDebug      , "0").contentEquals("1"));
+                frame.enableMessage(UIFrame.STATUS_PROPS , props.getPropertiesItem(Property.MsgProperties , "0").contentEquals("1"));
+            }
+            // load the spreadsheet file
+            Spreadsheet.loadSpreadsheet(ssheetFile);
+            
+            // now run any clipboards specified
+            if (!clipFiles.isEmpty()) {
+                for (int ix = 0; ix < clipFiles.size(); ix++) {
+                    File clip = clipFiles.get(ix);
+                    // read from this file instead of clipboard
+                    AmazonReader amazonReader = new AmazonReader(clip);
+                    amazonReader.parseWebData();
+                }
+                // now update the spreadsheet
+                AmazonReader.updateSpreadsheet();
+            }
+            
+            // now run the PDF file (if specified)
+            if (pdfFile != null) {
+                PdfReader pdfReader = new PdfReader(pdfFile);
+                pdfReader.readPdfContents();
+            }
+            
+        } else {
+            // create the user interface to control things
+            frame = new UIFrame(true);
+            props = new PropertiesFile();
+
+            // enable the messages as they were from prevous run
+            frame.enableMessage(UIFrame.STATUS_PARSER, props.getPropertiesItem(Property.MsgParser     , "0").contentEquals("1"));
+            frame.enableMessage(UIFrame.STATUS_SSHEET, props.getPropertiesItem(Property.MsgSpreadsheet, "0").contentEquals("1"));
+            frame.enableMessage(UIFrame.STATUS_INFO  , props.getPropertiesItem(Property.MsgInfo       , "0").contentEquals("1"));
+            frame.enableMessage(UIFrame.STATUS_DEBUG , props.getPropertiesItem(Property.MsgDebug      , "0").contentEquals("1"));
+            frame.enableMessage(UIFrame.STATUS_PROPS , props.getPropertiesItem(Property.MsgProperties , "0").contentEquals("1"));
+        }
     }
 }
 

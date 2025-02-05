@@ -830,6 +830,7 @@ public class Spreadsheet {
         for (int row = firstRow; !sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getTextValue().isBlank(); row++) {
             String cellValue = sheetSel.getCellAt(getColumn(Column.CreditCard),row).getTextValue();
             if (cellValue != null && strPdfName.contentEquals(cellValue)) {
+                frame.outputInfoMsg(UIFrame.STATUS_WARN, "'" + strPdfName + "' was already balanced in the spreadsheet for " + sheetName);
                 return true;
             }
         }
@@ -871,40 +872,46 @@ public class Spreadsheet {
      * 
      * @return true if successful
      */
-    public static boolean loadSpreadsheet() {
-        // see if we have a properties file that has a previously saved spreadsheet directory
-        // if so, let's start the file selection process from there
-        String ssPath = Utils.getPathFromPropertiesFile(Property.SpreadsheetPath);
-        if (ssPath == null) {
-            // else, find the latest year directory under Amazon and default to it
-            ssPath = System.getProperty("user.dir");
-            String strYear = PdfReader.getLatestYearDir(ssPath);
-            if (strYear.isEmpty()) {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, "No year directory found in: " + ssPath);
-            } else {
-                frame.outputInfoMsg(UIFrame.STATUS_INFO, "Latest directory year: " + strYear);
-                String tempPath = ssPath + "/" + strYear;
-                File tempDir = new File(tempPath);
-                if (tempDir.exists() && tempDir.isDirectory() && tempDir.listFiles() != null) {
-                    ssPath = tempPath;
+    public static boolean loadSpreadsheet(File ssFile) {
+        if (ssFile != null) {
+            SpreadsheetFile = ssFile;
+        } else {
+            // see if we have a properties file that has a previously saved spreadsheet directory
+            // if so, let's start the file selection process from there
+            String ssPath = Utils.getPathFromPropertiesFile(Property.SpreadsheetPath);
+            if (ssPath == null) {
+                // else, find the latest year directory under Amazon and default to it
+                ssPath = System.getProperty("user.dir");
+                String strYear = PdfReader.getLatestYearDir(ssPath);
+                if (strYear.isEmpty()) {
+                    frame.outputInfoMsg(UIFrame.STATUS_WARN, "No year directory found in: " + ssPath);
+                } else {
+                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "Latest directory year: " + strYear);
+                    String tempPath = ssPath + "/" + strYear;
+                    File tempDir = new File(tempPath);
+                    if (tempDir.exists() && tempDir.isDirectory() && tempDir.listFiles() != null) {
+                        ssPath = tempPath;
+                    }
                 }
             }
-        }
-        
-        // select the Amazon list spreadsheet file to read from
-        JFileChooser jfc = new JFileChooser();
-        jfc.setCurrentDirectory(new File(ssPath));
-        jfc.setFileFilter(new FileNameExtensionFilter("LibreOffice ODS files", "ods"));
-        jfc.showDialog(null,"Select the file");
-        jfc.setVisible(true);
-        File filename = jfc.getSelectedFile();
-        if (filename == null) {
-            frame.outputInfoMsg(UIFrame.STATUS_INFO, "No file chosen");
-            return false;
+
+            // select the Amazon list spreadsheet file to read from
+            JFileChooser jfc = new JFileChooser();
+            jfc.setCurrentDirectory(new File(ssPath));
+            jfc.setFileFilter(new FileNameExtensionFilter("LibreOffice ODS files", "ods"));
+            jfc.showDialog(null,"Select the file");
+            jfc.setVisible(true);
+            File filename = jfc.getSelectedFile();
+            if (filename == null) {
+                frame.outputInfoMsg(UIFrame.STATUS_INFO, "No file chosen");
+                return false;
+            }
+
+            SpreadsheetFile = new File(filename.getAbsolutePath());
         }
 
         // check the properties of the spreadsheet file chosen
-        SpreadsheetFile = new File(filename.getAbsolutePath());
+        frame.setSpreadsheetSelection(SpreadsheetFile.getAbsolutePath());
         String filePath  = Utils.getFilePath(SpreadsheetFile);
         String fnameRoot = Utils.getFileRootname(SpreadsheetFile);
         String fnameExt  = Utils.getFileExtension(SpreadsheetFile);

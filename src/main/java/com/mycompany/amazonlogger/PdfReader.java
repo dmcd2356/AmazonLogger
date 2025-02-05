@@ -38,6 +38,8 @@ public class PdfReader {
     //  that contain the Amazon credits & charges. There is a separate file for each month.
     public static final String CC_RECORD_DIR = "Chase_VISA_3996";
     
+    private static File pdfFile = null;
+    
     // this class is the information that is extracted from the charge card PDF file for
     // balancing the amounts charged to the account with the Amazon purchases.
     private class CardTransaction {
@@ -48,6 +50,14 @@ public class PdfReader {
         boolean completed;      // true when the item has been found in the spreadsheet
     }
 
+    public PdfReader () {
+        
+    }
+    
+    public PdfReader (File pFile) {
+        pdfFile = pFile;
+    }
+    
     /**
     * parses the credit card credits and debits from the PDF file.
     *  This extracts vital info from the credit card file for Amazon charges
@@ -56,44 +66,41 @@ public class PdfReader {
     *   order numbers and modifies the spreadsheet file to highlight the rows that
     *   match up with the charges/credits.
     */
-    public void readPdfContents() {
+    public void readPdfContents () {
 
-        // see if we have a properties file that has a previously saved PDF directory
-        // if so, let's start the file selection process from there
-        String pdfPath = Utils.getPathFromPropertiesFile(Property.PdfPath);
-        if (pdfPath == null) {
-            // else, get the base directory of the credit card files (it's at same dir level as current dir)
-            pdfPath = System.getProperty("user.dir");
-            int offset = pdfPath.lastIndexOf('/');
-            if (offset > 0) {
-                String pdfPathName = pdfPath.substring(0, offset) + "/" + CC_BASE_DIR;
-                File tempDir = new File(pdfPathName);
-                if (tempDir.exists() && tempDir.isDirectory()) {
-                    pdfPath = pdfPathName;
+        if (pdfFile == null) {
+            // file was not passed, so we must let the user select one.
+            // see if we have a properties file that has a previously saved PDF directory
+            // if so, let's start the file selection process from there
+            String pdfPath = Utils.getPathFromPropertiesFile(Property.PdfPath);
+            if (pdfPath == null) {
+                // else, get the base directory of the credit card files (it's at same dir level as current dir)
+                pdfPath = System.getProperty("user.dir");
+                int offset = pdfPath.lastIndexOf('/');
+                if (offset > 0) {
+                    String pdfPathName = pdfPath.substring(0, offset) + "/" + CC_BASE_DIR;
+                    File tempDir = new File(pdfPathName);
+                    if (tempDir.exists() && tempDir.isDirectory()) {
+                        pdfPath = pdfPathName;
+                    }
+                }
+
+                // now find the latest year directory under this path advance to it
+                String strYear = getLatestYearDir(pdfPath);
+                if (strYear.isEmpty()) {
+                    frame.outputInfoMsg(UIFrame.STATUS_WARN, "No year directory found in: " + pdfPath);
+                } else {
+                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "Latest directory year: " + strYear);
+                    pdfPath += '/' + strYear;
+                    // now check to make sure the specific credit card directory is located here
+                    // and has files under it
+                    String tempPath = pdfPath + '/' + CC_RECORD_DIR;
+                    File tempDir = new File(tempPath);
+                    if (tempDir.exists() && tempDir.isDirectory() && tempDir.listFiles() != null) {
+                        pdfPath = tempPath;
+                    }
                 }
             }
-
-            // now find the latest year directory under this path advance to it
-            String strYear = getLatestYearDir(pdfPath);
-            if (strYear.isEmpty()) {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, "No year directory found in: " + pdfPath);
-            } else {
-                frame.outputInfoMsg(UIFrame.STATUS_INFO, "Latest directory year: " + strYear);
-                pdfPath += '/' + strYear;
-                // now check to make sure the specific credit card directory is located here
-                // and has files under it
-                String tempPath = pdfPath + '/' + CC_RECORD_DIR;
-                File tempDir = new File(tempPath);
-                if (tempDir.exists() && tempDir.isDirectory() && tempDir.listFiles() != null) {
-                    pdfPath = tempPath;
-                }
-            }
-        }
-        
-
-        try {
-            // Create a content handler
-            BodyContentHandler contenthandler = new BodyContentHandler();
 
             // select the PDF file to read from
             JFileChooser jfc = new JFileChooser();
@@ -101,44 +108,44 @@ public class PdfReader {
             jfc.setFileFilter(new FileNameExtensionFilter("PDF files", "pdf"));
             jfc.showDialog(null,"Select the File");
             jfc.setVisible(true);
-            File file = jfc.getSelectedFile();
-            if (file == null) {
+            pdfFile = jfc.getSelectedFile();
+            if (pdfFile == null) {
                 frame.outputInfoMsg(UIFrame.STATUS_WARN, "No file chosen");
                 return;
             }
 
-            // get the name of the selected file, minus the file extension
-            String strPdfName = Utils.getFileRootname(file);
-            frame.outputInfoMsg(UIFrame.STATUS_INFO, "PDF File name: " + strPdfName);
-
             // update the Pdf path selection
-            pdfPath = Utils.getFilePath(file);
+            pdfPath = Utils.getFilePath(pdfFile);
             if (!pdfPath.isEmpty()) {
                 props.setPropertiesItem(Property.PdfPath, pdfPath);
                 frame.outputInfoMsg(UIFrame.STATUS_INFO, "PDF Path name: " + pdfPath);
             }
+        }
+
+        try {
+            // get the name of the selected file, minus the file extension
+            String strPdfName = Utils.getFileRootname(pdfFile);
+            frame.outputInfoMsg(UIFrame.STATUS_INFO, "PDF File name: " + strPdfName);
             
             // check if the file has already been balanced in the spreadsheet
             String strTabSelect = "";
-            frame.outputInfoMsg(UIFrame.STATUS_INFO, "Checking if file has been already balanced: " + strPdfName);
-            if (Spreadsheet.findCreditCardEntry("Dan", strPdfName)) {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, "'" + strPdfName + "' was already balanced in the spreadsheet for Dan");
-            } else {
+            frame.outputInfoMsg(UIFrame.STATUS_INFO, "Checking if file has been already balanced");
+            if (! Spreadsheet.findCreditCardEntry("Dan", strPdfName)) {
                 strTabSelect = "Dan";
             }
-            if (Spreadsheet.findCreditCardEntry("Connie", strPdfName)) {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, "'" + strPdfName + "' was already balanced in the spreadsheet for Connie");
-            } else if (strTabSelect.isBlank()) {
-                strTabSelect = "Connie";
-            } else {
-                strTabSelect = "Both";
+            if (! Spreadsheet.findCreditCardEntry("Connie", strPdfName)) {
+                if (strTabSelect.isBlank()) {
+                    strTabSelect = "Connie";
+                } else {
+                    strTabSelect = "Both";
+                }
             }
             if (strTabSelect.isEmpty()) {
                 return;
             }
             
             // Create a file in local directory
-            File f = new File(file.getAbsolutePath());
+            File f = new File(pdfFile.getAbsolutePath());
 
             // Create a file input stream on specified path with the created file
             FileInputStream fstream = new FileInputStream(f);
@@ -151,6 +158,9 @@ public class PdfReader {
 
             // PDF document can be parsed using the PDFparser class
             PDFParser pdfparser = new PDFParser();
+
+            // Create a content handler
+            BodyContentHandler contenthandler = new BodyContentHandler();
 
             // Method parse invoked on PDFParser class
             pdfparser.parse(fstream, contenthandler, data, context);

@@ -18,13 +18,14 @@ public class ParseDetails {
     /**
      * parses the clipboard data line by line to extract the order information from a "Order Details" clip.
      * 
+     * @param clip    - the clipboard reader to read from
      * @param line    - the line previously caught and passed to this module to execute
      * 
      * @return the AmazonOrder entry that was extracted from the clip
      * 
      * @throws ParserException 
      */
-    public AmazonOrder parseDetails (String line) throws ParserException {
+    public AmazonOrder parseDetails (ClipboardReader clip, String line) throws ParserException {
         Keyword.KeywordEntry keywordInfo = null;
         Keyword.KeywordEntry savedKey = null;
         boolean bReadData = false;
@@ -39,7 +40,7 @@ public class ParseDetails {
         do {
             // if we don't have a pending command in the queue, get next line from clipboard
             if (!bSkipRead) {
-                line = ClipboardReader.webClipGetLine();
+                line = clip.getLine();
                 if (line == null)
                     break;
                 if (line.isBlank())

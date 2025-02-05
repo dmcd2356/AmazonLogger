@@ -1,8 +1,14 @@
 TODO:
-- When updating Order Details, make sure on multi-item orders to match the descriptions with the current entry item before copying the data.
-- Add the Order Details list to the Your Orders list if present, prior to writing to spreadsheet.
-- Add tests for verifying functionality.
+- When updating Order Details, make sure on multi-item orders to match the descriptions with the
+  current entry item before copying the data.
 
-Completed:
-- Add button to save text pane info to file
+TESTING:
+  - add ability to pass a file from the command line that specifies web page(s) that have been saved
+    to files and/or a pdf file to read in. The test program may also pass a web page from the cilpboard
+    to the program. When run this way, the user interface will not run and the debug log will be sent
+    to the specified debug log output (or standard output if none is specified).
+
+  - Create tests for verifying functionality by specifying test web clips and PDF files to run with
+    certain debug messages enabled. Then capturing the debug output and comparing them to expected
+    results.
 

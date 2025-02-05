@@ -21,6 +21,7 @@ public class ParseOrders {
     /**
      * parses the clipboard data line by line to extract the order information from a "Your Orders" clip.
      * 
+     * @param clip    - the clipboard reader to read from
      * @param line    - the line previously caught and passed to this module to execute
      * @param keyType - the Key type associated with the line
      * 
@@ -28,7 +29,7 @@ public class ParseOrders {
      * 
      * @throws ParserException 
      */
-    public ArrayList<AmazonOrder> parseOrders (String line, Keyword.KeyTyp keyType) throws ParserException {
+    public ArrayList<AmazonOrder> parseOrders (ClipboardReader clip, String line, Keyword.KeyTyp keyType) throws ParserException {
         String descript1 = null;
         Keyword.KeywordEntry keywordInfo = null;
         Keyword.KeywordEntry savedKey = null;
@@ -55,7 +56,7 @@ public class ParseOrders {
         do {
             // if we don't have a pending command in the queue, get next line from clipboard
             if (!bSkipRead) {
-                line = ClipboardReader.webClipGetLine();
+                line = clip.getLine();
                 if (line == null)
                     break;
                 if (line.isBlank())

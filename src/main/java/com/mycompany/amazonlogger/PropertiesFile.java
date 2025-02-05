@@ -40,6 +40,7 @@ public class PropertiesFile {
         MsgProperties,          // debug message enable flag for STATUS_PROPS
         MaxLenDescription,      // max length of description to display
         DebugFileOut,           // name of the output file to copy debug info to
+        TestPath,               // test directory path
     };
 
     PropertiesFile () {
