@@ -6,6 +6,8 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class AmazonReader {
 
@@ -289,7 +291,7 @@ public class AmazonReader {
                 frame.enableUpdateButton(true);
             }
             
-        } catch (ParserException | IOException ex) {
+        } catch (ParserException ex) {
             frame.outputInfoMsg(UIFrame.STATUS_ERROR, ex.getMessage());
             return false;
         }
@@ -305,7 +307,12 @@ public class AmazonReader {
             frame.outputInfoMsg(UIFrame.STATUS_WARN, "updateSpreadsheet: spreadsheet sheet selection not made");
             return;
         }
-        
+
+        if (amazonList.isEmpty() && detailList.isEmpty()) {
+            frame.outputInfoMsg(UIFrame.STATUS_WARN, "updateSpreadsheet: nothing to update");
+            return;
+        }
+
         try {
             // make a backup copy of the current file before saving.
             Spreadsheet.makeBackupCopy("-web-bak");
@@ -462,26 +469,32 @@ public class AmazonReader {
         }
     }
 
+    private static String getTestPath () {
+        String pathname = Utils.getPathFromPropertiesFile (Property.TestPath);
+        if (pathname == null || pathname.isBlank()) {
+            pathname = System.getProperty("user.dir");
+//            System.out.println("No TestPath defined, using current path: " + pathname);
+//        } else {
+//            System.out.println("TestPath used: " + pathname);
+        }
+        return pathname;
+    }
+    
     private static File checkFilename (String fname, String type, String filetype, boolean bWritable) {
-        if (!fname.endsWith(type)) {
+        if (filetype == null) {
+            filetype = "";
+        }
+        if (type != null && !type.isBlank() && !fname.endsWith(type)) {
             System.out.println("ERROR: Invalid " + filetype + " filename: " + fname);
             System.exit(1);
         }
-        String pathname = null;
-        if (props != null) {
-            pathname = props.getPropertiesItem(Property.TestPath, "");
-        }
-        if (pathname == null || pathname.isBlank()) {
-            pathname = System.getProperty("user.dir");
-            System.out.println("No TestPath defined, using current path");
-        }
-        File myFile = new File(pathname);
-        if (!myFile.isDirectory()) {
-            System.out.println("ERROR: Invalid " + filetype + " path not found: " + pathname);
+        if (fname == null || fname.isBlank()) {
+            System.out.println("ERROR: Invalid " + filetype + " filename is blank");
             System.exit(1);
         }
-        System.out.println("TestPath used: " + pathname);
-        myFile = new File(pathname + "/" + fname);
+        
+        fname = getTestPath() + "/" + fname;
+        File myFile = new File(fname);
         if (!myFile.canRead()) {
             System.out.println("ERROR: Invalid " + filetype + " file - no read access: " + fname);
             System.exit(1);
@@ -506,6 +519,7 @@ public class AmazonReader {
             ArrayList<File> clipFiles = new ArrayList<>();
             Integer debugFlags = 0;
             String fname;
+            String strOutFname = null;
             String filetype;
             String option = "";
             boolean bArgError = false;
@@ -513,11 +527,13 @@ public class AmazonReader {
                 option = args[ix];
                 switch (option) {
                     case "-h":
-                        System.out.println(" -h            = to print this message");
-                        System.out.println(" -s <ssheet>   = the name of the spreadsheet file to modify");
-                        System.out.println(" -p <pdffile>  = the name of the PDF file to run");
-                        System.out.println(" -c <clipfile> = the name of the clipboard file to run");
-                        System.out.println(" -d <flags>    = the debug messages to enable when running");
+                        System.out.println(" -h         = to print this message");
+                        System.out.println(" -s <file>  = the name of the spreadsheet file to modify");
+                        System.out.println(" -p <file>  = the name of the PDF file to run");
+                        System.out.println(" -c <file>  = the name of the clipboard file to run");
+                        System.out.println(" -o <file>  = the name of the file to output results to");
+                        System.out.println(" -d <flags> = the debug messages to enable when running");
+                        System.out.println("");
                         System.out.println("     The debug flag values are hex bit values and defined as:");
                         System.out.println("     01 = STATUS_PARSER");
                         System.out.println("     02 = STATUS_SPREADSHEET");
@@ -526,19 +542,31 @@ public class AmazonReader {
                         System.out.println("     10 = STATUS_PROPS");
                         System.out.println("     e.g. -d 1F will enable all msgs");
                         System.out.println();
-                        System.out.println(" The -s option is required, since it specifies the spreadsheet to");
-                        System.out.println("  work with. Only 1 is allowed.");
-                        System.out.println(" The -p and the -c options are optional and specify the input files");
-                        System.out.println("  to parse. Ony 1 PDF file can be specified, but multiple Clipboard");
-                        System.out.println("  files can be specified. If neither is specified, it will simply");
-                        System.out.println("  open the Spreadsheet file and close it.");
-                        System.out.println(" The path used for the all files is the value of the");
-                        System.out.println("  amazonreader/site.properties file 'TestPath' entry definition.");
-                        System.out.println("  If the site.properties file is not found is not found in the");
-                        System.out.println("  current directory or the 'TestPath' entry is not defined,");
-                        System.out.println("  the current directory will be used as the path.");
-                        System.out.println(" All debug messages will be directed to standard output, which can");
-                        System.out.println("  be redirected to a file for comparing to an expected result.");
+                        System.out.println("The following test special features and all other flags will be ignored.");
+                        System.out.println();
+                        System.out.println(" -date [p] <value>   = display the date converted to YYYY-MM-DD format (p = past date)");
+                        System.out.println(" -fdate <date value> = display the future date converted to YYYY-MM-DD format");
+                        System.out.println(" -find <file> <tab> <order#>    = display the spreadsheet 1st row containing order#");
+                        System.out.println(" -cellget <file> <tab> <col> <row> = display the spreadsheet cell data");
+                        System.out.println(" -cellput <file> <tab> <col> <row> <text> = write the spreadsheet cell data");
+                        System.out.println("          (displays the previous value that was overwritten)");
+                        System.out.println();
+                        System.out.println(" The -s option is required, since it specifies the spreadsheet to work with.");
+                        System.out.println("   Only 1 is allowed.");
+                        System.out.println("");
+                        System.out.println(" The -p and the -c options are optional and specify the input files to parse.");
+                        System.out.println("   Ony 1 PDF file can be specified, but multiple Clipboard files can be specified.");
+                        System.out.println("   If neither is specified, it will simply open the Spreadsheet file and close it.");
+                        System.out.println("");
+                        System.out.println(" The -o option is optional. If not given, it will be output to the file specified");
+                        System.out.println("   by the 'TestFileOut' entry in the site.properties file.");
+                        System.out.println("   If the properties file doesn't exist or 'TestFileOut' is not defined in it or");
+                        System.out.println("   the -o option omitted a <file> entry, all reporting will be output to stdout.");
+                        System.out.println("   If outputting to a file and the file currently exists, it will be overwritten.");
+                        System.out.println("");
+                        System.out.println(" The path used for the all files is the value of the 'TestPath' entry in the");
+                        System.out.println("   site.properties file. If the properties file doesn't exist or 'TestPath'");
+                        System.out.println("   is not defined in it, the current directory will be used as the path.");
                         System.out.println();
                         System.exit(0);
                         break;
@@ -552,6 +580,10 @@ public class AmazonReader {
                         frame.enableMessage(UIFrame.STATUS_PROPS , (0 != (debugFlags & 16)));
                         break;
                     case "-s":
+                        if (ssheetFile != null) {
+                            System.out.println("ERROR: can't specify more than 1 spreadsheet file");
+                            System.exit(0);
+                        }
                         if (ix >= args.length - 1)  { bArgError = true;   break; }
                         filetype = "Spreadsheet";
                         fname = args[++ix];
@@ -567,14 +599,109 @@ public class AmazonReader {
                         System.out.println(filetype + " file: " + fClip.getAbsolutePath());
                         break;
                     case "-p":
+                        if (pdfFile != null) {
+                            System.out.println("ERROR: can't specify more than 1 PDF file");
+                            System.exit(0);
+                        }
                         if (ix >= args.length - 1)  { bArgError = true;   break; }
                         filetype = "PDF";
                         fname = args[++ix];
                         pdfFile = checkFilename (fname, ".pdf", filetype, false);
                         System.out.println(filetype + " file: " + pdfFile.getAbsolutePath());
                         break;
+                    case "-o":
+                        if (ix >= args.length - 1) {
+                            strOutFname = " "; // this will prevent using properties file selection
+                        } else {
+                            fname = args[++ix];
+                            strOutFname = getTestPath() + "/" + fname;
+                            System.out.println("Output file: " + strOutFname);
+                        }
+                        break;
+                    case "-date":
+                        if (ix >= args.length - 1)  { bArgError = true;   break; }
+                        List<String> list = new ArrayList<>(Arrays.asList(args));
+                        list.remove(0);
+                        boolean bPast = false;
+                        if (args[++ix].contentEquals("p")) {
+                            if (list.isEmpty())  { bArgError = true;   break; }
+                            bPast = true;
+                            list.remove(0);
+                        }
+                        String strDate = String.join(" ", list);
+                        try {
+                            LocalDate date = DateFormat.getFormattedDate (strDate, bPast);
+                            String convDate = DateFormat.convertDateToString(date, true);
+                            if (convDate == null) {
+                                convDate = "ERROR: invalid date conversion";
+                            }
+                            System.out.println(convDate);
+                        } catch (ParserException ex) {
+                            System.out.println("ERROR: " + ex);
+                        }
+                        System.exit(0);
+                        break;
+                    case "-find":
+                        if (ix >= args.length - 3)  { bArgError = true;   break; }
+                        String tab, strCol,strRow, order;
+                        Integer iRow, iCol;
+                        fname = args[++ix];
+                        tab   = args[++ix];
+                        order = args[++ix];
+                        ssheetFile = checkFilename (fname, ".ods", "Spreadsheet", true);
+                        if (ssheetFile == null) {
+                            System.out.println("ERROR: no spreadsheet file chosen (must precede '-cell' option)");
+                        } else {
+                            Spreadsheet.loadSpreadsheet(ssheetFile);
+                            Spreadsheet.selectSpreadsheetTab (tab);
+                            iRow = Spreadsheet.findItemNumber(order);
+                            System.out.println(iRow);
+                        }
+                        System.exit(0);
+                        break;
+                    case "-cellget":
+                        if (ix >= args.length - 4)  { bArgError = true;   break; }
+                        fname = args[++ix];
+                        tab    = args[++ix];
+                        strCol = args[++ix];
+                        strRow = args[++ix];
+                        ssheetFile = checkFilename (fname, ".ods", "Spreadsheet", true);
+                        iCol = Utils.getIntFromString(strCol, 0, 0);
+                        iRow = Utils.getIntFromString(strRow, 0, 0);
+                        if (iCol == null || iRow == null) {
+                            System.out.println("ERROR: invalid values: col = " + strCol + ", row = " + strRow);
+                        } else if (ssheetFile == null) {
+                            System.out.println("ERROR: no spreadsheet file chosen (must precede '-cell' option)");
+                        } else {
+                            Spreadsheet.loadSpreadsheet(ssheetFile);
+                            String cellValue = Spreadsheet.getSpreadsheetCell(tab, iCol, iRow);
+                            System.out.println(cellValue);
+                        }
+                        System.exit(0);
+                        break;
+                    case "-cellput":
+                        if (ix >= args.length - 5)  { bArgError = true;   break; }
+                        fname = args[++ix];
+                        tab    = args[++ix];
+                        strCol = args[++ix];
+                        strRow = args[++ix];
+                        String strText = args[++ix];
+                        ssheetFile = checkFilename (fname, ".ods", "Spreadsheet", true);
+                        iCol = Utils.getIntFromString(strCol, 0, 0);
+                        iRow = Utils.getIntFromString(strRow, 0, 0);
+                        if (iCol == null || iRow == null) {
+                            System.out.println("ERROR: invalid values: col = " + strCol + ", row = " + strRow);
+                        } else if (ssheetFile == null) {
+                            System.out.println("ERROR: no spreadsheet file chosen (must precede '-cell' option)");
+                        } else {
+                            Spreadsheet.loadSpreadsheet(ssheetFile);
+                            String cellValue = Spreadsheet.putSpreadsheetCell(tab, iCol, iRow, strText);
+                            System.out.println(cellValue);
+                        }
+                        System.exit(0);
+                        break;
                     default:
-                        System.out.println("Invalid option: " + args[ix]);
+                        System.out.println("ERROR: Invalid option: " + args[ix]);
                         System.exit(1);
                         break;
                 }
@@ -594,6 +721,16 @@ public class AmazonReader {
                 frame.enableMessage(UIFrame.STATUS_DEBUG , props.getPropertiesItem(Property.MsgDebug      , "0").contentEquals("1"));
                 frame.enableMessage(UIFrame.STATUS_PROPS , props.getPropertiesItem(Property.MsgProperties , "0").contentEquals("1"));
             }
+            if (strOutFname == null) {
+                // no output file name specified, use setting from properties file
+                strOutFname = props.getPropertiesItem(Property.TestFileOut, "");
+                if (strOutFname != null) {
+                    strOutFname = getTestPath() + "/" + strOutFname;
+                    System.out.println("Using properties output file selection: " + strOutFname);
+                }
+            }
+            frame.setTestOutputFile(strOutFname);
+            
             // load the spreadsheet file
             Spreadsheet.loadSpreadsheet(ssheetFile);
             
@@ -614,6 +751,8 @@ public class AmazonReader {
                 PdfReader pdfReader = new PdfReader(pdfFile);
                 pdfReader.readPdfContents();
             }
+            
+            frame.closeTestFile();
             
         } else {
             // create the user interface to control things

@@ -269,16 +269,37 @@ public class PdfReader {
                 }
             }
 
-            // make a backup copy of the current file before saving.
-            Spreadsheet.makeBackupCopy("-pdf-bak");
-            
-            if (strTabSelect.contentEquals("Dan") || strTabSelect.contentEquals("Both")) {
-                balanceSpreadsheetEntries("Dan", transactionList, strPdfName);
+            // find the valid entries for each user
+            ArrayList<CardTransaction> danList = null;
+            ArrayList<CardTransaction> connieList = null;
+            String strTab = "Dan";
+            if (strTabSelect.contentEquals(strTab) || strTabSelect.contentEquals("Both")) {
+                danList = checkForNewEntries (strTab, transactionList);
+                if (danList.isEmpty()) {
+                    danList = null;
+                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "No entries usable in " + strTab + "'s list...");
+                }
+            }
+            strTab = "Connie";
+            if (strTabSelect.contentEquals(strTab) || strTabSelect.contentEquals("Both")) {
+                connieList = checkForNewEntries (strTab, transactionList);
+                if (connieList.isEmpty()) {
+                    connieList = null;
+                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "No entries usable in " + strTab + "'s list...");
+                }
             }
             
-            // now repeat for Connie's list
-            if (strTabSelect.contentEquals("Connie") || strTabSelect.contentEquals("Both")) {
-                balanceSpreadsheetEntries("Connie", transactionList, strPdfName);
+            if (danList != null || connieList != null) {
+                // make a backup copy of the current file before saving.
+                Spreadsheet.makeBackupCopy("-pdf-bak");
+            
+                // process the applicable sheets
+                if (danList != null) {
+                    balanceSpreadsheetEntries("Dan", danList, strPdfName);
+                }
+                if (connieList != null) {
+                    balanceSpreadsheetEntries("Connie", connieList, strPdfName);
+                }
             }
             
         } catch (ParserException ex) {
@@ -319,6 +340,44 @@ public class PdfReader {
         return strYear;
     }
 
+    private ArrayList<CardTransaction> checkForNewEntries (String sheetName,
+                                                           ArrayList<CardTransaction> transactionList) {
+        // select the user tab
+        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Checking for entries in " + sheetName + "'s list...");
+        Spreadsheet.selectSpreadsheetTab (sheetName);
+        ArrayList<CardTransaction> newList = new ArrayList<>();
+        
+        // now check each entry read from the pdf to see if they are applicable to the tab
+        for (int ix = 0; ix < transactionList.size(); ix++) {
+            CardTransaction cardEntry = transactionList.get(ix);
+
+            // for each entry from the statement that has not been found...
+            if (cardEntry.completed) {
+                frame.outputInfoMsg(UIFrame.STATUS_INFO, 
+                                      '\t' + cardEntry.order_num + "\t"
+                                           + Utils.cvtAmountToString(cardEntry.amount) + "\t"
+                                           + cardEntry.trans_date + "\t"
+                                           + "- ALREADY COMPLETED");
+                continue; // entry already completed - skip it
+            }
+                
+            // ...search each entry in the spreadsheet for a matching order number
+            int foundRow = Spreadsheet.findItemNumber (cardEntry.order_num);
+            if (foundRow <= 0) {
+                frame.outputInfoMsg(UIFrame.STATUS_INFO, 
+                                      '\t' + cardEntry.order_num + "\t"
+                                           + Utils.cvtAmountToString(cardEntry.amount) + "\t"
+                                           + cardEntry.trans_date + "\t"
+                                           + "- NOT FOUND");
+                continue; // order number not found in spreadsheet, skip this entry
+            }
+            
+            // else add the entry to the list
+            newList.add(cardEntry);
+        }
+        return newList;
+    }
+            
     /*********************************************************************
     ** parses the credit card credits and debits from the PDF file.
     *  This extracts vital info from the credit card file for Amazon charges
@@ -363,24 +422,24 @@ public class PdfReader {
             for (int ix = 0; ix < transactionList.size(); ix++) {
                 CardTransaction cardEntry = transactionList.get(ix);
 
-                // for each entry from the statement that has not been found...
-                if (cardEntry.completed) {
-                    frame.outputInfoMsg(UIFrame.STATUS_INFO, 
-                                          '\t' + cardEntry.order_num + "\t"
-                                               + Utils.cvtAmountToString(cardEntry.amount) + "\t"
-                                               + cardEntry.trans_date + "\t"
-                                               + "- ALREADY COMPLETED");
-                    continue; // entry already completed - skip it
-                }
+//                // for each entry from the statement that has not been found...
+//                if (cardEntry.completed) {
+//                    frame.outputInfoMsg(UIFrame.STATUS_INFO, 
+//                                          '\t' + cardEntry.order_num + "\t"
+//                                               + Utils.cvtAmountToString(cardEntry.amount) + "\t"
+//                                               + cardEntry.trans_date + "\t"
+//                                               + "- ALREADY COMPLETED");
+//                    continue; // entry already completed - skip it
+//                }
                 
                 // ...search each entry in the spreadsheet for a matching order number
                 int foundRow = Spreadsheet.findItemNumber (cardEntry.order_num);
                 if (foundRow <= 0) {
-                    frame.outputInfoMsg(UIFrame.STATUS_INFO, 
-                                          '\t' + cardEntry.order_num + "\t"
-                                               + Utils.cvtAmountToString(cardEntry.amount) + "\t"
-                                               + cardEntry.trans_date + "\t"
-                                               + "- NOT FOUND");
+//                    frame.outputInfoMsg(UIFrame.STATUS_INFO, 
+//                                          '\t' + cardEntry.order_num + "\t"
+//                                               + Utils.cvtAmountToString(cardEntry.amount) + "\t"
+//                                               + cardEntry.trans_date + "\t"
+//                                               + "- NOT FOUND");
                     continue; // order number not found in spreadsheet, skip this entry
                 }
                     

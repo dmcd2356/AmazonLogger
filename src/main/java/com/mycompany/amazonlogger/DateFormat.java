@@ -224,6 +224,10 @@ public class DateFormat {
         int iThisMon = iCurMon;
         int iThisDay = iCurDay;
         
+        if (dateName == null) {
+            throw new ParserException("getFormattedDate: null date");
+        }
+        
         // skip any leading spaces
         int offset;
         for (offset = 0; offset < dateName.length() && dateName.charAt(offset) == ' '; offset++) { }

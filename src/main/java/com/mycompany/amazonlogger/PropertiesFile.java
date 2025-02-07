@@ -41,6 +41,7 @@ public class PropertiesFile {
         MaxLenDescription,      // max length of description to display
         DebugFileOut,           // name of the output file to copy debug info to
         TestPath,               // test directory path
+        TestFileOut,            // name of the output file to copy test report to
     };
 
     PropertiesFile () {

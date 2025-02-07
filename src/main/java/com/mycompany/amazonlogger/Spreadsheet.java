@@ -842,10 +842,8 @@ public class Spreadsheet {
      * sets the spreadsheet tab selection for many of the spreadsheet functions to use.
      * 
      * @param name - the name of the spreadsheet tab
-     * 
-     * @throws IOException 
      */
-    public static void selectSpreadsheetTab (String name) throws IOException {
+    public static void selectSpreadsheetTab (String name) {
         if (name == null) {
             frame.outputInfoMsg(UIFrame.STATUS_ERROR, "selectSpreadsheetTab: spreadsheet sheet selection not made");
             return;
@@ -856,6 +854,59 @@ public class Spreadsheet {
             sheetSel = sheet_0;
         else
             sheetSel = sheet_1;
+    }
+
+    /**    
+     * gets the text data at the specified column and row of the selected spreadsheet tab.
+     * 
+     * @param tab - the name of the spreadsheet tab
+     * @param col - the column of the spreadsheet
+     * @param row - the row of the spreadsheet
+     * 
+     * @return text value at the specified location in the spreadsheet
+     */
+    public static String getSpreadsheetCell (String tab, int col, int row) {
+        String strVal = "";
+        if (SpreadsheetFile == null) {
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ERROR: no spreadsheet file loaded");
+        } else if (tab == null) {
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ERROR: missing tab selection value");
+        } else if (tab.contentEquals("Dan")) {
+            strVal = sheet_0.getCellAt(col,row).getTextValue();
+        } else if (tab.contentEquals("Connie")) {
+            strVal = sheet_1.getCellAt(col,row).getTextValue();
+        } else {
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ERROR: invalid tab selection: " + tab);
+        }
+        return strVal;
+    }
+
+    /**    
+     * writes the text data to the specified column and row of the selected spreadsheet tab.
+     * 
+     * @param tab  - the name of the spreadsheet tab
+     * @param col  - the column of the spreadsheet
+     * @param row  - the row of the spreadsheet
+     * @param strVal - the data to write to the cell
+     * 
+     * @return text value at the specified location in the spreadsheet
+     */
+    public static String putSpreadsheetCell (String tab, int col, int row, String strVal) {
+        String oldVal = "";
+        if (SpreadsheetFile == null) {
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ERROR: no spreadsheet file loaded");
+        } else if (tab == null) {
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ERROR: missing tab selection value");
+        } else if (tab.contentEquals("Dan")) {
+            oldVal = sheet_0.getCellAt(col,row).getTextValue();
+            sheet_0.getCellAt(col, row).setValue(strVal);
+        } else if (tab.contentEquals("Connie")) {
+            oldVal = sheet_1.getCellAt(col,row).getTextValue();
+            sheet_1.getCellAt(col, row).setValue(strVal);
+        } else {
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ERROR: invalid tab selection: " + tab);
+        }
+        return oldVal;
     }
 
     /**
@@ -869,6 +920,8 @@ public class Spreadsheet {
     
     /**
      * reads the spreadsheet file into memory for accessing the data.
+     * 
+     * @param ssFile - file to use (optional - will ask user if not supplied)
      * 
      * @return true if successful
      */
@@ -921,13 +974,13 @@ public class Spreadsheet {
             props.setPropertiesItem(Property.SpreadsheetPath, filePath);
             frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet Path name: " + filePath);
         } else {
-            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "Invalid path: " + filePath);
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ERROR: Invalid path: " + filePath);
             return false;
         }
             
         // get the filename and verify it is of the correct format
         if (!fnameExt.contentEquals(".ods")) {
-            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "Invalid filename: " + fnameRoot + fnameExt + " (must be XXX.ods)");
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ERROR: Invalid filename: " + fnameRoot + fnameExt + " (must be XXX.ods)");
             return false;
         }
         frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet File name: " + fnameRoot + fnameExt);
@@ -977,7 +1030,7 @@ public class Spreadsheet {
         }
 
         // get the name of the file to store debug info to (if defined)
-        frame.setupDebugFile(props.getPropertiesItem(Property.DebugFileOut, ""));
+        frame.setDebugOutputFile(props.getPropertiesItem(Property.DebugFileOut, ""));
         
         iSheetYear = iYear0;
         frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet year: " + iSheetYear);

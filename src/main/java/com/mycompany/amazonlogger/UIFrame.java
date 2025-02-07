@@ -12,6 +12,7 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.LocalDate;
@@ -57,6 +58,8 @@ public final class UIFrame extends JFrame implements ActionListener {
     private static boolean bMsgProps;
     
     private PrintWriter debugFile = null;
+    private PrintWriter testFile = null;
+    private boolean bUseGUI;
     
     private enum TextColor {
         Black, DkGrey, DkRed, Red, LtRed, Orange, Brown,
@@ -98,8 +101,6 @@ public final class UIFrame extends JFrame implements ActionListener {
     private final JPanel txt_panel;
     private final JTextPane txt_info;
     
-    private final boolean bUseGUI;
-
     // constructor, to initialize the components
     // with default values.
     public UIFrame(boolean bGUI)
@@ -463,8 +464,9 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_debug .setSelected(true);
         cbox_props .setSelected(true);
 
-        if (bUseGUI)
+        if (bUseGUI) {
             setVisible(true);
+        }
     }
     
     /**
@@ -503,6 +505,13 @@ public final class UIFrame extends JFrame implements ActionListener {
         }
     }
 
+    public void closeTestFile () {
+        if (testFile != null) {
+            testFile.flush();
+            testFile.close();
+        }
+    }
+    
     public void clearMessages () {
         if (!bUseGUI)
             return;
@@ -546,7 +555,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_update.setVisible(status);
     }
 
-    public void setupDebugFile (String fname) {
+    public void setDebugOutputFile (String fname) {
         if (!bUseGUI)
             return;
         
@@ -586,6 +595,21 @@ public final class UIFrame extends JFrame implements ActionListener {
         }
     }
 
+    public void setTestOutputFile (String fname) {
+        if (fname != null && !fname.isBlank()) {
+            try {
+                this.testFile = new PrintWriter(new FileWriter(fname));
+                System.out.println("Outputting results to: " + fname);
+            } catch (IOException ex) {
+                System.out.println("ERROR: IOException on creating file: " + fname);
+                this.testFile = null;
+            }
+        } else {
+            System.out.println("No output file selection - sending to stdout");
+            this.testFile = null;
+        }
+    }
+    
     public void setSpreadsheetSelection (String filepath) {
         if (!bUseGUI)
             return;
@@ -719,28 +743,31 @@ public final class UIFrame extends JFrame implements ActionListener {
     
     public void outputInfoMsg (int errLevel, String msg) {
         if (!bUseGUI) {
+            boolean bEnableOutput = false;
             switch (errLevel) {
                 default:
                 case STATUS_ERROR:
                 case STATUS_WARN:
                 case STATUS_NORMAL:
+                    bEnableOutput = true;
+                    break;
+                case STATUS_PARSER: if (bMsgParser) bEnableOutput = true;
+                    break;
+                case STATUS_SSHEET: if (bMsgSsheet) bEnableOutput = true;
+                    break;
+                case STATUS_INFO:   if (bMsgInfo)   bEnableOutput = true;
+                    break;
+                case STATUS_DEBUG:  if (bMsgDebug)  bEnableOutput = true;
+                    break;
+                case STATUS_PROPS:  if (bMsgProps)  bEnableOutput = true;
+                    break;
+            }
+            if (bEnableOutput) {
+                if (testFile != null) {
+                    testFile.println(msg);
+                } else {
                     System.out.println(msg);
-                    break;
-                case STATUS_PARSER:
-                    if (bMsgParser) System.out.println(msg);
-                    break;
-                case STATUS_SSHEET:
-                    if (bMsgSsheet) System.out.println(msg);
-                    break;
-                case STATUS_INFO:
-                    if (bMsgInfo) System.out.println(msg);
-                    break;
-                case STATUS_DEBUG:
-                    if (bMsgDebug) System.out.println(msg);
-                    break;
-                case STATUS_PROPS:
-                    if (bMsgProps) System.out.println(msg);
-                    break;
+                }
             }
             return;
         }

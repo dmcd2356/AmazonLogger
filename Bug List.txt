@@ -3,11 +3,7 @@ TODO:
   current entry item before copying the data.
 
 TESTING:
-  - add ability to pass a file from the command line that specifies web page(s) that have been saved
-    to files and/or a pdf file to read in. The test program may also pass a web page from the cilpboard
-    to the program. When run this way, the user interface will not run and the debug log will be sent
-    to the specified debug log output (or standard output if none is specified).
-
+  - make non-gui version run as a headless daemon, so commands don't have to keep specifying file names, tabs, etc.
   - Create tests for verifying functionality by specifying test web clips and PDF files to run with
     certain debug messages enabled. Then capturing the debug output and comparing them to expected
     results.

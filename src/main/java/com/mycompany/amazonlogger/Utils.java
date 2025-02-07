@@ -17,20 +17,30 @@ public class Utils {
     * 
     *  @param str    - the string containing the digits to convert
     *  @param offset - the string offset in which to begin extracting
-    *  @param maxlen - the max expected string length
+    *  @param maxlen - the max expected string length (0 if read until non-digit)
     * 
     *  @return the corresponding integer value (null if invalid format)
     */
     public static Integer getIntFromString (String str, int offset, int maxlen) {
         Integer value;
         
-        if (str == null || str.length() < offset + maxlen || offset >= str.length()) {
+        if (str == null || offset >= str.length()) {
             return null;
         }
+        if (maxlen > 0 && str.length() < offset + maxlen) {
+            return null;
+        }
+        // limit # digits read by specified amount. if unspecified, run until non-digit
+        int limit = offset + maxlen;
+        if (maxlen == 0)
+            limit = str.length();
+
         value = 0;
-        for (int ix = offset; ix < offset + maxlen; ix++) {
+        for (int ix = offset; ix < limit; ix++) {
             if (str.charAt(ix) >= '0' && str.charAt(ix) <= '9') {
                 value = value * 10 + str.charAt(ix) - '0';
+            } else if (maxlen == 0) {
+                return value;
             } else {
                 return null;
             }
