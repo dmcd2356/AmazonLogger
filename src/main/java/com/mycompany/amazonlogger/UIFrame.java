@@ -51,15 +51,16 @@ public final class UIFrame extends JFrame implements ActionListener {
     public static final int STATUS_DEBUG  = 6;  // low-level detailed messages
     public static final int STATUS_PROPS  = 7;  // low-level properties interface messages
     
+    private static boolean bMsgNormal;
     private static boolean bMsgParser;
     private static boolean bMsgSsheet;
     private static boolean bMsgInfo;
     private static boolean bMsgDebug;
     private static boolean bMsgProps;
     
-    private PrintWriter debugFile = null;
-    private PrintWriter testFile = null;
-    private boolean bUseGUI;
+    private PrintWriter   debugFile = null;
+    private PrintWriter   testFile = null;
+    private final boolean bUseGUI;
     
     private enum TextColor {
         Black, DkGrey, DkRed, Red, LtRed, Orange, Brown,
@@ -70,6 +71,7 @@ public final class UIFrame extends JFrame implements ActionListener {
 
     // Components of the Form
     private final Container c;
+    private final JCheckBox cbox_normal;
     private final JCheckBox cbox_parser;
     private final JCheckBox cbox_ssheet;
     private final JCheckBox cbox_info;
@@ -286,6 +288,19 @@ public final class UIFrame extends JFrame implements ActionListener {
         // NEXT COLUMN OF BOTTOM PANEL
         loc_x = x_cbox_offset;
         loc_y = y_bottom_panel;
+        cbox_normal = new JCheckBox("Parser msgs");
+        cbox_normal.setFont(new Font("Arial", Font.BOLD, 15));
+        cbox_normal.setSize(x_cbox_width, y_cbox_height);
+        cbox_normal.setLocation(loc_x, loc_y);
+        cbox_normal.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent e){
+                props.setPropertiesItem(Property.MsgNormal, cbox_normal.isSelected() ? "1" : "0");
+            }
+        });    
+        c.add(cbox_normal);
+        
+        loc_y += y_line_gap;
         cbox_parser = new JCheckBox("Parser msgs");
         cbox_parser.setFont(new Font("Arial", Font.BOLD, 15));
         cbox_parser.setSize(x_cbox_width, y_cbox_height);
@@ -560,21 +575,21 @@ public final class UIFrame extends JFrame implements ActionListener {
             return;
         
         if (fname == null || fname.isBlank()) {
-            outputInfoMsg (STATUS_WARN, "Debug file name missing from PropertiesFile - disabling Print to debug file");
+            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Debug file name missing from PropertiesFile - disabling Print to debug file");
             debugFile = null;
             return;
         }
         // we always put the file in the same location as where the spreadsheet file is
         String ssPath = Utils.getPathFromPropertiesFile(Property.SpreadsheetPath);
         if (ssPath == null) {
-            outputInfoMsg (STATUS_WARN, "Spreadsheet path missing from PropertiesFile - disabling Print to debug file");
+            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Spreadsheet path missing from PropertiesFile - disabling Print to debug file");
             debugFile = null;
             return;
         }
         fname = ssPath + "/" + fname;
         File newFile = new File(fname);
         if (newFile.isDirectory()) {
-            outputInfoMsg (STATUS_WARN, "Debug file name invalid - disabling Print to debug file");
+            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Debug file name invalid - disabling Print to debug file");
             debugFile = null;
             return;
         }
@@ -590,7 +605,7 @@ public final class UIFrame extends JFrame implements ActionListener {
             btn_print.setVisible(true);
         } catch (IOException ex) {
             // file inaccessible
-            outputInfoMsg (STATUS_ERROR, "IOException for debug file: " + fname);
+            outputInfoMsg (STATUS_ERROR, "UIFrame.setDebugOutputFile: for file: " + fname + ", " + ex);
             debugFile = null;
         }
     }
@@ -599,15 +614,17 @@ public final class UIFrame extends JFrame implements ActionListener {
         if (fname != null && !fname.isBlank()) {
             try {
                 this.testFile = new PrintWriter(new FileWriter(fname));
-                System.out.println("Outputting results to: " + fname);
             } catch (IOException ex) {
-                System.out.println("ERROR: IOException on creating file: " + fname);
+                System.out.println("UIFrame.setTestOutputFile: on creating file: " + fname + ", " + ex);
                 this.testFile = null;
+                fname = "";
             }
         } else {
-            System.out.println("No output file selection - sending to stdout");
             this.testFile = null;
+            fname = "";
         }
+        // update the properties file status
+        props.setPropertiesItem(Property.TestFileOut, fname);
     }
     
     public void setSpreadsheetSelection (String filepath) {
@@ -690,55 +707,53 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_detail_date.setText("");
     }
     
-    public void enableMessage (int msgType, boolean bEnable) {
+    private void enableMessage (int msgType, boolean bEnable) {
         if (!bUseGUI) {
-            // bMsgParser
+            Property flag;
             switch (msgType) {
-                case STATUS_PARSER:
-                    bMsgParser = bEnable;
-                    System.out.println("STATUS_PARSER = " + bEnable);
-                    break;
-                case STATUS_SSHEET:
-                    bMsgSsheet = bEnable;
-                    System.out.println("STATUS_SSHEET = " + bEnable);
-                    break;
-                case STATUS_INFO:
-                    bMsgInfo = bEnable;
-                    System.out.println("STATUS_INFO   = " + bEnable);
-                    break;
-                case STATUS_DEBUG:
-                    bMsgDebug = bEnable;
-                    System.out.println("STATUS_DEBUG  = " + bEnable);
-                    break;
-                case STATUS_PROPS:
-                    bMsgProps = bEnable;
-                    System.out.println("STATUS_PROPS  = " + bEnable);
-                    break;
+                case STATUS_NORMAL: bMsgNormal = bEnable;  flag = Property.MsgNormal;       break;
+                case STATUS_PARSER: bMsgParser = bEnable;  flag = Property.MsgParser;       break;
+                case STATUS_SSHEET: bMsgSsheet = bEnable;  flag = Property.MsgSpreadsheet;  break;
+                case STATUS_INFO:   bMsgInfo   = bEnable;  flag = Property.MsgInfo;         break;
+                case STATUS_DEBUG:  bMsgDebug  = bEnable;  flag = Property.MsgDebug;        break;
+                case STATUS_PROPS:  bMsgProps  = bEnable;  flag = Property.MsgProperties;   break;
+                default:
+                    return;
+            }
+            // update the properties file
+            props.setPropertiesItem(flag, bEnable ? "1" : "0");
+        } else {
+            switch (msgType) {
+                case STATUS_NORMAL: bMsgNormal = bEnable;  cbox_normal.setSelected(bEnable); break;
+                case STATUS_PARSER: bMsgParser = bEnable;  cbox_parser.setSelected(bEnable); break;
+                case STATUS_SSHEET: bMsgSsheet = bEnable;  cbox_ssheet.setSelected(bEnable); break;
+                case STATUS_INFO:   bMsgInfo   = bEnable;  cbox_info  .setSelected(bEnable); break;
+                case STATUS_DEBUG:  bMsgDebug  = bEnable;  cbox_debug .setSelected(bEnable); break;
+                case STATUS_PROPS:  bMsgProps  = bEnable;  cbox_props .setSelected(bEnable); break;
                 default:
                     break;
             }
-            return;
         }
-        
-        switch (msgType) {
-            case STATUS_PARSER:
-                cbox_parser.setSelected(bEnable);
-                break;
-            case STATUS_SSHEET:
-                cbox_ssheet.setSelected(bEnable);
-                break;
-            case STATUS_INFO:
-                cbox_info  .setSelected(bEnable);
-                break;
-            case STATUS_DEBUG:
-                cbox_debug .setSelected(bEnable);
-                break;
-            case STATUS_PROPS:
-                cbox_props .setSelected(bEnable);
-                break;
-            default:
-                break;
-        }
+    }
+
+    public void setMessageFlags (int debugFlags) {
+        enableMessage(UIFrame.STATUS_NORMAL, (0 != (debugFlags & 1)));
+        enableMessage(UIFrame.STATUS_PARSER, (0 != (debugFlags & 2)));
+        enableMessage(UIFrame.STATUS_SSHEET, (0 != (debugFlags & 4)));
+        enableMessage(UIFrame.STATUS_INFO  , (0 != (debugFlags & 8)));
+        enableMessage(UIFrame.STATUS_DEBUG , (0 != (debugFlags & 16)));
+        enableMessage(UIFrame.STATUS_PROPS , (0 != (debugFlags & 32)));
+    }
+    
+    public void setDefaultStatus () {
+        setTestOutputFile(props.getPropertiesItem(Property.TestFileOut, ""));
+
+        enableMessage(UIFrame.STATUS_NORMAL, props.getPropertiesItem(Property.MsgNormal     , "0").contentEquals("1"));
+        enableMessage(UIFrame.STATUS_PARSER, props.getPropertiesItem(Property.MsgParser     , "0").contentEquals("1"));
+        enableMessage(UIFrame.STATUS_SSHEET, props.getPropertiesItem(Property.MsgSpreadsheet, "0").contentEquals("1"));
+        enableMessage(UIFrame.STATUS_INFO  , props.getPropertiesItem(Property.MsgInfo       , "0").contentEquals("1"));
+        enableMessage(UIFrame.STATUS_DEBUG , props.getPropertiesItem(Property.MsgDebug      , "0").contentEquals("1"));
+        enableMessage(UIFrame.STATUS_PROPS , props.getPropertiesItem(Property.MsgProperties , "0").contentEquals("1"));
     }
     
     public void outputInfoMsg (int errLevel, String msg) {
@@ -747,9 +762,12 @@ public final class UIFrame extends JFrame implements ActionListener {
             switch (errLevel) {
                 default:
                 case STATUS_ERROR:
+                    msg = "[ERROR] " + msg;
+                    break;
                 case STATUS_WARN:
-                case STATUS_NORMAL:
-                    bEnableOutput = true;
+                    msg = "[WARN] " + msg;
+                    break;
+                case STATUS_NORMAL: if (bMsgNormal) bEnableOutput = true;
                     break;
                 case STATUS_PARSER: if (bMsgParser) bEnableOutput = true;
                     break;
@@ -778,22 +796,27 @@ public final class UIFrame extends JFrame implements ActionListener {
         switch (errLevel) {
             default:
             case STATUS_ERROR:
+                msg = "[ERROR] " + msg;
                 StyleConstants.setForeground(attributes, generateColor (TextColor.Red));
                 StyleConstants.setBold(attributes, true);
                 StyleConstants.setItalic(attributes, false);
                 break;
             case STATUS_WARN:
+                msg = "[WARN] " + msg;
                 StyleConstants.setForeground(attributes, generateColor (TextColor.Orange));
                 StyleConstants.setBold(attributes, true);
                 StyleConstants.setItalic(attributes, false);
                 break;
             case STATUS_NORMAL:
+                if (!bMsgNormal) {
+                    return;
+                }
                 StyleConstants.setForeground(attributes, generateColor (TextColor.Black));
                 StyleConstants.setBold(attributes, false);
                 StyleConstants.setItalic(attributes, false);
                 break;
             case STATUS_PARSER:
-                if (!cbox_parser.isSelected()) {
+                if (!bMsgParser) {
                     return;
                 }
                 StyleConstants.setForeground(attributes, generateColor (TextColor.Blue));
@@ -801,7 +824,7 @@ public final class UIFrame extends JFrame implements ActionListener {
                 StyleConstants.setItalic(attributes, true);
                 break;
             case STATUS_SSHEET:
-                if (!cbox_ssheet.isSelected()) {
+                if (!bMsgSsheet) {
                     return;
                 }
                 StyleConstants.setForeground(attributes, generateColor (TextColor.Green));
@@ -809,7 +832,7 @@ public final class UIFrame extends JFrame implements ActionListener {
                 StyleConstants.setItalic(attributes, true);
                 break;
             case STATUS_INFO:
-                if (!cbox_info.isSelected()) {
+                if (!bMsgInfo) {
                     return;
                 }
                 StyleConstants.setForeground(attributes, generateColor (TextColor.DkVio));
@@ -817,7 +840,7 @@ public final class UIFrame extends JFrame implements ActionListener {
                 StyleConstants.setItalic(attributes, false);
                 break;
             case STATUS_DEBUG:
-                if (!cbox_debug.isSelected()) {
+                if (!bMsgDebug) {
                     return;
                 }
                 StyleConstants.setForeground(attributes, generateColor (TextColor.Brown));
@@ -825,7 +848,7 @@ public final class UIFrame extends JFrame implements ActionListener {
                 StyleConstants.setItalic(attributes, false);
                 break;
             case STATUS_PROPS:
-                if (!cbox_props.isSelected()) {
+                if (!bMsgProps) {
                     return;
                 }
                 StyleConstants.setForeground(attributes, generateColor (TextColor.Gold));

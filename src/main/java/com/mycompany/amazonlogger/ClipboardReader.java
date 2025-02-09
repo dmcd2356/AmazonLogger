@@ -30,12 +30,8 @@ public class ClipboardReader {
                 clipReader = new StringTokenizer(strClipboard,"\n");
             }
         }
-        catch (UnsupportedFlavorException ex) {
-            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "*** ClipboardReader: UnsupportedFlavorException");
-            frame.disableAllButton();
-        }
-        catch (IOException ex) {
-            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "*** ClipboardReader: IOException");
+        catch (UnsupportedFlavorException | IOException ex) {
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ClipboardReader: " + ex);
             frame.disableAllButton();
         }
     }
@@ -49,7 +45,7 @@ public class ClipboardReader {
             }
         }
         catch (IOException ex) {
-            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "*** ClipboardReader: IOException");
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ClipboardReader: " + ex);
             frame.disableAllButton();
         }
     }
@@ -66,7 +62,7 @@ public class ClipboardReader {
             try {
                 line = fileReader.readLine();
             } catch (IOException ex) {
-                frame.outputInfoMsg(UIFrame.STATUS_ERROR, "*** webClipGetLine: IOException on file");
+                frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ClipboardReader.getLine: " + ex);
                 line = null;
             }
         } else if (clipReader != null) {
@@ -91,7 +87,7 @@ public class ClipboardReader {
             try {
                 fileReader.close();
             } catch (IOException ex) {
-                frame.outputInfoMsg(UIFrame.STATUS_ERROR, "*** webClipClose: IOException on file");
+                frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ClipboardReader.close: " + ex);
             }
         }
         clipReader = null;

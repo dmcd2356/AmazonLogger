@@ -17,6 +17,7 @@ public class AmazonReader {
     public  static PropertiesFile props;
 
     private  ClipboardReader clipReader = null;
+    private static File   ssheetFile = null;
     private static String strSheetSel = null;
     private static ArrayList<AmazonOrder> amazonList = new ArrayList<>();
     private static ArrayList<AmazonOrder> detailList = new ArrayList<>();
@@ -83,21 +84,21 @@ public class AmazonReader {
             String strDate = DateFormat.convertDateToString (orderDate, true);
 
             if (! order.isOrderComplete()) {
-                frame.outputInfoMsg (UIFrame.STATUS_ERROR, "Incomplete data in entry " + ix + ": order #: " + orderNum);
+                frame.outputInfoMsg (UIFrame.STATUS_ERROR, "AmazonReader.addOrdersToList: Incomplete data in entry " + ix + ": order #: " + orderNum);
                 bError = true;
             }
             if (orderDate.getYear() != Spreadsheet.getSpreadsheetYear()) {
-                frame.outputInfoMsg(UIFrame.STATUS_PARSER, "skipping order # " + orderNum + " - wrong year: " + strDate);
+                frame.outputInfoMsg(UIFrame.STATUS_PARSER, "skip order # " + orderNum + " - wrong year: " + strDate);
                 newList.remove(ix);
             }
         }
 
         if (bError) {
-            frame.outputInfoMsg (UIFrame.STATUS_ERROR,"addOrdersToList: Missing data in list entries");
+            frame.outputInfoMsg (UIFrame.STATUS_ERROR,"AmazonReader.addOrdersToList: Missing data in list entries");
             return oldList;
         }
         if (newList.isEmpty()) {
-            frame.outputInfoMsg (UIFrame.STATUS_WARN, "No valid orders to add");
+            frame.outputInfoMsg (UIFrame.STATUS_WARN, "AmazonReader.addOrdersToList: No valid orders to add");
             return oldList;
         }
         
@@ -106,8 +107,6 @@ public class AmazonReader {
             return newList;
         }
 
-        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "Everything looks good!");
-        
         // both lists are valid...
         // determine which list is older - we want the oldest orders first in the list
         LocalDate newDateStart = newList.get(0).getOrderDate();
@@ -163,7 +162,7 @@ public class AmazonReader {
                 // new entry, add to end of list
                 finalList.add(appendList.get(ix));
             } else {
-                frame.outputInfoMsg(UIFrame.STATUS_PARSER, "skipping order # " + orderNum + " - duplicate entry");
+                frame.outputInfoMsg(UIFrame.STATUS_PARSER, "skip order # " + orderNum + " - duplicate entry");
             }
         }
 
@@ -212,7 +211,7 @@ public class AmazonReader {
                             frame.setTabOwner(strSheetSel.toUpperCase());
                             frame.outputInfoMsg(UIFrame.STATUS_PARSER, strSheetSel + "'s list selected");
                         } else {
-                            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "Invalid clip: current tab selection is Dan but previous clips are " + strSheetSel);
+                            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "AmazonReader.parseWebData: Invalid clip: current tab selection is Dan but previous clips are " + strSheetSel);
                             return false;
                         }
                         break;
@@ -223,7 +222,7 @@ public class AmazonReader {
                             frame.setTabOwner(strSheetSel.toUpperCase());
                             frame.outputInfoMsg(UIFrame.STATUS_PARSER, strSheetSel + "'s list selected");
                         } else {
-                            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "Invalid clip: current tab selection is Connie but previous clips are " + strSheetSel);
+                            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "AmazonReader.parseWebData: Invalid clip: current tab selection is Connie but previous clips are " + strSheetSel);
                             return false;
                         }
                         break;
@@ -304,12 +303,12 @@ public class AmazonReader {
      */
     public static void updateSpreadsheet () {
         if (strSheetSel == null) {
-            frame.outputInfoMsg(UIFrame.STATUS_WARN, "updateSpreadsheet: spreadsheet sheet selection not made");
+            frame.outputInfoMsg(UIFrame.STATUS_WARN, "AmazonReader.updateSpreadsheet: spreadsheet sheet selection not made");
             return;
         }
 
         if (amazonList.isEmpty() && detailList.isEmpty()) {
-            frame.outputInfoMsg(UIFrame.STATUS_WARN, "updateSpreadsheet: nothing to update");
+            frame.outputInfoMsg(UIFrame.STATUS_WARN, "AmazonReader.updateSpreadsheet: nothing to update");
             return;
         }
 
@@ -346,7 +345,7 @@ public class AmazonReader {
                     frame.outputInfoMsg(UIFrame.STATUS_INFO, "spreadsheet " + strSheetSel + " last row: " + lastRow);
                     String ssOrderDate   = Spreadsheet.getDateOrdered (lastRow - 1);
                     if (ssOrderDate == null || (ssOrderDate.length() != 5 && ssOrderDate.length() != 10)) {
-                        throw new ParserException("Invalid date in spreadsheet on row " + lastRow + ": " + ssOrderDate);
+                        throw new ParserException("AmazonReader.updateSpreadsheet: Invalid date in spreadsheet on row " + lastRow + ": " + ssOrderDate);
                     }
                     if (ssOrderDate.length() == 10) { // if it includes the year, trim it off
                         ssOrderDate = ssOrderDate.substring(5);
@@ -395,8 +394,8 @@ public class AmazonReader {
                 // to get the entries in chronological order, start with the last entry and work backwards.
                 // let's proceed from the item number that matched and loop backwards to the more recent entries.
                 if (bExit) {
-                    frame.outputInfoMsg(UIFrame.STATUS_WARN, "All Amazon page entries are already contained in spreadsheet.");
-                    frame.outputInfoMsg(UIFrame.STATUS_WARN, "If there is a more recent page, copy it to the file and try again.");
+                    frame.outputInfoMsg(UIFrame.STATUS_WARN, "AmazonReader.updateSpreadsheet: All Amazon page entries are already contained in spreadsheet.");
+                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "If there is a more recent page, copy it to the file and try again.");
                 } else {
                     frame.outputInfoMsg(UIFrame.STATUS_NORMAL, "Appending the following rows starting at row: " + (lastRow + 1));
                     int row = lastRow;
@@ -420,7 +419,7 @@ public class AmazonReader {
                     String strOrderNum = order.getOrderNumber();
                     int row = Spreadsheet.findItemNumber (strOrderNum);
                     if (row < 0) {
-                        frame.outputInfoMsg(UIFrame.STATUS_WARN, "Index " + ixOrder + " Order " + order.getOrderNumber() + " not found in spreadsheet");
+                        frame.outputInfoMsg(UIFrame.STATUS_WARN, "AmazonReader.updateSpreadsheet: Index " + ixOrder + " Order " + order.getOrderNumber() + " not found in spreadsheet");
                     } else {
                         // save the detailed info to spreadsheet class
                         showItemListing(ixOrder, order);
@@ -446,8 +445,12 @@ public class AmazonReader {
             frame.clearOrderCount();
             frame.clearDetailCount();
 
-        } catch (ParserException | IOException ex) {
+        } catch (ParserException ex) {
             frame.outputInfoMsg(UIFrame.STATUS_ERROR, ex.getMessage());
+            frame.disableAllButton();
+        }
+        catch (IOException ex) {
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "AmazonReader.updateSpreadsheet: " + ex.getMessage());
             frame.disableAllButton();
         }
     }
@@ -473,9 +476,6 @@ public class AmazonReader {
         String pathname = Utils.getPathFromPropertiesFile (Property.TestPath);
         if (pathname == null || pathname.isBlank()) {
             pathname = System.getProperty("user.dir");
-//            System.out.println("No TestPath defined, using current path: " + pathname);
-//        } else {
-//            System.out.println("TestPath used: " + pathname);
         }
         return pathname;
     }
@@ -505,6 +505,258 @@ public class AmazonReader {
         }
         return myFile;
     }
+
+    private static void checkReqParams (int params, String option, int ix, int argcount) throws ParserException {
+        if (ix >= argcount - params)
+            throw new ParserException("ERROR: Missing parameter for " + option + " option");
+    }
+    
+    private static void runCommandLine (String[] args) throws ParserException {
+        File pdfFile;
+        String fname;
+        String filetype;
+        String option;
+
+        for (int ix = 0; ix < args.length; ix++) {
+            option = args[ix];
+            switch (option) {
+                case "-x":
+                    System.out.println("EXITING");
+                    break;
+                case "-h":
+                    System.out.println(" -h         = to print this message");
+                    System.out.println(" -s <file>  = the name of the spreadsheet file to modify");
+                    System.out.println(" -t <tab>   = the name of the tab selection in the spreadsheet (Dan or Connie)");
+                    System.out.println(" -p <file>  = the name of the PDF file to execute");
+                    System.out.println(" -c <file>  = the name of the clipboard file to load");
+                    System.out.println(" -u         = execute the update of the clipboards loaded");
+                    System.out.println(" -o <file>  = the name of the file to output results to (default: use stdout)");
+                    System.out.println(" -d <flags> = the debug messages to enable when running (default: 0F)");
+                    System.out.println("");
+                    System.out.println("     The debug flag values are hex bit values and defined as:");
+                    System.out.println("     01 = STATUS_PARSER");
+                    System.out.println("     02 = STATUS_SPREADSHEET");
+                    System.out.println("     04 = STATUS_INFO");
+                    System.out.println("     08 = STATUS_DEBUG");
+                    System.out.println("     10 = STATUS_PROPS");
+                    System.out.println("     e.g. -d 1F will enable all msgs");
+                    System.out.println();
+                    System.out.println("The following commands test special features:");
+                    System.out.println();
+                    System.out.println(" -date [p] <value>    = display the date converted to YYYY-MM-DD format (p = past date)");
+                    System.out.println(" -fdate <date value>  = display the future date converted to YYYY-MM-DD format");
+                    System.out.println(" -find  <order #>     = display the spreadsheet 1st row containing order#");
+                    System.out.println(" -class   <col> <row> = display the spreadsheet cell class type");
+                    System.out.println(" -cellget <col> <row> = display the spreadsheet cell data");
+                    System.out.println(" -cellput <col> <row> <text> = write the spreadsheet cell data (erases if text omitted)");
+                    System.out.println("          (displays the previous value that was overwritten)");
+                    System.out.println(" -color   <col> <row> <color> = set cell background to color of the month (0 to clear)");
+                    System.out.println(" -RGB     <col> <row> <RGB> = set cell background to specified RGB hexadecimal color");
+                    System.out.println(" -HSB     <col> <row> <HSB> = set cell background to specified HSB hexadecimal color");
+                    System.out.println();
+                    System.out.println(" The -s option is required, since it specifies the spreadsheet to work with.");
+                    System.out.println("");
+                    System.out.println(" The -p and the -c options are optional and specify the input files to parse.");
+                    System.out.println("   Multiple Clipboard files can be specified to run back to back.");
+                    System.out.println("   If neither is specified, it will simply open the Spreadsheet file and close it.");
+                    System.out.println("");
+                    System.out.println(" The -o option is optional. If not given, it will be output to the file specified");
+                    System.out.println("   by the 'TestFileOut' entry in the site.properties file.");
+                    System.out.println("   If the properties file doesn't exist or 'TestFileOut' is not defined in it or");
+                    System.out.println("   the -o option omitted a <file> entry, all reporting will be output to stdout.");
+                    System.out.println("   If outputting to a file and the file currently exists, it will be overwritten.");
+                    System.out.println("");
+                    System.out.println(" The path used for the all files is the value of the 'TestPath' entry in the");
+                    System.out.println("   site.properties file. If the properties file doesn't exist or 'TestPath'");
+                    System.out.println("   is not defined in it, the current directory will be used as the path.");
+                    System.out.println();
+                    return;
+                case "-d":
+                    checkReqParams (1, option, ix, args.length);
+                    Integer debugFlags = Integer.parseUnsignedInt(args[++ix], 16);
+                    frame.setMessageFlags(debugFlags);
+                    break;
+                case "-s":
+                    checkReqParams (1, option, ix, args.length);
+                    filetype = "Spreadsheet";
+                    fname = args[++ix];
+                    ssheetFile = checkFilename (fname, ".ods", filetype, true);
+                    System.out.println(filetype + " file: " + ssheetFile.getAbsolutePath());
+                    // load the spreadsheet file
+                    Spreadsheet.loadSpreadsheet(ssheetFile);
+                    break;
+                case "-t":
+                    checkReqParams (1, option, ix, args.length);
+                    strSheetSel = args[++ix];
+                    // make the tab selection
+                    Spreadsheet.selectSpreadsheetTab (strSheetSel);
+                    break;
+                case "-c":
+                    checkReqParams (1, option, ix, args.length);
+                    filetype = "Clipboard";
+                    fname = args[++ix];
+                    File fClip = checkFilename (fname, ".txt", filetype, false);
+                    System.out.println(filetype + " file: " + fClip.getAbsolutePath());
+                    // read from this file instead of clipboard
+                    AmazonReader amazonReader = new AmazonReader(fClip);
+                    amazonReader.parseWebData();
+                    break;
+                case "-u":
+                    System.out.println("Updating spreadsheet from clipboards");
+                    AmazonReader.updateSpreadsheet();
+                    break;
+                case "-p":
+                    checkReqParams (1, option, ix, args.length);
+                    filetype = "PDF";
+                    fname = args[++ix];
+                    pdfFile = checkFilename (fname, ".pdf", filetype, false);
+                    System.out.println(filetype + " file: " + pdfFile.getAbsolutePath());
+                    PdfReader pdfReader = new PdfReader(pdfFile);
+                    pdfReader.readPdfContents();
+                    break;
+                case "-o":
+                    if (ix >= args.length - 1 || args[ix+1].startsWith("-")) {
+                        System.out.println("Output messages to stdout");
+                        frame.setTestOutputFile(null);
+                    } else {
+                        fname = args[++ix];
+                        fname = getTestPath() + "/" + fname;
+                        System.out.println("Output messages to file: " + fname);
+                        frame.setTestOutputFile(fname);
+                    }
+                    break;
+                case "-date":
+                    checkReqParams (1, option, ix, args.length);
+                    // the date will consume the remainder of the command line
+                    // convert arg array to a list, remove everything up to the command, then compress into a string
+                    List<String> list = new ArrayList<>(Arrays.asList(args));
+                    for (int index = 0; index < list.size() && ! list.get(0).contentEquals(option); index++) {
+                        list.remove(0);
+                    }
+                    list.remove(0); // now remove the "-date" entry
+                    boolean bPast = false;
+                    if (args[++ix].contentEquals("p")) {
+                        if (list.isEmpty())
+                            throw new ParserException("ERROR: Missing parameter for " + option + " option");
+                        bPast = true;
+                        list.remove(0);
+                    }
+                    String strDate = String.join(" ", list);
+                    LocalDate date = DateFormat.getFormattedDate (strDate, bPast);
+                    String convDate = DateFormat.convertDateToString(date, true);
+                    if (convDate == null) {
+                        throw new ParserException("ERROR: invalid date conversion");
+                    }
+                    System.out.println("<" + convDate + ">");
+                    // since we don't know how many words are in the date, this must be last in the command line
+                    return;
+                case "-find":
+                    checkReqParams (1, option, ix, args.length);
+                    String strCol,strRow, order;
+                    Integer iRow, iCol;
+                    order = args[++ix];
+                    iRow = Spreadsheet.findItemNumber(order);
+                    System.out.println("<" + iRow + ">");
+                    break;
+                case "-class":
+                    checkReqParams (2, option, ix, args.length);
+                    strCol = args[++ix];
+                    strRow = args[++ix];
+                    iCol = Utils.getIntFromString(strCol, 0, 0);
+                    iRow = Utils.getIntFromString(strRow, 0, 0);
+                    if (iCol == null || iRow == null) {
+                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow);
+                    }
+                    String strValue = Spreadsheet.getSpreadsheetCellClass(iCol, iRow);
+                    System.out.println("<" + strValue + ">");
+                    break;
+                case "-color":
+                    checkReqParams (3, option, ix, args.length);
+                    strCol = args[++ix];
+                    strRow = args[++ix];
+                    String strColor = args[++ix];
+                    iCol = Utils.getIntFromString(strCol, 0, 0);
+                    iRow = Utils.getIntFromString(strRow, 0, 0);
+                    Integer iColor = Utils.getIntFromString(strColor, 0, 0);
+                    if (iCol == null || iRow == null || iColor == null) {
+                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow + ", color = " + strColor);
+                    }
+                    Spreadsheet.setSpreadsheetCellColor(strSheetSel, iCol, iRow, Utils.getColorOfTheMonth(iColor));
+                    System.out.println("<OK>");
+                    break;
+                case "-RGB":
+                    checkReqParams (3, option, ix, args.length);
+                    strCol = args[++ix];
+                    strRow = args[++ix];
+                    String colorRGB = args[++ix];
+                    iCol = Utils.getIntFromString(strCol, 0, 0);
+                    iRow = Utils.getIntFromString(strRow, 0, 0);
+                    Integer iRGB = Integer.parseUnsignedInt(colorRGB, 16);
+                    if (iCol == null || iRow == null || iRGB == null) {
+                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow + ", RGB = " + colorRGB);
+                    }
+                    Spreadsheet.setSpreadsheetCellColor(strSheetSel, iCol, iRow, Utils.getColor("RGB", iRGB));
+                    System.out.println("<OK>");
+                    break;
+                case "-HSB":
+                    checkReqParams (3, option, ix, args.length);
+                    strCol = args[++ix];
+                    strRow = args[++ix];
+                    String colorHSB = args[++ix];
+                    iCol = Utils.getIntFromString(strCol, 0, 0);
+                    iRow = Utils.getIntFromString(strRow, 0, 0);
+                    Integer iHSB = Integer.parseUnsignedInt(colorHSB, 16);
+                    if (iCol == null || iRow == null || iHSB == null) {
+                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow + ", HSB = " + colorHSB);
+                    }
+                    Spreadsheet.setSpreadsheetCellColor(strSheetSel, iCol, iRow, Utils.getColor("HSB", iHSB));
+                    System.out.println("<OK>");
+                    break;
+                case "-cellget":
+                    checkReqParams (2, option, ix, args.length);
+                    strCol = args[++ix];
+                    strRow = args[++ix];
+                    iCol = Utils.getIntFromString(strCol, 0, 0);
+                    iRow = Utils.getIntFromString(strRow, 0, 0);
+                    if (iCol == null || iRow == null) {
+                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow);
+                    }
+                    String cellValue = Spreadsheet.getSpreadsheetCell(strSheetSel, iCol, iRow);
+                    System.out.println("<" + cellValue + ">");
+                    break;
+                case "-cellput":
+                    checkReqParams (2, option, ix, args.length);
+                    strCol = args[++ix];
+                    strRow = args[++ix];
+                    String strText = null;
+                    // the cell text will consume the remainder of the command line
+                    // convert arg array to a list, remove everything up to the command, then compress into a string
+                    // if no parameter, we erase the cell by passing a null
+                    if (ix < args.length - 1) {
+                        list = new ArrayList<>(Arrays.asList(args));
+                        for (int index = 0; index < list.size() && ! list.get(0).contentEquals(option); index++) {
+                            list.remove(0);
+                        }
+                        // now remove the "-cellput" entry and the col and row entries
+                        for (int index = 0; index < list.size() && index < 3; index++) {
+                            list.remove(0);
+                        }
+                        strText = String.join(" ", list);
+                    }
+                    iCol = Utils.getIntFromString(strCol, 0, 0);
+                    iRow = Utils.getIntFromString(strRow, 0, 0);
+                    if (iCol == null || iRow == null) {
+                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow);
+                    }
+                    cellValue = Spreadsheet.putSpreadsheetCell(strSheetSel, iCol, iRow, strText);
+                    System.out.println("<" + cellValue + ">");
+                    // since we don't know how many words are in the date, this must be last in the command line
+                    return;
+                default:
+                    throw new ParserException("ERROR: Invalid option: " + args[ix]);
+            }
+        }
+    }
     
     // Main driver method
     public static void main(String[] args)
@@ -513,259 +765,33 @@ public class AmazonReader {
         if (args.length > 0) {
             frame = new UIFrame(false);
             props = new PropertiesFile();
-
-            File ssheetFile = null;
-            File pdfFile = null;
-            ArrayList<File> clipFiles = new ArrayList<>();
-            Integer debugFlags = 0;
-            String fname;
-            String strOutFname = null;
-            String filetype;
-            String option = "";
-            boolean bArgError = false;
-            for (int ix = 0; ix < args.length && !bArgError; ix++) {
-                option = args[ix];
-                switch (option) {
-                    case "-h":
-                        System.out.println(" -h         = to print this message");
-                        System.out.println(" -s <file>  = the name of the spreadsheet file to modify");
-                        System.out.println(" -p <file>  = the name of the PDF file to run");
-                        System.out.println(" -c <file>  = the name of the clipboard file to run");
-                        System.out.println(" -o <file>  = the name of the file to output results to");
-                        System.out.println(" -d <flags> = the debug messages to enable when running");
-                        System.out.println("");
-                        System.out.println("     The debug flag values are hex bit values and defined as:");
-                        System.out.println("     01 = STATUS_PARSER");
-                        System.out.println("     02 = STATUS_SPREADSHEET");
-                        System.out.println("     04 = STATUS_INFO");
-                        System.out.println("     08 = STATUS_DEBUG");
-                        System.out.println("     10 = STATUS_PROPS");
-                        System.out.println("     e.g. -d 1F will enable all msgs");
-                        System.out.println();
-                        System.out.println("The following test special features and all other flags will be ignored.");
-                        System.out.println();
-                        System.out.println(" -date [p] <value>   = display the date converted to YYYY-MM-DD format (p = past date)");
-                        System.out.println(" -fdate <date value> = display the future date converted to YYYY-MM-DD format");
-                        System.out.println(" -find <file> <tab> <order#>    = display the spreadsheet 1st row containing order#");
-                        System.out.println(" -cellget <file> <tab> <col> <row> = display the spreadsheet cell data");
-                        System.out.println(" -cellput <file> <tab> <col> <row> <text> = write the spreadsheet cell data");
-                        System.out.println("          (displays the previous value that was overwritten)");
-                        System.out.println();
-                        System.out.println(" The -s option is required, since it specifies the spreadsheet to work with.");
-                        System.out.println("   Only 1 is allowed.");
-                        System.out.println("");
-                        System.out.println(" The -p and the -c options are optional and specify the input files to parse.");
-                        System.out.println("   Ony 1 PDF file can be specified, but multiple Clipboard files can be specified.");
-                        System.out.println("   If neither is specified, it will simply open the Spreadsheet file and close it.");
-                        System.out.println("");
-                        System.out.println(" The -o option is optional. If not given, it will be output to the file specified");
-                        System.out.println("   by the 'TestFileOut' entry in the site.properties file.");
-                        System.out.println("   If the properties file doesn't exist or 'TestFileOut' is not defined in it or");
-                        System.out.println("   the -o option omitted a <file> entry, all reporting will be output to stdout.");
-                        System.out.println("   If outputting to a file and the file currently exists, it will be overwritten.");
-                        System.out.println("");
-                        System.out.println(" The path used for the all files is the value of the 'TestPath' entry in the");
-                        System.out.println("   site.properties file. If the properties file doesn't exist or 'TestPath'");
-                        System.out.println("   is not defined in it, the current directory will be used as the path.");
-                        System.out.println();
-                        System.exit(0);
-                        break;
-                    case "-d":
-                        if (ix >= args.length - 1)  { bArgError = true;   break; }
-                        debugFlags = Integer.parseUnsignedInt(args[++ix], 16);
-                        frame.enableMessage(UIFrame.STATUS_PARSER, (0 != (debugFlags & 1)));
-                        frame.enableMessage(UIFrame.STATUS_SSHEET, (0 != (debugFlags & 2)));
-                        frame.enableMessage(UIFrame.STATUS_INFO  , (0 != (debugFlags & 4)));
-                        frame.enableMessage(UIFrame.STATUS_DEBUG , (0 != (debugFlags & 8)));
-                        frame.enableMessage(UIFrame.STATUS_PROPS , (0 != (debugFlags & 16)));
-                        break;
-                    case "-s":
-                        if (ssheetFile != null) {
-                            System.out.println("ERROR: can't specify more than 1 spreadsheet file");
-                            System.exit(0);
-                        }
-                        if (ix >= args.length - 1)  { bArgError = true;   break; }
-                        filetype = "Spreadsheet";
-                        fname = args[++ix];
-                        ssheetFile = checkFilename (fname, ".ods", filetype, true);
-                        System.out.println(filetype + " file: " + ssheetFile.getAbsolutePath());
-                        break;
-                    case "-c":
-                        if (ix >= args.length - 1)  { bArgError = true;   break; }
-                        filetype = "Clipboard";
-                        fname = args[++ix];
-                        File fClip = checkFilename (fname, ".txt", filetype, false);
-                        clipFiles.add(fClip);
-                        System.out.println(filetype + " file: " + fClip.getAbsolutePath());
-                        break;
-                    case "-p":
-                        if (pdfFile != null) {
-                            System.out.println("ERROR: can't specify more than 1 PDF file");
-                            System.exit(0);
-                        }
-                        if (ix >= args.length - 1)  { bArgError = true;   break; }
-                        filetype = "PDF";
-                        fname = args[++ix];
-                        pdfFile = checkFilename (fname, ".pdf", filetype, false);
-                        System.out.println(filetype + " file: " + pdfFile.getAbsolutePath());
-                        break;
-                    case "-o":
-                        if (ix >= args.length - 1) {
-                            strOutFname = " "; // this will prevent using properties file selection
-                        } else {
-                            fname = args[++ix];
-                            strOutFname = getTestPath() + "/" + fname;
-                            System.out.println("Output file: " + strOutFname);
-                        }
-                        break;
-                    case "-date":
-                        if (ix >= args.length - 1)  { bArgError = true;   break; }
-                        List<String> list = new ArrayList<>(Arrays.asList(args));
-                        list.remove(0);
-                        boolean bPast = false;
-                        if (args[++ix].contentEquals("p")) {
-                            if (list.isEmpty())  { bArgError = true;   break; }
-                            bPast = true;
-                            list.remove(0);
-                        }
-                        String strDate = String.join(" ", list);
-                        try {
-                            LocalDate date = DateFormat.getFormattedDate (strDate, bPast);
-                            String convDate = DateFormat.convertDateToString(date, true);
-                            if (convDate == null) {
-                                convDate = "ERROR: invalid date conversion";
-                            }
-                            System.out.println(convDate);
-                        } catch (ParserException ex) {
-                            System.out.println("ERROR: " + ex);
-                        }
-                        System.exit(0);
-                        break;
-                    case "-find":
-                        if (ix >= args.length - 3)  { bArgError = true;   break; }
-                        String tab, strCol,strRow, order;
-                        Integer iRow, iCol;
-                        fname = args[++ix];
-                        tab   = args[++ix];
-                        order = args[++ix];
-                        ssheetFile = checkFilename (fname, ".ods", "Spreadsheet", true);
-                        if (ssheetFile == null) {
-                            System.out.println("ERROR: no spreadsheet file chosen (must precede '-cell' option)");
-                        } else {
-                            Spreadsheet.loadSpreadsheet(ssheetFile);
-                            Spreadsheet.selectSpreadsheetTab (tab);
-                            iRow = Spreadsheet.findItemNumber(order);
-                            System.out.println(iRow);
-                        }
-                        System.exit(0);
-                        break;
-                    case "-cellget":
-                        if (ix >= args.length - 4)  { bArgError = true;   break; }
-                        fname = args[++ix];
-                        tab    = args[++ix];
-                        strCol = args[++ix];
-                        strRow = args[++ix];
-                        ssheetFile = checkFilename (fname, ".ods", "Spreadsheet", true);
-                        iCol = Utils.getIntFromString(strCol, 0, 0);
-                        iRow = Utils.getIntFromString(strRow, 0, 0);
-                        if (iCol == null || iRow == null) {
-                            System.out.println("ERROR: invalid values: col = " + strCol + ", row = " + strRow);
-                        } else if (ssheetFile == null) {
-                            System.out.println("ERROR: no spreadsheet file chosen (must precede '-cell' option)");
-                        } else {
-                            Spreadsheet.loadSpreadsheet(ssheetFile);
-                            String cellValue = Spreadsheet.getSpreadsheetCell(tab, iCol, iRow);
-                            System.out.println(cellValue);
-                        }
-                        System.exit(0);
-                        break;
-                    case "-cellput":
-                        if (ix >= args.length - 5)  { bArgError = true;   break; }
-                        fname = args[++ix];
-                        tab    = args[++ix];
-                        strCol = args[++ix];
-                        strRow = args[++ix];
-                        String strText = args[++ix];
-                        ssheetFile = checkFilename (fname, ".ods", "Spreadsheet", true);
-                        iCol = Utils.getIntFromString(strCol, 0, 0);
-                        iRow = Utils.getIntFromString(strRow, 0, 0);
-                        if (iCol == null || iRow == null) {
-                            System.out.println("ERROR: invalid values: col = " + strCol + ", row = " + strRow);
-                        } else if (ssheetFile == null) {
-                            System.out.println("ERROR: no spreadsheet file chosen (must precede '-cell' option)");
-                        } else {
-                            Spreadsheet.loadSpreadsheet(ssheetFile);
-                            String cellValue = Spreadsheet.putSpreadsheetCell(tab, iCol, iRow, strText);
-                            System.out.println(cellValue);
-                        }
-                        System.exit(0);
-                        break;
-                    default:
-                        System.out.println("ERROR: Invalid option: " + args[ix]);
-                        System.exit(1);
-                        break;
-                }
-            }
-            if (bArgError) {
-                System.out.println("ERROR: Missing parameter for " + option + " option");
-                System.exit(1);
-            }
-            if (ssheetFile == null) {
-                System.out.println("ERROR: Spreadsheet file (-s option) missing");
-                System.exit(1);
-            }
-            if (debugFlags != 0) {
-                frame.enableMessage(UIFrame.STATUS_PARSER, props.getPropertiesItem(Property.MsgParser     , "0").contentEquals("1"));
-                frame.enableMessage(UIFrame.STATUS_SSHEET, props.getPropertiesItem(Property.MsgSpreadsheet, "0").contentEquals("1"));
-                frame.enableMessage(UIFrame.STATUS_INFO  , props.getPropertiesItem(Property.MsgInfo       , "0").contentEquals("1"));
-                frame.enableMessage(UIFrame.STATUS_DEBUG , props.getPropertiesItem(Property.MsgDebug      , "0").contentEquals("1"));
-                frame.enableMessage(UIFrame.STATUS_PROPS , props.getPropertiesItem(Property.MsgProperties , "0").contentEquals("1"));
-            }
-            if (strOutFname == null) {
-                // no output file name specified, use setting from properties file
-                strOutFname = props.getPropertiesItem(Property.TestFileOut, "");
-                if (strOutFname != null) {
-                    strOutFname = getTestPath() + "/" + strOutFname;
-                    System.out.println("Using properties output file selection: " + strOutFname);
-                }
-            }
-            frame.setTestOutputFile(strOutFname);
+            // set defaults from properties file
+            frame.setDefaultStatus ();
+            Spreadsheet.setDefaultSettings();
             
-            // load the spreadsheet file
-            Spreadsheet.loadSpreadsheet(ssheetFile);
-            
-            // now run any clipboards specified
-            if (!clipFiles.isEmpty()) {
-                for (int ix = 0; ix < clipFiles.size(); ix++) {
-                    File clip = clipFiles.get(ix);
-                    // read from this file instead of clipboard
-                    AmazonReader amazonReader = new AmazonReader(clip);
-                    amazonReader.parseWebData();
-                }
-                // now update the spreadsheet
-                AmazonReader.updateSpreadsheet();
+            try {
+                runCommandLine (args);
+            } catch (ParserException ex) {
+                System.out.println(ex);
             }
-            
-            // now run the PDF file (if specified)
-            if (pdfFile != null) {
-                PdfReader pdfReader = new PdfReader(pdfFile);
-                pdfReader.readPdfContents();
-            }
-            
             frame.closeTestFile();
-            
+                
+//            boolean bExit = false;
+//            Scanner scanner = new Scanner(System.in);
+//            while (!bExit) {
+//                System.out.println("Running in background");
+//                String[] command = scanner.nextLine().split(" ");
+//                bExit = runCommandLine (command);
+//            }
+//            System.out.println("Exiting background");
         } else {
             // create the user interface to control things
             frame = new UIFrame(true);
             props = new PropertiesFile();
 
             // enable the messages as they were from prevous run
-            frame.enableMessage(UIFrame.STATUS_PARSER, props.getPropertiesItem(Property.MsgParser     , "0").contentEquals("1"));
-            frame.enableMessage(UIFrame.STATUS_SSHEET, props.getPropertiesItem(Property.MsgSpreadsheet, "0").contentEquals("1"));
-            frame.enableMessage(UIFrame.STATUS_INFO  , props.getPropertiesItem(Property.MsgInfo       , "0").contentEquals("1"));
-            frame.enableMessage(UIFrame.STATUS_DEBUG , props.getPropertiesItem(Property.MsgDebug      , "0").contentEquals("1"));
-            frame.enableMessage(UIFrame.STATUS_PROPS , props.getPropertiesItem(Property.MsgProperties , "0").contentEquals("1"));
-        }
+            frame.setDefaultStatus ();
+         }
     }
 }
 

@@ -96,13 +96,13 @@ public class ParseDetails {
                         // we do need the order number.
                         int offset = line.indexOf("Order# ");
                         if (offset <= 0 || line.length() != offset + 7 + 19) {
-                            throw new ParserException("Order number not found in 'Ordered on' line");
+                            throw new ParserException("ParseDetails.parseDetails: Order number not found in 'Ordered on' line");
                         }
                         String strOrderNum = line.substring(offset + 7);
                         // now extract date from begining of string
                         LocalDate date = DateFormat.getFormattedDate (line, true);
                         if (date == null)
-                            throw new ParserException("parseDetails: invalid char in " + keywordInfo.eKeyId.name() + " date ", line);
+                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.eKeyId.name() + " date ", line);
                         newOrder.setOrderDate(date);
                         newOrder.setOrderNumber(strOrderNum);
                         frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Order date: " + date.toString());
@@ -115,7 +115,7 @@ public class ParseDetails {
                     case Keyword.KeyTyp.NOW_ARRIVING:
                         LocalDate delivered = DateFormat.getFormattedDate(line, true);
                         if (delivered == null) {
-                            throw new ParserException("parseDetails: invalid char in " + keywordInfo.eKeyId.name() + " date ", line);
+                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.eKeyId.name() + " date ", line);
                         }
                         if (newItem.isItemDefined()) {
                             frame.outputInfoMsg (UIFrame.STATUS_INFO, "* Added new ITEM in multi-item ORDER");
@@ -179,7 +179,7 @@ public class ParseDetails {
                         // if delivery date was not presented for the item, use date of last item
                         if (newItem.getDeliveryDate() == null) {
                             if (lastDeliveryDate == null) {
-                                frame.outputInfoMsg (UIFrame.STATUS_WARN, "* Delivery date not found for item!");
+                                frame.outputInfoMsg (UIFrame.STATUS_WARN, "ParseDetails.parseDetails: Delivery date not found for item!");
                             } else {
                                 frame.outputInfoMsg (UIFrame.STATUS_PARSER, "      (using last delivery date : " + lastDeliveryDate + ")");
                                 newItem.setDeliveryDate(lastDeliveryDate);
@@ -251,10 +251,10 @@ public class ParseDetails {
         // check if we were in the middle of a command when we terminated
         if (keywordInfo != null && keywordInfo.eKeyId != Keyword.KeyTyp.COMPLETE
                                 && keywordInfo.eKeyId != Keyword.KeyTyp.NONE) {
-            throw new ParserException("EOF while parsing Order Details (state = " + keywordInfo.eKeyId.name() + ")");
+            throw new ParserException("ParseDetails.parseDetails: EOF while parsing Order Details (state = " + keywordInfo.eKeyId.name() + ")");
         }
         if (newOrder.item.isEmpty()) {
-            frame.outputInfoMsg(UIFrame.STATUS_WARN, "Clipboard did not contain any items.");
+            frame.outputInfoMsg(UIFrame.STATUS_WARN, "ParseDetails.parseDetails: Clipboard did not contain any items.");
         }
         
         return newOrder;

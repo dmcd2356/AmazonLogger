@@ -11,8 +11,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.apache.tika.exception.TikaException;
@@ -88,7 +86,7 @@ public class PdfReader {
                 // now find the latest year directory under this path advance to it
                 String strYear = getLatestYearDir(pdfPath);
                 if (strYear.isEmpty()) {
-                    frame.outputInfoMsg(UIFrame.STATUS_WARN, "No year directory found in: " + pdfPath);
+                    frame.outputInfoMsg(UIFrame.STATUS_WARN, "PdfReader.readPdfContents: No year directory found in: " + pdfPath);
                 } else {
                     frame.outputInfoMsg(UIFrame.STATUS_INFO, "Latest directory year: " + strYear);
                     pdfPath += '/' + strYear;
@@ -110,7 +108,7 @@ public class PdfReader {
             jfc.setVisible(true);
             pdfFile = jfc.getSelectedFile();
             if (pdfFile == null) {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, "No file chosen");
+                frame.outputInfoMsg(UIFrame.STATUS_WARN, "PdfReader.readPdfContents: No file chosen");
                 return;
             }
 
@@ -189,13 +187,13 @@ public class PdfReader {
                         
                         String ordernum = line.substring(19);
                         if (transactionList.isEmpty()) {
-                            throw new ParserException("Order # " + ordernum + " received prior to any transactions");
+                            throw new ParserException("PdfReader.readPdfContents: Order # " + ordernum + " received prior to any transactions");
                         }
                         CardTransaction newEntry = transactionList.removeLast();
                         if (newEntry.order_num == null || newEntry.order_num.isEmpty()) {
                             newEntry.order_num = ordernum;
                         } else {
-                            throw new ParserException("Order # " + ordernum + " received with no preceding data");
+                            throw new ParserException("PdfReader.readPdfContents: Order # " + ordernum + " received with no preceding data");
                         }
                         transactionList.add(newEntry);
                         bValid = false;
@@ -306,7 +304,7 @@ public class PdfReader {
             frame.outputInfoMsg(UIFrame.STATUS_ERROR, ex.getMessage());
             frame.disableAllButton();
         } catch (IOException | SAXException | TikaException ex) {
-            Logger.getLogger(AmazonReader.class.getName()).log(Level.SEVERE, null, ex);
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "PdfReader.readPdfContents: " + ex.getMessage());
             frame.disableAllButton();
         }
     }
@@ -535,13 +533,10 @@ public class PdfReader {
             // save the data to the spreadsheet file
             Spreadsheet.saveSpreadsheetFile();
             
-        } catch (NumberFormatException ex) {
-            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "NumberFormatException: " + ex.getMessage());
+        } catch (IOException | NumberFormatException ex) {
+            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "PdfReader.balanceSpreadsheetEntries: " + ex.getMessage());
             frame.disableAllButton();
             return false;
-        } catch (IOException ex) {
-            frame.disableAllButton();
-            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "IOException: " + ex.getMessage());
         }
 
         return true;

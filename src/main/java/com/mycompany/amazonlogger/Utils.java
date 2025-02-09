@@ -125,7 +125,7 @@ public class Utils {
     public static int getAmountValue (String str) throws ParserException {
         // check for empty string
         if (str == null) {
-            throw new ParserException("null string");
+            throw new ParserException("Utils.getAmountValue: null string");
         }
         // skip any leading and trailing space characters
         int ix;
@@ -138,7 +138,7 @@ public class Utils {
         
         // check for invalid string length (.01 to -$99999.99)
         if (str.length() < 3 || str.length() > 10) {
-            throw new ParserException("getAmountValue: invalid string length (" + str.length() + "): " + str);
+            throw new ParserException("Utils.getAmountValue: invalid string length (" + str.length() + "): " + str);
         }
         
         // verify value only contains valid characters
@@ -156,11 +156,11 @@ public class Utils {
                     iDecCnt++;
                 }
             } else if (str.charAt(ix) != '+' && str.charAt(ix) != '$') {
-                throw new ParserException("getAmountValue: invalid character (" + str.charAt(ix) + "): " + str);
+                throw new ParserException("Utils.getAmountValue: invalid character (" + str.charAt(ix) + "): " + str);
             }
         }
         if (iDecCnt != 2) {
-            throw new ParserException("getAmountValue: invalid number of decimal characters (" + iDecCnt + "): " + str);
+            throw new ParserException("Utils.getAmountValue: invalid number of decimal characters (" + iDecCnt + "): " + str);
         }
         
         if (bSign)
@@ -186,10 +186,10 @@ public class Utils {
         for (offset = 0; offset < line.length() && line.charAt(offset) == ' '; offset++) { }
         line = line.substring(offset);
         if (line.length() == 0) {
-            throw new ParserException("getNextWord: no word found", line);
+            throw new ParserException("Utils.getNextWord: no word found", line);
         }
         if (line.length() < minlen) {
-            throw new ParserException("getNextWord: word < minimum length", line);
+            throw new ParserException("Utils.getNextWord: word < minimum length", line);
         }
         if (maxlen <= 0) { // this indicates we want the entire length of remaining string
             maxlen = line.length();
@@ -206,6 +206,7 @@ public class Utils {
     *  @param month - the month to look up
     * 
     *  @return the Color selection corresponding to that month
+    *          (0 will return white to clear the color selection)
     */
     public static Color getColorOfTheMonth (int month) {
         Color color;
@@ -222,13 +223,50 @@ public class Utils {
             case 9: color  = Color.lightGray; break;
             case 10: color = Color.yellow;    break;
             case 11: color = Color.pink;      break;
-            default:
             case 12: color = Color.orange;    break;
+            case 0:
+            default: color = Color.white;     break;
         }
 
         return color;
     }
 
+    /*********************************************************************
+    ** returns a color specified by either the RGB palette or the HSB.
+    *  The value rgbHSB contains the values of each RGB or HSB component
+    *  packed into a single value. Each element (R, G, B and H, S, B) has
+    *  a range of 0 to 255. For the HSB, these values are supposed to be in
+    *  a range of 0.0 to 1.0, so they are correspondingly divided by 256
+    *  to give this range.
+    * 
+    *  @param type - RGB or HSB (if null or undefined, return white)
+    *  @param rgbHSB - the RGB or HSB value
+    * 
+    *  @return the Color selection
+    */
+    public static Color getColor (String type, int rgbHSB) {
+        Color myColor = Color.white;
+        
+        if (rgbHSB > 0xFFFFFF) rgbHSB = 0xFFFFFF;
+        if (rgbHSB < 0)        rgbHSB = 0;
+
+        int R = (rgbHSB & 0xFF0000) >> 16;
+        int G = (rgbHSB & 0xFF00) >> 8;
+        int B =  rgbHSB & 0xFF;
+        
+        if (type.contentEquals("HSB")) {
+            float div = (float)256;
+            float fH = (float)R / (float)256;
+            float fS = (float)G / (float)256;
+            float fB = (float)B / (float)256;
+            myColor = Color.getHSBColor(fH, fS, fB);
+        } else if (type.contentEquals("RGB")) {
+            myColor = new Color(R, G, B);
+        }
+        
+        return myColor;
+    }
+    
     public static String getFilePath (File file) {
         if (file == null)
             return "";
@@ -268,7 +306,7 @@ public class Utils {
             if (tempDir.exists() && tempDir.isDirectory()) {
                 validPath = pathName;
             } else {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, "Properties file '" + tag.name() + "' entry not a valid directory: " + pathName);
+                frame.outputInfoMsg(UIFrame.STATUS_WARN, "Utils.getPathFromPropertiesFile: Properties file '" + tag.name() + "' entry not a valid directory: " + pathName);
             }
         }
         return validPath;

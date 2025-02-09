@@ -225,7 +225,7 @@ public class DateFormat {
         int iThisDay = iCurDay;
         
         if (dateName == null) {
-            throw new ParserException("getFormattedDate: null date");
+            throw new ParserException("DateFormat.getFormattedDate: null date");
         }
         
         // skip any leading spaces
@@ -282,7 +282,7 @@ public class DateFormat {
                     case "tomorrow"  -> iDayAdjust = 1;
 
                     default -> // don't know what was given, but it wasn't valid.
-                    throw new ParserException("getFormattedDate: invalid day name: " + dateName);
+                    throw new ParserException("DateFormat.getFormattedDate: invalid day name: " + dateName);
                 }
             }
 
