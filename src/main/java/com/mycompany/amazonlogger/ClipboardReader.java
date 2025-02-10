@@ -54,16 +54,17 @@ public class ClipboardReader {
     ** reads the next line from the web text file (or clipboard).
     * 
     *  @return the next line of text
+    * 
+    * @throws IOException
     */
-    public String getLine() {
+    public String getLine() throws IOException {
         String line = null;
         
         if (fileReader != null) {
             try {
                 line = fileReader.readLine();
             } catch (IOException ex) {
-                frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ClipboardReader.getLine: " + ex);
-                line = null;
+                throw new IOException("ClipboardReader.getLine: " + ex);
             }
         } else if (clipReader != null) {
             if (clipReader.hasMoreTokens()) {
@@ -81,13 +82,15 @@ public class ClipboardReader {
     
     /*********************************************************************
     ** closes the Amazon web page file (or clipboard).
+    * 
+    * @throws java.io.IOException
     */
-    public void close() {
+    public void close() throws IOException {
         if (fileReader != null) {
             try {
                 fileReader.close();
             } catch (IOException ex) {
-                frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ClipboardReader.close: " + ex);
+                throw new IOException("ClipboardReader.close: " + ex);
             }
         }
         clipReader = null;

@@ -33,6 +33,8 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
+import org.apache.tika.exception.TikaException;
+import org.xml.sax.SAXException;
 
 /**
  * this is the frame class for the user interface
@@ -492,31 +494,28 @@ public final class UIFrame extends JFrame implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e)
     {
-        boolean bSuccess;
-        
-        if (e.getSource() == btn_select) {
-            outputSeparatorLine("LOAD SPREADSHEET");
-            bSuccess = Spreadsheet.loadSpreadsheet(null);
-            if (! bSuccess) {
-                disableAllButton();
+        try {
+            if (e.getSource() == btn_select) {
+                outputSeparatorLine("LOAD SPREADSHEET");
+                Spreadsheet.loadSpreadsheet(null);
+             }
+            else if (e.getSource() == btn_clipboard) {
+                outputSeparatorLine("PARSE CLIPBOARD");
+                AmazonParser amazonParser = new AmazonParser();
+                amazonParser.parseWebData();
             }
-        }
-        else if (e.getSource() == btn_clipboard) {
-            outputSeparatorLine("PARSE CLIPBOARD");
-            AmazonReader amazonReader = new AmazonReader();
-            bSuccess = amazonReader.parseWebData();
-            if (! bSuccess) {
-                disableAllButton();
+            else if (e.getSource() == btn_update) {
+                outputSeparatorLine("UPDATE FROM CLIPS");
+                AmazonParser.updateSpreadsheet();
             }
-        }
-        else if (e.getSource() == btn_update) {
-            outputSeparatorLine("UPDATE FROM CLIPS");
-            AmazonReader.updateSpreadsheet();
-        }
-        else if (e.getSource() == btn_balance) {
-            outputSeparatorLine("BALANCE FROM PDF");
-            PdfReader pdfReader = new PdfReader();
-            pdfReader.readPdfContents();
+            else if (e.getSource() == btn_balance) {
+                outputSeparatorLine("BALANCE FROM PDF");
+                PdfReader pdfReader = new PdfReader();
+                pdfReader.readPdfContents();
+            }
+        } catch (ParserException | IOException | SAXException | TikaException ex) {
+            outputInfoMsg (STATUS_ERROR, ex.getMessage());
+            disableAllButton();
         }
     }
 
@@ -762,27 +761,45 @@ public final class UIFrame extends JFrame implements ActionListener {
             switch (errLevel) {
                 default:
                 case STATUS_ERROR:
-                    msg = "[ERROR] " + msg;
+                    msg = "[ERROR ] " + msg;
+                    bEnableOutput = true;
                     break;
                 case STATUS_WARN:
-                    msg = "[WARN] " + msg;
+                    msg = "[WARN  ] " + msg;
+                    bEnableOutput = true;
                     break;
-                case STATUS_NORMAL: if (bMsgNormal) bEnableOutput = true;
+                case STATUS_NORMAL:
+                    msg = "[NORMAL] " + msg;
+                    if (bMsgNormal) bEnableOutput = true;
                     break;
-                case STATUS_PARSER: if (bMsgParser) bEnableOutput = true;
+                case STATUS_PARSER:
+                    msg = "[PARSER] " + msg;
+                    if (bMsgParser) bEnableOutput = true;
                     break;
-                case STATUS_SSHEET: if (bMsgSsheet) bEnableOutput = true;
+                case STATUS_SSHEET:
+                    msg = "[SSHEET] " + msg;
+                    if (bMsgSsheet) bEnableOutput = true;
                     break;
-                case STATUS_INFO:   if (bMsgInfo)   bEnableOutput = true;
+                case STATUS_INFO:
+                    msg = "[INFO  ] " + msg;
+                    if (bMsgInfo)   bEnableOutput = true;
                     break;
-                case STATUS_DEBUG:  if (bMsgDebug)  bEnableOutput = true;
+                case STATUS_DEBUG:
+                    msg = "[DEBUG ] " + msg;
+                    if (bMsgDebug)  bEnableOutput = true;
                     break;
-                case STATUS_PROPS:  if (bMsgProps)  bEnableOutput = true;
+                case STATUS_PROPS:
+                    msg = "[PROPS ] " + msg;
+                    if (bMsgProps)  bEnableOutput = true;
                     break;
             }
             if (bEnableOutput) {
                 if (testFile != null) {
                     testFile.println(msg);
+                    // errors and warnings will always go to console, even if reporting to file
+                    if (errLevel == STATUS_ERROR || errLevel == STATUS_WARN) {
+                        System.out.println(msg);
+                    }
                 } else {
                     System.out.println(msg);
                 }

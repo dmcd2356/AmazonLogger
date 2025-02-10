@@ -4,6 +4,7 @@ import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.keyword;
 import static com.mycompany.amazonlogger.AmazonReader.props;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 
@@ -28,8 +29,9 @@ public class ParseOrders {
      * @return an array of AmazonOrder entries that were extracted from the clip
      * 
      * @throws ParserException 
+     * @throws IOException 
      */
-    public ArrayList<AmazonOrder> parseOrders (ClipboardReader clip, String line, Keyword.KeyTyp keyType) throws ParserException {
+    public ArrayList<AmazonOrder> parseOrders (ClipboardReader clip, String line, Keyword.KeyTyp keyType) throws ParserException, IOException {
         String descript1 = null;
         Keyword.KeywordEntry keywordInfo = null;
         Keyword.KeywordEntry savedKey = null;
