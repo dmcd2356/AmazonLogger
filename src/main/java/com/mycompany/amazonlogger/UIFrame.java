@@ -16,6 +16,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -277,6 +278,7 @@ public final class UIFrame extends JFrame implements ActionListener {
             @Override
             public void actionPerformed(ActionEvent e){
                 if (debugFile != null) {
+                    debugFile.println("=== " + getCurrentDateTime() + " ============================================================");
                     String textToCopy = txt_info.getText();
                     Stream<String> lines = textToCopy.lines();
                     lines.forEach(debugFile::println);
@@ -519,13 +521,6 @@ public final class UIFrame extends JFrame implements ActionListener {
         }
     }
 
-    public void closeTestFile () {
-        if (testFile != null) {
-            testFile.flush();
-            testFile.close();
-        }
-    }
-    
     public void clearMessages () {
         if (!bUseGUI)
             return;
@@ -569,63 +564,6 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_update.setVisible(status);
     }
 
-    public void setDebugOutputFile (String fname) {
-        if (!bUseGUI)
-            return;
-        
-        if (fname == null || fname.isBlank()) {
-            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Debug file name missing from PropertiesFile - disabling Print to debug file");
-            debugFile = null;
-            return;
-        }
-        // we always put the file in the same location as where the spreadsheet file is
-        String ssPath = Utils.getPathFromPropertiesFile(Property.SpreadsheetPath);
-        if (ssPath == null) {
-            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Spreadsheet path missing from PropertiesFile - disabling Print to debug file");
-            debugFile = null;
-            return;
-        }
-        fname = ssPath + "/" + fname;
-        File newFile = new File(fname);
-        if (newFile.isDirectory()) {
-            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Debug file name invalid - disabling Print to debug file");
-            debugFile = null;
-            return;
-        }
-        // create a new file or overwrite the existing one
-        try {
-            if (newFile.exists()) {
-                outputInfoMsg (STATUS_NORMAL, "Deleting current existing debug file: " + fname);
-                newFile.delete();
-            }
-            outputInfoMsg (STATUS_NORMAL, "Creating debug file: " + fname);
-            newFile.createNewFile();
-            debugFile = new PrintWriter(fname);
-            btn_print.setVisible(true);
-        } catch (IOException ex) {
-            // file inaccessible
-            outputInfoMsg (STATUS_ERROR, "UIFrame.setDebugOutputFile: for file: " + fname + ", " + ex);
-            debugFile = null;
-        }
-    }
-
-    public void setTestOutputFile (String fname) {
-        if (fname != null && !fname.isBlank()) {
-            try {
-                this.testFile = new PrintWriter(new FileWriter(fname));
-            } catch (IOException ex) {
-                System.out.println("UIFrame.setTestOutputFile: on creating file: " + fname + ", " + ex);
-                this.testFile = null;
-                fname = "";
-            }
-        } else {
-            this.testFile = null;
-            fname = "";
-        }
-        // update the properties file status
-        props.setPropertiesItem(Property.TestFileOut, fname);
-    }
-    
     public void setSpreadsheetSelection (String filepath) {
         if (!bUseGUI)
             return;
@@ -704,6 +642,84 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_detail_num.setText ("0");
         lbl_detail_item.setText("0");
         lbl_detail_date.setText("");
+    }
+    
+    public void setDebugOutputFile (String fname) {
+        if (!bUseGUI)
+            return;
+        
+        if (fname == null || fname.isBlank()) {
+            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Debug file name missing from PropertiesFile - disabling Print to debug file");
+            debugFile = null;
+            return;
+        }
+        // we always put the file in the same location as where the spreadsheet file is
+        String ssPath = Utils.getPathFromPropertiesFile(Property.SpreadsheetPath);
+        if (ssPath == null) {
+            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Spreadsheet path missing from PropertiesFile - disabling Print to debug file");
+            debugFile = null;
+            return;
+        }
+        fname = ssPath + "/" + fname;
+        File newFile = new File(fname);
+        if (newFile.isDirectory()) {
+            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Debug file name invalid - disabling Print to debug file");
+            debugFile = null;
+            return;
+        }
+        // create a new file or overwrite the existing one
+        try {
+            outputInfoMsg (STATUS_NORMAL, "Creating debug file: " + fname);
+            newFile.createNewFile();
+            debugFile = new PrintWriter(fname);
+            btn_print.setVisible(true);
+        } catch (IOException ex) {
+            // file inaccessible
+            outputInfoMsg (STATUS_ERROR, "UIFrame.setDebugOutputFile: for file: " + fname + ", " + ex);
+            debugFile = null;
+        }
+    }
+
+    private String get2DigitString (int value) {
+        String strVal = (value < 10) ? "0" + value : "" + value;
+        return strVal;
+    }
+    
+    private String getCurrentDateTime () {
+        LocalDateTime datetime = LocalDateTime.now();
+        String strDate = "" + datetime.getYear();
+        strDate += "-" + get2DigitString(datetime.getMonthValue());
+        strDate += "-" + get2DigitString(datetime.getDayOfMonth());
+        strDate += " " + get2DigitString(datetime.getHour());
+        strDate += ":" + get2DigitString(datetime.getMinute());
+        strDate += ":" + get2DigitString(datetime.getSecond());
+        return strDate;
+    }
+    
+    public void setTestOutputFile (String fname) {
+        if (fname != null && !fname.isBlank()) {
+            try {
+                this.testFile = new PrintWriter(new FileWriter(fname));
+                this.testFile.println("=== " + getCurrentDateTime() + " ============================================================");
+
+            } catch (IOException ex) {
+                System.out.println("UIFrame.setTestOutputFile: on creating file: " + fname + ", " + ex);
+                this.testFile = null;
+                fname = "";
+            }
+        } else {
+            this.testFile = null;
+            fname = "";
+        }
+        // update the properties file status
+        props.setPropertiesItem(Property.TestFileOut, fname);
+    }
+    
+    public void closeTestFile () {
+        if (testFile != null) {
+            testFile.flush();
+            testFile.close();
+        }
     }
     
     private void enableMessage (int msgType, boolean bEnable) {
