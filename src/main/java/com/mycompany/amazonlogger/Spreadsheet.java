@@ -113,7 +113,7 @@ public class Spreadsheet {
         // search the first column in the first 5 rows of the spreadsheet for
         // one of the column names (only need to search 1st 4 columns)
         int headerRow = -1;
-        for (int row = 0; row < 5 && headerRow < 0; row++) {
+        for (int row = 0; row < 5 && row < sheetHeader.getRowCount() && headerRow < 0; row++) {
             String strSpreadsheet = "";
             Object object = sheetHeader.getCellAt(0,row).getValue();
             if (object != null)
@@ -139,7 +139,9 @@ public class Spreadsheet {
         // now let's run through the header columns to assign each column a value
         // (add 5 to the count in case we had some extra columns added that aren't in our list)
         int maxColValue = 0;
-        for (int col = 0; col < Column.values().length + 5; col++) {
+        int maxLen = sheetHeader.getColumnCount();
+        maxLen = (maxLen > Column.values().length + 5) ? Column.values().length + 5 : maxLen;
+        for (int col = 0; col < maxLen; col++) {
             boolean bFound = false;
             Object object = sheetHeader.getCellAt(col,headerRow).getValue();
             if (object == null || object.toString().isBlank()) {
@@ -154,7 +156,7 @@ public class Spreadsheet {
                     if (hmSheetColumns.containsKey(colEnum)) {
                         throw new ParserException("Spreadsheet.setupColumns: Header column duplicate entry: " + colHeader);
                     }
-                    frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Found header column: " + colHeader);
+                    frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Found header column: " + col + " -> " + colHeader);
                     hmSheetColumns.put(colEnum, col);
                     maxColValue = col;
                     bFound = true;
@@ -190,9 +192,14 @@ public class Spreadsheet {
      * @param row     - the row in the spreadsheet
      * 
      * @return the corresponding String value from the cell (empty string if blank)
+     * 
+     * @throws ParserException
      */
-    private static String getStringValue (Column colEnum, int row) {
+    private static String getStringValue (Column colEnum, int row) throws ParserException {
         String strValue = "";
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.getStringValue: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
         Integer col = getColumn(colEnum);
         if (col != null) {
             Object object = sheetSel.getCellAt(col,row).getValue();
@@ -213,9 +220,14 @@ public class Spreadsheet {
      * @param row     - the row in the spreadsheet
      * 
      * @return the corresponding Double value from the cell (null if blank)
+     * 
+     * @throws ParserException
      */
-    private static Double getDoubleValue (Column colEnum, int row) {
+    private static Double getDoubleValue (Column colEnum, int row) throws ParserException {
         Double dValue = null;
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.getDoubleValue: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
         Integer col = getColumn(colEnum);
         if (col != null) {
             Object object = sheetSel.getCellAt(col,row).getValue();
@@ -260,10 +272,15 @@ public class Spreadsheet {
      *                  (0 = none, 1 = x10, 2 = x100, 3 = x1000)
      * 
      * @return the corresponding Integer value from the cell (0 if blank)
+     * 
+     * @throws ParserException
      */
-    private static Integer getIntegerValue (Column colEnum, int row, int iDecShift) {
+    private static Integer getIntegerValue (Column colEnum, int row, int iDecShift) throws ParserException {
         Integer iValue = 0;
         Integer col = getColumn(colEnum);
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.getIntegerValue: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
         
         // get the multiplier value (if any)
         BigDecimal bdMult = BigDecimal.TEN;
@@ -334,8 +351,10 @@ public class Spreadsheet {
      * @param row - the specified row
      * 
      * @return the order number found
+     * 
+     * @throws ParserException
      */
-    public static String getOrderNumber (int row) {
+    public static String getOrderNumber (int row) throws ParserException {
         return getStringValue (Column.OrderNumber, row);
     }
     
@@ -349,6 +368,9 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static String getDateOrdered (int row) throws ParserException {
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.getStringValue: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
         String date = getStringValue (Column.DateOrdered, row);
         if (date.length() <= 10) {
             return date;
@@ -382,8 +404,10 @@ public class Spreadsheet {
      * @param row - the specified row
      * 
      * @return the total cost of the order
+     * 
+     * @throws ParserException
      */
-    public static Integer getTotalCost (int row) {
+    public static Integer getTotalCost (int row) throws ParserException {
         return getIntegerValue(Column.Total, row, 2);
     }
     
@@ -393,8 +417,10 @@ public class Spreadsheet {
      * @param row - the specified row
      * 
      * @return the amount paid for the order
+     * 
+     * @throws ParserException
      */
-    public static Integer getPaymentAmount (int row) {
+    public static Integer getPaymentAmount (int row) throws ParserException {
         return getIntegerValue(Column.Payment, row, 2);
     }
     
@@ -404,8 +430,10 @@ public class Spreadsheet {
      * @param row - the specified row
      * 
      * @return the amount refunded for the order
+     * 
+     * @throws ParserException
      */
-    public static Integer getRefundAmount (int row) {
+    public static Integer getRefundAmount (int row) throws ParserException {
         return getIntegerValue(Column.Refund, row, 2);
     }
 
@@ -429,6 +457,9 @@ public class Spreadsheet {
         if (strVal == null)
             return 0;
 
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.setSpreadsheetString: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
         // if column not found, exit - report error if it was a required column
         Integer col = getColumn(colEnum);
         if (col == null) {
@@ -471,6 +502,9 @@ public class Spreadsheet {
         // value not defined, just exit
         if (iVal == null)
             return 0;
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.setSpreadsheetInteger: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
 
         // if column not found, exit - report error if it was a required column
         Integer col = getColumn(colEnum);
@@ -514,6 +548,9 @@ public class Spreadsheet {
         // value not defined, just exit
         if (iVal == null)
             return 0;
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.setSpreadsheetCost: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
 
         // if column not found, exit - report error if it was a required column
         Integer col = getColumn(colEnum);
@@ -561,6 +598,9 @@ public class Spreadsheet {
         // value not defined, just exit
         if (date == null)
             return 0;
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.setSpreadsheetDate: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
 
         // if column not found, exit - report error if it was a required column
         Integer col = getColumn(colEnum);
@@ -604,6 +644,10 @@ public class Spreadsheet {
         if (startRow < 0 || order == null || order.item == null || order.item.isEmpty()) {
             return 0;
         }
+        int iItemCount = order.item.size();
+        if (startRow + iItemCount - 1 >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.setSpreadsheetOrderInfo: row " + (startRow + iItemCount - 1) + " exceeds max: " + sheetSel.getRowCount());
+        }
         
         // get the order number of the order to see if it is valid
         String strOrdNum = order.getOrderNumber();
@@ -616,7 +660,6 @@ public class Spreadsheet {
         // If the number of items in this order exceeds the number of items the spreadsheet has for
         //  this order number, we might have not terminated the web page correctly and read some advertised
         //  ones as part of the order. Let's indicate the anomaly, but proceed with the truncated count.
-        int iItemCount = order.item.size();
         if (! bOverwrite) {
             int iSpreadItems = getItemCount (strOrdNum);
             if (iItemCount != iSpreadItems) {
@@ -722,8 +765,13 @@ public class Spreadsheet {
      * @param bPayment      - true if this is a payment
      * @param bRemaining    - true if there is a remaining balance on the refund due
      * @param colorOfMonth  - the color to use for highlighting
+     * 
+     * @throws ParserException
      */
-    public static void highlightOrderInfo (int row, boolean bPayment, boolean bRemaining, Color colorOfMonth) {
+    public static void highlightOrderInfo (int row, boolean bPayment, boolean bRemaining, Color colorOfMonth) throws ParserException {
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.highlightOrderInfo: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
         // check if item is marked as returned
         boolean bReturn = sheetSel.getCellAt(getColumn(Column.DateDelivered),row).getTextValue().contentEquals(RETURN_DATE);
 
@@ -754,7 +802,8 @@ public class Spreadsheet {
         // find the last row in the current sheet
         int row = -1;
         if (sheetSel != null) {
-            for (row = firstRow; ! sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString().isBlank(); row++) {}
+            for (row = firstRow; row < sheetSel.getRowCount() &&
+                    ! sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString().isBlank(); row++) {}
         }
         return row;
     }
@@ -777,7 +826,7 @@ public class Spreadsheet {
         int count = -1;
         if (sheetSel != null) {
             String ssNumber = "x";
-            for (int row = firstRow; ! ssNumber.isBlank(); row++) {
+            for (int row = firstRow; row < sheetSel.getRowCount() && ! ssNumber.isBlank(); row++) {
                 ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString();
                 if (ssNumber.contentEquals(strOrderNum)) {
                     count = 0;
@@ -802,7 +851,7 @@ public class Spreadsheet {
     public static int findItemNumber (String strOrderNum) {
         if (sheetSel != null) {
             String ssNumber = "x";
-            for (int row = firstRow; ! ssNumber.isBlank(); row++) {
+            for (int row = firstRow; row < sheetSel.getRowCount() && ! ssNumber.isBlank(); row++) {
                 ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString();
                 if (ssNumber.contentEquals(strOrderNum)) {
                     return row;
@@ -829,10 +878,12 @@ public class Spreadsheet {
         selectSpreadsheetTab (sheetName);
 
         // find the last row in each sheet
-        for (int row = firstRow; !sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getTextValue().isBlank(); row++) {
+        for (int row = firstRow; row < sheetSel.getRowCount() &&
+                !sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getTextValue().isBlank(); row++) {
             String cellValue = sheetSel.getCellAt(getColumn(Column.CreditCard),row).getTextValue();
             if (cellValue != null && strPdfName.contentEquals(cellValue)) {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, "Spreadsheet.findCreditCardEntry: '" + strPdfName + "' was already balanced in the spreadsheet for " + sheetName);
+                frame.outputInfoMsg(UIFrame.STATUS_WARN, "Spreadsheet.findCreditCardEntry: '" + strPdfName +
+                                                    "' was already balanced in the spreadsheet for " + sheetName);
                 return true;
             }
         }
@@ -891,6 +942,12 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static String getSpreadsheetCell (int col, int row) throws ParserException {
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.getSpreadsheetCell: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
+        if (col >= sheetSel.getColumnCount()) {
+            throw new ParserException("Spreadsheet.getSpreadsheetCell: col " + col + " exceeds max: " + sheetSel.getColumnCount());
+        }
         String strVal = "";
         String tab = props.getPropertiesItem(Property.SpreadsheetTab, "");
         if (SpreadsheetFile == null) {
@@ -899,8 +956,10 @@ public class Spreadsheet {
             throw new ParserException("Spreadsheet.getSpreadsheetCell: missing tab selection value");
         } else if (tab.contentEquals("Dan")) {
             strVal = sheet_0.getCellAt(col,row).getTextValue();
+            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "read  tab " + tab + " row " + row + " col " + col + " <- " + strVal);
         } else if (tab.contentEquals("Connie")) {
             strVal = sheet_1.getCellAt(col,row).getTextValue();
+            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "read  tab " + tab + " row " + row + " col " + col + " <- " + strVal);
         } else {
             throw new ParserException("Spreadsheet.getSpreadsheetCell: invalid tab selection: " + tab);
         }
@@ -914,8 +973,16 @@ public class Spreadsheet {
      * @param row - the row of the spreadsheet
      * 
      * @return text value at the specified location in the spreadsheet
+     * 
+     * @throws ParserException
      */
-    public static String getSpreadsheetCellClass (int col, int row) {
+    public static String getSpreadsheetCellClass (int col, int row) throws ParserException {
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.getSpreadsheetCellClass: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
+        if (col >= sheetSel.getColumnCount()) {
+            throw new ParserException("Spreadsheet.getSpreadsheetCellClass: col " + col + " exceeds max: " + sheetSel.getColumnCount());
+        }
         String strVal = "null";
         Object object = sheetSel.getCellAt(col,row).getValue();
         if (object != null) {
@@ -933,10 +1000,17 @@ public class Spreadsheet {
      * @param strVal - the data to write to the cell (null to erase)
      * 
      * @return text value at the specified location in the spreadsheet
+     * 
      * @throws ParserException
      * @throws IOException
      */
     public static String putSpreadsheetCell (int col, int row, String strVal) throws ParserException, IOException {
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.putSpreadsheetCell: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
+        if (col >= sheetSel.getColumnCount()) {
+            throw new ParserException("Spreadsheet.putSpreadsheetCell: col " + col + " exceeds max: " + sheetSel.getColumnCount());
+        }
         String oldVal = "";
         String tab = props.getPropertiesItem(Property.SpreadsheetTab, "");
         if (SpreadsheetFile == null) {
@@ -945,16 +1019,24 @@ public class Spreadsheet {
             throw new ParserException("Spreadsheet.putSpreadsheetCell: missing tab selection value");
         } else if (tab.contentEquals("Dan")) {
             oldVal = sheet_0.getCellAt(col,row).getTextValue();
-            if (strVal == null)
+            if (strVal == null) {
                 sheet_0.getCellAt(col, row).clearValue();
-            else
+                frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "clear tab " + tab + " row " + row + " col " + col);
+            }
+            else {
                 sheet_0.getCellAt(col, row).setValue(strVal);
+                frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "write tab " + tab + " row " + row + " col " + col + " -> " + strVal);
+            }
         } else if (tab.contentEquals("Connie")) {
             oldVal = sheet_1.getCellAt(col,row).getTextValue();
-            if (strVal == null)
+            if (strVal == null) {
                 sheet_1.getCellAt(col, row).clearValue();
-            else
+                frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "clear tab " + tab + " row " + row + " col " + col);
+            }
+            else {
                 sheet_1.getCellAt(col, row).setValue(strVal);
+                frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "write tab " + tab + " row " + row + " col " + col + " -> " + strVal);
+            }
         } else {
             throw new ParserException("Spreadsheet.putSpreadsheetCell: invalid tab selection: " + tab);
         }
@@ -973,6 +1055,12 @@ public class Spreadsheet {
      * @throws IOException
      */
     public static void setSpreadsheetCellColor (int col, int row, Color color) throws ParserException, IOException {
+        if (row >= sheetSel.getRowCount()) {
+            throw new ParserException("Spreadsheet.setSpreadsheetCellColor: row " + row + " exceeds max: " + sheetSel.getRowCount());
+        }
+        if (col >= sheetSel.getColumnCount()) {
+            throw new ParserException("Spreadsheet.setSpreadsheetCellColor: col " + col + " exceeds max: " + sheetSel.getColumnCount());
+        }
         String tab = props.getPropertiesItem(Property.SpreadsheetTab, "");
         if (SpreadsheetFile == null) {
             throw new ParserException("Spreadsheet.getSpreadsheetCell: no spreadsheet file loaded");
@@ -980,6 +1068,7 @@ public class Spreadsheet {
             throw new ParserException("Spreadsheet.putSpreadsheetCell: missing tab selection value");
         }
         sheetSel.getCellAt(col,row).setBackgroundColor(color);
+        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "color tab " + tab + " row " + row + " col " + col + " RGB = " + color.getRGB());
         saveSpreadsheetFile();
     }
 
@@ -1068,10 +1157,26 @@ public class Spreadsheet {
         // load the 'Dan' tab of the spreadsheet
         sheet_0 = SpreadSheet.createFromFile(SpreadsheetFile).getSheet("Dan");
         frame.outputInfoMsg(UIFrame.STATUS_INFO, "Loaded sheet '" + sheet_0.getName() + "' into memory");
+        // make sure the spreadsheet is large enough
+        if (sheet_0.getColumnCount() < Column.values().length + 5) {
+            sheet_0.setColumnCount(Column.values().length + 5, -1, true);
+        }
+        if (sheet_0.getRowCount() < 2000) {
+            sheet_0.setRowCount(2000, -1);
+        }
+        frame.outputInfoMsg(UIFrame.STATUS_INFO, sheet_0.getRowCount() + " rows, " + sheet_0.getColumnCount() + " cols");
         
         // load the 'Connie' tab of the spreadsheet
         sheet_1 = SpreadSheet.createFromFile(SpreadsheetFile).getSheet("Connie");
         frame.outputInfoMsg(UIFrame.STATUS_INFO, "Loaded sheet '" + sheet_1.getName() + "' into memory");
+        // make sure the spreadsheet is large enough
+        if (sheet_1.getColumnCount() < Column.values().length + 5) {
+            sheet_1.setColumnCount(Column.values().length + 5, -1, true);
+        }
+        if (sheet_1.getRowCount() < 2000) {
+            sheet_1.setRowCount(2000, -1);
+        }
+        frame.outputInfoMsg(UIFrame.STATUS_INFO, sheet_1.getRowCount() + " rows, " + sheet_1.getColumnCount() + " cols");
 
         // check if spreadsheet header is valid and setup column selections if so
         setupColumns();

@@ -2,6 +2,7 @@ package com.mycompany.amazonlogger;
 
 // Importing java input/output classes
 import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_NORMAL;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
@@ -53,8 +54,14 @@ public class AmazonReader {
         String filetype;
         String option;
 
-        for (int ix = 0; ix < args.length; ix++) {
-            option = args[ix];
+        ArrayList<String> cmdLine = new ArrayList<>(Arrays.asList(args));
+        frame.outputInfoMsg(STATUS_NORMAL, "command: " + String.join(" ", cmdLine));
+        while (! cmdLine.isEmpty()) {
+            // extract the command option from the list
+            option = cmdLine.get(0);
+            cmdLine.remove(0);
+            // the rest will be the parameters associated with the option (if any) plus any additional options
+            ArrayList<String> params;
             switch (option) {
                 case "-x":
                     System.out.println("EXITING");
@@ -70,22 +77,24 @@ public class AmazonReader {
                     System.out.println(" -d <flags> = the debug messages to enable when running (default: 0F)");
                     System.out.println("");
                     System.out.println("     The debug flag values are hex bit values and defined as:");
-                    System.out.println("     01 = STATUS_PARSER");
-                    System.out.println("     02 = STATUS_SPREADSHEET");
-                    System.out.println("     04 = STATUS_INFO");
-                    System.out.println("     08 = STATUS_DEBUG");
-                    System.out.println("     10 = STATUS_PROPS");
-                    System.out.println("     e.g. -d 1F will enable all msgs");
+                    System.out.println("     01 = STATUS_NORMAL");
+                    System.out.println("     02 = STATUS_PARSER");
+                    System.out.println("     04 = STATUS_SPREADSHEET");
+                    System.out.println("     08 = STATUS_INFO");
+                    System.out.println("     10 = STATUS_DEBUG");
+                    System.out.println("     20 = STATUS_PROPS");
+                    System.out.println("     e.g. -d 3F will enable all msgs");
                     System.out.println();
                     System.out.println("The following commands test special features:");
                     System.out.println();
-                    System.out.println(" -date [p] <value>    = display the date converted to YYYY-MM-DD format (p = past date)");
-                    System.out.println(" -fdate <date value>  = display the future date converted to YYYY-MM-DD format");
+                    System.out.println(" -date  <date value>  = display the date converted to YYYY-MM-DD format (assume future)");
+                    System.out.println(" -datep <date value>  = display the date converted to YYYY-MM-DD format (assume past)");
                     System.out.println(" -find  <order #>     = display the spreadsheet 1st row containing order#");
                     System.out.println(" -class   <col> <row> = display the spreadsheet cell class type");
                     System.out.println(" -cellget <col> <row> = display the spreadsheet cell data");
-                    System.out.println(" -cellput <col> <row> <text> = write the spreadsheet cell data (erases if text omitted)");
-                    System.out.println("          (displays the previous value that was overwritten)");
+                    System.out.println(" -cellclr <col> <row> = clear the spreadsheet cell data");
+                    System.out.println(" -cellput <col> <row> <text> = write the spreadsheet cell data");
+                    System.out.println("          (if more than 1 word, must wrap in quotes)");
                     System.out.println(" -color   <col> <row> <color> = set cell background to color of the month (0 to clear)");
                     System.out.println(" -RGB     <col> <row> <RGB> = set cell background to specified RGB hexadecimal color");
                     System.out.println(" -HSB     <col> <row> <HSB> = set cell background to specified HSB hexadecimal color");
@@ -108,15 +117,15 @@ public class AmazonReader {
                     System.out.println();
                     return;
                 case "-d":
-                    checkReqParams (1, option, ix, args.length);
-                    Integer debugFlags = Integer.parseUnsignedInt(args[++ix], 16);
+                    params = checkReqParams (1, option, cmdLine);
+                    Integer debugFlags = Integer.parseUnsignedInt(params.get(0), 16);
                     frame.setMessageFlags(debugFlags);
                     System.out.println("<OK>");
                     break;
                 case "-s":
-                    checkReqParams (1, option, ix, args.length);
+                    params = checkReqParams (1, option, cmdLine);
                     filetype = "Spreadsheet";
-                    fname = args[++ix];
+                    fname = params.get(0);
                     File ssheetFile = checkFilename (fname, ".ods", filetype, true);
                     System.out.println(filetype + " file: " + ssheetFile.getAbsolutePath());
                     // load the spreadsheet file
@@ -124,16 +133,16 @@ public class AmazonReader {
                     System.out.println("<OK>");
                     break;
                 case "-t":
-                    checkReqParams (1, option, ix, args.length);
-                    String tab = args[++ix];
+                    params = checkReqParams (1, option, cmdLine);
+                    String tab = params.get(0);
                     // make the tab selection
                     Spreadsheet.selectSpreadsheetTab (tab);
                     System.out.println("<OK>");
                     break;
                 case "-c":
-                    checkReqParams (1, option, ix, args.length);
+                    params = checkReqParams (1, option, cmdLine);
                     filetype = "Clipboard";
-                    fname = args[++ix];
+                    fname = params.get(0);
                     File fClip = checkFilename (fname, ".txt", filetype, false);
                     System.out.println(filetype + " file: " + fClip.getAbsolutePath());
                     // read from this file instead of clipboard
@@ -141,161 +150,208 @@ public class AmazonReader {
                     amazonParser.parseWebData();
                     break;
                 case "-u":
+                    params = checkReqParams (0, option, cmdLine);
                     System.out.println("Updating spreadsheet from clipboards");
                     AmazonParser.updateSpreadsheet();
                     System.out.println("<OK>");
                     break;
                 case "-p":
-                    checkReqParams (1, option, ix, args.length);
+                    params = checkReqParams (1, option, cmdLine);
                     filetype = "PDF";
-                    fname = args[++ix];
+                    fname = params.get(0);
                     pdfFile = checkFilename (fname, ".pdf", filetype, false);
                     System.out.println(filetype + " file: " + pdfFile.getAbsolutePath());
                     PdfReader pdfReader = new PdfReader(pdfFile);
                     pdfReader.readPdfContents();
                     break;
                 case "-o":
-                    if (ix >= args.length - 1 || args[ix+1].startsWith("-")) {
+                    params = checkReqParams (0, option, cmdLine);
+                    if (params.isEmpty()) {
                         System.out.println("<Output messages to stdout>");
                         frame.setTestOutputFile(null);
                     } else {
-                        fname = args[++ix];
+                        fname = params.get(0);
                         fname = getTestPath() + "/" + fname;
                         System.out.println("<Output messages to file: " + fname + ">");
                         frame.setTestOutputFile(fname);
                     }
                     break;
                 case "-date":
-                    checkReqParams (1, option, ix, args.length);
-                    // the date will consume the remainder of the command line
-                    // convert arg array to a list, remove everything up to the command, then compress into a string
-                    List<String> list = new ArrayList<>(Arrays.asList(args));
-                    for (int index = 0; index < list.size() && ! list.get(0).contentEquals(option); index++) {
-                        list.remove(0);
-                    }
-                    list.remove(0); // now remove the "-date" entry
-                    boolean bPast = false;
-                    if (args[++ix].contentEquals("p")) {
-                        if (list.isEmpty())
-                            throw new ParserException("ERROR: Missing parameter for " + option + " option");
-                        bPast = true;
-                        list.remove(0);
-                    }
-                    String strDate = String.join(" ", list);
-                    LocalDate date = DateFormat.getFormattedDate (strDate, bPast);
+                    params = checkReqParams (1, option, cmdLine);
+                    String strDate = String.join(" ", params);
+                    LocalDate date = DateFormat.getFormattedDate (strDate, false);
                     String convDate = DateFormat.convertDateToString(date, true);
                     if (convDate == null) {
-                        throw new ParserException("ERROR: invalid date conversion");
+                        throw new ParserException("Invalid date conversion");
                     }
                     System.out.println("<" + convDate + ">");
-                    // since we don't know how many words are in the date, this must be last in the command line
-                    return;
+                    break;
+                case "-datep":
+                    params = checkReqParams (1, option, cmdLine);
+                    strDate = String.join(" ", params);
+                    date = DateFormat.getFormattedDate (strDate, true);
+                    convDate = DateFormat.convertDateToString(date, true);
+                    if (convDate == null) {
+                        throw new ParserException("Invalid date conversion");
+                    }
+                    System.out.println("<" + convDate + ">");
+                    break;
                 case "-find":
-                    checkReqParams (1, option, ix, args.length);
+                    params = checkReqParams (1, option, cmdLine);
                     String strCol,strRow, order;
                     Integer iRow, iCol;
-                    order = args[++ix];
+                    order = params.get(0);
                     iRow = Spreadsheet.findItemNumber(order);
                     System.out.println("<" + iRow + ">");
                     break;
                 case "-class":
-                    checkReqParams (2, option, ix, args.length);
-                    strCol = args[++ix];
-                    strRow = args[++ix];
+                    params = checkReqParams (2, option, cmdLine);
+                    strCol = params.get(0);
+                    strRow = params.get(1);
                     iCol = Utils.getIntFromString(strCol, 0, 0);
                     iRow = Utils.getIntFromString(strRow, 0, 0);
                     if (iCol == null || iRow == null) {
-                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow);
+                        throw new ParserException("Invalid values: col = " + strCol + ", row = " + strRow);
                     }
                     String strValue = Spreadsheet.getSpreadsheetCellClass(iCol, iRow);
                     System.out.println("<" + strValue + ">");
                     break;
                 case "-color":
-                    checkReqParams (3, option, ix, args.length);
-                    strCol = args[++ix];
-                    strRow = args[++ix];
-                    String strColor = args[++ix];
+                    params = checkReqParams (3, option, cmdLine);
+                    strCol = params.get(0);
+                    strRow = params.get(1);
+                    String strColor = params.get(2);
                     iCol = Utils.getIntFromString(strCol, 0, 0);
                     iRow = Utils.getIntFromString(strRow, 0, 0);
                     Integer iColor = Utils.getIntFromString(strColor, 0, 0);
                     if (iCol == null || iRow == null || iColor == null) {
-                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow + ", color = " + strColor);
+                        throw new ParserException("Invalid values: col = " + strCol + ", row = " + strRow + ", color = " + strColor);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColorOfTheMonth(iColor));
                     System.out.println("<OK>");
                     break;
                 case "-RGB":
-                    checkReqParams (3, option, ix, args.length);
-                    strCol = args[++ix];
-                    strRow = args[++ix];
-                    String colorRGB = args[++ix];
+                    params = checkReqParams (3, option, cmdLine);
+                    strCol = params.get(0);
+                    strRow = params.get(1);
+                    String colorRGB = params.get(2);
                     iCol = Utils.getIntFromString(strCol, 0, 0);
                     iRow = Utils.getIntFromString(strRow, 0, 0);
                     Integer iRGB = Integer.parseUnsignedInt(colorRGB, 16);
                     if (iCol == null || iRow == null || iRGB == null) {
-                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow + ", RGB = " + colorRGB);
+                        throw new ParserException("Invalid values: col = " + strCol + ", row = " + strRow + ", RGB = " + colorRGB);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("RGB", iRGB));
                     System.out.println("<OK>");
                     break;
                 case "-HSB":
-                    checkReqParams (3, option, ix, args.length);
-                    strCol = args[++ix];
-                    strRow = args[++ix];
-                    String colorHSB = args[++ix];
+                    params = checkReqParams (3, option, cmdLine);
+                    strCol = params.get(0);
+                    strRow = params.get(1);
+                    String colorHSB = params.get(2);
                     iCol = Utils.getIntFromString(strCol, 0, 0);
                     iRow = Utils.getIntFromString(strRow, 0, 0);
                     Integer iHSB = Integer.parseUnsignedInt(colorHSB, 16);
                     if (iCol == null || iRow == null || iHSB == null) {
-                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow + ", HSB = " + colorHSB);
+                        throw new ParserException("Invalid values: col = " + strCol + ", row = " + strRow + ", HSB = " + colorHSB);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("HSB", iHSB));
                     System.out.println("<OK>");
                     break;
                 case "-cellget":
-                    checkReqParams (2, option, ix, args.length);
-                    strCol = args[++ix];
-                    strRow = args[++ix];
+                    params = checkReqParams (2, option, cmdLine);
+                    strCol = params.get(0);
+                    strRow = params.get(1);
                     iCol = Utils.getIntFromString(strCol, 0, 0);
                     iRow = Utils.getIntFromString(strRow, 0, 0);
                     if (iCol == null || iRow == null) {
-                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow);
+                        throw new ParserException("Invalid values: col = " + strCol + ", row = " + strRow);
                     }
                     String cellValue = Spreadsheet.getSpreadsheetCell(iCol, iRow);
                     System.out.println("<" + cellValue + ">");
                     break;
-                case "-cellput":
-                    checkReqParams (2, option, ix, args.length);
-                    strCol = args[++ix];
-                    strRow = args[++ix];
-                    String strText = null;
-                    // the cell text will consume the remainder of the command line
-                    // convert arg array to a list, remove everything up to the command, then compress into a string
-                    // if no parameter, we erase the cell by passing a null
-                    if (ix < args.length - 1) {
-                        list = new ArrayList<>(Arrays.asList(args));
-                        for (int index = 0; index < list.size() && ! list.get(0).contentEquals(option); index++) {
-                            list.remove(0);
-                        }
-                        // now remove the "-cellput" entry and the col and row entries
-                        for (int index = 0; index < list.size() && index < 3; index++) {
-                            list.remove(0);
-                        }
-                        strText = String.join(" ", list);
-                    }
+                case "-cellclr":
+                    params = checkReqParams (2, option, cmdLine);
+                    strCol = params.get(0);
+                    strRow = params.get(1);
                     iCol = Utils.getIntFromString(strCol, 0, 0);
                     iRow = Utils.getIntFromString(strRow, 0, 0);
                     if (iCol == null || iRow == null) {
-                        throw new ParserException("ERROR: invalid values: col = " + strCol + ", row = " + strRow);
+                        throw new ParserException("Invalid values: col = " + strCol + ", row = " + strRow);
+                    }
+                    cellValue = Spreadsheet.putSpreadsheetCell(iCol, iRow, null);
+                    System.out.println("<" + cellValue + ">");
+                    break;
+                case "-cellput":
+                    params = checkReqParams (3, option, cmdLine);
+                    strCol = params.get(0);
+                    strRow = params.get(1);
+                    params.remove(0);
+                    params.remove(0);
+                    String strText = String.join(" ", params);
+                    iCol = Utils.getIntFromString(strCol, 0, 0);
+                    iRow = Utils.getIntFromString(strRow, 0, 0);
+                    if (iCol == null || iRow == null) {
+                        throw new ParserException("Invalid values: col = " + strCol + ", row = " + strRow);
                     }
                     cellValue = Spreadsheet.putSpreadsheetCell(iCol, iRow, strText);
                     System.out.println("<" + cellValue + ">");
-                    // since we don't know how many words are in the date, this must be last in the command line
-                    return;
+                    break;
                 default:
-                    throw new ParserException("ERROR: Invalid option: " + args[ix]);
+                    throw new ParserException("Invalid option: " + option);
             }
         }
+    }
+
+    /**
+     * This reads the arguments following the option and places them in an ArrayList.
+     * It assumes the arg list for the option ends when it finds the next arument
+     * that begins with a '-', indicating it is another option. It, of course,
+     * will also terminate at the end of the command line. If an argument is to
+     * be passed that contains a word begining with a '-', it must be preceded
+     * by the '\' character to indicate it is part of the options arg list.
+     * 
+     * @param min    - the min number of required parameters for the option
+     * @param option - the option being examined
+     * @param list   - the ArrayList of the parameters for the option, plus any additional options
+     *                 (this will be modified to skip the current option & its parameters)
+     * 
+     * @return the parameter list for the current option
+     * 
+     * @throws ParserException 
+     */
+    private static ArrayList<String> checkReqParams (int min, String option, ArrayList<String> cmdList) throws ParserException {
+        ArrayList<String> paramList = new ArrayList<>();
+
+        if (cmdList == null) {
+            throw new ParserException("Null command list for " + option + " option");
+        }
+        if (cmdList.size() < min) {
+            throw new ParserException("Missing parameter(s) for " + option + " option");
+        }
+        if (cmdList.isEmpty()) { // min must have been 0
+            frame.outputInfoMsg(STATUS_NORMAL, "- option: " + option + " - no args");
+            return paramList; // empty list
+        }
+        
+        // now find the next option (an entry that begins with a '-')
+        while (! cmdList.isEmpty() && ! cmdList.get(0).startsWith("-")) {
+            // if we have a parameter that has an escaped '-' as its
+            // 1st character, eliminate the escape character.
+            int offset = 0;
+            String entry = cmdList.get(0);
+            if (entry.startsWith("\\-")) {
+                offset = 1;
+            }
+
+            // '-' not found yet, copy to the params list and remove from command list
+            paramList.addLast(entry.substring(offset));
+            cmdList.remove(0);
+        }
+
+        frame.outputInfoMsg(STATUS_NORMAL, "- option: " + option + " " + String.join(" ", paramList));
+        frame.outputInfoMsg(STATUS_NORMAL, "- params: " + paramList.size());
+        return paramList;
     }
     
     private static File checkFilename (String fname, String type, String filetype, boolean bWritable) {
@@ -324,11 +380,6 @@ public class AmazonReader {
         return myFile;
     }
 
-    private static void checkReqParams (int params, String option, int ix, int argcount) throws ParserException {
-        if (ix >= argcount - params)
-            throw new ParserException("ERROR: Missing parameter for " + option + " option");
-    }
-    
     private static String getTestPath () {
         String pathname = Utils.getPathFromPropertiesFile (PropertiesFile.Property.TestPath);
         if (pathname == null || pathname.isBlank()) {

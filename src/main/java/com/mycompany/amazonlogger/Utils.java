@@ -212,20 +212,21 @@ public class Utils {
         Color color;
         
         switch(month) {
-            case 1: color  = Color.cyan;      break;
-            case 2: color  = Color.green;     break;
-            case 3: color  = Color.lightGray; break;
-            case 4: color  = Color.yellow;    break;
-            case 5: color  = Color.pink;      break;
-            case 6: color  = Color.orange;    break;
-            case 7: color  = Color.cyan;      break;
-            case 8: color  = Color.green;     break;
-            case 9: color  = Color.lightGray; break;
-            case 10: color = Color.yellow;    break;
-            case 11: color = Color.pink;      break;
-            case 12: color = Color.orange;    break;
-            case 0:
-            default: color = Color.white;     break;
+            case 1:  color = new Color(0x1FFFFF); break;    // cyan
+            case 2:  color = new Color(0x1FFF7F); break;    // green
+            case 3:  color = new Color(0xDFBFBF); break;    // brown
+            case 4:  color = new Color(0xFFFF3F); break;    // yellow
+            case 5:  color = new Color(0xFF9FBF); break;    // pink
+            case 6:  color = new Color(0xFF9F1F); break;    // orange
+            case 7:  color = new Color(0x7FDFFF); break;    // blue
+            case 8:  color = new Color(0xFFDFFF); break;    // light pink
+            case 9:  color = new Color(0xBFBFFF); break;    // lavender
+            case 10: color = new Color(0xFFDF3F); break;    // gold
+            case 11: color = new Color(0x9FFFFF); break;    // light blue
+            case 12: color = new Color(0xBFFF7F); break;    // light green
+            default:
+            case 0:  color = Color.white;     break;
+            case -1: color = Color.lightGray; break;
         }
 
         return color;

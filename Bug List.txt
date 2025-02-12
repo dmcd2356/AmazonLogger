@@ -1,6 +1,13 @@
 TODO:
 - When updating Order Details, make sure on multi-item orders to match the descriptions with the
   current entry item before copying the data.
+- Add command options to increase the column width and the max rows.
+- Allow a spreadsheet to be loaded that has no header info, but don't allow any commands to run that
+    require them (-c, -u, -p).
+- Modify code to use sheetSel.getRow() to get the entire row of data when reading or writing a lot
+    of data on the same row (the Parsers and PdfReader).
+- Find a way to eliminate the need to rerun the AmazonReader for each command. Be able to pass a series
+    of commands into the AmazonReader at one time so it runs much quicker.
 
 TESTING:
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with

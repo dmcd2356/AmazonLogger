@@ -128,11 +128,11 @@ public final class UIFrame extends JFrame implements ActionListener {
         int x_cbox_offset = 250;        // x location for checkboxes
         int x_info_offset = 600;        // x location for orders/items information labels
         
-        int y_title_offset = 80;          // starting y offset beneath title
+        int y_title_offset = 80;        // starting y offset beneath title
 
         int border_size = 50;
         int panel_width = x_pane_width + (2 * border_size);
-        int panel_height = y_pane_height + y_title_offset + (8 * y_line_gap) + y_button_height + (2 * border_size);
+        int panel_height = y_pane_height + y_title_offset + (9 * y_line_gap) + y_button_height + (2 * border_size);
 
         setTitle("Amazon shopping expenditures");
         setBounds(300, 150, panel_width, panel_height);
@@ -292,7 +292,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         // NEXT COLUMN OF BOTTOM PANEL
         loc_x = x_cbox_offset;
         loc_y = y_bottom_panel;
-        cbox_normal = new JCheckBox("Parser msgs");
+        cbox_normal = new JCheckBox("Normal msgs");
         cbox_normal.setFont(new Font("Arial", Font.BOLD, 15));
         cbox_normal.setSize(x_cbox_width, y_cbox_height);
         cbox_normal.setLocation(loc_x, loc_y);
@@ -699,7 +699,7 @@ public final class UIFrame extends JFrame implements ActionListener {
     public void setTestOutputFile (String fname) {
         if (fname != null && !fname.isBlank()) {
             try {
-                this.testFile = new PrintWriter(new FileWriter(fname));
+                this.testFile = new PrintWriter(new FileWriter(fname, true));
                 this.testFile.println("=== " + getCurrentDateTime() + " ============================================================");
 
             } catch (IOException ex) {
