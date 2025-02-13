@@ -1,13 +1,22 @@
 package com.mycompany.amazonlogger;
 
 /**
- *
+ * This class handles reading from and writing to entries in the properties file.
+ *   The file is a hidden file that is created in the directory of where
+ *   the application is run. This way each directory that it runs from can have
+ *   its own values. The entries are hard-coded for the project and describe
+ *   some value that you would like to be changeable, yet also have the
+ *   program remember the settings from the last time.
+ * When PropertiesFile() is instantiated it checks for an existing
+ *   site.properties file (hidden) in the current directory. If not found,
+ *   it creates a blank one.
+ * When retrieving a value from the file using the 'getPropertiesItem' method,
+ *   if the entry is not found in the file, the default value passed in the call
+ *   will be used and the property will be added to the file with that default
+ *   value for the next time. Entries can also be added/modified directly
+ *   using the 'putPropertiesItem' method.
+ * 
  * @author dan
- */
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
  */
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
@@ -29,6 +38,7 @@ public class PropertiesFile {
 
     private Properties   props;
 
+    // these are the properties defined for this project
     public static enum Property {
         // these are startup settings to use that are saved from last run
         PdfPath,                // initial path selection for PDF file
@@ -47,8 +57,10 @@ public class PropertiesFile {
         SpreadsheetTab,         // name of the spreadsheet tab selection
     };
 
+    /**
+     * Constructor - opens the file for read/write and creates the file if one does not exist.
+     */
     PropertiesFile () {
-      
         props = null;
         FileInputStream in = null;
         File propfile = new File(PROPERTIES_PATH + PROPERTIES_FILE);
@@ -94,6 +106,15 @@ public class PropertiesFile {
         }
     }
     
+    /**
+     * get a property from the file defined as an String value.
+     * 
+     * @param tag  - the property tag (name of the property)
+     * @param dflt - the default value to use if either the file is not found
+     *                or the tag is not found in the file
+     * 
+     * @return the value associated with the property
+     */
     public String getPropertiesItem (Property tag, String dflt) {
         if (props == null) {
             return dflt;
@@ -114,6 +135,18 @@ public class PropertiesFile {
         return value;
     }
   
+    /**
+     * get a property from the file defined as an Integer value.
+     * Note that all entries are stored as Strings, but you can define
+     *   some properties as Integer, so that the get and put methods will
+     *   do the proper conversions and flag an error if not in the correct format.
+     * 
+     * @param tag  - the property tag (name of the property)
+     * @param dflt - the default value to use if either the file is not found
+     *                or the tag is not found in the file
+     * 
+     * @return the value associated with the property
+     */
     public Integer getPropertiesItem (Property tag, Integer dflt) {
         // if properties file does not exist, return the default value
         if (props == null) {
@@ -149,6 +182,13 @@ public class PropertiesFile {
         return iValue;
     }
 
+    /**
+     * sets a String value to be saved for a property in the file.
+     * If the property is not found in the file, it will be created.
+     * 
+     * @param tag   - the property tag (name of the property)
+     * @param value - the value to set the property to
+     */
     public void setPropertiesItem (Property tag, String value) {
         // save changes to properties file
         if (props == null) {
@@ -173,10 +213,23 @@ public class PropertiesFile {
         }
     } 
   
+    /**
+     * sets an Integer value to be saved for a property in the file.
+     * If the property is not found in the file, it will be created.
+     * Note that all entries are stored as Strings, but you can define
+     *   some properties as Integer, so that the get and put methods will
+     *   do the proper conversions and flag an error if not in the correct format.
+     * 
+     * @param tag   - the property tag (name of the property)
+     * @param value - the value to set the property to
+     */
     public void setPropertiesItem (Property tag, Integer value) {
         setPropertiesItem (tag, Integer.toString(value));
     }
-    
+
+    /**
+     * write the properties data to the properties file
+     */    
     private void writePropertiesFile () {
         try {
             FileOutputStream out = new FileOutputStream(PROPERTIES_PATH + PROPERTIES_FILE);
@@ -187,12 +240,20 @@ public class PropertiesFile {
         }
     }
     
+    /**
+     * the local function for interfacing with the method for writing a
+     * non-error message.
+     */    
     private void outputMsg (String msg) {
         if (frame != null) {
             frame.outputInfoMsg(UIFrame.STATUS_PROPS, msg);
         }
     }
     
+    /**
+     * the local function for interfacing with the method for writing an
+     * error message.
+     */    
     private void errorMsg (String msg) {
         if (frame != null) {
             frame.outputInfoMsg(UIFrame.STATUS_WARN, msg);

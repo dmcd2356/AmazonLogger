@@ -26,7 +26,8 @@ import org.jopendocument.dom.spreadsheet.Sheet;
 import org.jopendocument.dom.spreadsheet.SpreadSheet;
 
 /**
- *
+ * This class defines the interface to accessing the spreadsheet
+ * 
  * @author dan
  */
 public class Spreadsheet {
@@ -213,8 +214,8 @@ public class Spreadsheet {
     
     /**
      * gets a Double value for the specified column and row.
-     * The Object type returned from a 'number' type cell should be a BigDecimal.
-     * However, we check some other possible types and do a conversion.
+     * The Object type returned from a 'Number' formatted cell should be a BigDecimal.
+     * However, we will also accept a String format as long as the value is numeric.
      * 
      * @param colEnum - the name of the column
      * @param row     - the row in the spreadsheet
@@ -238,13 +239,6 @@ public class Spreadsheet {
                         BigDecimal bdValue = (BigDecimal) object;
                         dValue = bdValue.doubleValue();
                         break;
-                    case "class java.lang.Double":
-                        dValue = (Double) object;
-                        break;
-                    case "class java.lang.Integer":
-                        Integer iValue = (Integer) object;
-                        dValue = iValue.doubleValue();
-                        break;
                     case "class java.lang.String":
                         String strValue = object.toString();
                         try {
@@ -253,7 +247,7 @@ public class Spreadsheet {
                             dValue = null;
                         }   break;
                     default:
-                        break;
+                        throw new ParserException("Spreadsheet.getDoubleValue: row " + row + " has non-numeric cell format: " + oClass.toString());
                 }
             }
         }
@@ -264,7 +258,7 @@ public class Spreadsheet {
     /**
      * gets a Integer value for the specified column and row.
      * The Object type returned from a 'number' type cell should be a BigDecimal.
-     * However, we check some other possible types and do a conversion.
+     * However, we will also accept a String format as long as the value is numeric.
      * 
      * @param colEnum - the name of the column
      * @param row     - the row in the spreadsheet
@@ -288,7 +282,6 @@ public class Spreadsheet {
         switch (iDecShift) {
             default:
                 frame.outputInfoMsg(UIFrame.STATUS_WARN, "Spreadsheet.getIntegerValue: dec shift out of range: " + iDecShift);
-                iDecShift = 0;
                 // fall through...
             case 0:
                 iMult = 1;
@@ -320,14 +313,6 @@ public class Spreadsheet {
                             bdValue = bdValue.multiply(bdMult);
                         iValue = bdValue.intValue();
                         break;
-                    case "class java.lang.Double":
-                        Double dValue = (Double) object;
-                        iValue = dValue.intValue() * iMult;
-                        break;
-                    case "class java.lang.Integer":
-                        iValue = (Integer) object;
-                        iValue *= iMult;
-                        break;
                     case "class java.lang.String":
                         String strValue = object.toString();
                         try {
@@ -337,7 +322,7 @@ public class Spreadsheet {
                             iValue = null;
                         }   break;
                     default:
-                        break;
+                        throw new ParserException("Spreadsheet.getIntegerValue: row " + row + " has non-numeric cell format: " + oClass.toString());
                 }
             }
         }
