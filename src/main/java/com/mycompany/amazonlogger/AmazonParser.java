@@ -332,7 +332,7 @@ public class AmazonParser {
      * 
      * @return 
      */
-    private ArrayList<AmazonOrder> addOrdersToList (ArrayList<AmazonOrder> oldList, ArrayList<AmazonOrder> newList) {
+    private ArrayList<AmazonOrder> addOrdersToList (ArrayList<AmazonOrder> oldList, ArrayList<AmazonOrder> newList) throws ParserException {
         ArrayList<AmazonOrder> finalList, appendList;
         
         // if the new list is empty, just use the original list passed
@@ -354,7 +354,11 @@ public class AmazonParser {
                 frame.outputInfoMsg (UIFrame.STATUS_WARN, "AmazonParser.addOrdersToList: Incomplete data in entry " + ix + ": order #: " + orderNum);
                 bError = true;
             }
-            if (orderDate.getYear() != Spreadsheet.getSpreadsheetYear()) {
+            Integer ssYear = Spreadsheet.getSpreadsheetYear();
+            if (ssYear == null) {
+                throw new ParserException("AmazonParser.addOrdersToList: Spreadsheet header is missing year");
+            }
+            if (orderDate.getYear() != ssYear) {
                 frame.outputInfoMsg(UIFrame.STATUS_PARSER, "skip order # " + orderNum + " - wrong year: " + strDate);
                 newList.remove(ix);
             }

@@ -499,7 +499,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         try {
             if (e.getSource() == btn_select) {
                 outputSeparatorLine("LOAD SPREADSHEET");
-                Spreadsheet.loadSpreadsheet(null);
+                Spreadsheet.loadSpreadsheet(null, true);
              }
             else if (e.getSource() == btn_clipboard) {
                 outputSeparatorLine("PARSE CLIPBOARD");

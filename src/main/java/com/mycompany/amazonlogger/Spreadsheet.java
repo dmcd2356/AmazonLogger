@@ -16,7 +16,6 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Set;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -34,12 +33,13 @@ public class Spreadsheet {
 
     private static final String SKIP_AMOUNT = "-";          // the amount value to use for Total if entry is omitted
     private static final String RETURN_DATE = "RETURN";     // the date value to use for Delivered if item was returned
+    private static final int MAX_SHEETS = 2;                // the max number of sheets to load into memory
 
-    private static Sheet  sheet_0 = null;           // the data from tab 0 (Dan)    of the spreadsheet
-    private static Sheet  sheet_1 = null;           // the data from tab 1 (Connie) of the spreadsheet
-    private static Sheet  sheetSel = null;          // the current spreadsheet tab selection
-    private static File   SpreadsheetFile;          // the spreadsheet file
-    private static Integer iSheetYear = null;       // the year value the spreadsheet is marked as
+    private static final Sheet[] sheetArray = new Sheet[MAX_SHEETS]; // the first 2 sheets of the spreadsheet
+    private static int     validSheets = 0;                 // the number of sheets actually loaded
+    private static Sheet   sheetSel = null;                 // the current spreadsheet tab selection
+    private static File    SpreadsheetFile;                 // the spreadsheet file
+    private static Integer iSheetYear = null;               // the year value the spreadsheet is marked as
 
     // these are the names of the column headers.
     // the file must have these defined as they are here, although they may have spaces
@@ -73,8 +73,13 @@ public class Spreadsheet {
      * @param  colName - the column name to find the index of
      * 
      * @return the corresponding column index value (null if not found)
+     * 
+     * @throws ParserException
      */
-    private static Integer getColumn (Column colName) {
+    private static Integer getColumn (Column colName) throws ParserException {
+        if (hmSheetColumns.isEmpty()) {
+            throw new ParserException("Spreadsheet.getColumn: Error in locating column header information");
+        }
         Set<Entry<Column, Integer>> entrySet = hmSheetColumns.entrySet();
         for (Entry<Column, Integer> entry : entrySet) {
             if (entry.getKey() == colName)
@@ -107,13 +112,17 @@ public class Spreadsheet {
      * 
      * @throws ParserException
      */
-    private static void setupColumns () throws ParserException {
-        Sheet sheetHeader = sheet_0;  // use header on tab 0 (they should both be the same)
+    private static void setupColumns (boolean bHeader) throws ParserException {
         hmSheetColumns.clear();
+        if (! bHeader) {
+            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "No header check performed on spreadsheet");
+            return;
+        }
         
         // search the first column in the first 5 rows of the spreadsheet for
         // one of the column names (only need to search 1st 4 columns)
         int headerRow = -1;
+        Sheet sheetHeader = sheetArray[0];  // use header on tab 0 (they should both be the same)
         for (int row = 0; row < 5 && row < sheetHeader.getRowCount() && headerRow < 0; row++) {
             String strSpreadsheet = "";
             Object object = sheetHeader.getCellAt(0,row).getValue();
@@ -130,7 +139,7 @@ public class Spreadsheet {
             }
         }
         if (headerRow < 1) {
-            throw new ParserException("Spreadsheet.setupColumns: Error in locating column header information");
+            throw new ParserException("Spreadsheet.setupColumns: Header not found in spreadsheet");
         }
 
         // the first row for data will be the line following the header
@@ -214,8 +223,19 @@ public class Spreadsheet {
     
     /**
      * gets a Double value for the specified column and row.
-     * The Object type returned from a 'Number' formatted cell should be a BigDecimal.
+     * The Object type returned from a 'Numeric', 'Percent', 'Currency', 'Scientific',
+     * and 'Fraction' formatted cell should be a BigDecimal.
      * However, we will also accept a String format as long as the value is numeric.
+     * 
+     * Note: for types that are not 'Numeric', if the object is read as a String
+     *   they will have the following formats (the same as what is displayed in
+     *   the spreadsheet). If you want them expressed this way, read them using
+     *   getStringValue() instead:
+     * 
+     *   'Percent' types will have the numeric followed by a '%' char
+     *   'Currency' types will be preceded with a '$' char
+     *   'Fraction' types will be reported as a fraction (e.g. "1/4" instead of 0.25
+     *   'Scientific' types will be reported in the form 2.56E+04
      * 
      * @param colEnum - the name of the column
      * @param row     - the row in the spreadsheet
@@ -242,6 +262,11 @@ public class Spreadsheet {
                     case "class java.lang.String":
                         String strValue = object.toString();
                         try {
+                            // if it was String formatted but was representing currency,
+                            // there may be a '$' char preceeding the value.
+                            if (strValue.startsWith("$")) {
+                                strValue = strValue.substring(1);
+                            }
                             dValue = Double.valueOf(strValue);
                         } catch (NumberFormatException ex) {
                             dValue = null;
@@ -316,6 +341,17 @@ public class Spreadsheet {
                     case "class java.lang.String":
                         String strValue = object.toString();
                         try {
+                            // if it was String formatted but was representing currency,
+                            // there may be a '$' char preceeding the value.
+                            if (strValue.startsWith("$")) {
+                                strValue = strValue.substring(1);
+                                int offset = strValue.indexOf('.');
+                                if (iMult == 100 && offset >= 0 && strValue.length() > offset+2) {
+                                    strValue = strValue.substring(0, offset-1)
+                                             + strValue.substring(offset+1, offset+2);
+                                    iMult = 1;
+                                }
+                            }
                             iValue = Integer.valueOf(strValue);
                             iValue *= iMult;
                         } catch (NumberFormatException ex) {
@@ -354,7 +390,7 @@ public class Spreadsheet {
      */
     public static String getDateOrdered (int row) throws ParserException {
         if (row >= sheetSel.getRowCount()) {
-            throw new ParserException("Spreadsheet.getStringValue: row " + row + " exceeds max: " + sheetSel.getRowCount());
+            throw new ParserException("Spreadsheet.getDateOrdered: row " + row + " exceeds max: " + sheetSel.getRowCount());
         }
         String date = getStringValue (Column.DateOrdered, row);
         if (date.length() <= 10) {
@@ -782,8 +818,10 @@ public class Spreadsheet {
      * returns the first empty row in the spreadsheet data can be written to.
      * 
      * @return the next available row to write to
+     * 
+     * @throws ParserException
      */
-    public static int getLastRowIndex () {
+    public static int getLastRowIndex () throws ParserException {
         // find the last row in the current sheet
         int row = -1;
         if (sheetSel != null) {
@@ -793,7 +831,14 @@ public class Spreadsheet {
         return row;
     }
 
-    public static boolean isSheetEmpty() {
+    /**
+     * indicates if the selected sheet of the spreadsheet is empty (header info only).
+     * 
+     * @return true if the sheet has no user data in it
+     * 
+     * @throws ParserException
+     */
+    public static boolean isSheetEmpty() throws ParserException {
         if (sheetSel != null) {
             return sheetSel.getCellAt(getColumn(Column.OrderNumber),firstRow).getValue().toString().isBlank();
         }
@@ -806,8 +851,10 @@ public class Spreadsheet {
      * @param strOrderNum - the order number to find
      * 
      * @return the number of entries found for that order number (-1 if not found)
+     * 
+     * @throws ParserException
      */
-    public static int getItemCount (String strOrderNum) {
+    public static int getItemCount (String strOrderNum) throws ParserException {
         int count = -1;
         if (sheetSel != null) {
             String ssNumber = "x";
@@ -832,8 +879,10 @@ public class Spreadsheet {
      * @param strOrderNum - the order number to find
      * 
      * @return the row of the 1st occurrance of the order number in the spreadsheet
+     * 
+     * @throws ParserException
      */
-    public static int findItemNumber (String strOrderNum) {
+    public static int findItemNumber (String strOrderNum) throws ParserException {
         if (sheetSel != null) {
             String ssNumber = "x";
             for (int row = firstRow; row < sheetSel.getRowCount() && ! ssNumber.isBlank(); row++) {
@@ -879,44 +928,36 @@ public class Spreadsheet {
     /**    
      * sets the spreadsheet tab selection for many of the spreadsheet functions to use.
      * 
-     * @param name - the name of the spreadsheet tab
+     * @param name - the name (or number) of the spreadsheet tab
      * @throws ParserException
      */
     public static void selectSpreadsheetTab (String name) throws ParserException {
         if (name == null) {
             throw new ParserException("Spreadsheet.selectSpreadsheetTab: spreadsheet sheet selection not made");
         }
-        switch (name) {
-            case "Dan":
-                sheetSel = sheet_0;
-                break;
-            case "Connie":
-                sheetSel = sheet_1;
-                break;
-            default:
-                throw new ParserException("Spreadsheet.selectSpreadsheetTab: invalid tab selection: " + name);
+        int sheetNum = -1;
+        if (name.length() == 1 && name.charAt(0) >= '0' && name.charAt(0) <= '9') {
+            sheetNum = name.charAt(0) - '0';
+        } else {
+            for (int ix = 0; ix < validSheets; ix++) {
+                if (name.contentEquals(sheetArray[ix].getName())) {
+                    sheetNum = ix;
+                    break;
+                }
+            }
+            if (sheetNum < 0) {
+                throw new ParserException("Spreadsheet.selectSpreadsheetTab: tab selection not found: " + name);
+            }
+       }
+        if (sheetNum >= validSheets) {
+            throw new ParserException("Spreadsheet.selectSpreadsheetTab: tab " + sheetNum + " exceeds max selection");
         }
-        
-        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Spreadsheet tab selection: '" + name + "'");
+
+        sheetSel = sheetArray[sheetNum];
+        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Spreadsheet tab " + sheetNum + " selection: '" + sheetSel.getName() + "'");
         props.setPropertiesItem(Property.SpreadsheetTab, name);
     }
 
-    /**    
-     * sets the default spreadsheet selections (for test mode).
-     * 
-     * @throws ParserException
-     * @throws IOException
-     */
-    public static void setDefaultSettings () throws ParserException, IOException {
-        String ssPath = Utils.getPathFromPropertiesFile(Property.SpreadsheetPath);
-        String ssFname = props.getPropertiesItem(Property.SpreadsheetFile, "");
-        if (ssPath != null && ssFname != null) {
-            File ssFile = new File(ssPath + "/" + ssFname);
-            loadSpreadsheet(ssFile);
-        }
-        selectSpreadsheetTab (props.getPropertiesItem(Property.SpreadsheetTab, "Connie"));
-    }
-    
     /**    
      * gets the text data at the specified column and row of the selected spreadsheet tab.
      * 
@@ -927,27 +968,27 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static String getSpreadsheetCell (int col, int row) throws ParserException {
+        if (sheetSel == null) {
+            throw new ParserException("Spreadsheet.getSpreadsheetCell: selected sheet is null");
+        }
         if (row >= sheetSel.getRowCount()) {
             throw new ParserException("Spreadsheet.getSpreadsheetCell: row " + row + " exceeds max: " + sheetSel.getRowCount());
         }
         if (col >= sheetSel.getColumnCount()) {
             throw new ParserException("Spreadsheet.getSpreadsheetCell: col " + col + " exceeds max: " + sheetSel.getColumnCount());
         }
-        String strVal = "";
-        String tab = props.getPropertiesItem(Property.SpreadsheetTab, "");
         if (SpreadsheetFile == null) {
             throw new ParserException("Spreadsheet.getSpreadsheetCell: no spreadsheet file loaded");
-        } else if (tab == null) {
-            throw new ParserException("Spreadsheet.getSpreadsheetCell: missing tab selection value");
-        } else if (tab.contentEquals("Dan")) {
-            strVal = sheet_0.getCellAt(col,row).getTextValue();
-            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "read  tab " + tab + " row " + row + " col " + col + " <- " + strVal);
-        } else if (tab.contentEquals("Connie")) {
-            strVal = sheet_1.getCellAt(col,row).getTextValue();
-            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "read  tab " + tab + " row " + row + " col " + col + " <- " + strVal);
-        } else {
-            throw new ParserException("Spreadsheet.getSpreadsheetCell: invalid tab selection: " + tab);
+        } else if (sheetSel == null) {
+            String tab = props.getPropertiesItem(Property.SpreadsheetTab, "");
+            if (tab == null || tab.isEmpty()) {
+                throw new ParserException("Spreadsheet.getSpreadsheetCell: missing tab selection value");
+            }
+            selectSpreadsheetTab (tab);
         }
+
+        String strVal = sheetSel.getCellAt(col,row).getTextValue();
+        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + strVal);
         return strVal;
     }
 
@@ -962,6 +1003,9 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static String getSpreadsheetCellClass (int col, int row) throws ParserException {
+        if (sheetSel == null) {
+            throw new ParserException("Spreadsheet.getSpreadsheetCellClass: selected sheet is null");
+        }
         if (row >= sheetSel.getRowCount()) {
             throw new ParserException("Spreadsheet.getSpreadsheetCellClass: row " + row + " exceeds max: " + sheetSel.getRowCount());
         }
@@ -990,40 +1034,33 @@ public class Spreadsheet {
      * @throws IOException
      */
     public static String putSpreadsheetCell (int col, int row, String strVal) throws ParserException, IOException {
+        if (sheetSel == null) {
+            throw new ParserException("Spreadsheet.putSpreadsheetCell: selected sheet is null");
+        }
         if (row >= sheetSel.getRowCount()) {
             throw new ParserException("Spreadsheet.putSpreadsheetCell: row " + row + " exceeds max: " + sheetSel.getRowCount());
         }
         if (col >= sheetSel.getColumnCount()) {
             throw new ParserException("Spreadsheet.putSpreadsheetCell: col " + col + " exceeds max: " + sheetSel.getColumnCount());
         }
-        String oldVal = "";
-        String tab = props.getPropertiesItem(Property.SpreadsheetTab, "");
         if (SpreadsheetFile == null) {
-            throw new ParserException("Spreadsheet.getSpreadsheetCell: no spreadsheet file loaded");
-        } else if (tab == null) {
-            throw new ParserException("Spreadsheet.putSpreadsheetCell: missing tab selection value");
-        } else if (tab.contentEquals("Dan")) {
-            oldVal = sheet_0.getCellAt(col,row).getTextValue();
-            if (strVal == null) {
-                sheet_0.getCellAt(col, row).clearValue();
-                frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "clear tab " + tab + " row " + row + " col " + col);
+            throw new ParserException("Spreadsheet.putSpreadsheetCell: no spreadsheet file loaded");
+        } else if (sheetSel == null) {
+            String tab = props.getPropertiesItem(Property.SpreadsheetTab, "");
+            if (tab == null || tab.isEmpty()) {
+                throw new ParserException("Spreadsheet.putSpreadsheetCell: missing tab selection value");
             }
-            else {
-                sheet_0.getCellAt(col, row).setValue(strVal);
-                frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "write tab " + tab + " row " + row + " col " + col + " -> " + strVal);
-            }
-        } else if (tab.contentEquals("Connie")) {
-            oldVal = sheet_1.getCellAt(col,row).getTextValue();
-            if (strVal == null) {
-                sheet_1.getCellAt(col, row).clearValue();
-                frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "clear tab " + tab + " row " + row + " col " + col);
-            }
-            else {
-                sheet_1.getCellAt(col, row).setValue(strVal);
-                frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "write tab " + tab + " row " + row + " col " + col + " -> " + strVal);
-            }
-        } else {
-            throw new ParserException("Spreadsheet.putSpreadsheetCell: invalid tab selection: " + tab);
+            selectSpreadsheetTab (tab);
+        }
+
+        String oldVal = sheetSel.getCellAt(col,row).getTextValue();
+        if (strVal == null) {
+            sheetSel.getCellAt(col, row).clearValue();
+            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "clear tab " + sheetSel.getName() + " row " + row + " col " + col);
+        }
+        else {
+            sheetSel.getCellAt(col, row).setValue(strVal);
+            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "write tab " + sheetSel.getName() + " row " + row + " col " + col + " -> " + strVal);
         }
         saveSpreadsheetFile();
         return oldVal;
@@ -1040,6 +1077,9 @@ public class Spreadsheet {
      * @throws IOException
      */
     public static void setSpreadsheetCellColor (int col, int row, Color color) throws ParserException, IOException {
+        if (sheetSel == null) {
+            throw new ParserException("Spreadsheet.getSpreadsheetCellColor: selected sheet is null");
+        }
         if (row >= sheetSel.getRowCount()) {
             throw new ParserException("Spreadsheet.setSpreadsheetCellColor: row " + row + " exceeds max: " + sheetSel.getRowCount());
         }
@@ -1048,9 +1088,9 @@ public class Spreadsheet {
         }
         String tab = props.getPropertiesItem(Property.SpreadsheetTab, "");
         if (SpreadsheetFile == null) {
-            throw new ParserException("Spreadsheet.getSpreadsheetCell: no spreadsheet file loaded");
+            throw new ParserException("Spreadsheet.setSpreadsheetCellColor: no spreadsheet file loaded");
         } else if (tab == null) {
-            throw new ParserException("Spreadsheet.putSpreadsheetCell: missing tab selection value");
+            throw new ParserException("Spreadsheet.setSpreadsheetCellColor: missing tab selection value");
         }
         sheetSel.getCellAt(col,row).setBackgroundColor(color);
         frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "color tab " + tab + " row " + row + " col " + col + " RGB = " + color.getRGB());
@@ -1065,16 +1105,64 @@ public class Spreadsheet {
     public static Integer getSpreadsheetYear () {
         return iSheetYear;
     }
+
+    /**
+     * returns the current number of columns defined for the selected sheet.
+     * 
+     * @return the number of valid columns
+     * 
+     * @throws ParserException 
+     */    
+    public static int getSpreadsheetColSize () throws ParserException {
+        if (sheetSel == null) {
+            throw new ParserException("Spreadsheet.getSpreadsheetColSize: no sheet selected");
+        }
+        return sheetSel.getColumnCount();
+    }
+    
+    /**
+     * returns the current number of rows defined for the selected sheet.
+     * 
+     * @return the number of valid rows
+     * 
+     * @throws ParserException 
+     */    
+    public static int getSpreadsheetRowSize () throws ParserException {
+        if (sheetSel == null) {
+            throw new ParserException("Spreadsheet.getSpreadsheetRowSize: no sheet selected");
+        }
+        return sheetSel.getRowCount();
+    }
+
+    /**
+     * resizes the loaded sheet to the specified size.
+     * If the new size if larger than the previous, it will add new empty cells.
+     * 
+     * @param col
+     * @param row
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */    
+    public static void setSpreadsheetSize (int col, int row) throws ParserException, IOException {
+        if (sheetSel == null) {
+            throw new ParserException("Spreadsheet.setSpreadsheetSize: no sheet selected");
+        }
+        sheetSel.setColumnCount(col, -1, true);
+        sheetSel.setRowCount(row, -1);
+        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "new size: row " + row + " col " + col);
+        saveSpreadsheetFile();
+    }
     
     /**
      * reads the spreadsheet file into memory for accessing the data.
      * 
      * @param ssFile - file to use (optional - will ask user if not supplied)
+     * @param bCheckHeader - true if check for headers in spreadsheet
      * 
      * @throws ParserException
-     * @throws IOException
      */
-    public static void loadSpreadsheet(File ssFile) throws ParserException, IOException {
+    public static void loadSpreadsheet(File ssFile, boolean bCheckHeader) throws ParserException {
         if (ssFile != null) {
             SpreadsheetFile = ssFile;
         } else {
@@ -1136,65 +1224,56 @@ public class Spreadsheet {
         frame.enableClipboardButton(true);
         frame.enableCheckBalanceButton(true);
         
-        sheet_0 = null;
-        sheet_1 = null;
-
-        // load the 'Dan' tab of the spreadsheet
-        sheet_0 = SpreadSheet.createFromFile(SpreadsheetFile).getSheet("Dan");
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Loaded sheet '" + sheet_0.getName() + "' into memory");
-        // make sure the spreadsheet is large enough
-        if (sheet_0.getColumnCount() < Column.values().length + 5) {
-            sheet_0.setColumnCount(Column.values().length + 5, -1, true);
+        // load the first 2 tabs of the spreadsheet into memory
+        validSheets = 0;
+        for (int ix = 0; ix < MAX_SHEETS; ix++) {
+            try {
+                sheetArray[ix] = SpreadSheet.createFromFile(SpreadsheetFile).getSheet(ix);
+            } catch (IOException ex) {
+                if (bCheckHeader || ix == 0) {
+                    throw new ParserException("Spreadsheet.loadSpreadsheet: Spreadsheet tab " + ix + " was unable to be loaded");
+                }
+                frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet tab " + ix + " was unable to be loaded");
+                break;
+            }
+            validSheets++;
+            frame.outputInfoMsg(UIFrame.STATUS_INFO, "Loaded sheet " + ix + " '" + sheetArray[ix].getName() + "' into memory: "
+                                        + sheetArray[ix].getRowCount() + " rows, " + sheetArray[ix].getColumnCount() + " cols");
         }
-        if (sheet_0.getRowCount() < 2000) {
-            sheet_0.setRowCount(2000, -1);
-        }
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, sheet_0.getRowCount() + " rows, " + sheet_0.getColumnCount() + " cols");
-        
-        // load the 'Connie' tab of the spreadsheet
-        sheet_1 = SpreadSheet.createFromFile(SpreadsheetFile).getSheet("Connie");
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Loaded sheet '" + sheet_1.getName() + "' into memory");
-        // make sure the spreadsheet is large enough
-        if (sheet_1.getColumnCount() < Column.values().length + 5) {
-            sheet_1.setColumnCount(Column.values().length + 5, -1, true);
-        }
-        if (sheet_1.getRowCount() < 2000) {
-            sheet_1.setRowCount(2000, -1);
-        }
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, sheet_1.getRowCount() + " rows, " + sheet_1.getColumnCount() + " cols");
 
         // check if spreadsheet header is valid and setup column selections if so
-        setupColumns();
+        setupColumns(bCheckHeader);
         
         // check to see what year this spreadsheet is for (we will only add entries for that year)
-        Object oYear0 = sheet_0.getCellAt(0,0).getValue();
-        Object oYear1 = sheet_1.getCellAt(0,0).getValue();
-        if (oYear0 == null || oYear1 == null) {
-            throw new ParserException("Spreadsheet.loadSpreadsheet: Invalid spreadsheet format - header missing year");
-        }
-        Integer iYear0 = Utils.getIntFromString (oYear0.toString(), 0, 4);
-        Integer iYear1 = Utils.getIntFromString (oYear1.toString(), 0, 4);
-        if (iYear0 == null || iYear1 == null || !Objects.equals(iYear0, iYear1)) {
-            throw new ParserException("Spreadsheet.loadSpreadsheet: Invalid spreadsheet format - header years invalid: " + oYear0.toString() + ", " + oYear1.toString());
-        }
-        if (iYear0 < 2020 || iYear0 > 2040) {
-            throw new ParserException("Spreadsheet.loadSpreadsheet: Invalid spreadsheet format - header year out of range: " + iYear0);
+        if (bCheckHeader) {
+            Object oYear = sheetArray[0].getCellAt(0,0).getValue();
+            Integer iYear = null;
+            if (oYear == null) {
+                throw new ParserException("Spreadsheet.loadSpreadsheet: Invalid spreadsheet format - header missing year");
+            } else {
+                iYear = Utils.getIntFromString (oYear.toString(), 0, 4);
+                if (iYear == null) {
+                    throw new ParserException("Spreadsheet.loadSpreadsheet: Invalid spreadsheet format - header years invalid: " + oYear.toString() + ", " + oYear.toString());
+                } else if (iYear < 2020 || iYear > 2040) {
+                    throw new ParserException("preadsheet.loadSpreadsheet: Invalid spreadsheet format - header year out of range: " + iYear);
+                }
+            }
+            iSheetYear = iYear;
+            frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet year: " + iSheetYear);
         }
 
         // get the name of the file to store debug info to (if defined)
         frame.setDebugOutputFile(props.getPropertiesItem(Property.DebugFileOut, ""));
-        
-        iSheetYear = iYear0;
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet year: " + iSheetYear);
     }
 
     private static void reloadSpreadsheetFile () throws IOException {
-        if (SpreadsheetFile == null || sheetSel == null) {
+        if (SpreadsheetFile == null || sheetSel == null || validSheets == 0) {
             return;
         }
-        sheet_0 = SpreadSheet.createFromFile(SpreadsheetFile).getSheet("Dan");
-        sheet_1 = SpreadSheet.createFromFile(SpreadsheetFile).getSheet("Connie");
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Reloaded sheets into memory");
+        for (int ix = 0; ix < validSheets; ix++) {
+            sheetArray[ix] = SpreadSheet.createFromFile(SpreadsheetFile).getSheet(ix);
+            frame.outputInfoMsg(UIFrame.STATUS_INFO, "Reloaded sheet " + ix + " into memory");
+        }
     }
     
     /**
