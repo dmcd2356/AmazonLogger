@@ -48,7 +48,7 @@ public class AmazonReader {
 
             // enable the messages as they were from prevous run
             frame.setDefaultStatus ();
-         }
+        }
     }
 
     private static void runCommandLine (String[] args) throws ParserException, IOException, SAXException, TikaException {
@@ -133,14 +133,20 @@ public class AmazonReader {
                         System.out.println("<OK>");
                         break;
                     case "-s":
-                        params = checkReqParams (2, option, cmdLine);
+                        params = checkReqParams (1, option, cmdLine);
                         filetype = "Spreadsheet";
                         fname = params.get(0);
-                        String strCheck = params.get(1);
                         File ssheetFile = checkFilename (fname, ".ods", filetype, true);
-                        System.out.println(filetype + " file: " + ssheetFile.getAbsolutePath());
                         // load the spreadsheet file
-                        Spreadsheet.loadSpreadsheet(ssheetFile, strCheck.contentEquals("1"));
+                        Spreadsheet.selectSpreadsheet(ssheetFile);
+                        System.out.println("<OK>");
+                        break;
+                    case "-l":
+                        params = checkReqParams (2, option, cmdLine);
+                        Integer numTabs = Integer.parseUnsignedInt(params.get(0), 10);
+                        String strCheck = params.get(1);
+                        // load the spreadsheet file
+                        Spreadsheet.loadSheets(numTabs, strCheck.contentEquals("1"));
                         System.out.println("<OK>");
                         break;
                     case "-t":
@@ -172,8 +178,8 @@ public class AmazonReader {
                         fname = params.get(0);
                         pdfFile = checkFilename (fname, ".pdf", filetype, false);
                         System.out.println(filetype + " file: " + pdfFile.getAbsolutePath());
-                        PdfReader pdfReader = new PdfReader(pdfFile);
-                        pdfReader.readPdfContents();
+                        PdfReader pdfReader = new PdfReader();
+                        pdfReader.readPdfContents(pdfFile);
                         break;
                     case "-o":
                         params = checkReqParams (0, option, cmdLine);
@@ -208,13 +214,15 @@ public class AmazonReader {
                         System.out.println("<" + convDate + ">");
                         break;
                     case "-default":
-                        params = checkReqParams (1, option, cmdLine);
-                        strCheck = params.get(0);
+                        params = checkReqParams (2, option, cmdLine);
+                        numTabs = Integer.parseUnsignedInt(params.get(0), 10);
+                        strCheck = params.get(1);
                         String ssPath = Utils.getPathFromPropertiesFile(Property.SpreadsheetPath);
                         String ssFname = props.getPropertiesItem(Property.SpreadsheetFile, "");
                         if (ssPath != null && ssFname != null) {
                             File ssFile = new File(ssPath + "/" + ssFname);
-                            Spreadsheet.loadSpreadsheet(ssFile, strCheck.contentEquals("1"));
+                            Spreadsheet.selectSpreadsheet(ssFile);
+                            Spreadsheet.loadSheets(numTabs, strCheck.contentEquals("1"));
                         }
                         tab = props.getPropertiesItem(Property.SpreadsheetTab, "0");
                         Spreadsheet.selectSpreadsheetTab (tab);

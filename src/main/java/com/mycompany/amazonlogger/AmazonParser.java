@@ -52,6 +52,7 @@ public class AmazonParser {
             line = clipReader.getLine();
             if (line == null)
                 break;
+            line = line.stripLeading();
             if (line.isBlank())
                 continue;
 
@@ -116,7 +117,7 @@ public class AmazonParser {
                         }
                     }
                     if (!bPlaced) {
-                        // later date than all the reast, add it to the end
+                        // later date than all the rest, add it to the end
                         detailList.add(newOrder);
                         frame.outputInfoMsg (UIFrame.STATUS_PARSER, "- added entry to end of list");
                     }
@@ -125,8 +126,8 @@ public class AmazonParser {
                         itemCount += detailList.get(ix).item.size();
                     }
                     if (itemCount > 0) {
-                        startDate = amazonList.get(0).getOrderDate();
-                        endDate = amazonList.get(amazonList.size()-1).getOrderDate();
+                        startDate = detailList.get(0).getOrderDate();
+                        endDate = detailList.get(detailList.size()-1).getOrderDate();
                         frame.setDetailCount(detailList.size(), itemCount, startDate, endDate);
                         frame.outputInfoMsg(UIFrame.STATUS_PARSER, "Total items in detailed list = " + itemCount);
                     }
@@ -270,7 +271,7 @@ public class AmazonParser {
                     String strOrderNum = order.getOrderNumber();
                     int row = Spreadsheet.findItemNumber (strOrderNum);
                     if (row < 0) {
-                        frame.outputInfoMsg(UIFrame.STATUS_WARN, "AmazonParser.updateSpreadsheet: Index " + ixOrder + " Order " + order.getOrderNumber() + " not found in spreadsheet");
+                        frame.outputInfoMsg(UIFrame.STATUS_WARN, "AmazonParser.updateSpreadsheet: Index " + ixOrder + " Order " + strOrderNum + " not found in spreadsheet");
                     } else {
                         // save the detailed info to spreadsheet class
                         showItemListing(ixOrder, order);

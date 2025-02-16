@@ -45,6 +45,7 @@ public class ParseDetails {
                 line = clip.getLine();
                 if (line == null)
                     break;
+                line = line.stripLeading();
                 if (line.isBlank())
                     continue;
 
@@ -93,16 +94,23 @@ public class ParseDetails {
 //                            frame.outputInfoMsg (UIFrame.STATUS_DEBUG, "* Added new ORDER entry to AMAZON LIST");
 //                        }
 
-                        // this contains the date of the order, followed immediatly on the
-                        // same line with the 'Order#'. We don't care about the order date, but
-                        // we do need the order number.
-                        int offset = line.indexOf("Order# ");
-                        if (offset <= 0 || line.length() != offset + 7 + 19) {
+                        // this contains the date of the order, followed immediatly on the same line with the 'Order#'.
+                        String search = "Order# ";
+                        int offset = line.indexOf(search);
+                        if (offset < 0) {
+                            search = "Order # ";
+                            offset = line.indexOf(search);
+                        }
+                        if (offset <= 0) {
                             throw new ParserException("ParseDetails.parseDetails: Order number not found in 'Ordered on' line");
                         }
-                        String strOrderNum = line.substring(offset + 7);
+                        String strOrderNum = line.substring(offset + search.length());
+                        strOrderNum = strOrderNum.strip();
+                        if (strOrderNum.length() != 19) {
+                            throw new ParserException("ParseDetails.parseDetails: Order number incorrect length: " + strOrderNum.length());
+                        }
                         // now extract date from begining of string
-                        LocalDate date = DateFormat.getFormattedDate (line, true);
+                        LocalDate date = DateFormat.getFormattedDate (line.substring(0, offset), true);
                         if (date == null)
                             throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.eKeyId.name() + " date ", line);
                         newOrder.setOrderDate(date);

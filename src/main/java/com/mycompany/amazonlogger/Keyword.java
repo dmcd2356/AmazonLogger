@@ -91,6 +91,7 @@ public class Keyword {
     
     private final KeywordEntry [] KeywordTable_Details = {
         new KeywordEntry ("Ordered on"                    , KeyTyp.ORDER_PLACED   , DataTyp.INLINE),
+        new KeywordEntry ("Order placed"                  , KeyTyp.ORDER_PLACED   , DataTyp.INLINE),
         new KeywordEntry ("Total before tax:"             , KeyTyp.GROSS_COST     , DataTyp.NEXTLINE),
         new KeywordEntry ("Estimated tax to be collected:", KeyTyp.TAXES          , DataTyp.NEXTLINE),
         new KeywordEntry ("Grand Total:"            , KeyTyp.TOTAL_COST     , DataTyp.NEXTLINE),
@@ -147,6 +148,8 @@ public class Keyword {
                 }
             }
         }
+        String shortLine = line.substring(0, (line.length() > 20 ? 20 : line.length()));
+        frame.outputInfoMsg (UIFrame.STATUS_DEBUG,"ClipTyp.NONT : NO MATCH: "  + shortLine);
         return new KeywordClipEntry();
     }
     
@@ -179,6 +182,8 @@ public class Keyword {
                         }
                     }
                 }
+                String shortLine = line.substring(0, (line.length() > 20 ? 20 : line.length()));
+                frame.outputInfoMsg (UIFrame.STATUS_DEBUG,"ClipTyp.ORDERS : NO MATCH: "  + shortLine);
                 break;
             case ClipTyp.DETAILS:
                 for (KeywordEntry KeywordTable1 : KeywordTable_Details) {
@@ -193,10 +198,13 @@ public class Keyword {
                                              " : " + line);
                             return KeywordTable1;
                         } else {
-                            frame.outputInfoMsg (UIFrame.STATUS_DEBUG,"   KeyTyp."  + KeywordTable1.eKeyId.name() + " -> Not full match");
+                            frame.outputInfoMsg (UIFrame.STATUS_DEBUG,"   KeyTyp."  + KeywordTable1.eKeyId.name()
+                                                + " -> Not full match to Key: " + KeywordTable1.strKeyword);
                         }
                     }
                 }
+                shortLine = line.substring(0, (line.length() > 20 ? 20 : line.length()));
+                frame.outputInfoMsg (UIFrame.STATUS_DEBUG,"ClipTyp.DETAILS : NO MATCH: "  + shortLine);
                 break;
             case ClipTyp.INVOICE:
                 for (KeywordEntry KeywordTable1 : KeywordTable_Invoice) {
@@ -213,6 +221,8 @@ public class Keyword {
                         }
                     }
                 }
+                shortLine = line.substring(0, (line.length() > 20 ? 20 : line.length()));
+                frame.outputInfoMsg (UIFrame.STATUS_DEBUG,"ClipTyp.INVOICE : NO MATCH: "  + shortLine);
                 break;
         }
         return new KeywordEntry();

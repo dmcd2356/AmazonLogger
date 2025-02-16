@@ -52,10 +52,6 @@ public class PdfReader {
         
     }
     
-    public PdfReader (File pFile) {
-        pdfFile = pFile;
-    }
-    
     /**
     * parses the credit card credits and debits from the PDF file.
     *  This extracts vital info from the credit card file for Amazon charges
@@ -64,13 +60,17 @@ public class PdfReader {
     *   order numbers and modifies the spreadsheet file to highlight the rows that
     *   match up with the charges/credits.
     * 
+    * @param pFile - the name of the pdf file to load (null to run user interface to request file)
+    * 
     * @throws ParserException
     * @throws IOException
     * @throws SAXException
     * @throws TikaException
     */
-    public void readPdfContents () throws IOException, ParserException, SAXException, TikaException {
+    public void readPdfContents (File pFile) throws IOException, ParserException, SAXException, TikaException {
 
+        pdfFile = pFile;
+        
         if (pdfFile == null) {
             // file was not passed, so we must let the user select one.
             // see if we have a properties file that has a previously saved PDF directory

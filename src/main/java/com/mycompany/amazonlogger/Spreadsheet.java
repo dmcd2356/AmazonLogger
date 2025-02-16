@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -31,15 +32,18 @@ import org.jopendocument.dom.spreadsheet.SpreadSheet;
  */
 public class Spreadsheet {
 
-    private static final String SKIP_AMOUNT = "-";          // the amount value to use for Total if entry is omitted
+    private static final String SKIP_AMOUNT = "-";          // the value to use for Total amount if entry is omitted
     private static final String RETURN_DATE = "RETURN";     // the date value to use for Delivered if item was returned
-    private static final int MAX_SHEETS = 2;                // the max number of sheets to load into memory
 
-    private static final Sheet[] sheetArray = new Sheet[MAX_SHEETS]; // the first 2 sheets of the spreadsheet
-    private static int     validSheets = 0;                 // the number of sheets actually loaded
-    private static Sheet   sheetSel = null;                 // the current spreadsheet tab selection
-    private static File    SpreadsheetFile;                 // the spreadsheet file
-    private static Integer iSheetYear = null;               // the year value the spreadsheet is marked as
+    private static final ArrayList<Sheet> sheetArray = new ArrayList<>(); // the list of sheets (tabs) loaded in memory
+    private static Sheet    sheetSel = null;                // the current spreadsheet tab selection
+    private static File     SpreadsheetFile;                // the spreadsheet file
+    private static Integer  iSheetYear = null;              // the year value the spreadsheet is marked as
+    private static int      firstRow = -1;                  // the first row following the header
+    private static int      lastValidColumn = 0;            // the column index of the last valid entry
+
+    // the map of column names to column indices in the sheet
+    private static final HashMap<Column, Integer> hmSheetColumns = new HashMap<>();
 
     // these are the names of the column headers.
     // the file must have these defined as they are here, although they may have spaces
@@ -61,11 +65,6 @@ public class Spreadsheet {
         Tax,            // (optional) 
         Seller          // (optional) 
     };
-    
-    // spreadsheet access information
-    private static int firstRow = -1;           // the first row following the header
-    private static int lastValidColumn = 0;     // the column index of the last valid entry
-    private static final HashMap<Column, Integer> hmSheetColumns = new HashMap<>();
 
     /**
      * returns the corresponding column index for the specified column name in the spreadsheet.
@@ -112,8 +111,11 @@ public class Spreadsheet {
      * 
      * @throws ParserException
      */
-    private static void setupColumns (boolean bHeader) throws ParserException {
+    private static void setupColumns (boolean bHeader, Sheet sheetHeader) throws ParserException {
         hmSheetColumns.clear();
+        if (sheetHeader == null) {
+            throw new ParserException("Spreadsheet.setupColumns: No sheet selected");
+        }
         if (! bHeader) {
             frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "No header check performed on spreadsheet");
             return;
@@ -122,7 +124,6 @@ public class Spreadsheet {
         // search the first column in the first 5 rows of the spreadsheet for
         // one of the column names (only need to search 1st 4 columns)
         int headerRow = -1;
-        Sheet sheetHeader = sheetArray[0];  // use header on tab 0 (they should both be the same)
         for (int row = 0; row < 5 && row < sheetHeader.getRowCount() && headerRow < 0; row++) {
             String strSpreadsheet = "";
             Object object = sheetHeader.getCellAt(0,row).getValue();
@@ -855,19 +856,20 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static int getItemCount (String strOrderNum) throws ParserException {
+        if (sheetSel == null) {
+            throw new ParserException("Spreadsheet.getItemCount: selected sheet is null");
+        }
         int count = -1;
-        if (sheetSel != null) {
-            String ssNumber = "x";
-            for (int row = firstRow; row < sheetSel.getRowCount() && ! ssNumber.isBlank(); row++) {
-                ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString();
-                if (ssNumber.contentEquals(strOrderNum)) {
-                    count = 0;
-                    while (ssNumber.contentEquals(strOrderNum)) {
-                        count++;
-                        ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row + count).getValue().toString();
-                    }
-                    break;
+        String ssNumber = "x";
+        for (int row = firstRow; row < sheetSel.getRowCount() && ! ssNumber.isBlank(); row++) {
+            ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString();
+            if (ssNumber.contentEquals(strOrderNum)) {
+                count = 0;
+                while (ssNumber.contentEquals(strOrderNum)) {
+                    count++;
+                    ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row + count).getValue().toString();
                 }
+                break;
             }
         }
         return count;
@@ -878,18 +880,24 @@ public class Spreadsheet {
      * 
      * @param strOrderNum - the order number to find
      * 
-     * @return the row of the 1st occurrance of the order number in the spreadsheet
+     * @return the row of the 1st occurrence of the order number in the spreadsheet
      * 
      * @throws ParserException
      */
     public static int findItemNumber (String strOrderNum) throws ParserException {
-        if (sheetSel != null) {
-            String ssNumber = "x";
-            for (int row = firstRow; row < sheetSel.getRowCount() && ! ssNumber.isBlank(); row++) {
-                ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString();
-                if (ssNumber.contentEquals(strOrderNum)) {
-                    return row;
-                }
+        if (sheetSel == null) {
+            throw new ParserException("Spreadsheet.findItemNumber: selected sheet is null");
+        }
+        String ssNumber = "x";
+        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Searching for " + strOrderNum + " in rows " + firstRow + " to " + sheetSel.getRowCount());
+        for (int row = firstRow; row < sheetSel.getRowCount(); row++) {
+            ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString();
+            if (ssNumber.isBlank()) {
+                frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Order not found. Exiting at row " + row);
+                break;
+            }
+            if (ssNumber.contentEquals(strOrderNum)) {
+                return row;
             }
         }
         return -1;
@@ -939,8 +947,8 @@ public class Spreadsheet {
         if (name.length() == 1 && name.charAt(0) >= '0' && name.charAt(0) <= '9') {
             sheetNum = name.charAt(0) - '0';
         } else {
-            for (int ix = 0; ix < validSheets; ix++) {
-                if (name.contentEquals(sheetArray[ix].getName())) {
+            for (int ix = 0; ix < sheetArray.size(); ix++) {
+                if (name.contentEquals(sheetArray.get(ix).getName())) {
                     sheetNum = ix;
                     break;
                 }
@@ -949,11 +957,11 @@ public class Spreadsheet {
                 throw new ParserException("Spreadsheet.selectSpreadsheetTab: tab selection not found: " + name);
             }
        }
-        if (sheetNum >= validSheets) {
-            throw new ParserException("Spreadsheet.selectSpreadsheetTab: tab " + sheetNum + " exceeds max selection");
+        if (sheetNum >= sheetArray.size()) {
+            throw new ParserException("Spreadsheet.selectSpreadsheetTab: tab index " + sheetNum + " exceeds max tabs: " + sheetArray.size());
         }
 
-        sheetSel = sheetArray[sheetNum];
+        sheetSel = sheetArray.get(sheetNum);
         frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Spreadsheet tab " + sheetNum + " selection: '" + sheetSel.getName() + "'");
         props.setPropertiesItem(Property.SpreadsheetTab, name);
     }
@@ -1155,14 +1163,13 @@ public class Spreadsheet {
     }
     
     /**
-     * reads the spreadsheet file into memory for accessing the data.
+     * selects the spreadsheet file to access.
      * 
      * @param ssFile - file to use (optional - will ask user if not supplied)
-     * @param bCheckHeader - true if check for headers in spreadsheet
      * 
      * @throws ParserException
      */
-    public static void loadSpreadsheet(File ssFile, boolean bCheckHeader) throws ParserException {
+    public static void selectSpreadsheet(File ssFile) throws ParserException {
         if (ssFile != null) {
             SpreadsheetFile = ssFile;
         } else {
@@ -1223,12 +1230,24 @@ public class Spreadsheet {
         // enable the Update and Balance buttons
         frame.enableClipboardButton(true);
         frame.enableCheckBalanceButton(true);
-        
+    }
+
+    /**
+     * reads the specified number of spreadsheet tabs into memory for accessing the data.
+     * 
+     * @param numSheets    - number of sheets (tabs) to load into memory
+     * @param bCheckHeader - true if check for headers in spreadsheet
+     * 
+     * @throws ParserException
+     */
+    public static void loadSheets(int numSheets, boolean bCheckHeader) throws ParserException {
         // load the first 2 tabs of the spreadsheet into memory
-        validSheets = 0;
-        for (int ix = 0; ix < MAX_SHEETS; ix++) {
+        sheetArray.clear();
+        for (int ix = 0; ix < numSheets; ix++) {
+            Sheet newSheet;
             try {
-                sheetArray[ix] = SpreadSheet.createFromFile(SpreadsheetFile).getSheet(ix);
+                newSheet = SpreadSheet.createFromFile(SpreadsheetFile).getSheet(ix);
+                sheetArray.add(newSheet);
             } catch (IOException ex) {
                 if (bCheckHeader || ix == 0) {
                     throw new ParserException("Spreadsheet.loadSpreadsheet: Spreadsheet tab " + ix + " was unable to be loaded");
@@ -1236,17 +1255,18 @@ public class Spreadsheet {
                 frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet tab " + ix + " was unable to be loaded");
                 break;
             }
-            validSheets++;
-            frame.outputInfoMsg(UIFrame.STATUS_INFO, "Loaded sheet " + ix + " '" + sheetArray[ix].getName() + "' into memory: "
-                                        + sheetArray[ix].getRowCount() + " rows, " + sheetArray[ix].getColumnCount() + " cols");
+            frame.outputInfoMsg(UIFrame.STATUS_INFO, "Loaded sheet " + ix + " '"
+                                        + newSheet.getName() + "' into memory: "
+                                        + newSheet.getRowCount() + " rows, "
+                                        + newSheet.getColumnCount() + " cols");
         }
 
         // check if spreadsheet header is valid and setup column selections if so
-        setupColumns(bCheckHeader);
+        setupColumns(bCheckHeader, sheetArray.get(0));
         
         // check to see what year this spreadsheet is for (we will only add entries for that year)
         if (bCheckHeader) {
-            Object oYear = sheetArray[0].getCellAt(0,0).getValue();
+            Object oYear = sheetArray.get(0).getCellAt(0,0).getValue();
             Integer iYear = null;
             if (oYear == null) {
                 throw new ParserException("Spreadsheet.loadSpreadsheet: Invalid spreadsheet format - header missing year");
@@ -1267,11 +1287,13 @@ public class Spreadsheet {
     }
 
     private static void reloadSpreadsheetFile () throws IOException {
-        if (SpreadsheetFile == null || sheetSel == null || validSheets == 0) {
+        if (SpreadsheetFile == null || sheetSel == null || sheetArray.isEmpty()) {
             return;
         }
-        for (int ix = 0; ix < validSheets; ix++) {
-            sheetArray[ix] = SpreadSheet.createFromFile(SpreadsheetFile).getSheet(ix);
+        int numSheets = sheetArray.size();
+        sheetArray.clear();
+        for (int ix = 0; ix < numSheets; ix++) {
+            sheetArray.add(SpreadSheet.createFromFile(SpreadsheetFile).getSheet(ix));
             frame.outputInfoMsg(UIFrame.STATUS_INFO, "Reloaded sheet " + ix + " into memory");
         }
     }

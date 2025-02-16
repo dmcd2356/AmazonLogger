@@ -61,6 +61,7 @@ public class ParseOrders {
                 line = clip.getLine();
                 if (line == null)
                     break;
+                line = line.stripLeading();
                 if (line.isBlank())
                     continue;
 

@@ -499,7 +499,8 @@ public final class UIFrame extends JFrame implements ActionListener {
         try {
             if (e.getSource() == btn_select) {
                 outputSeparatorLine("LOAD SPREADSHEET");
-                Spreadsheet.loadSpreadsheet(null, true);
+                Spreadsheet.selectSpreadsheet(null);
+                Spreadsheet.loadSheets(2, true);
              }
             else if (e.getSource() == btn_clipboard) {
                 outputSeparatorLine("PARSE CLIPBOARD");
@@ -513,7 +514,7 @@ public final class UIFrame extends JFrame implements ActionListener {
             else if (e.getSource() == btn_balance) {
                 outputSeparatorLine("BALANCE FROM PDF");
                 PdfReader pdfReader = new PdfReader();
-                pdfReader.readPdfContents();
+                pdfReader.readPdfContents(null);
             }
         } catch (ParserException | IOException | SAXException | TikaException ex) {
             outputInfoMsg (STATUS_ERROR, ex.getMessage());
