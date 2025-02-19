@@ -12,6 +12,8 @@ import java.io.File;
  */
 public class Utils {
     
+    private static final String CLASS_NAME = "Utils";
+    
     /*********************************************************************
     ** returns the unsigned integer value from a string of digits.
     * 
@@ -123,9 +125,11 @@ public class Utils {
     *  @throws ParserException - if invalid char found
     */
     public static int getAmountValue (String str) throws ParserException {
+        String functionId = CLASS_NAME + ".getAmountValue: ";
+        
         // check for empty string
         if (str == null) {
-            throw new ParserException("Utils.getAmountValue: null string");
+            throw new ParserException(functionId + "null string");
         }
         // skip any leading and trailing space characters
         int ix;
@@ -138,7 +142,7 @@ public class Utils {
         
         // check for invalid string length (.01 to -$99999.99)
         if (str.length() < 3 || str.length() > 10) {
-            throw new ParserException("Utils.getAmountValue: invalid string length (" + str.length() + "): " + str);
+            throw new ParserException(functionId + "invalid string length (" + str.length() + "): " + str);
         }
         
         // verify value only contains valid characters
@@ -156,11 +160,11 @@ public class Utils {
                     iDecCnt++;
                 }
             } else if (str.charAt(ix) != '+' && str.charAt(ix) != '$') {
-                throw new ParserException("Utils.getAmountValue: invalid character (" + str.charAt(ix) + "): " + str);
+                throw new ParserException(functionId + "invalid character (" + str.charAt(ix) + "): " + str);
             }
         }
         if (iDecCnt != 2) {
-            throw new ParserException("Utils.getAmountValue: invalid number of decimal characters (" + iDecCnt + "): " + str);
+            throw new ParserException(functionId + "invalid number of decimal characters (" + iDecCnt + "): " + str);
         }
         
         if (bSign)
@@ -182,14 +186,16 @@ public class Utils {
     *  @throws ParserException
     */
     public static String getNextWord (String line, int minlen, int maxlen) throws ParserException {
+        String functionId = CLASS_NAME + ".getNextWord: ";
+        
         int offset;
         for (offset = 0; offset < line.length() && line.charAt(offset) == ' '; offset++) { }
         line = line.substring(offset);
         if (line.length() == 0) {
-            throw new ParserException("Utils.getNextWord: no word found", line);
+            throw new ParserException(functionId + "no word found", line);
         }
         if (line.length() < minlen) {
-            throw new ParserException("Utils.getNextWord: word < minimum length", line);
+            throw new ParserException(functionId + "word < minimum length", line);
         }
         if (maxlen <= 0) { // this indicates we want the entire length of remaining string
             maxlen = line.length();
@@ -256,7 +262,6 @@ public class Utils {
         int B =  rgbHSB & 0xFF;
         
         if (type.contentEquals("HSB")) {
-            float div = (float)256;
             float fH = (float)R / (float)256;
             float fS = (float)G / (float)256;
             float fB = (float)B / (float)256;
@@ -300,6 +305,8 @@ public class Utils {
     }
 
     public static String getPathFromPropertiesFile (PropertiesFile.Property tag) {
+        String functionId = CLASS_NAME + ".getPathFromPropertiesFile: ";
+        
         String validPath = null;
         String pathName = props.getPropertiesItem(tag, "");
         if (!pathName.isEmpty()) {
@@ -307,7 +314,8 @@ public class Utils {
             if (tempDir.exists() && tempDir.isDirectory()) {
                 validPath = pathName;
             } else {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, "Utils.getPathFromPropertiesFile: Properties file '" + tag.name() + "' entry not a valid directory: " + pathName);
+                frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "Properties file '"
+                                + tag.name() + "' entry not a valid directory: " + pathName);
             }
         }
         return validPath;

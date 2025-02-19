@@ -13,6 +13,8 @@ import java.util.ArrayList;
  */
 public class AmazonParser {
     
+    private static final String CLASS_NAME = "AmazonParser";
+    
     private ClipboardReader clipReader = null;
     private static String strSheetSel = null;
     private static ArrayList<AmazonOrder> amazonList = new ArrayList<>();
@@ -38,6 +40,8 @@ public class AmazonParser {
      * @throws IOException
      */
     public void parseWebData () throws ParserException, IOException {
+        String functionId = CLASS_NAME + ".parseWebData: ";
+        
         String line;
         Keyword.KeyTyp eKeyId;
         Keyword.ClipTyp eClipType = Keyword.ClipTyp.NONE;
@@ -71,7 +75,7 @@ public class AmazonParser {
                         frame.setTabOwner(strSheetSel.toUpperCase());
                         frame.outputInfoMsg(UIFrame.STATUS_PARSER, strSheetSel + "'s list selected");
                     } else {
-                        throw new ParserException("AmazonParser.parseWebData: Invalid clip: current tab selection is Dan but previous clips are " + strSheetSel);
+                        throw new ParserException(functionId + "Invalid clip: current tab selection is Dan but previous clips are " + strSheetSel);
                     }
                     break;
                 case Keyword.KeyTyp.HELLO_C:
@@ -81,7 +85,7 @@ public class AmazonParser {
                         frame.setTabOwner(strSheetSel.toUpperCase());
                         frame.outputInfoMsg(UIFrame.STATUS_PARSER, strSheetSel + "'s list selected");
                     } else {
-                        throw new ParserException("AmazonParser.parseWebData: Invalid clip: current tab selection is Connie but previous clips are " + strSheetSel);
+                        throw new ParserException(functionId + "Invalid clip: current tab selection is Connie but previous clips are " + strSheetSel);
                     }
                     break;
                 case Keyword.KeyTyp.ORDER_PLACED:
@@ -155,12 +159,14 @@ public class AmazonParser {
      * @throws com.mycompany.amazonlogger.ParserException
      */
     public static void updateSpreadsheet () throws ParserException, IOException {
+        String functionId = CLASS_NAME + ".updateSpreadsheet: ";
+        
         if (strSheetSel == null) {
-            throw new ParserException("AmazonParser.updateSpreadsheet: spreadsheet sheet selection not made");
+            throw new ParserException(functionId + "spreadsheet sheet selection not made");
         }
 
         if (amazonList.isEmpty() && detailList.isEmpty()) {
-            frame.outputInfoMsg(UIFrame.STATUS_WARN, "AmazonParser.updateSpreadsheet: nothing to update");
+            frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "nothing to update");
             return;
         }
 
@@ -197,7 +203,7 @@ public class AmazonParser {
                     frame.outputInfoMsg(UIFrame.STATUS_INFO, "spreadsheet " + strSheetSel + " last row: " + lastRow);
                     String ssOrderDate   = Spreadsheet.getDateOrdered (lastRow - 1);
                     if (ssOrderDate == null || (ssOrderDate.length() != 5 && ssOrderDate.length() != 10)) {
-                        throw new ParserException("AmazonParser.updateSpreadsheet: Invalid date in spreadsheet on row " + lastRow + ": " + ssOrderDate);
+                        throw new ParserException(functionId + "Invalid date in spreadsheet on row " + lastRow + ": " + ssOrderDate);
                     }
                     if (ssOrderDate.length() == 10) { // if it includes the year, trim it off
                         ssOrderDate = ssOrderDate.substring(5);
@@ -246,7 +252,7 @@ public class AmazonParser {
                 // to get the entries in chronological order, start with the last entry and work backwards.
                 // let's proceed from the item number that matched and loop backwards to the more recent entries.
                 if (bExit) {
-                    frame.outputInfoMsg(UIFrame.STATUS_WARN, "AmazonParser.updateSpreadsheet: All Amazon page entries are already contained in spreadsheet.");
+                    frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "All Amazon page entries are already contained in spreadsheet.");
                     frame.outputInfoMsg(UIFrame.STATUS_INFO, "If there is a more recent page, copy it to the file and try again.");
                 } else {
                     frame.outputInfoMsg(UIFrame.STATUS_NORMAL, "Appending the following rows starting at row: " + (lastRow + 1));
@@ -271,7 +277,8 @@ public class AmazonParser {
                     String strOrderNum = order.getOrderNumber();
                     int row = Spreadsheet.findItemNumber (strOrderNum);
                     if (row < 0) {
-                        frame.outputInfoMsg(UIFrame.STATUS_WARN, "AmazonParser.updateSpreadsheet: Index " + ixOrder + " Order " + strOrderNum + " not found in spreadsheet");
+                        frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "Index " + ixOrder +
+                                            " Order " + strOrderNum + " not found in spreadsheet");
                     } else {
                         // save the detailed info to spreadsheet class
                         showItemListing(ixOrder, order);
@@ -298,7 +305,7 @@ public class AmazonParser {
             frame.clearDetailCount();
 
         } catch (IOException ex) {
-            throw new IOException("AmazonParser.updateSpreadsheet: " + ex.getMessage());
+            throw new IOException(functionId + ex.getMessage());
         }
     }
 
@@ -334,6 +341,8 @@ public class AmazonParser {
      * @return 
      */
     private ArrayList<AmazonOrder> addOrdersToList (ArrayList<AmazonOrder> oldList, ArrayList<AmazonOrder> newList) throws ParserException {
+        String functionId = CLASS_NAME + ".addOrdersToList: ";
+        
         ArrayList<AmazonOrder> finalList, appendList;
         
         // if the new list is empty, just use the original list passed
@@ -352,12 +361,12 @@ public class AmazonParser {
             String strDate = DateFormat.convertDateToString (orderDate, true);
 
             if (! order.isOrderComplete()) {
-                frame.outputInfoMsg (UIFrame.STATUS_WARN, "AmazonParser.addOrdersToList: Incomplete data in entry " + ix + ": order #: " + orderNum);
+                frame.outputInfoMsg (UIFrame.STATUS_WARN, functionId + "Incomplete data in entry " + ix + ": order #: " + orderNum);
                 bError = true;
             }
             Integer ssYear = Spreadsheet.getSpreadsheetYear();
             if (ssYear == null) {
-                throw new ParserException("AmazonParser.addOrdersToList: Spreadsheet header is missing year");
+                throw new ParserException(functionId + "Spreadsheet header is missing year");
             }
             if (orderDate.getYear() != ssYear) {
                 frame.outputInfoMsg(UIFrame.STATUS_PARSER, "skip order # " + orderNum + " - wrong year: " + strDate);
@@ -366,11 +375,11 @@ public class AmazonParser {
         }
 
         if (bError) {
-            frame.outputInfoMsg (UIFrame.STATUS_WARN,"AmazonParser.addOrdersToList: Missing data in list entries");
+            frame.outputInfoMsg (UIFrame.STATUS_WARN,functionId + "Missing data in list entries");
             return oldList;
         }
         if (newList.isEmpty()) {
-            frame.outputInfoMsg (UIFrame.STATUS_WARN, "AmazonParser.addOrdersToList: No valid orders to add");
+            frame.outputInfoMsg (UIFrame.STATUS_WARN, functionId + "No valid orders to add");
             return oldList;
         }
         
