@@ -61,9 +61,11 @@ public final class UIFrame extends JFrame implements ActionListener {
     private static boolean bMsgDebug;
     private static boolean bMsgProps;
     
-    private PrintWriter   debugFile = null;
-    private PrintWriter   testFile = null;
-    private final boolean bUseGUI;
+    private PrintWriter    debugFile = null;
+    private PrintWriter    testFile = null;
+    private final boolean  bUseGUI;
+    private static long    elapsedStart = 0;    // hold start of elapsed time for running from file
+    private static boolean showElapsed = false; // indicates if elapsed time to be displayed in logs
     
     private enum TextColor {
         Black, DkGrey, DkRed, Red, LtRed, Orange, Brown,
@@ -775,6 +777,7 @@ public final class UIFrame extends JFrame implements ActionListener {
     public void outputInfoMsg (int errLevel, String msg) {
         if (!bUseGUI) {
             boolean bEnableOutput = false;
+            String time = elapsedTimerGet();
             switch (errLevel) {
                 default:
                 case STATUS_ERROR:
@@ -811,6 +814,7 @@ public final class UIFrame extends JFrame implements ActionListener {
                     break;
             }
             if (bEnableOutput) {
+                msg = time + msg;
                 if (testFile != null) {
                     testFile.println(msg);
                     // errors and warnings will always go to console, even if reporting to file
@@ -901,6 +905,41 @@ public final class UIFrame extends JFrame implements ActionListener {
         } catch (BadLocationException ex) {
             Logger.getLogger(UIFrame.class.getName()).log(Level.SEVERE, null, ex);
         }
+    }
+    
+    public void elapsedTimerEnable() {
+        elapsedStart = System.currentTimeMillis();
+        showElapsed = true;
+    }
+    
+    public void elapsedTimerDisable() {
+        showElapsed = false;
+    }
+    
+    private String elapsedTimerGet() {
+        if (!showElapsed) {
+            return "";
+        }
+        long elapsedTime = System.currentTimeMillis() - elapsedStart;
+        long msecs = elapsedTime % 1000;
+        long secs = elapsedTime / 1000;
+//        long hours = secs / 3600;
+        secs = secs % 3600;
+        long mins = secs / 60;
+        secs = secs % 60;
+
+        String strElapsed = "";
+        // ignore the hours, so format is always: MM:SS.m
+//        strElapsed =  (hours < 10) ? "0" + hours : "" + hours;
+        strElapsed += (mins  < 10) ?  "0" + mins : "" + mins;
+        strElapsed += (secs  < 10) ? ":0" + secs : ":" + secs;
+        if (msecs < 10)
+            strElapsed += ".00" + msecs;
+        else if (msecs < 100)
+            strElapsed += ".0" + msecs;
+        else
+            strElapsed += "." + msecs;
+        return strElapsed + " ";
     }
     
     private static Color cvtHSBtoColor (int h, int s, int b) {

@@ -1,11 +1,8 @@
 package com.mycompany.amazonlogger;
 
 // Importing java input/output classes
-import com.mycompany.amazonlogger.CommandParser.CommandStruct;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_NORMAL;
 import java.io.IOException;
-import java.util.ArrayList;
 import org.apache.tika.exception.TikaException;
 import org.xml.sax.SAXException;
 

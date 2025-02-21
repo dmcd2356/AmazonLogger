@@ -1108,7 +1108,6 @@ public class Spreadsheet {
             sheetSel.getCellAt(col, row).setValue(strVal);
             frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "write tab " + sheetSel.getName() + " row " + row + " col " + col + " -> " + strVal);
         }
-        saveSpreadsheetFile();
         return oldVal;
     }
 
@@ -1143,7 +1142,6 @@ public class Spreadsheet {
         sheetSel.getCellAt(col,row).setBackgroundColor(color);
         String hexColor = String.format("0x%06x", color.getRGB());
         frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Setting cell color for tab " + tab + " row " + row + " col " + col + " RGB = " + hexColor);
-        saveSpreadsheetFile();
     }
 
     /**
