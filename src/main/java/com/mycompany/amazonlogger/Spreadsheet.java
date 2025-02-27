@@ -970,7 +970,7 @@ public class Spreadsheet {
         String functionId = CLASS_NAME + ".selectSpreadsheetTab: ";
 
         if (name == null) {
-            throw new ParserException(functionId + "spreadsheet sheet selection not made");
+            throw new ParserException(functionId + "spreadsheet tab selection is null");
         }
         if (sheetArray.isEmpty()) {
             throw new ParserException(functionId + "no sheet tabs loaded from spreadsheet");

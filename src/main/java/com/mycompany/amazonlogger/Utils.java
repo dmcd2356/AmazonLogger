@@ -273,6 +273,51 @@ public class Utils {
         return myColor;
     }
     
+    public static Boolean getBooleanValue (String strValue) throws ParserException {
+        String functionId = CLASS_NAME + ".getBooleanValue: ";
+        
+        if (strValue.contentEquals("0") || strValue.compareToIgnoreCase("FALSE") == 0) {
+            return false;
+        }
+        if (strValue.contentEquals("1") || strValue.compareToIgnoreCase("TRUE") == 0) {
+            return true;
+        }
+        throw new ParserException(functionId + "Invalid Boolean value: " + strValue);
+    }
+
+    public static Integer getIntValue (String arg) throws ParserException {
+        String functionId = CLASS_NAME + ".getIntValue: ";
+        
+        Integer intValue;
+        try {
+            intValue = Integer.valueOf(arg);
+        } catch (NumberFormatException ex) {
+            throw new ParserException(functionId + "Invalid Integer value: " + arg);
+        }
+        return intValue;
+    }
+    
+    public static Integer getHexValue (String strValue) throws ParserException {
+        String functionId = CLASS_NAME + ".getUnsignedHexValue: ";
+
+        Integer retVal;
+        int offset;
+        if (strValue.charAt(0) == 'x') {
+            offset = 1;
+        } else if (strValue.startsWith("0x")) {
+            offset = 2;
+        }
+        else {
+            return null;
+        }
+        try {
+            retVal = Integer.parseUnsignedInt(strValue.substring(offset), 16);
+        } catch (NumberFormatException ex) {
+            throw new ParserException(functionId + "Invalid Hexadecimal value: " + strValue);
+        }
+        return retVal;
+    }
+    
     public static String getFilePath (File file) {
         if (file == null)
             return "";
