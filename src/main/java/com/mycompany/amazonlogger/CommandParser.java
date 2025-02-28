@@ -26,18 +26,6 @@ public class CommandParser {
     
     private static final String CLASS_NAME = "CommandParser";
     
-    private class OptionList {
-        String  optName;        // the option name
-        String  argTypes;       // argument types: S = String, L = list,
-                                //   D = dir, F = file, U = unsigned int, I = Int, B = 0/1
-                                //   (lowercase if optional, but must be at end of list)
-        
-        OptionList (String opt, String args) {
-            optName  = opt;
-            argTypes = args;
-        }
-    }
-
     private static String  strResponse = "";    // response from last RUN command
     private static Integer intResult = 0;       // result of last CALC command
     private static final HashMap<String, String>  strParams = new HashMap<>();
@@ -71,13 +59,16 @@ public class CommandParser {
         new OptionList ("-cellput"  , "UUL"),
     };
     
-    private OptionList getCommandInfo (String cmd) throws ParserException {
-        for (OptionList entry : OptionTable) {
-            if (entry.optName.contentEquals(cmd)) {
-                return entry;
-            }
+    private class OptionList {
+        String  optName;        // the option name
+        String  argTypes;       // argument types: S = String, L = list,
+                                //   D = dir, F = file, U = unsigned int, I = Int, B = 0/1
+                                //   (lowercase if optional, but must be at end of list)
+        
+        OptionList (String opt, String args) {
+            optName  = opt;
+            argTypes = args;
         }
-        return null;
     }
 
     // defines the structure for file commands
@@ -94,148 +85,10 @@ public class CommandParser {
             String strCommand = command;
             for (int ix = 0; ix < params.size(); ix++) {
                 ParameterStruct parStc = params.get(ix);
-                strCommand += " [" + parStc.paramType + "]";
-                switch (parStc.paramType) {
-                    case 'I':
-                    case 'U':
-                        if (parStc.intParam == null)
-                            strCommand += " (null)";
-                        else
-                            strCommand += " " + parStc.intParam.toString();
-                        break;
-                    case 'B':
-                        if (parStc.boolParam == null)
-                            strCommand += " (null)";
-                        else
-                            strCommand += " " + parStc.boolParam.toString();
-                        break;
-                    default:
-                        if (parStc.strParam == null)
-                            strCommand += " (null)";
-                        else
-                            strCommand += " '" + parStc.strParam + "'";
-                        break;
-                }
+                strCommand += parStc.showParam();
             }
             
             return strCommand;
-        }
-    } 
-
-    private final class ParameterStruct {
-        String   strParam;
-        Integer  intParam;
-        Boolean  boolParam;
-        char     paramType;
-        
-        ParameterStruct (Object objParam, char dataType) throws ParserException {
-            switch (objParam.getClass().toString()) {
-                case "class java.lang.Integer":
-                    setIntegerValue ((Integer) objParam, dataType);
-                    break;
-                case "class java.lang.Boolean":
-                    setBooleanValue ((Boolean) objParam, dataType);
-                    break;
-                case "class java.lang.String":
-                    setStringValue ((String) objParam, dataType);
-                    break;
-                default:
-                    break;
-            }
-        }
-        
-        void setStringValue (String strVal, char dataType) throws ParserException {
-        String functionId = CLASS_NAME + ".setStringValue: ";
-        
-            intParam = null;
-            boolParam = null;
-            strParam = strVal;
-
-            // if it is a parameter, save the param name as a string and allow it
-            if (strVal.startsWith("$")) {
-                frame.outputInfoMsg(STATUS_PARSER, "     'S' param: " + strParam);
-                paramType = 'S';
-                return;
-            }
-            try {
-                switch (dataType) {
-                    case 'I':
-                        intParam = Utils.getIntValue(strVal);
-                        break;
-                    case 'U':
-                        intParam = Utils.getHexValue (strVal);
-                        if (intParam == null) {
-                            intParam = Utils.getIntValue(strVal);
-                            if (intParam < 0) {
-                                throw new NumberFormatException("");
-                            }
-                        }
-                        break;
-                    case 'B':
-                        boolParam = Utils.getBooleanValue(strVal);
-                        break;
-                    default:
-                        // all string types
-                        break;
-                }
-            } catch (NumberFormatException ex) {
-                throw new ParserException(functionId + "Invalid param data for dataType " + dataType + ": param: " + strVal);
-            }
-            
-            frame.outputInfoMsg(STATUS_PARSER, "     '" + dataType + "' param: " + strParam);
-            paramType = dataType;
-        }
-        
-        void setIntegerValue (Integer intVal, char dataType) throws ParserException {
-        String functionId = CLASS_NAME + ".setIntegerValue: ";
-        
-            strParam = null;
-            boolParam = null;
-            intParam = intVal;
-
-            switch (dataType) {
-                case 'I':
-                    break;
-                case 'U':
-                    if (intParam < 0) {
-                        throw new ParserException(functionId + "Invalid param data for dataType " + dataType + ": param: " + intVal);
-                    }
-                    break;
-                case 'B':
-                    boolParam = intParam != 0;
-                    break;
-
-                default:
-                    // all string types
-                    strParam = intParam.toString();
-                    break;
-            }
-            
-            paramType = dataType;
-            frame.outputInfoMsg(STATUS_PARSER, "     '" + paramType + "' param: " + intParam);
-        }
-        
-        void setBooleanValue (Boolean boolVal, char dataType) {
-        
-            intParam = null;
-            strParam = null;
-            boolParam = boolVal;
-
-            switch (dataType) {
-                case 'I':
-                case 'U':
-                    intParam = boolVal ? 1 : 0;
-                    break;
-                case 'B':
-                    break;
-                default:
-                    // all string types
-                    strParam = boolParam.toString();
-                    break;
-            }
-            
-            paramType = dataType;
-            frame.outputInfoMsg(STATUS_PARSER, "     '" + paramType + "' param: " + boolParam);
         }
     } 
 
@@ -318,8 +171,9 @@ public class CommandParser {
         intResult = 0;
 
         // read the program and compile into ArrayList 'cmdList'
-        int lineNum = 1;
+        int lineNum = 0;
         while ((line = fileReader.readLine()) != null) {
+            lineNum++;
             line = line.strip();
             if (line.isBlank() || line.charAt(0) == '#') {
                 continue;
@@ -353,12 +207,14 @@ public class CommandParser {
                     if (parmArr[0].startsWith("I_")) {
                         argList = "SI";
                     }
-                    cmdStruct.params = packParamList (line, argList, false);
+                    cmdStruct.params = packParamList (line, argList);
                     ParameterStruct parmName  = cmdStruct.params.get(0);   // Name of the parameter
                     ParameterStruct parmValue = cmdStruct.params.get(1);   // Value to set the parameter to
+                    String strParmName = parmName.getStringValue();
+                    String strParmVal  = parmValue.getStringValue();
 
                     // make sure we are not using a reserved parameter name
-                    switch (parmName.strParam) {
+                    switch (strParmName) {
                         case "RESPONSE":
                         case "RESULT":
                             throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " using reserved name: " + parmName);
@@ -367,34 +223,67 @@ public class CommandParser {
                     }
 
                     // if value is a parameter itself, we can only do run-time check, so just pass it
-                    if (parmValue.strParam != null && parmValue.strParam.startsWith("$")) {
-                        strParams.put(parmName.strParam, parmValue.strParam);
+                    if (strParmVal != null && strParmVal.startsWith("$")) {
+                        strParams.put(strParmName, strParmVal);
                     }
                     
                     // for integer type parameters, verify it is an integer value being assigned
-                    if (parmName.strParam.startsWith("I_")) {
-                        if (parmValue.intParam == null) {
+                    if (strParmName.startsWith("I_")) {
+                        Integer intParmVal = parmValue.getIntegerValue();
+                        if (intParmVal == null) {
                             throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " Integer arg not defined for: " + parmName);
                         }
-                        if (! intParams.containsKey(parmName.strParam)) {
-                            intParams.put(parmName.strParam, parmValue.intParam);
-                            frame.outputInfoMsg(STATUS_PARSER, "   - Added Integer parameter " + parmName.strParam + " init to " + parmValue.intParam);
+                        if (! intParams.containsKey(strParmName)) {
+                            intParams.put(strParmName, intParmVal);
+                            frame.outputInfoMsg(STATUS_PARSER, "   - Added Integer parameter " + strParmName + " init to " + intParmVal);
                         } else {
-                            frame.outputInfoMsg(STATUS_PARSER, "   - Integer parameter " + parmName.strParam + " already defined");
+                            frame.outputInfoMsg(STATUS_PARSER, "   - Integer parameter " + strParmName + " already defined");
                         }
                     } else {
-                        if (! strParams.containsKey(parmName.strParam)) {
-                            strParams.put(parmName.strParam, parmValue.strParam);
-                            frame.outputInfoMsg(STATUS_PARSER, "   - Added String parameter " + parmName.strParam + " init to '" + parmValue.strParam + "'");
+                        if (! strParams.containsKey(strParmName)) {
+                            strParams.put(strParmName, strParmVal);
+                            frame.outputInfoMsg(STATUS_PARSER, "   - Added String parameter " + strParmName + " init to '" + strParmVal + "'");
                         } else {
-                            frame.outputInfoMsg(STATUS_PARSER, "   - String parameter " + parmName.strParam + " already defined");
+                            frame.outputInfoMsg(STATUS_PARSER, "   - String parameter " + strParmName + " already defined");
                         }
                     }
                     break;
                     
+                case "CALC":
+                    // TODO: store calc result value in intResult
+                    break;
+                case "IF":
+                    // TODO: 
+                    break;
+                case "ELSE":
+                    // TODO: store line location in labelsMap
+                    break;
+                case "ELSEIF":
+                    // TODO: store line location in labelsMap
+                    break;
+                case "ENDIF":
+                    // TODO: store line location in labelsMap
+                    break;
+                case "INCR":
+                    // TODO: 
+                    break;
+                case "FOR":
+                    // TODO: store loop value in loopsMap
+                    break;
+                case "BREAK":
+                    // TODO: 
+                    break;
+                case "CONTINUE":
+                    // TODO: 
+                    break;
+                case "NEXT":
+                    // TODO: store line location in labelsMap
+                    break;
+                
                 case "RUN":
-                default:
                     // verify the option command and its parameters
+                    // NOTE: when we place the command in cmdStruct, we remove the RUN label,
+                    //       so executeProgramCommand does not need to check for it.
                     ArrayList<String> optCmd = new ArrayList<>(Arrays.asList(parmArr));
                     ArrayList<CommandStruct> runList = SplitCmdOptionsLine (optCmd);
                     
@@ -405,12 +294,14 @@ public class CommandParser {
                     }
                     cmdStruct = null; // clear this since we have copied all the commands from here
                     break;
+
+                default:
+                    throw new ParserException(functionId + lineInfo + "Unknown command: " + cmdStruct.command);
             }
 
             // all good, add command to list
             if (cmdStruct != null) {
                 cmdList.add(cmdStruct);
-                lineNum++;
             }
         }
 
@@ -455,16 +346,49 @@ public class CommandParser {
             case "CALC":
                 // TODO: store calc result value in intResult
                 break;
+            case "IF":
+                // TODO: 
+                break;
+            case "ELSE":
+                // TODO: store line location in labelsMap
+                break;
+            case "ELSEIF":
+                // TODO: store line location in labelsMap
+                break;
+            case "ENDIF":
+                // TODO: store line location in labelsMap
+                break;
+            case "INCR":
+                // TODO: 
+                break;
+            case "FOR":
+                // TODO: store loop value in loopsMap
+                break;
+            case "BREAK":
+                // TODO: 
+                break;
+            case "CONTINUE":
+                // TODO: 
+                break;
+            case "NEXT":
+                // TODO: store line location in labelsMap
+                break;
             case "EXIT":
                 index = -1; // this will terminate the program
                 break;
             case "RUN":
-                command = cmdStruct.params.removeFirst().strParam;
+                command = cmdStruct.params.removeFirst().getStringValue();
                 // fall through...
             default:
                 // convert the list of Strings into a struct of a command and list of args
                 CommandStruct cmdOption = new CommandStruct (command);
-                OptionList optInfo = getCommandInfo(command);
+                OptionList optInfo = null;
+                for (OptionList tblEntry : OptionTable) {
+                    if (tblEntry.optName.contentEquals(command)) {
+                        optInfo = tblEntry;
+                        break;
+                    }
+                }
                 if (optInfo == null) {
                     throw new ParserException(functionId + "option is not valid: " + cmdStruct.command);
                 }
@@ -522,7 +446,13 @@ public class CommandParser {
         // 1st entry is option, which may have additional args. let's see how many
         String cmdArg = argList.removeFirst();
         CommandStruct newCommand = new CommandStruct(cmdArg);
-        OptionList optInfo = getCommandInfo(cmdArg);
+        OptionList optInfo = null;
+        for (OptionList tblEntry : OptionTable) {
+            if (tblEntry.optName.contentEquals(cmdArg)) {
+                optInfo = tblEntry;
+                break;
+            }
+        }
         if (optInfo == null) {
             throw new ParserException(functionId + "option is not valid: " + cmdArg);
         }
@@ -549,7 +479,13 @@ public class CommandParser {
         for (int ix = 0; ! argList.isEmpty(); ix++) {
             // get next entry, whic can be either and arg for current option or a new option
             String nextArg = argList.removeFirst();
-            OptionList newInfo = getCommandInfo(nextArg);
+            OptionList newInfo = null;
+            for (OptionList tblEntry : OptionTable) {
+                if (tblEntry.optName.contentEquals(nextArg)) {
+                    newInfo = tblEntry;
+                    break;
+                }
+            }
             if (newInfo != null && parmCnt >= minArgs) {
                 // new command option
                 cmdArg = nextArg;
@@ -587,8 +523,6 @@ public class CommandParser {
                 }
 
                 // verify data types that are restrictive
-                Integer intVal;
-                Boolean boolVal;
                 ParameterStruct parmData = new ParameterStruct(nextArg, parmType);
                 switch (parmType) {
                     case 'D':
@@ -624,29 +558,29 @@ public class CommandParser {
         try {
             switch (option) {
                 case "-d":
-                    frame.setMessageFlags(params.get(0).intParam);
+                    frame.setMessageFlags(params.get(0).getIntegerValue());
                     break;
                 case "-s":
                     filetype = "Spreadsheet";
-                    fname = params.get(0).strParam;
+                    fname = params.get(0).getStringValue();
                     File ssheetFile = checkFilename (fname, ".ods", filetype, true);
                     Spreadsheet.selectSpreadsheet(ssheetFile);
                     break;
                 case "-l":
-                    Integer numTabs = params.get(0).intParam;
-                    boolean bCheckHeader = params.get(1).boolParam;
+                    Integer numTabs = params.get(0).getIntegerValue();
+                    boolean bCheckHeader = params.get(1).getBooleanValue();
                     if (numTabs <= 0) {
                         throw new ParserException(functionId + "Invalid number of tabs to load: " + numTabs);
                     }
                     Spreadsheet.loadSheets(numTabs, bCheckHeader);
                     break;
                 case "-t":
-                    Integer tab = params.get(0).intParam;
+                    Integer tab = params.get(0).getIntegerValue();
                     Spreadsheet.selectSpreadsheetTab (tab.toString());
                     break;
                 case "-c":
                     filetype = "Clipboard";
-                    fname = params.get(0).strParam;
+                    fname = params.get(0).getStringValue();
                     File fClip = checkFilename (fname, ".txt", filetype, false);
                     frame.outputInfoMsg(STATUS_PARSER, "  " + filetype + " file: " + fClip.getAbsolutePath());
                     AmazonParser amazonParser = new AmazonParser(fClip);
@@ -658,7 +592,7 @@ public class CommandParser {
                     break;
                 case "-p":
                     filetype = "PDF";
-                    fname = params.get(0).strParam;
+                    fname = params.get(0).getStringValue();
                     File pdfFile = checkFilename (fname, ".pdf", filetype, false);
                     frame.outputInfoMsg(STATUS_PARSER, "  filetype + \" file: \" + pdfFile.getAbsolutePath()");
                     PdfReader pdfReader = new PdfReader();
@@ -669,7 +603,7 @@ public class CommandParser {
                         frame.outputInfoMsg(STATUS_PARSER, "  Output messages to stdout");
                         frame.setTestOutputFile(null);
                     } else {
-                        fname = params.get(0).strParam;
+                        fname = params.get(0).getStringValue();
                         fname = getTestPath() + "/" + fname;
                     frame.outputInfoMsg(STATUS_PARSER, "  Output messages to file: " + fname);
                         frame.setTestOutputFile(fname);
@@ -680,7 +614,7 @@ public class CommandParser {
                     Spreadsheet.saveSpreadsheetFile();
                     break;
                 case "-date":
-                    String strDate = params.get(0).strParam;
+                    String strDate = params.get(0).getStringValue();
                     LocalDate date = DateFormat.getFormattedDate (strDate, false);
                     String convDate = DateFormat.convertDateToString(date, true);
                     if (convDate == null) {
@@ -689,7 +623,7 @@ public class CommandParser {
                     response = convDate;
                     break;
                 case "-datep":
-                    strDate = params.get(0).strParam;
+                    strDate = params.get(0).getStringValue();
                     date = DateFormat.getFormattedDate (strDate, true);
                     convDate = DateFormat.convertDateToString(date, true);
                     if (convDate == null) {
@@ -698,8 +632,8 @@ public class CommandParser {
                     response = convDate;
                     break;
                 case "-default":
-                    numTabs = params.get(0).intParam;
-                    bCheckHeader = params.get(1).boolParam;
+                    numTabs = params.get(0).getIntegerValue();
+                    bCheckHeader = params.get(1).getBooleanValue();
                     if (numTabs <= 0) {
                         throw new ParserException(functionId + "Invalid number of tabs to load: " + numTabs);
                     }
@@ -722,22 +656,21 @@ public class CommandParser {
                     response = "" + iRow;
                     break;
                 case "-setsize":
-                    String strCol,strRow;
-                    iCol = params.get(0).intParam;
-                    iRow = params.get(1).intParam;
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     Spreadsheet.setSpreadsheetSize (iCol, iRow);
                     break;
                 case "-find":
-                    String order = params.get(0).strParam;
+                    String order = params.get(0).getStringValue();
                     iRow = Spreadsheet.findItemNumber(order);
                     response = "" + iRow;
                     break;
                 case "-class":
-                    iCol = params.get(0).intParam;
-                    iRow = params.get(1).intParam;
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
@@ -745,35 +678,35 @@ public class CommandParser {
                     response = strValue;
                     break;
                 case "-color":
-                    iCol = params.get(0).intParam;
-                    iRow = params.get(1).intParam;
-                    Integer iColor = params.get(2).intParam;
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    Integer iColor = params.get(2).getIntegerValue();
                     if (iCol == null || iRow == null || iColor == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", color = " + iColor);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColorOfTheMonth(iColor));
                     break;
                 case "-RGB":
-                    iCol = params.get(0).intParam;
-                    iRow = params.get(1).intParam;
-                    Integer iRGB = params.get(2).intParam;
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    Integer iRGB = params.get(2).getIntegerValue();
                     if (iCol == null || iRow == null || iRGB == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", RGB = " + iRGB);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("RGB", iRGB));
                     break;
                 case "-HSB":
-                    iCol = params.get(0).intParam;
-                    iRow = params.get(1).intParam;
-                    Integer iHSB = params.get(2).intParam;
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    Integer iHSB = params.get(2).getIntegerValue();
                     if (iCol == null || iRow == null || iHSB == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", HSB = " + iHSB);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("HSB", iHSB));
                     break;
                 case "-cellget":
-                    iCol = params.get(0).intParam;
-                    iRow = params.get(1).intParam;
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
@@ -781,8 +714,8 @@ public class CommandParser {
                     response = cellValue;
                     break;
                 case "-cellclr":
-                    iCol = params.get(0).intParam;
-                    iRow = params.get(1).intParam;
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
@@ -790,9 +723,9 @@ public class CommandParser {
                     response = cellValue;
                     break;
                 case "-cellput":
-                    iCol = params.get(0).intParam;
-                    iRow = params.get(1).intParam;
-                    String strText = params.get(2).strParam;
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    String strText = params.get(2).getStringValue();
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
@@ -904,19 +837,19 @@ public class CommandParser {
         ParameterStruct param = params.get(ix);
         
         // first, check if a param is being used
-        String strVal = findStringParam(param.strParam);
+        String strVal = findStringParam(param.getStringValue());
         if (strVal == null) {
             // nope, use the actual stringified value
-            switch (param.paramType) {
+            switch (param.getParamType()) {
                 case 'U':   // fall through...
                 case 'I':
-                    strVal = param.intParam.toString();
+                    strVal = param.getIntegerValue().toString();
                     break;
                 case 'B':
-                    strVal = param.boolParam.toString();
+                    strVal = param.getBooleanValue().toString();
                     break;
                 default:    // default to String type
-                    strVal = param.strParam;
+                    strVal = param.getStringValue();
                     break;
             }
         }
@@ -937,21 +870,21 @@ public class CommandParser {
         ParameterStruct param = params.get(ix);
 
         // first, check if a param is being used
-        Integer intVal = findIntegerParam(param.strParam);
+        Integer intVal = findIntegerParam(param.getStringValue());
         if (intVal == null) {
             // nope, use the actual stringified value
-            switch (param.paramType) {
+            switch (param.getParamType()) {
                 case 'U':   // fall through...
                 case 'I':
-                    intVal  = param.intParam;
+                    intVal  = param.getIntegerValue();
                     break;
                 case 'B':
-                    intVal = (param.boolParam == true) ? 1 : 0;
+                    intVal = (param.getBooleanValue() == true) ? 1 : 0;
                     break;
                 default:    // default to String type
-                    intVal = Utils.getHexValue(param.strParam);
+                    intVal = Utils.getHexValue(param.getStringValue());
                     if (intVal == null)
-                        intVal = Utils.getIntValue(param.strParam);
+                        intVal = Utils.getIntValue(param.getStringValue());
                     break;
             }
         }
@@ -972,23 +905,23 @@ public class CommandParser {
         ParameterStruct param = params.get(ix);
         
         // first, check if a param is being used
-        Boolean boolVal = null;
-        String strVal = findStringParam(param.strParam);
+        Boolean boolVal;
+        String strVal = findStringParam(param.getStringValue());
         if (strVal != null) {
             boolVal = Utils.getBooleanValue(strVal);
         }
         else {
             // nope, use the actual stringified value
-            switch (param.paramType) {
+            switch (param.getParamType()) {
                 case 'U':   // fall through...
                 case 'I':
-                    boolVal = (param.intParam != 0);
+                    boolVal = (param.getIntegerValue() != 0);
                     break;
                 case 'B':
-                    boolVal = param.boolParam;
+                    boolVal = param.getBooleanValue();
                     break;
                 default:    // default to String type
-                    boolVal = Utils.getBooleanValue(param.strParam);
+                    boolVal = Utils.getBooleanValue(param.getStringValue());
                     break;
             }
         }
@@ -1011,7 +944,7 @@ public class CommandParser {
      * 
      * @throws ParserException 
      */
-    private ArrayList<ParameterStruct> packParamList (String line, String argTypes, boolean bReplace) throws ParserException {
+    private ArrayList<ParameterStruct> packParamList (String line, String argTypes) throws ParserException {
         String functionId = CLASS_NAME + ".packParamList: ";
 
         int minParams = 0;  // count the min number of parameters for the command
@@ -1042,41 +975,6 @@ public class CommandParser {
         String [] strArr = line.split(" ");
         ArrayList<String> entries = new ArrayList<>(Arrays.asList(strArr));
         int ix;
-        
-//        // do a replacement for all parameter entries found in string
-//        if (bReplace) {
-//            for (ix = 0; ix < entries.size() && ix < maxParams; ix++) {
-//                String nextArg = entries.get(ix);
-//                if (nextArg.charAt(0) == '$') {
-//                    String replacement = null;
-//                    offset = line.indexOf(nextArg);
-//                    if (offset < 0) {
-//                        throw new ParserException(functionId + "Wierd - extracted arg was not found in string: " + nextArg);
-//                    }
-//                    int arglen = nextArg.length();
-//                    if (nextArg.contentEquals("$RESPONSE")) {
-//                        replacement = strResponse;
-//                    }
-//                    else if (nextArg.contentEquals("$RESULT")) {
-//                        replacement = intResult.toString();
-//                    }
-//                    else if (nextArg.startsWith("$I_")) {
-//                        if (intParams.containsKey(nextArg.substring(1))) {
-//                            replacement = intParams.get(nextArg.substring(1)).toString();
-//                        }
-//                    } else {
-//                        if (strParams.containsKey(nextArg.substring(1))) {
-//                            replacement = strParams.get(nextArg.substring(1));
-//                        }
-//                    }
-//                    // if a parameter was found, make the substitution in the line
-//                    if (replacement != null) {
-//                        line = line.substring(0, offset) + replacement
-//                             + line.substring(offset + arglen);
-//                    }
-//                }
-//            }
-//        }
         
         for (ix = 0; ix < entries.size() && ix < maxParams; ix++) {
             char parmType = argTypes.charAt(ix);
