@@ -272,7 +272,16 @@ public class Utils {
         
         return myColor;
     }
-    
+
+    /**
+     * converts a String value to Boolean.
+     * 
+     * @param strValue - value to convert (can be true/false or 0/1)
+     * 
+     * @return true or false
+     * 
+     * @throws ParserException 
+     */    
     public static Boolean getBooleanValue (String strValue) throws ParserException {
         String functionId = CLASS_NAME + ".getBooleanValue: ";
         
@@ -285,6 +294,15 @@ public class Utils {
         throw new ParserException(functionId + "Invalid Boolean value: " + strValue);
     }
 
+    /**
+     * converts a String value to an Integer
+     * 
+     * @param arg - value to convert
+     * 
+     * @return the corresponding Integer value
+     * 
+     * @throws ParserException 
+     */
     public static Integer getIntValue (String arg) throws ParserException {
         String functionId = CLASS_NAME + ".getIntValue: ";
         
@@ -297,6 +315,15 @@ public class Utils {
         return intValue;
     }
     
+    /**
+     * converts a String hexadecimal value to an Integer
+     * 
+     * @param strValue - value to convert (must begin with either 'x' or '0x')
+     * 
+     * @return the corresponding unsigned Integer value
+     * 
+     * @throws ParserException 
+     */
     public static Integer getHexValue (String strValue) throws ParserException {
         String functionId = CLASS_NAME + ".getUnsignedHexValue: ";
 
@@ -317,7 +344,14 @@ public class Utils {
         }
         return retVal;
     }
-    
+
+    /**
+     * gets the directory path portion of a filename
+     * 
+     * @param file - the filename (including path)
+     * 
+     * @return the path only
+     */
     public static String getFilePath (File file) {
         if (file == null)
             return "";
@@ -329,6 +363,13 @@ public class Utils {
         return filePath;
     }
 
+    /**
+     * gets the root filename portion of a filename (excludes file extension)
+     * 
+     * @param file - the filename (including path)
+     * 
+     * @return the root filename only
+     */
     public static String getFileRootname (File file) {
         if (file == null)
             return "";
@@ -339,6 +380,13 @@ public class Utils {
         return fileName;
     }
 
+    /**
+     * gets the file extension portion of a filename
+     * 
+     * @param file - the filename (including path)
+     * 
+     * @return the extension only
+     */
     public static String getFileExtension (File file) {
         if (file == null)
             return "";
@@ -349,6 +397,13 @@ public class Utils {
         return fileName.substring(offset); // include the leading '.'
     }
 
+    /**
+     * gets a properties file value that describes a directory path
+     * 
+     * @param tag - the name of the property desired, that is a path
+     * 
+     * @return the path specified
+     */
     public static String getPathFromPropertiesFile (PropertiesFile.Property tag) {
         String functionId = CLASS_NAME + ".getPathFromPropertiesFile: ";
         
@@ -364,6 +419,19 @@ public class Utils {
             }
         }
         return validPath;
+    }
+
+    /**
+     * gets the path used for accessing files for Test mode (from properties file)
+     * 
+     * @return the test path
+     */
+    public static String getTestPath () {
+        String pathname = getPathFromPropertiesFile (PropertiesFile.Property.TestPath);
+        if (pathname == null || pathname.isBlank()) {
+            pathname = System.getProperty("user.dir");
+        }
+        return pathname;
     }
 
 }
