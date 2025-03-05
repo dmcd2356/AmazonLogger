@@ -3,7 +3,10 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PARSER;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * This class defines the structure of the parameters stored for the commands.
@@ -22,7 +25,7 @@ import java.util.HashMap;
  */
 public final class ParameterStruct {
 
-    private static final String CLASS_NAME = "CommandParser";
+    private static final String CLASS_NAME = "ParameterStruct";
     
     private String   strParam;      // value for the String  param types
     private Integer  intParam;      // value for the Integer param types
@@ -35,6 +38,18 @@ public final class ParameterStruct {
     private static final HashMap<String, String>  strParams = new HashMap<>();
     private static final HashMap<String, Integer> intParams = new HashMap<>();
     
+    // for loops, the loopParams will find the loop parameter for the loop at the
+    // specified command index. In order to determine if we have a nested loop
+    // using the same param name, we use loopNames that contains an array of
+    // all the loop params having the same name. When a name is being reused,
+    // we must verify that all the occurrances of FOR loops using that name
+    // are all completely defined, meaning that the ENDFOR has already been found
+    // for each one. When compiling, we simply proceed through the instructions
+    // sequentially, so if all current uses of the FOR parameter indicate they
+    // are complete (i.e. ENDFOR has been found), we are safe to reuse the loop name.
+    private static final HashMap<CommandParser.LoopId, LoopStruct> loopParams = new HashMap<>();
+    private static final HashMap<String, ArrayList<CommandParser.LoopId>> loopNames = new HashMap<>();
+
     /**
      * Creates a parameter having the specified characteristics
      * 
@@ -44,7 +59,10 @@ public final class ParameterStruct {
      * @throws ParserException
      */
     public ParameterStruct (Object objValue, char dataType) throws ParserException {
-        switch (objValue.getClass().toString()) {
+         String functionId = CLASS_NAME + " (new Object): ";
+        
+        String classType = objValue.getClass().toString();
+        switch (classType) {
             case "class java.lang.Integer":
                 setIntegerValue ((Integer) objValue, dataType);
                 break;
@@ -52,10 +70,12 @@ public final class ParameterStruct {
                 setBooleanValue ((Boolean) objValue, dataType);
                 break;
             case "class java.lang.String":
-            default:
                 setStringValue ((String) objValue, dataType);
                 break;
+            default:
+                throw new ParserException(functionId + "Invalid class type for " + dataType + " param: " + classType);
         }
+        frame.outputInfoMsg(STATUS_PARSER, functionId + "type " + dataType + ", " + classType);
     }
         
     /**
@@ -116,6 +136,7 @@ public final class ParameterStruct {
             checkDir (nextArg);
         else if (dataType == 'F')
             checkFilename (nextArg);
+        frame.outputInfoMsg(STATUS_PARSER, functionId + "type " + dataType + ", value: " + nextArg);
     }
     
     /**
@@ -397,11 +418,13 @@ public final class ParameterStruct {
     //========================================================================
 
     /**
-     * inits the saved parameters
+     * initializes the saved parameters
      */
     public static void initParameters () {
         strParams.clear();
         intParams.clear();
+        loopParams.clear();
+        loopNames.clear();
         strResponse = "";
         intResult = 0;
     }
@@ -487,6 +510,218 @@ public final class ParameterStruct {
         if (intParams.containsKey(name)) {
             intParams.replace(name, value);
             frame.outputInfoMsg(STATUS_PARSER, "   - Modified Integer param: " + name + " = " + value);
+            return true;
+        }
+        return false;
+    }
+
+    private static LoopStruct getLoopStruct (CommandParser.LoopId loopId) {
+        // search for a LoopId match
+        Iterator it = loopParams.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry pair = (Map.Entry)it.next();
+            CommandParser.LoopId mapId = (CommandParser.LoopId) pair.getKey();
+            LoopStruct mapInfo = (LoopStruct) pair.getValue();
+            if (loopId.name.contentEquals(mapId.name) && loopId.index == mapId.index) {
+                return mapInfo;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * sets the location of the end of the loop when the ENDLOOP command is parsed
+     * 
+     * @param index  - current command index for ENDLOOP command
+     * @param loopId - the name-index ID for the current loop
+     * 
+     * @throws ParserException 
+     */    
+    public static void setLoopEndIndex (int index, CommandParser.LoopId loopId) throws ParserException {
+        String functionId = CLASS_NAME + ".setLoopEnd: ";
+        
+        LoopStruct loopInfo = getLoopStruct (loopId);
+        if (loopInfo == null) {
+            throw new ParserException(functionId + "FOR Loop " + loopId.name + " @ " + loopId.index + " not found");
+        }
+        loopInfo.setLoopEnd(index);
+    }
+        
+    /**
+     * gets the next command index based on the loop command specified for current loop.
+     * This should be called by 'CommandParser.executeProgramCommand' when a FOR
+     * loop is in progress and one of the loop commands was found that may change
+     * the next location to execute from.
+     * 
+     * @param command - the loop command to execute
+     * @param index   - the current command index
+     * @param loopId  - the loop parameter currently running
+     * 
+     * @return the next command index to run
+     * 
+     * @throws ParserException
+     */
+    public static int getLoopNextIndex (String command, int index, CommandParser.LoopId loopId) throws ParserException {
+        String functionId = CLASS_NAME + ".getLoopNextIndex: ";
+        
+        int nextIndex = index;
+        
+        LoopStruct loopInfo = getLoopStruct (loopId);
+        if (loopInfo == null) {
+            throw new ParserException(functionId + "FOR Loop " + loopId.name + " @ " + loopId.index + " not found");
+        }
+        
+        switch (command) {
+            case "FOR":
+                nextIndex = loopInfo.startLoop(index);
+                break;
+            case "BREAK":
+                nextIndex = loopInfo.loopBreak();
+                break;
+            case "NEXT":
+            case "CONTINUE":
+                nextIndex = loopInfo.loopNext();
+                break;
+            default:
+                break;
+        }
+        
+        frame.outputInfoMsg(STATUS_PARSER, command + " command restarting at index: " + nextIndex);
+        return nextIndex;
+    }
+
+    /**
+     * adds a new entry in the Loop parameters table.
+     * This should only be called by 'CommandParser.compileProgram' when stepping
+     * through the commands to verify and create the compiled list of commands.
+     * 
+     * @param name     - loop parameter name
+     * @param loopId   - loop name-index combination to uniquely identify the loop param
+     * @param loopInfo - the loop parameter to add
+     */
+    public static void saveLoopParameter (String name, CommandParser.LoopId loopId, LoopStruct loopInfo) {
+        String functionId = CLASS_NAME + ".saveLoopParameter: ";
+        
+        // create a new loop ID (name + command index) for the entry and add it
+        // to the list of IDs for the loop parameter name
+        ArrayList<CommandParser.LoopId> loopList;
+        if (loopNames.isEmpty()) {
+            // first loop defined, create an empty array list and add it to the list of names for this name.
+            loopList = new ArrayList<>();
+            loopNames.put(name, loopList);
+            frame.outputInfoMsg(STATUS_PARSER, functionId + "First entry in loopList");
+        } else {
+            loopList = loopNames.get(name);
+        }
+        frame.outputInfoMsg(STATUS_PARSER, functionId + "loopList   [" + loopList.size() + "] " + loopId.name + " @ " + loopId.index);
+        loopList.add(loopId);
+        
+        // now add loop entry to hashmap based on name/index ID
+        frame.outputInfoMsg(STATUS_PARSER, functionId + "loopParams [" + loopParams.size() + "] " + loopId.name + " @ " + loopId.index);
+        loopParams.put(loopId, loopInfo);
+    }
+
+    /**
+     * checks if a parameter name is valid
+     * 
+     * @param name - the name to check
+     *               name must be only alphanumeric or '_' or '-' chars,
+     *               cannot be a reserved name (RESPONSE, RESULT) or a Loop parameter name.
+     * 
+     * @return  true if valid
+     * 
+     * @throws ParserException
+     */
+    public static boolean isValidParamName (String name) throws ParserException {
+        if (name.startsWith("$")) {
+            name = name.substring(1);
+        }
+        if (name.contentEquals("RESPONSE")) {
+            throw new ParserException(": using Reserved parameter name: " + name);
+        }
+        if (name.contentEquals("RESULT")) {
+            throw new ParserException(": using Reserved parameter name: " + name);
+        }
+        for (int ix = 0; ix < name.length(); ix++) {
+            if (  (name.charAt(ix) != '_' && name.charAt(ix) != '-') &&
+                 ! Character.isLetter(name.charAt(ix)) &&
+                 ! Character.isDigit(name.charAt(ix)) ) {
+                throw new ParserException(": invalid character '" + name.charAt(ix) + "' in parameter name: " + name);
+            }
+        }
+        if (loopNames.containsKey(name)) {
+            throw new ParserException(": using Loop parameter name: " + name);
+        }
+        return true;
+    }
+    
+    /**
+     * checks if a Loop parameter name is valid
+     * 
+     * @param name - the name to check
+     *               name must be only alphanumeric or '_' or '-' chars,
+     *               cannot be a reserved name (RESPONSE, RESULT) or a String
+     *               or Integer parameter name.
+     * @param index - the command index for the FOR command
+     * 
+     * @return  true if valid
+     * 
+     * @throws ParserException
+     */
+    public static boolean isValidLoopName (String name, int index) throws ParserException {
+        if (name.startsWith("$")) {
+            name = name.substring(1);
+        }
+        if (name.contentEquals("RESPONSE")) {
+            throw new ParserException(": using Reserved parameter name: " + name);
+        }
+        if (name.contentEquals("RESULT")) {
+            throw new ParserException(": using Reserved parameter name: " + name);
+        }
+        for (int ix = 0; ix < name.length(); ix++) {
+            if (  (name.charAt(ix) != '_' && name.charAt(ix) != '-') &&
+                 ! Character.isLetter(name.charAt(ix)) &&
+                 ! Character.isDigit(name.charAt(ix)) ) {
+                throw new ParserException(": invalid character '" + name.charAt(ix) + "' in parameter name: " + name);
+            }
+        }
+        // make sure its not the same as a regular parameter
+        if (intParams.containsKey(name)) {
+            throw new ParserException(": using Integer parameter name: " + name);
+        }
+        if (strParams.containsKey(name)) {
+            throw new ParserException(": using String parameter name: " + name);
+        }
+        
+        // now check if this loop name is nested in a loop having same name
+        // get the list of loops using this parameter name (if any)
+        ArrayList<CommandParser.LoopId> loopList = loopNames.get(name);
+        if (loopList != null && ! loopList.isEmpty()) {
+            // we have one or more uses of the same name, check if this is nested in one
+            frame.outputInfoMsg(STATUS_PARSER, "   - checking previous uses of FOR Loop parameter " + name + " to see if we have a nesting problem");
+            for (int ix = 0; ix < loopList.size(); ix++) {
+                CommandParser.LoopId loopEntry = loopList.get(ix);
+                LoopStruct loopInfo = getLoopStruct (loopEntry);
+                if (loopInfo == null || ! loopInfo.isLoopComplete()) {
+                    throw new ParserException(": Loop param " + name + " @ " + index + " is nested in same name at " + loopEntry.index);
+                } else {
+                    frame.outputInfoMsg(STATUS_PARSER, "   - FOR Loop parameter " + name + " @ " + loopEntry.index + " was complete");
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * checks if a parameter is an Integer type
+     * 
+     * @param name - the name to check
+     * 
+     * @return  true if Integer parameter
+     */
+    public static boolean isIntegerParam (String name) {
+        if (name.startsWith("I_")) {
             return true;
         }
         return false;
