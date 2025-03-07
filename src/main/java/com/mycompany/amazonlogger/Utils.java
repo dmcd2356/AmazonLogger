@@ -353,18 +353,16 @@ public class Utils {
      * @return the corresponding hex value
      */
     public static String toHexWordValue (Integer intValue) {
-        return String.format("0x%04x", intValue);
-    }
-    
-    /**
-     * converts an Integer value to a 8-digit hexadecimal String
-     * 
-     * @param intValue - value to convert
-     * 
-     * @return the corresponding hex value
-     */
-    public static String toHexLongValue (Integer intValue) {
-        return String.format("0x%08x", intValue);
+        if (intValue < 0x100) {
+            return String.format("0x%02X", intValue);
+        }
+        if (intValue < 0x10000) {
+            return String.format("0x%04X", intValue);
+        }
+        if (intValue < 0x1000000) {
+            return String.format("0x%06X", intValue);
+        }
+        return String.format("0x%08X", intValue);
     }
     
     /**

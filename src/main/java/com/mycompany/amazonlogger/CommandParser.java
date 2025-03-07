@@ -291,11 +291,27 @@ public class CommandParser {
                     break;
                 case "FOR":
                     // read the arguments passed
-                    String loopName = parmArr[0];
-                    String strStart = parmArr[1];
-                    String strEnd   = parmArr[2];
-                    String strStep  = parmArr[3];
-                    String loopComp = parmArr[4];
+                    // assumed format is: FOR Name = StartIx ; < EndIx ; IncrVal
+                    // (and trailing "; IncrVal" is optional)
+                    ArrayList<String> loopParms = extractUserParams ("S=I;CI;I", parms);
+                    if (loopParms.size() < 4) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing parameters");
+                    }
+                    String loopName = loopParms.get(0);
+                    String strStart = loopParms.get(1);
+                    String loopComp = loopParms.get(2);
+                    String strEnd   = loopParms.get(3);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    Loop name:  " + loopName);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    Loop start: " + strStart);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    Loop comp:  " + loopComp);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    Loop end:   " + strEnd);
+                    String strStep;
+                    if (loopParms.size() > 4)
+                        strStep = loopParms.get(4);
+                    else {
+                        strStep  = "1";
+                        frame.outputInfoMsg(STATUS_PROGRAM, "    Loop step:  " + strStep + " (defaulted to)");
+                    }
                     
                     // create the parameter list for execution (we only need the loop name,
                     //  the rest is saved in the Loop parameter hashmap.
@@ -386,7 +402,7 @@ public class CommandParser {
         cmdList.add(new CommandStruct("EXIT"));
         return cmdList;
     }
-    
+
     /**
      * Executes a command from the list of CommandStruct entries created by the compileProgramCommand method.
      * 
@@ -863,6 +879,133 @@ public class CommandParser {
         return response;
     }
 
+    /**
+     * extracts the number of chars read from a command line that match the type of 
+     * parameter we are looking for.
+     * 
+     * @param type - the type of parameter to look for
+     * @param line - the command line that starts with the next entry to parse
+     * 
+     * @return the number of chars found in the string that match the param type
+     * 
+     * @throws ParserException 
+     */
+    private int getValidStringLen (char type, String line) throws ParserException {
+        String functionId = CLASS_NAME + ".getValidStringLen: ";
+
+        boolean bParam = false;
+        for (int ix = 0; ix < line.length(); ix++) {
+            char curChar = line.charAt(ix);
+            frame.outputInfoMsg(STATUS_DEBUG, functionId + "char type " + type + ": char '" + curChar + "'");
+            switch (type) {
+                case 'S':
+                    // String or Parameter
+                    if (ix == 0 && curChar == '$') {
+                        bParam = true;
+                        continue;
+                    }
+                    if (Character.isLetterOrDigit(curChar) || curChar == '-' || curChar == '_') {
+                        continue;
+                    }
+                    return ix;
+                case 'I':
+                    // Integer or Parameter
+                    if (ix == 0 && curChar == '$') {
+                        bParam = true;
+                        continue;
+                    }
+                    if (Character.isDigit(curChar)) {
+                        continue;
+                    }
+                    if (bParam) {
+                        if (Character.isLetterOrDigit(curChar) || curChar == '-' || curChar == '_') {
+                            continue;
+                        }
+                    }
+                    return ix;
+                case 'X':
+                    // Hexadecimal
+                    curChar = Character.toUpperCase(curChar);
+                    if (Character.isDigit(curChar) || (curChar >= 'A' && curChar <= 'F')) {
+                        continue;
+                    }
+                    return ix;
+                case 'C':
+                    // Comparison sign
+                    if (curChar == '=' || curChar == '!' || curChar == '>' || curChar == '<') {
+                        continue;
+                    }
+                    return ix;
+                default:
+                    if (curChar == type) {
+                        return ix + 1;
+                    }
+                    throw new ParserException (functionId + "Invalid char for type " + type + ": " + curChar);
+            }
+        }
+        return line.length();
+    }
+    
+    /**
+     * extracts the specified list of parameter types from the string passed.
+     * The 'parmArr' value should be the String containing the param list for the command
+     * and the 'strType' contains a representation of the parameters and format that
+     * we expect. NOTE: this does not verify all params have been read, so that
+     * trailing params can be optional, so you have to chack for the number of
+     * params returned.
+     * 
+     * parameter types:
+     * S is a String or String parameter
+     * I is an Integer or String/Integer parameter
+     * X is a Hexadecimal value
+     * C is a comparison string (==, !=, >, >=, <, <=)
+     * other entries are taken as separator chars, such as ; , = etc.
+     * 
+     * @param strType - the format string for the param list
+     * @param parmArr - the string of params to parse
+     * 
+     * @return an ArrayList of Strings containing the parameters
+     * 
+     * @throws ParserException 
+     */
+    private ArrayList<String> extractUserParams (String strType, String parmArr) throws ParserException {
+        String functionId = CLASS_NAME + ".extractUserParams: ";
+
+        ArrayList<String> parmList = new ArrayList<>();
+        for (int parmIx = 0; parmIx < strType.length() && !parmArr.isBlank(); parmIx++) {
+            frame.outputInfoMsg(STATUS_DEBUG, functionId + parmArr);
+
+            // get the next entry type to read
+            char curType = strType.charAt(parmIx);
+            
+            // remove any leading spaces and extract the next parameter type
+            parmArr = parmArr.strip();
+            int offset = getValidStringLen (curType, parmArr);
+            if (offset <= 0) {
+                throw new ParserException (functionId + "Missing parameter for param [" + parmList.size() + "] type " + curType);
+            }
+            
+            // get the parameter we are searching for and remove it from the input list
+            String param = parmArr.substring(0, offset);
+            parmArr = parmArr.substring(offset);
+            frame.outputInfoMsg(STATUS_DEBUG, "    offset = " + offset);
+
+            switch (curType) {
+                case 'S':
+                case 'I':
+                case 'X':
+                case 'C':
+                    frame.outputInfoMsg(STATUS_DEBUG, "    extracted param[" + parmList.size() + "]: '" + param + "'");
+                    parmList.add(param);
+                    break;
+                default:
+                    frame.outputInfoMsg(STATUS_DEBUG, "    extracted character: '" + curType + "'");
+                    break;
+            }
+        }
+        return parmList;
+    }
+    
     /**
      * This adds an entry to the parameter list.
      *  NOTE: it allows for $ parameter substitution, but does not do any conversion here.
