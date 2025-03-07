@@ -297,20 +297,20 @@ public class Utils {
     /**
      * converts a String value to an Integer
      * 
-     * @param arg - value to convert
+     * @param strValue - value to convert
      * 
      * @return the corresponding Integer value
      * 
      * @throws ParserException 
      */
-    public static Integer getIntValue (String arg) throws ParserException {
+    public static Integer getIntValue (String strValue) throws ParserException {
         String functionId = CLASS_NAME + ".getIntValue: ";
         
         Integer intValue;
         try {
-            intValue = Integer.valueOf(arg);
+            intValue = Integer.valueOf(strValue);
         } catch (NumberFormatException ex) {
-            throw new ParserException(functionId + "Invalid Integer value: " + arg);
+            throw new ParserException(functionId + "Invalid Integer value: " + strValue);
         }
         return intValue;
     }
@@ -345,6 +345,28 @@ public class Utils {
         return retVal;
     }
 
+    /**
+     * converts an Integer value to a 4-digit hexadecimal String
+     * 
+     * @param intValue - value to convert
+     * 
+     * @return the corresponding hex value
+     */
+    public static String toHexWordValue (Integer intValue) {
+        return String.format("0x%04x", intValue);
+    }
+    
+    /**
+     * converts an Integer value to a 8-digit hexadecimal String
+     * 
+     * @param intValue - value to convert
+     * 
+     * @return the corresponding hex value
+     */
+    public static String toHexLongValue (Integer intValue) {
+        return String.format("0x%08x", intValue);
+    }
+    
     /**
      * gets the directory path portion of a filename
      * 

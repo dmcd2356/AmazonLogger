@@ -294,29 +294,28 @@ public final class ParameterStruct {
 
         // if it is a parameter, save the param name as a string and allow it
         if (strVal.startsWith("$")) {
-            frame.outputInfoMsg(STATUS_PROGRAM, "     'S' param: " + strParam);
-            paramType = 'S';
-            return;
-        }
-        try {
-            switch (dataType) {
-                case 'I' -> intParam = Utils.getIntValue(strVal);
-                case 'U' -> {
-                    intParam = Utils.getHexValue (strVal);
-                    if (intParam == null) {
-                        intParam = Utils.getIntValue(strVal);
-                        if (intParam < 0) {
-                            throw new NumberFormatException("");
+            dataType = 'S';
+        } else {
+            try {
+                switch (dataType) {
+                    case 'I' -> intParam = Utils.getIntValue(strVal);
+                    case 'U' -> {
+                        intParam = Utils.getHexValue (strVal);
+                        if (intParam == null) {
+                            intParam = Utils.getIntValue(strVal);
+                            if (intParam < 0) {
+                                throw new NumberFormatException("");
+                            }
                         }
                     }
+                    case 'B' -> boolParam = Utils.getBooleanValue(strVal);
+                    default -> {
+                    }
                 }
-                case 'B' -> boolParam = Utils.getBooleanValue(strVal);
-                default -> {
-                }
+                // all string types
+                        } catch (NumberFormatException ex) {
+                throw new ParserException(functionId + "Invalid param data for dataType " + dataType + ": param: " + strVal);
             }
-            // all string types
-                    } catch (NumberFormatException ex) {
-            throw new ParserException(functionId + "Invalid param data for dataType " + dataType + ": param: " + strVal);
         }
             
         frame.outputInfoMsg(STATUS_PROGRAM, "     '" + dataType + "' param: " + strParam);

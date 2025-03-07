@@ -2,6 +2,7 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.io.BufferedReader;
 import java.io.File;
@@ -458,24 +459,38 @@ public class CommandParser {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
                 newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, index, curLoopId);
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopStack.size()
+                                    + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
             case "CONTINUE":
                 if (loopStack.empty() || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
                 newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, index, curLoopId);
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopStack.size()
+                                    + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
             case "NEXT":
                 if (loopStack.empty() || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
                 newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, index, curLoopId);
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopStack.size()
+                                    + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
             case "ENDFOR":
                 if (loopStack.empty() || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopStack.size()
+                                    + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 curLoopId = loopStack.pop();
+                if (curLoopId == null) {
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - All loops completed so far");
+                } else {
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - current Loop level " + loopStack.size()
+                                    + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
+                }
                 break;
             case "RUN":
                 command = cmdStruct.params.removeFirst().getStringValue();
@@ -687,30 +702,30 @@ public class CommandParser {
                     filetype = "Clipboard";
                     fname = params.get(0).getStringValue();
                     File fClip = checkFilename (fname, ".txt", filetype, false);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  " + filetype + " file: " + fClip.getAbsolutePath());
+                    frame.outputInfoMsg(STATUS_DEBUG, "  " + filetype + " file: " + fClip.getAbsolutePath());
                     AmazonParser amazonParser = new AmazonParser(fClip);
                     amazonParser.parseWebData();
                     break;
                 case "-u":
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  Updating spreadsheet from clipboards");
+                    frame.outputInfoMsg(STATUS_DEBUG, "  Updating spreadsheet from clipboards");
                     AmazonParser.updateSpreadsheet();
                     break;
                 case "-p":
                     filetype = "PDF";
                     fname = params.get(0).getStringValue();
                     File pdfFile = checkFilename (fname, ".pdf", filetype, false);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  filetype + \" file: \" + pdfFile.getAbsolutePath()");
+                    frame.outputInfoMsg(STATUS_DEBUG, "  filetype + \" file: \" + pdfFile.getAbsolutePath()");
                     PdfReader pdfReader = new PdfReader();
                     pdfReader.readPdfContents(pdfFile);
                     break;
                 case "-o":
                     if (params.isEmpty()) {
-                        frame.outputInfoMsg(STATUS_PROGRAM, "  Output messages to stdout");
+                        frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to stdout");
                         frame.setTestOutputFile(null);
                     } else {
                         fname = params.get(0).getStringValue();
                         fname = Utils.getTestPath() + "/" + fname;
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  Output messages to file: " + fname);
+                    frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to file: " + fname);
                         frame.setTestOutputFile(fname);
                     }
                     break;
@@ -1022,9 +1037,9 @@ public class CommandParser {
             throw new ParserException(functionId + "Invalid " + filetype + " file - no write access: " + fname);
         }
         if (bWritable) {
-            frame.outputInfoMsg(UIFrame.STATUS_PROGRAM, "  File exists & is readable and writable: " + fname);
+            frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  File exists & is readable and writable: " + fname);
         } else {
-            frame.outputInfoMsg(UIFrame.STATUS_PROGRAM, "  File exists & is readable: " + fname);
+            frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  File exists & is readable: " + fname);
         }
         return myFile;
     }

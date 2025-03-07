@@ -322,7 +322,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_normal.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setMsgEnableProps(STATUS_NORMAL);
+                setBitMsgEnableProps(STATUS_NORMAL);
             }
         });    
         c.add(cbox_normal);
@@ -335,7 +335,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_parser.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setMsgEnableProps(STATUS_PARSER);
+                setBitMsgEnableProps(STATUS_PARSER);
             }
         });    
         c.add(cbox_parser);
@@ -348,7 +348,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_ssheet.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setMsgEnableProps(STATUS_SSHEET);
+                setBitMsgEnableProps(STATUS_SSHEET);
             }
         });    
         c.add(cbox_ssheet);
@@ -361,7 +361,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_info.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setMsgEnableProps(STATUS_INFO);
+                setBitMsgEnableProps(STATUS_INFO);
             }
         });    
         c.add(cbox_info);
@@ -374,7 +374,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_debug.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setMsgEnableProps(STATUS_DEBUG);
+                setBitMsgEnableProps(STATUS_DEBUG);
             }
         });    
         c.add(cbox_debug);
@@ -387,7 +387,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_props.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setMsgEnableProps(STATUS_PROPS);
+                setBitMsgEnableProps(STATUS_PROPS);
             }
         });    
         c.add(cbox_props);
@@ -545,6 +545,9 @@ public final class UIFrame extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * clear all GUI messages (GUI use only)
+     */
     public void clearMessages () {
         if (!bUseGUI)
             return;
@@ -552,6 +555,10 @@ public final class UIFrame extends JFrame implements ActionListener {
         txt_info.setText("");
     }
 
+    /**
+     * disable all the GUI execute buttons except the SELECT button.
+     * Forces a spreadsheet file selection prior to doing anything else.
+     */
     public void disableAllButton () {
         if (!bUseGUI)
             return;
@@ -564,6 +571,11 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_update.setVisible(false);
     }
     
+    /**
+     * enables/disables the Clipboard button.
+     * 
+     * @param status - true to enable
+     */
     public void enableClipboardButton (boolean status) {
         if (!bUseGUI)
             return;
@@ -572,6 +584,11 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_clipboard.setVisible(status);
     }
     
+    /**
+     * enables/disables the Balance button.
+     * 
+     * @param status - true to enable
+     */
     public void enableCheckBalanceButton (boolean status) {
         if (!bUseGUI)
             return;
@@ -580,6 +597,11 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_balance.setVisible(status);
     }
     
+    /**
+     * enables/disables the Update button.
+     * 
+     * @param status - true to enable
+     */
     public void enableUpdateButton (boolean status) {
         if (!bUseGUI)
             return;
@@ -588,6 +610,11 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_update.setVisible(status);
     }
 
+    /**
+     * displays the spreadsheet file location selected.
+     * 
+     * @param filepath - the spreadsheet file location
+     */
     public void setSpreadsheetSelection (String filepath) {
         if (!bUseGUI)
             return;
@@ -596,6 +623,11 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_select.setForeground(Color.blue);
     }
     
+    /**
+     * displays the clipboard tab selected.
+     * 
+     * @param tab - the tab location
+     */
     public void setTabOwner (String tab) {
         if (!bUseGUI)
             return;
@@ -604,6 +636,9 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_order_tab.setForeground(Color.blue);
     }
     
+    /**
+     * clears the displayed clipboard tab selection.
+     */
     public void clearTabOwner () {
         if (!bUseGUI)
             return;
@@ -612,6 +647,14 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_order_tab.setForeground(Color.black);
     }
 
+    /**
+     * displays the Orders information loaded from the clipboard.
+     * 
+     * @param orders    - number of orders
+     * @param items     - number of items in all the orders
+     * @param startDate - earliest date in the orders
+     * @param endDate   - most recent date in the orders
+     */
     public void setOrderCount (int orders, int items, LocalDate startDate, LocalDate endDate) {
         if (!bUseGUI)
             return;
@@ -631,6 +674,9 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_orders_date.setText(dateRange);
     }
 
+    /**
+     * clears the Orders information.
+     */
     public void clearOrderCount () {
         if (!bUseGUI)
             return;
@@ -640,6 +686,14 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_orders_date.setText("");
     }
     
+    /**
+     * displays the Detailed Orders information loaded from the clipboard.
+     * 
+     * @param orders    - number of orders
+     * @param items     - number of items in all the orders
+     * @param startDate - earliest date in the orders
+     * @param endDate   - most recent date in the orders
+     */
     public void setDetailCount (int orders, int items, LocalDate startDate, LocalDate endDate) {
         if (!bUseGUI)
             return;
@@ -659,6 +713,9 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_detail_date.setText(dateRange);
     }
 
+    /**
+     * clears the Detailed Orders information.
+     */
     public void clearDetailCount () {
         if (!bUseGUI)
             return;
@@ -667,7 +724,14 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_detail_item.setText("0");
         lbl_detail_date.setText("");
     }
-    
+
+    /**
+     * specifies the debug output file to use.
+     * This is the file to save the displayed GUI debug information to
+     *  when the SAVE key is pressed.
+     * 
+     * @param fname - debug output file name
+     */    
     public void setDebugOutputFile (String fname) {
         if (!bUseGUI)
             return;
@@ -704,22 +768,22 @@ public final class UIFrame extends JFrame implements ActionListener {
         }
     }
 
-    private String get2DigitString (int value) {
-        String strVal = (value < 10) ? "0" + value : "" + value;
-        return strVal;
+    /**
+     * closes the test file output (used in non-GUI mode)
+     */
+    public void closeTestFile () {
+        if (testFile != null) {
+            testFile.flush();
+            testFile.close();
+        }
     }
-    
-    private String getCurrentDateTime () {
-        LocalDateTime datetime = LocalDateTime.now();
-        String strDate = "" + datetime.getYear();
-        strDate += "-" + get2DigitString(datetime.getMonthValue());
-        strDate += "-" + get2DigitString(datetime.getDayOfMonth());
-        strDate += " " + get2DigitString(datetime.getHour());
-        strDate += ":" + get2DigitString(datetime.getMinute());
-        strDate += ":" + get2DigitString(datetime.getSecond());
-        return strDate;
-    }
-    
+
+    /**
+     * opens the specified test output file (non-GUI use) and places an initial
+     *  header line in it.
+     * 
+     * @param fname - name of the test file
+     */
     public void setTestOutputFile (String fname) {
         if (fname != null && !fname.isBlank()) {
             try {
@@ -739,21 +803,87 @@ public final class UIFrame extends JFrame implements ActionListener {
         props.setPropertiesItem(Property.TestFileOut, fname);
     }
     
-    public void closeTestFile () {
-        if (testFile != null) {
-            testFile.flush();
-            testFile.close();
-        }
-    }
-
-    private void setMsgEnableProps (int msgType) {
-        int flags = props.getPropertiesItem(Property.MsgEnable, 0);
-        flags &= ~msgType;
-        if (cbox_normal.isSelected())
-            flags |= msgType;
-        props.setPropertiesItem(Property.MsgEnable, flags);
+    /**
+     * get the current date and time formatted as a String
+     * 
+     * @return the date/time formatted as: "YYYY-MM-DD HH:MM:SS"
+     */
+    private String getCurrentDateTime () {
+        LocalDateTime datetime = LocalDateTime.now();
+        String strDate = "" + datetime.getYear();
+        strDate += "-" + get2DigitString(datetime.getMonthValue());
+        strDate += "-" + get2DigitString(datetime.getDayOfMonth());
+        strDate += " " + get2DigitString(datetime.getHour());
+        strDate += ":" + get2DigitString(datetime.getMinute());
+        strDate += ":" + get2DigitString(datetime.getSecond());
+        return strDate;
     }
     
+    /**
+     * converts an integer to a 2-digit decimal String.
+     * 
+     * @param value - the integer value (range 0 to 99)
+     * 
+     * @return a 2 character String: 00 - 99
+     */
+    private String get2DigitString (int value) {
+        String strVal = (value < 10) ? "0" + value : "" + value;
+        return strVal;
+    }
+    
+    /**
+     * reads the Property setting for 'MsgEnable'.
+     * The value is read as a string entry and converted from hex format
+     * if it starts with either an 'x' or '0x', or as an integer value otherwise.
+     * 
+     * @param msgType - the message to enable/disable
+     */
+    private int getPropsMsgEnable () {
+        String strFlags = props.getPropertiesItem(Property.MsgEnable, "0");
+        Integer intVal = 0;
+        try {
+            intVal = Utils.getHexValue (strFlags);
+            if (intVal == null) {
+                intVal = Utils.getIntValue (strFlags);
+            }
+        } catch (ParserException ex) {
+            // the Propertiy value was neither Integer or hexadecimal format.
+            // we'll just default to 0;
+        }
+
+        return intVal;
+    }
+
+    /**
+     * sets a the Property setting for 'MsgEnable' to the specified value.
+     * The value is set in hex format for easier reading
+     * 
+     * @param msgType - the message to enable/disable
+     */
+    private void setPropsMsgEnable (int intValue) {
+        String strFlags = Utils.toHexWordValue (intValue);
+        props.setPropertiesItem(Property.MsgEnable, strFlags);
+    }
+    
+    /**
+     * sets a single bit of the msgEnable flag to either on or off based on the GUI selection
+     * 
+     * @param msgType - the message to enable/disable
+     */
+    private void setBitMsgEnableProps (int msgType) {
+        int flags = getPropsMsgEnable();
+        flags &= ~msgType;
+        if (getCboxMessage(msgType))
+            flags |= msgType;
+        setPropsMsgEnable (flags);
+    }
+
+    /**
+     * sets the selected checkbox on the GUI to the specified on/off value.
+     * 
+     * @param msgType - the checkbox message type selection
+     * @param bEnable - the on/off value to set it to
+     */
     private void enableCboxMessage (int msgType, boolean bEnable) {
         switch (msgType) {
             case STATUS_NORMAL -> cbox_normal.setSelected(bEnable);
@@ -765,6 +895,28 @@ public final class UIFrame extends JFrame implements ActionListener {
             default -> {
             }
         }
+    }
+
+    /**
+     * gets the on/off status of the selected checkbox on the GUI.
+     * 
+     * @param msgType - the checkbox message type selection
+     * 
+     * @return bEnable - the on/off value to set it to
+     */
+    private boolean getCboxMessage (int msgType) {
+        boolean bEnable = false;
+        switch (msgType) {
+            case STATUS_NORMAL -> bEnable = cbox_normal.isSelected();
+            case STATUS_PARSER -> bEnable = cbox_parser.isSelected();
+            case STATUS_SSHEET -> bEnable = cbox_ssheet.isSelected();
+            case STATUS_INFO   -> bEnable = cbox_info  .isSelected();
+            case STATUS_PROPS  -> bEnable = cbox_props .isSelected();
+            case STATUS_DEBUG  -> bEnable = cbox_debug .isSelected();
+            default -> {
+            }
+        }
+        return bEnable;
     }
 
     /**
@@ -784,15 +936,37 @@ public final class UIFrame extends JFrame implements ActionListener {
             }
         } else {
             // update the properties file for the selections
-            props.setPropertiesItem(PropertiesFile.Property.MsgEnable, msgEnable);
+            setPropsMsgEnable (msgEnable);
         }
     }
-    
+
+    /**
+     * sets the default settings for message control
+     */
     public void setDefaultStatus () {
         setTestOutputFile(props.getPropertiesItem(Property.TestFileOut, ""));
-        setMessageFlags(props.getPropertiesItem(Property.MsgEnable, 0));
+        setMessageFlags(getPropsMsgEnable());
     }
     
+    /**
+     * outputs the specified message based on the message type reported.
+     * 
+     * Some messages can be enabled/disabled based on the 'MsgEnable' flag
+     *  settings from the PropertiesFile, and some of these can also be selected
+     *  from the GUI checkbox controls. The Error and Warning levels will always
+     *  be reported. This will determine where the messages are to be output:
+     *  when running the program from the GUI, the messages will be sent to
+     *  the GUI display area. When run from the command line (also from a script file)
+     *  the messages will be sent to a file, if one is specified in the 
+     *  PropertiesFile as 'TestFileOut' or to stdout if not. For non-GUI use,
+     *  the Error and Warning messages will always be sent to stdout, even if
+     *  a test file output is specified.
+     * A prefix is added to the message specifying the type of message, and
+     *  for non-GUI use, this is preceeded with a timestamp value as well.
+     * 
+     * @param errLevel - the message type
+     * @param msg - the message to display
+     */
     public void outputInfoMsg (int errLevel, String msg) {
         String msgPrefix = "";
         String msgFont = "N";
@@ -864,15 +1038,26 @@ public final class UIFrame extends JFrame implements ActionListener {
         }
     }
     
+    /**
+     * enable and start the timestamp counter
+     */
     public void elapsedTimerEnable() {
         elapsedStart = System.currentTimeMillis();
         showElapsed = true;
     }
     
+    /**
+     * disable the timestamp counter
+     */
     public void elapsedTimerDisable() {
         showElapsed = false;
     }
     
+    /**
+     * return a timestamp value.
+     * 
+     * @return the timestamp value reported as MM:SS.mmm
+     */
     private String elapsedTimerGet() {
         if (!showElapsed) {
             return "";
@@ -899,6 +1084,15 @@ public final class UIFrame extends JFrame implements ActionListener {
         return strElapsed + " ";
     }
     
+    /**
+     * convert Hue Saturation Brightness color value to a RGB Color format.
+     * 
+     * @param h - the Hue (0 to 360 degrees)
+     * @param s - the Saturation (0 to 100 %)
+     * @param b - the Brightness (0 to 100 %)
+     * 
+     * @return the corresponding RGB Color value
+     */
     private static Color cvtHSBtoColor (int h, int s, int b) {
         double hue    = (double) h / 360.0;
         double sat    = (double) s / 100.0;
@@ -932,6 +1126,11 @@ public final class UIFrame extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * outputs a separator line to the output stream
+     * 
+     * @param heading  - a message to display with the line
+     */
     private void outputSeparatorLine (String heading) {
         heading = "=====" + heading + "======================================================================";
         heading = heading.substring(0, 75);
