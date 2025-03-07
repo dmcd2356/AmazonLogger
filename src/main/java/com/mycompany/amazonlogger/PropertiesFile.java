@@ -43,12 +43,7 @@ public class PropertiesFile {
         // these are startup settings to use that are saved from last run
         PdfPath,                // initial path selection for PDF file
         SpreadsheetPath,        // initial path selection for spreadsheet file
-        MsgNormal,              // debug message enable flag for STATUS_NORMAL
-        MsgParser,              // debug message enable flag for STATUS_PARSER
-        MsgSpreadsheet,         // debug message enable flag for STATUS_SSHEET
-        MsgInfo,                // debug message enable flag for STATUS_INFO
-        MsgDebug,               // debug message enable flag for STATUS_DEBUG
-        MsgProperties,          // debug message enable flag for STATUS_PROPS
+        MsgEnable,              // debug message enable flags
         MaxLenDescription,      // max length of description to display
         DebugFileOut,           // name of the output file to copy debug info to
         TestPath,               // test directory path

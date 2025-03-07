@@ -45,28 +45,49 @@ import org.xml.sax.SAXException;
 public final class UIFrame extends JFrame implements ActionListener {
 
     // type of text characteristics to print with 'outputInfoMsg'
-    public static final int STATUS_ERROR  = 0;  // fatal errors
-    public static final int STATUS_WARN   = 1;  // non-fatal warnings
-    public static final int STATUS_NORMAL = 2;  // output written to spreadsheet
-    public static final int STATUS_PARSER = 3;  // parser status
-    public static final int STATUS_SSHEET = 4;  // spreadsheet status
-    public static final int STATUS_INFO   = 5;  // processing of data from web clip and from PDF file
-    public static final int STATUS_DEBUG  = 6;  // low-level detailed messages
-    public static final int STATUS_PROPS  = 7;  // low-level properties interface messages
+    public static final int STATUS_ERROR   = 0x1000;  // fatal errors
+    public static final int STATUS_WARN    = 0x0800;  // non-fatal warnings
+    public static final int STATUS_NORMAL  = 0x0001;  // output written to spreadsheet
+    public static final int STATUS_PARSER  = 0x0002;  // parser status
+    public static final int STATUS_SSHEET  = 0x0004;  // spreadsheet status
+    public static final int STATUS_INFO    = 0x0008;  // processing of data from web clip and from PDF file
+    public static final int STATUS_PROPS   = 0x0010;  // properties interface messages
+    public static final int STATUS_PROGRAM = 0x0020;  // program interface messages
+    public static final int STATUS_DEBUG   = 0x0080;  // low-level detailed messages
     
-    private static boolean bMsgNormal;
-    private static boolean bMsgParser;
-    private static boolean bMsgSsheet;
-    private static boolean bMsgInfo;
-    private static boolean bMsgDebug;
-    private static boolean bMsgProps;
-    
+    private static int     msgEnable;
     private PrintWriter    debugFile = null;
     private PrintWriter    testFile = null;
     private final boolean  bUseGUI;
     private static long    elapsedStart = 0;    // hold start of elapsed time for running from file
     private static boolean showElapsed = false; // indicates if elapsed time to be displayed in logs
+
+    private final class MsgControl {
+        int       statusId;     // STATUS_ entry
+        String    msgName;      // name to insert at begining of the msg to identify it
+        String    font;         // whether the displayed message is Normal, Bold, Italic, or both
+        TextColor color;        // color to use for the text on the screen
+        
+        MsgControl (int status, String name, String font, TextColor color) {
+            this.statusId = status;
+            this.msgName  = name;
+            this.font     = font;       // N=normal, I=italic, B=Bold, BI=Bold+Italic
+            this.color    = color;
+        }
+    }
     
+    private final MsgControl [] MsgSelectTbl = {
+        new MsgControl (STATUS_ERROR   , "[ERROR ] ", "B", TextColor.Red),
+        new MsgControl (STATUS_WARN    , "[WARN  ] ", "B", TextColor.Orange),
+        new MsgControl (STATUS_NORMAL  , "[NORMAL] ", "N", TextColor.Black),
+        new MsgControl (STATUS_PARSER  , "[PARSER] ", "I", TextColor.Blue),
+        new MsgControl (STATUS_SSHEET  , "[SSHEET] ", "I", TextColor.Green),
+        new MsgControl (STATUS_INFO    , "[INFO  ] ", "N", TextColor.DkVio),
+        new MsgControl (STATUS_PROPS   , "[PROPS ] ", "I", TextColor.Gold),
+        new MsgControl (STATUS_PROGRAM , "[PROG  ] ", "N", TextColor.DkVio),
+        new MsgControl (STATUS_DEBUG   , "[DEBUG ] ", "N", TextColor.Brown),
+    };
+
     private enum TextColor {
         Black, DkGrey, DkRed, Red, LtRed, Orange, Brown,
         Gold, Green, Cyan, LtBlue, Blue, Violet, DkVio;
@@ -301,7 +322,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_normal.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                props.setPropertiesItem(Property.MsgNormal, cbox_normal.isSelected() ? "1" : "0");
+                setMsgEnableProps(STATUS_NORMAL);
             }
         });    
         c.add(cbox_normal);
@@ -314,7 +335,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_parser.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                props.setPropertiesItem(Property.MsgParser, cbox_parser.isSelected() ? "1" : "0");
+                setMsgEnableProps(STATUS_PARSER);
             }
         });    
         c.add(cbox_parser);
@@ -327,7 +348,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_ssheet.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                props.setPropertiesItem(Property.MsgSpreadsheet, cbox_ssheet.isSelected() ? "1" : "0");
+                setMsgEnableProps(STATUS_SSHEET);
             }
         });    
         c.add(cbox_ssheet);
@@ -340,7 +361,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_info.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                props.setPropertiesItem(Property.MsgInfo, cbox_info.isSelected() ? "1" : "0");
+                setMsgEnableProps(STATUS_INFO);
             }
         });    
         c.add(cbox_info);
@@ -353,7 +374,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_debug.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                props.setPropertiesItem(Property.MsgDebug, cbox_debug.isSelected() ? "1" : "0");
+                setMsgEnableProps(STATUS_DEBUG);
             }
         });    
         c.add(cbox_debug);
@@ -366,7 +387,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_props.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                props.setPropertiesItem(Property.MsgProperties, cbox_props.isSelected() ? "1" : "0");
+                setMsgEnableProps(STATUS_PROPS);
             }
         });    
         c.add(cbox_props);
@@ -724,182 +745,118 @@ public final class UIFrame extends JFrame implements ActionListener {
             testFile.close();
         }
     }
+
+    private void setMsgEnableProps (int msgType) {
+        int flags = props.getPropertiesItem(Property.MsgEnable, 0);
+        flags &= ~msgType;
+        if (cbox_normal.isSelected())
+            flags |= msgType;
+        props.setPropertiesItem(Property.MsgEnable, flags);
+    }
     
-    private void enableMessage (int msgType, boolean bEnable) {
-        if (!bUseGUI) {
-            Property flag;
-            switch (msgType) {
-                case STATUS_NORMAL: bMsgNormal = bEnable;  flag = Property.MsgNormal;       break;
-                case STATUS_PARSER: bMsgParser = bEnable;  flag = Property.MsgParser;       break;
-                case STATUS_SSHEET: bMsgSsheet = bEnable;  flag = Property.MsgSpreadsheet;  break;
-                case STATUS_INFO:   bMsgInfo   = bEnable;  flag = Property.MsgInfo;         break;
-                case STATUS_DEBUG:  bMsgDebug  = bEnable;  flag = Property.MsgDebug;        break;
-                case STATUS_PROPS:  bMsgProps  = bEnable;  flag = Property.MsgProperties;   break;
-                default:
-                    return;
-            }
-            // update the properties file
-            props.setPropertiesItem(flag, bEnable ? "1" : "0");
-        } else {
-            switch (msgType) {
-                case STATUS_NORMAL: bMsgNormal = bEnable;  cbox_normal.setSelected(bEnable); break;
-                case STATUS_PARSER: bMsgParser = bEnable;  cbox_parser.setSelected(bEnable); break;
-                case STATUS_SSHEET: bMsgSsheet = bEnable;  cbox_ssheet.setSelected(bEnable); break;
-                case STATUS_INFO:   bMsgInfo   = bEnable;  cbox_info  .setSelected(bEnable); break;
-                case STATUS_DEBUG:  bMsgDebug  = bEnable;  cbox_debug .setSelected(bEnable); break;
-                case STATUS_PROPS:  bMsgProps  = bEnable;  cbox_props .setSelected(bEnable); break;
-                default:
-                    break;
+    private void enableCboxMessage (int msgType, boolean bEnable) {
+        switch (msgType) {
+            case STATUS_NORMAL -> cbox_normal.setSelected(bEnable);
+            case STATUS_PARSER -> cbox_parser.setSelected(bEnable);
+            case STATUS_SSHEET -> cbox_ssheet.setSelected(bEnable);
+            case STATUS_INFO   -> cbox_info  .setSelected(bEnable);
+            case STATUS_PROPS  -> cbox_props .setSelected(bEnable);
+            case STATUS_DEBUG  -> cbox_debug .setSelected(bEnable);
+            default -> {
             }
         }
     }
 
+    /**
+     * sets all debug message flags at one time - ONLY FOR COMMAND LINE USE (NON-GUI)!!!
+     * 
+     * @param debugFlags 
+     */
     public void setMessageFlags (int debugFlags) {
-        enableMessage(UIFrame.STATUS_NORMAL, (0 != (debugFlags & 1)));
-        enableMessage(UIFrame.STATUS_PARSER, (0 != (debugFlags & 2)));
-        enableMessage(UIFrame.STATUS_SSHEET, (0 != (debugFlags & 4)));
-        enableMessage(UIFrame.STATUS_INFO  , (0 != (debugFlags & 8)));
-        enableMessage(UIFrame.STATUS_DEBUG , (0 != (debugFlags & 16)));
-        enableMessage(UIFrame.STATUS_PROPS , (0 != (debugFlags & 32)));
+        // save the debug settings
+        msgEnable = debugFlags;
+
+        if (bUseGUI) {
+            // set the message enable selections on the GUI
+            for (MsgControl MsgSelectTbl1 : MsgSelectTbl) {
+                boolean bEnable = (MsgSelectTbl1.statusId & debugFlags) != 0;
+                enableCboxMessage (MsgSelectTbl1.statusId, bEnable);
+            }
+        } else {
+            // update the properties file for the selections
+            props.setPropertiesItem(PropertiesFile.Property.MsgEnable, msgEnable);
+        }
     }
     
     public void setDefaultStatus () {
         setTestOutputFile(props.getPropertiesItem(Property.TestFileOut, ""));
-
-        enableMessage(UIFrame.STATUS_NORMAL, props.getPropertiesItem(Property.MsgNormal     , "0").contentEquals("1"));
-        enableMessage(UIFrame.STATUS_PARSER, props.getPropertiesItem(Property.MsgParser     , "0").contentEquals("1"));
-        enableMessage(UIFrame.STATUS_SSHEET, props.getPropertiesItem(Property.MsgSpreadsheet, "0").contentEquals("1"));
-        enableMessage(UIFrame.STATUS_INFO  , props.getPropertiesItem(Property.MsgInfo       , "0").contentEquals("1"));
-        enableMessage(UIFrame.STATUS_DEBUG , props.getPropertiesItem(Property.MsgDebug      , "0").contentEquals("1"));
-        enableMessage(UIFrame.STATUS_PROPS , props.getPropertiesItem(Property.MsgProperties , "0").contentEquals("1"));
+        setMessageFlags(props.getPropertiesItem(Property.MsgEnable, 0));
     }
     
     public void outputInfoMsg (int errLevel, String msg) {
-        if (!bUseGUI) {
-            boolean bEnableOutput = false;
-            String time = elapsedTimerGet();
-            switch (errLevel) {
-                default:
-                case STATUS_ERROR:
-                    msg = "[ERROR ] " + msg;
-                    bEnableOutput = true;
-                    break;
-                case STATUS_WARN:
-                    msg = "[WARN  ] " + msg;
-                    bEnableOutput = true;
-                    break;
-                case STATUS_NORMAL:
-                    msg = "[NORMAL] " + msg;
-                    if (bMsgNormal) bEnableOutput = true;
-                    break;
-                case STATUS_PARSER:
-                    msg = "[PARSER] " + msg;
-                    if (bMsgParser) bEnableOutput = true;
-                    break;
-                case STATUS_SSHEET:
-                    msg = "[SSHEET] " + msg;
-                    if (bMsgSsheet) bEnableOutput = true;
-                    break;
-                case STATUS_INFO:
-                    msg = "[INFO  ] " + msg;
-                    if (bMsgInfo)   bEnableOutput = true;
-                    break;
-                case STATUS_DEBUG:
-                    msg = "[DEBUG ] " + msg;
-                    if (bMsgDebug)  bEnableOutput = true;
-                    break;
-                case STATUS_PROPS:
-                    msg = "[PROPS ] " + msg;
-                    if (bMsgProps)  bEnableOutput = true;
-                    break;
+        String msgPrefix = "";
+        String msgFont = "N";
+        TextColor msgColor = TextColor.Black;
+        for (MsgControl MsgSelectTbl1 : MsgSelectTbl) {
+            if (errLevel == MsgSelectTbl1.statusId) {
+                msgPrefix = MsgSelectTbl1.msgName;
+                msgColor  = MsgSelectTbl1.color;
+                msgFont   = MsgSelectTbl1.font;
             }
-            if (bEnableOutput) {
-                msg = time + msg;
-                if (testFile != null) {
-                    testFile.println(msg);
-                    // errors and warnings will always go to console, even if reporting to file
-                    if (errLevel == STATUS_ERROR || errLevel == STATUS_WARN) {
-                        System.out.println(msg);
-                    }
-                } else {
+        }
+
+        // determine if the message is enabled
+        int testLevel = msgEnable | STATUS_ERROR | STATUS_WARN;
+        boolean bEnableOutput = ((testLevel & errLevel) != 0);
+        if (! bEnableOutput) {
+            return;
+        }
+
+        // affix prefix to message identifying the type of message
+        msg = msgPrefix + msg;
+        
+        // this handles the message output for running from command line
+        if (!bUseGUI) {
+            // add the timestamp to the begining of each message
+            String time = elapsedTimerGet();
+            msg = time + msg;
+
+            if (testFile != null) {
+                testFile.println(msg);
+                // errors and warnings will always go to console, even if reporting to file
+                if (errLevel == STATUS_ERROR || errLevel == STATUS_WARN) {
                     System.out.println(msg);
                 }
+            } else {
+                System.out.println(msg);
             }
             return;
+        }
+        
+        // here we handle the GUI output
+        // determine if printing in bold or italic
+        boolean bBold = false;
+        boolean bItalic = false;
+        if (msgFont.contentEquals("B") || msgFont.contentEquals("BI")) {
+            bBold = true;
+        }
+        if (msgFont.contentEquals("I") || msgFont.contentEquals("BI")) {
+            bItalic = true;
         }
         
         SimpleAttributeSet attributes = new SimpleAttributeSet();
         StyleConstants.setFontFamily(attributes,"Courier");
         StyleConstants.setFontSize(attributes, 15);
-        switch (errLevel) {
-            default:
-            case STATUS_ERROR:
-                msg = "[ERROR] " + msg;
-                StyleConstants.setForeground(attributes, generateColor (TextColor.Red));
-                StyleConstants.setBold(attributes, true);
-                StyleConstants.setItalic(attributes, false);
-                break;
-            case STATUS_WARN:
-                msg = "[WARN] " + msg;
-                StyleConstants.setForeground(attributes, generateColor (TextColor.Orange));
-                StyleConstants.setBold(attributes, true);
-                StyleConstants.setItalic(attributes, false);
-                break;
-            case STATUS_NORMAL:
-                if (!bMsgNormal) {
-                    return;
-                }
-                StyleConstants.setForeground(attributes, generateColor (TextColor.Black));
-                StyleConstants.setBold(attributes, false);
-                StyleConstants.setItalic(attributes, false);
-                break;
-            case STATUS_PARSER:
-                if (!bMsgParser) {
-                    return;
-                }
-                StyleConstants.setForeground(attributes, generateColor (TextColor.Blue));
-                StyleConstants.setBold(attributes, false);
-                StyleConstants.setItalic(attributes, true);
-                break;
-            case STATUS_SSHEET:
-                if (!bMsgSsheet) {
-                    return;
-                }
-                StyleConstants.setForeground(attributes, generateColor (TextColor.Green));
-                StyleConstants.setBold(attributes, false);
-                StyleConstants.setItalic(attributes, true);
-                break;
-            case STATUS_INFO:
-                if (!bMsgInfo) {
-                    return;
-                }
-                StyleConstants.setForeground(attributes, generateColor (TextColor.DkVio));
-                StyleConstants.setBold(attributes, false);
-                StyleConstants.setItalic(attributes, false);
-                break;
-            case STATUS_DEBUG:
-                if (!bMsgDebug) {
-                    return;
-                }
-                StyleConstants.setForeground(attributes, generateColor (TextColor.Brown));
-                StyleConstants.setBold(attributes, false);
-                StyleConstants.setItalic(attributes, false);
-                break;
-            case STATUS_PROPS:
-                if (!bMsgProps) {
-                    return;
-                }
-                StyleConstants.setForeground(attributes, generateColor (TextColor.Gold));
-                StyleConstants.setBold(attributes, false);
-                StyleConstants.setItalic(attributes, true);
-                break;
-        }
+
+        // set the text color and font characteristics
+        StyleConstants.setForeground(attributes, generateColor (msgColor));
+        StyleConstants.setBold(attributes, bBold);
+        StyleConstants.setItalic(attributes, bItalic);
 
         txt_info.setCharacterAttributes(attributes, false);
         Document doc = txt_info.getDocument();
         try {
             doc.insertString(doc.getLength(), msg + NEWLINE, attributes);
-            
             // scroll the text to the bottom of the page
             txt_info.setCaretPosition(txt_info.getDocument().getLength());
         } catch (BadLocationException ex) {

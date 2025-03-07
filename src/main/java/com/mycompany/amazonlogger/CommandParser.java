@@ -2,8 +2,7 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_NORMAL;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PARSER;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -119,7 +118,7 @@ public class CommandParser {
     public void runCommandLine (String[] args) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + ".runCommandLine: ";
         
-        frame.outputInfoMsg(STATUS_NORMAL, "command line entered: " + String.join(" ", args));
+        frame.outputInfoMsg(STATUS_PROGRAM, "command line entered: " + String.join(" ", args));
 
         switch (args[0]) {
             case "-h":
@@ -137,11 +136,11 @@ public class CommandParser {
                 frame.elapsedTimerEnable();
 
                 // compile the program
-                frame.outputInfoMsg(STATUS_PARSER, "BEGINING PROGRAM COMPILE");
+                frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM COMPILE");
                 ArrayList<CommandStruct> cmdList = compileProgram(args[1]);
 
                 // execute the program by running each 'cmdList' entry
-                frame.outputInfoMsg(STATUS_PARSER, "BEGINING PROGRAM EXECUTION");
+                frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM EXECUTION");
                 int cmdIx = 0;
                 while (cmdIx >= 0 && cmdIx < cmdList.size()) {
                     cmdIx = executeProgramCommand (cmdIx, cmdList.get(cmdIx));
@@ -190,7 +189,7 @@ public class CommandParser {
     private ArrayList<CommandStruct> compileProgram (String fname) throws ParserException, IOException {
         String functionId = CLASS_NAME + ".compileProgram: ";
 
-        frame.outputInfoMsg(STATUS_NORMAL, "Compiling file: " + fname);
+        frame.outputInfoMsg(STATUS_PROGRAM, "Compiling file: " + fname);
         ArrayList<CommandStruct> cmdList = new ArrayList<>();
         String line;
 
@@ -231,7 +230,7 @@ public class CommandParser {
                 paramCnt = parmArr.length;
             }
             String parms = (parmArr == null) ? "" : " " + String.join(" ", parmArr);
-            frame.outputInfoMsg(STATUS_PARSER, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + parms);
+            frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + parms);
 
             // now let's check for valid command keywords and extract the parameters
             //  into the cmdStruct structure.
@@ -242,6 +241,8 @@ public class CommandParser {
                         argList = "SI";
                     }
                     cmdStruct.params = packParamList (line, argList);
+                    
+                    // now get the parameter values so we can do some verification
                     String strParmName = cmdStruct.params.get(0).getStringValue();
                     String strParmVal  = cmdStruct.params.get(1).getStringValue();
 
@@ -288,14 +289,23 @@ public class CommandParser {
                     // TODO: store line location in labelsMap
                     break;
                 case "FOR":
-                    argList = "SIIIS";
-                    cmdStruct.params = packParamList (line, argList);
-                    String  loopName  = cmdStruct.params.get(0).getStringValue();
-                    ParameterStruct loopStart = cmdStruct.params.get(1);
-                    ParameterStruct loopEnd   = cmdStruct.params.get(2);
-                    ParameterStruct loopStep  = cmdStruct.params.get(3);
-                    String  loopComp  = cmdStruct.params.get(4).getStringValue();
-
+                    // read the arguments passed
+                    String loopName = parmArr[0];
+                    String strStart = parmArr[1];
+                    String strEnd   = parmArr[2];
+                    String strStep  = parmArr[3];
+                    String loopComp = parmArr[4];
+                    
+                    // create the parameter list for execution (we only need the loop name,
+                    //  the rest is saved in the Loop parameter hashmap.
+                    packParamEntry (loopName, 'S', cmdStruct.params);
+                    
+                    // these entries may be Integers or Parameters, so we send them as
+                    //  ParameterStruct entries.
+                    ParameterStruct loopStart = packParamEntry (strStart,  'I', null);
+                    ParameterStruct loopEnd   = packParamEntry (strEnd,    'I', null);
+                    ParameterStruct loopStep  = packParamEntry (strStep,   'I', null);
+                    
                     // create a new loop ID (name + command index) for the entry and add it
                     // to the list of IDs for the loop parameter name
                     LoopId loopId = new LoopId(loopName, cmdIndex);
@@ -304,7 +314,7 @@ public class CommandParser {
                     
                     // add entry to the current loop stack
                     loopStack.push(loopId);
-                    frame.outputInfoMsg(STATUS_PARSER, "   - new FOR Loop level " + loopStack.size() + " parameter " + loopName + " index @ " + cmdIndex);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + loopStack.size() + " parameter " + loopName + " index @ " + cmdIndex);
                     break;
                 case "BREAK":
                     cmdStruct.params = packParamList (line, "");
@@ -395,7 +405,7 @@ public class CommandParser {
         int newIndex = -1;
         
         String command = cmdStruct.command;
-        frame.outputInfoMsg(STATUS_PARSER, lineInfo + cmdStruct.showCommand());
+        frame.outputInfoMsg(STATUS_PROGRAM, lineInfo + cmdStruct.showCommand());
         switch (command) {
             case "EXIT":
                 return -1; // this will terminate the program
@@ -434,14 +444,14 @@ public class CommandParser {
                 // TODO: store line location in labelsMap
                 break;
             case "FOR":
-                verifyParamList(cmdStruct.params, 5);
+                verifyParamList(cmdStruct.params, 1);
                 String loopName  = cmdStruct.params.get(0).unpackStringValue();
                 curLoopId = new LoopId(loopName, index);
                 newIndex = ParameterStruct.getLoopNextIndex (command, index, curLoopId);
                     
                 // add entry to the current loop stack
                 loopStack.push(curLoopId);
-                frame.outputInfoMsg(STATUS_PARSER, "   - new FOR Loop level " + loopStack.size() + " parameter " + loopName + " index @ " + index);
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + loopStack.size() + " parameter " + loopName + " index @ " + index);
                 break;
             case "BREAK":
                 if (loopStack.empty() || curLoopId == null) {
@@ -534,7 +544,7 @@ public class CommandParser {
         }
 
         ArrayList<CommandStruct> commands = new ArrayList<>(); // array of command lines extracted
-        frame.outputInfoMsg(STATUS_PARSER, "  splitting command option: " + String.join(" ", argList));
+        frame.outputInfoMsg(STATUS_PROGRAM, "  splitting command option: " + String.join(" ", argList));
         
         // 1st entry is option, which may have additional args. let's see how many
         String cmdArg = argList.removeFirst();
@@ -550,9 +560,9 @@ public class CommandParser {
             throw new ParserException(functionId + "option is not valid: " + cmdArg);
         }
         if (optInfo.argTypes.isEmpty()) {
-            frame.outputInfoMsg(STATUS_PARSER, "  option cmd: " + cmdArg + " (no args)");
+            frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (no args)");
         } else {
-            frame.outputInfoMsg(STATUS_PARSER, "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
+            frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
         }
         int minArgs = 0;
         int maxArgs = (optInfo.argTypes == null || optInfo.argTypes.isEmpty()) ? 0 : optInfo.argTypes.length();
@@ -598,9 +608,9 @@ public class CommandParser {
                     }
                 }
                 if (optInfo.argTypes.isEmpty()) {
-                    frame.outputInfoMsg(STATUS_PARSER, "  option cmd: " + cmdArg + " (no args)");
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (no args)");
                 } else {
-                    frame.outputInfoMsg(STATUS_PARSER, "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
                 }
             } else {
                 // assume it is a parameter - verify the option takes another parameter
@@ -624,7 +634,7 @@ public class CommandParser {
             
         // add the remaining entry to the list of commands
         commands.add(newCommand);
-        frame.outputInfoMsg(STATUS_PARSER, commands.size() + " options found");
+        frame.outputInfoMsg(STATUS_PROGRAM, commands.size() + " options found");
         return commands;
     }
 
@@ -647,7 +657,7 @@ public class CommandParser {
         String fname;
         String option = cmdLine.command;
         ArrayList<ParameterStruct> params = cmdLine.params;
-        frame.outputInfoMsg(STATUS_PARSER, "  Executing: " + cmdLine.showCommand());
+        frame.outputInfoMsg(STATUS_PROGRAM, "  Executing: " + cmdLine.showCommand());
 
         // the rest will be the parameters associated with the option (if any) plus any additional options
         try {
@@ -677,30 +687,30 @@ public class CommandParser {
                     filetype = "Clipboard";
                     fname = params.get(0).getStringValue();
                     File fClip = checkFilename (fname, ".txt", filetype, false);
-                    frame.outputInfoMsg(STATUS_PARSER, "  " + filetype + " file: " + fClip.getAbsolutePath());
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  " + filetype + " file: " + fClip.getAbsolutePath());
                     AmazonParser amazonParser = new AmazonParser(fClip);
                     amazonParser.parseWebData();
                     break;
                 case "-u":
-                    frame.outputInfoMsg(STATUS_PARSER, "  Updating spreadsheet from clipboards");
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  Updating spreadsheet from clipboards");
                     AmazonParser.updateSpreadsheet();
                     break;
                 case "-p":
                     filetype = "PDF";
                     fname = params.get(0).getStringValue();
                     File pdfFile = checkFilename (fname, ".pdf", filetype, false);
-                    frame.outputInfoMsg(STATUS_PARSER, "  filetype + \" file: \" + pdfFile.getAbsolutePath()");
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  filetype + \" file: \" + pdfFile.getAbsolutePath()");
                     PdfReader pdfReader = new PdfReader();
                     pdfReader.readPdfContents(pdfFile);
                     break;
                 case "-o":
                     if (params.isEmpty()) {
-                        frame.outputInfoMsg(STATUS_PARSER, "  Output messages to stdout");
+                        frame.outputInfoMsg(STATUS_PROGRAM, "  Output messages to stdout");
                         frame.setTestOutputFile(null);
                     } else {
                         fname = params.get(0).getStringValue();
                         fname = Utils.getTestPath() + "/" + fname;
-                    frame.outputInfoMsg(STATUS_PARSER, "  Output messages to file: " + fname);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  Output messages to file: " + fname);
                         frame.setTestOutputFile(fname);
                     }
                     break;
@@ -839,6 +849,29 @@ public class CommandParser {
     }
 
     /**
+     * This adds an entry to the parameter list.
+     *  NOTE: it allows for $ parameter substitution, but does not do any conversion here.
+     * 
+     * @param entry     - the command line along with all of the arguments it contains
+     * @param paramType - the list of data types for each parameter it has
+     * @param paramList - the parameter list to add entry to
+     * 
+     * @return the ArrayList of arguments for the command
+     * 
+     * @throws ParserException 
+     */
+    private ParameterStruct packParamEntry (String entry, char paramType, ArrayList<ParameterStruct> paramList) throws ParserException {
+        paramType = Character.toUpperCase(paramType); // make sure it is in uppercase
+        ParameterStruct parmStc = new ParameterStruct (entry, paramType);
+        if (paramList != null) {
+            int index = paramList.size();
+            paramList.add(parmStc);
+            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + index + "]: type " + paramType + " value: " + entry);
+        }
+        return parmStc;
+    }
+    
+    /**
      * This takes a command line and a list of arg types for the command,
      *   extracts the parameter list from it, verifies the arg types,
      *   and places them in an ArrayList.
@@ -894,20 +927,25 @@ public class CommandParser {
                         + command + " less than min allowed: " + wordCount + " (min " + minParams + ")");
         }
         
-        for (int ix = 0; ix < wordCount && ix < maxParams; ix++) {
+        for (int ix = 0; ix < maxParams && ! line.isEmpty(); ix++) {
+            // get the next parameter type
             char parmType = argTypes.charAt(ix);
             parmType = Character.toUpperCase(parmType); // make sure it is in uppercase
-            String nextArg = getNextWord (line);
 
-            // create the parameter entry
-            ParameterStruct parmStc = new ParameterStruct (line, parmType);
+            // get the next entry in the string (L(ist) type takes the remainder of the string
+            String nextArg;
+            if (parmType == 'L') {
+                // take the remaining entries for a L(ist) parameter type
+                nextArg = line;
+                line = "";
+            } else {
+                // else, just get the next word and remove it from the param list
+                nextArg = getNextWord (line);
+                line = line.substring(nextArg.length()).strip();
+            }
 
-            // OK, then add the param to the arg list
-            params.add(parmStc);
-            frame.outputInfoMsg(STATUS_PARSER, "    packed command " + command + " parmType '" + parmType + "' value: " + nextArg);
-           
-            // remove that param from the String of params
-            line = line.substring(nextArg.length()).strip();
+            // create the parameter entry and add it to the parameter list
+            packParamEntry (nextArg, parmType, params);
         }
 
         return params;
@@ -984,9 +1022,9 @@ public class CommandParser {
             throw new ParserException(functionId + "Invalid " + filetype + " file - no write access: " + fname);
         }
         if (bWritable) {
-            frame.outputInfoMsg(UIFrame.STATUS_PARSER, "  File exists & is readable and writable: " + fname);
+            frame.outputInfoMsg(UIFrame.STATUS_PROGRAM, "  File exists & is readable and writable: " + fname);
         } else {
-            frame.outputInfoMsg(UIFrame.STATUS_PARSER, "  File exists & is readable: " + fname);
+            frame.outputInfoMsg(UIFrame.STATUS_PROGRAM, "  File exists & is readable: " + fname);
         }
         return myFile;
     }
@@ -1006,13 +1044,14 @@ public class CommandParser {
         System.out.println(" -d <flags> = the debug messages to enable when running");
         System.out.println("");
         System.out.println("     The debug flag values are hex bit values and defined as:");
-        System.out.println("     x01 =  1 = STATUS_NORMAL");
-        System.out.println("     x02 =  2 = STATUS_PARSER");
-        System.out.println("     x04 =  4 = STATUS_SPREADSHEET");
-        System.out.println("     x08 =  8 = STATUS_INFO");
-        System.out.println("     x10 = 16 = STATUS_DEBUG");
-        System.out.println("     x20 = 32 = STATUS_PROPS");
-        System.out.println("     e.g. -d x3F will enable all msgs");
+        System.out.println("     x01 =   1 = STATUS_NORMAL");
+        System.out.println("     x02 =   2 = STATUS_PARSER");
+        System.out.println("     x04 =   4 = STATUS_SPREADSHEET");
+        System.out.println("     x08 =   8 = STATUS_INFO");
+        System.out.println("     x10 =  16 = STATUS_PROPS");
+        System.out.println("     x20 =  32 = STATUS_PROGRAM");
+        System.out.println("     x80 = 128 = STATUS_DEBUG");
+        System.out.println("     e.g. -d xFF will enable all msgs");
         System.out.println();
         System.out.println("The following commands test special features:");
         System.out.println();

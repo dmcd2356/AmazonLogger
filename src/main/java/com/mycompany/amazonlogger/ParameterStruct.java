@@ -1,7 +1,8 @@
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PARSER;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,7 +76,7 @@ public final class ParameterStruct {
             default:
                 throw new ParserException(functionId + "Invalid class type for " + dataType + " param: " + classType);
         }
-        frame.outputInfoMsg(STATUS_PARSER, functionId + "type " + dataType + ", " + classType);
+        frame.outputInfoMsg(STATUS_DEBUG, functionId + "type " + dataType + ", " + classType);
     }
         
     /**
@@ -136,7 +137,7 @@ public final class ParameterStruct {
             checkDir (nextArg);
         else if (dataType == 'F')
             checkFilename (nextArg);
-        frame.outputInfoMsg(STATUS_PARSER, functionId + "type " + dataType + ", value: " + nextArg);
+        frame.outputInfoMsg(STATUS_DEBUG, functionId + "type " + dataType + " value: " + nextArg);
     }
     
     /**
@@ -215,7 +216,7 @@ public final class ParameterStruct {
                 default       -> strParam;  // default to String type
             };
         }
-        frame.outputInfoMsg(STATUS_PARSER, "    unpacked '" + paramType + "' value: '" + strVal + "'");
+        frame.outputInfoMsg(STATUS_DEBUG, "    unpacked '" + paramType + "' value: '" + strVal + "'");
         return strVal;
     }
         
@@ -244,7 +245,7 @@ public final class ParameterStruct {
             }
             // fall through...
                     }
-        frame.outputInfoMsg(STATUS_PARSER, "    unpacked '" + paramType + "' value: " + intVal);
+        frame.outputInfoMsg(STATUS_DEBUG, "    unpacked '" + paramType + "' value: " + intVal);
         return intVal;
     }
         
@@ -271,7 +272,7 @@ public final class ParameterStruct {
             }; // fall through...
             // default to String type
         }
-        frame.outputInfoMsg(STATUS_PARSER, "    unpacked '" + paramType + "' value: " + boolVal);
+        frame.outputInfoMsg(STATUS_DEBUG, "    unpacked '" + paramType + "' value: " + boolVal);
         return boolVal;
     }
 
@@ -293,7 +294,7 @@ public final class ParameterStruct {
 
         // if it is a parameter, save the param name as a string and allow it
         if (strVal.startsWith("$")) {
-            frame.outputInfoMsg(STATUS_PARSER, "     'S' param: " + strParam);
+            frame.outputInfoMsg(STATUS_PROGRAM, "     'S' param: " + strParam);
             paramType = 'S';
             return;
         }
@@ -318,7 +319,7 @@ public final class ParameterStruct {
             throw new ParserException(functionId + "Invalid param data for dataType " + dataType + ": param: " + strVal);
         }
             
-        frame.outputInfoMsg(STATUS_PARSER, "     '" + dataType + "' param: " + strParam);
+        frame.outputInfoMsg(STATUS_PROGRAM, "     '" + dataType + "' param: " + strParam);
         paramType = dataType;
     }
         
@@ -353,7 +354,7 @@ public final class ParameterStruct {
         }
             
         paramType = dataType;
-        frame.outputInfoMsg(STATUS_PARSER, "     '" + paramType + "' param: " + intParam);
+        frame.outputInfoMsg(STATUS_PROGRAM, "     '" + paramType + "' param: " + intParam);
     }
         
     /**
@@ -379,7 +380,7 @@ public final class ParameterStruct {
         }
             
         paramType = dataType;
-        frame.outputInfoMsg(STATUS_PARSER, "     '" + paramType + "' param: " + boolParam);
+        frame.outputInfoMsg(STATUS_PROGRAM, "     '" + paramType + "' param: " + boolParam);
     }
 
     /**
@@ -457,9 +458,9 @@ public final class ParameterStruct {
     public static void putStringParameter (String name, String value) {
         if (! strParams.containsKey(name)) {
             strParams.put(name, value);
-            frame.outputInfoMsg(STATUS_PARSER, "   - Added String parameter " + name + " init to '" + value + "'");
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Added String parameter " + name + " init to '" + value + "'");
         } else {
-            frame.outputInfoMsg(STATUS_PARSER, "   - String parameter " + name + " already defined");
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - String parameter " + name + " already defined");
         }
     }
 
@@ -475,7 +476,7 @@ public final class ParameterStruct {
     public static boolean modifyStringParameter (String name, String value) {
         if (strParams.containsKey(name)) {
             strParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_PARSER, "   - Modified String param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified String param: " + name + " = " + value);
             return true;
         }
         return false;
@@ -491,9 +492,9 @@ public final class ParameterStruct {
     public static void putIntegerParameter (String name, Integer value) {
         if (! intParams.containsKey(name)) {
             intParams.put(name, value);
-            frame.outputInfoMsg(STATUS_PARSER, "   - Added Integer parameter " + name + " init to '" + value + "'");
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Added Integer parameter " + name + " init to '" + value + "'");
         } else {
-            frame.outputInfoMsg(STATUS_PARSER, "   - Integer parameter " + name + " already defined");
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Integer parameter " + name + " already defined");
         }
     }
 
@@ -509,7 +510,7 @@ public final class ParameterStruct {
     public static boolean modifyIntegerParameter (String name, Integer value) {
         if (intParams.containsKey(name)) {
             intParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_PARSER, "   - Modified Integer param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Integer param: " + name + " = " + value);
             return true;
         }
         return false;
@@ -586,7 +587,7 @@ public final class ParameterStruct {
                 break;
         }
         
-        frame.outputInfoMsg(STATUS_PARSER, command + " command restarting at index: " + nextIndex);
+        frame.outputInfoMsg(STATUS_PROGRAM, command + " command restarting at index: " + nextIndex);
         return nextIndex;
     }
 
@@ -609,15 +610,15 @@ public final class ParameterStruct {
             // first loop defined, create an empty array list and add it to the list of names for this name.
             loopList = new ArrayList<>();
             loopNames.put(name, loopList);
-            frame.outputInfoMsg(STATUS_PARSER, functionId + "First entry in loopList");
+            frame.outputInfoMsg(STATUS_DEBUG, functionId + "First entry in loopList");
         } else {
             loopList = loopNames.get(name);
         }
-        frame.outputInfoMsg(STATUS_PARSER, functionId + "loopList   [" + loopList.size() + "] " + loopId.name + " @ " + loopId.index);
+        frame.outputInfoMsg(STATUS_DEBUG, functionId + "loopList   [" + loopList.size() + "] " + loopId.name + " @ " + loopId.index);
         loopList.add(loopId);
         
         // now add loop entry to hashmap based on name/index ID
-        frame.outputInfoMsg(STATUS_PARSER, functionId + "loopParams [" + loopParams.size() + "] " + loopId.name + " @ " + loopId.index);
+        frame.outputInfoMsg(STATUS_DEBUG, functionId + "loopParams [" + loopParams.size() + "] " + loopId.name + " @ " + loopId.index);
         loopParams.put(loopId, loopInfo);
     }
 
@@ -698,14 +699,14 @@ public final class ParameterStruct {
         ArrayList<CommandParser.LoopId> loopList = loopNames.get(name);
         if (loopList != null && ! loopList.isEmpty()) {
             // we have one or more uses of the same name, check if this is nested in one
-            frame.outputInfoMsg(STATUS_PARSER, "   - checking previous uses of FOR Loop parameter " + name + " to see if we have a nesting problem");
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - checking previous uses of FOR Loop parameter " + name + " to see if we have a nesting problem");
             for (int ix = 0; ix < loopList.size(); ix++) {
                 CommandParser.LoopId loopEntry = loopList.get(ix);
                 LoopStruct loopInfo = getLoopStruct (loopEntry);
                 if (loopInfo == null || ! loopInfo.isLoopComplete()) {
                     throw new ParserException(": Loop param " + name + " @ " + index + " is nested in same name at " + loopEntry.index);
                 } else {
-                    frame.outputInfoMsg(STATUS_PARSER, "   - FOR Loop parameter " + name + " @ " + loopEntry.index + " was complete");
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - FOR Loop parameter " + name + " @ " + loopEntry.index + " was complete");
                 }
             }
         }
@@ -843,7 +844,7 @@ public final class ParameterStruct {
         if (!myPath.isDirectory()) {
             throw new ParserException(functionId + "Path not found: " + dirname);
         }
-        frame.outputInfoMsg(UIFrame.STATUS_PARSER, "  Path param valid: " + dirname);
+        frame.outputInfoMsg(UIFrame.STATUS_PROGRAM, "  Path param valid: " + dirname);
         return myPath;
     }
 
@@ -868,7 +869,7 @@ public final class ParameterStruct {
         if (!myFile.canRead()) {
             throw new ParserException(functionId + "Invalid file - no read access: " + fname);
         }
-        frame.outputInfoMsg(UIFrame.STATUS_PARSER, "  File exists & is readable: " + fname);
+        frame.outputInfoMsg(UIFrame.STATUS_PROGRAM, "  File exists & is readable: " + fname);
         return myFile;
     }
 

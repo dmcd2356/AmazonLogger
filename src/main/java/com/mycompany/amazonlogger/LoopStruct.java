@@ -1,7 +1,7 @@
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PARSER;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import java.util.Objects;
 
 /**
@@ -167,7 +167,7 @@ public class LoopStruct {
             case "==":  if (Objects.equals(value, endValue)) bExit = false;
                 break;
         }
-        frame.outputInfoMsg(STATUS_PARSER, "checkLoopValue: " + value + " " + comparator + " " + endValue + " " + bExit);
+        frame.outputInfoMsg(STATUS_DEBUG, "checkLoopValue: " + value + " " + comparator + " " + endValue + " " + bExit);
         return bExit;
     }
 }
