@@ -28,18 +28,18 @@ public class CommandParser {
     private static final String CLASS_NAME = "CommandParser";
     
     // List of all the command line options and the argument types each takes
-    // S = String, L = list, D = dir, F = file, U = unsigned int, I = Int, B = boolean
+    // S = String, L = list, U = unsigned int, I = Int, B = boolean
     //   (lowercase if optional, but must be at end of list)
     private final OptionList [] OptionTable = {
         new OptionList ("-h"        , ""),
         new OptionList ("-d"        , "U"),
-        new OptionList ("-s"        , "F"),
+        new OptionList ("-s"        , "S"),
         new OptionList ("-l"        , "UB"),
         new OptionList ("-t"        , "U"),
-        new OptionList ("-c"        , "F"),
+        new OptionList ("-c"        , "S"),
         new OptionList ("-u"        , ""),
-        new OptionList ("-p"        , "F"),
-        new OptionList ("-o"        , "f"),
+        new OptionList ("-p"        , "S"),
+        new OptionList ("-o"        , "s"),
         new OptionList ("-save"     , ""),
 
         new OptionList ("-date"     , "L"),
@@ -58,6 +58,18 @@ public class CommandParser {
         new OptionList ("-cellput"  , "UUL"),
     };
     
+    // IF List is built during Compile phase and referenced during Execution phase.
+    // IF Stack is used during Compile and Execution phases. Compile time for
+    //   verification, and Execution for running the branches.
+    private final ArrayList<IfStruct> ifList  = new ArrayList<>();
+    private final Stack<Integer>      ifStack = new Stack<>();
+
+    // FOR loop stack for keeping track of current nesting of loops as program runs
+    //  and curLoopId for identifying the current entry.
+    private final Stack<LoopId> loopStack = new Stack<>();
+    private LoopId curLoopId = null;
+    
+
     private class OptionList {
         String  optName;        // the option name
         String  argTypes;       // argument types list
@@ -89,9 +101,100 @@ public class CommandParser {
         }
     } 
 
-    // the key for loops uses both the name and the command index of the FOR
-    // statement. this way, loop names can be reused as long as they aren't
-    // nested within each other.
+    private class IfStruct {
+        Integer ixIf;       // command index for IF statement
+        ArrayList<Integer> ixElse;  // command index for ELSE & ELSEIF statement(s)
+        boolean bFinalElse; // true if last entry in ixElse list was an ELSE, so there can be no more
+        Integer ixEndIf;    // command index for ENDIF statement
+        Integer loopLevel;  // loop nest level for start of IF statement
+        
+        IfStruct (int index) {
+            this.ixIf    = index;
+            this.ixElse  = new ArrayList<>();
+            this.ixEndIf = null;
+            this.bFinalElse = false;
+            
+            // save the loop level for testing whether ELSE and ENDIF are at same level
+            this.loopLevel = loopStack.size();
+
+            String cmdId = "line " + index + " IF ";
+            String nestLevel = " (nest level " + loopStack.size() + ")";
+            frame.outputInfoMsg(STATUS_PROGRAM, "    " + cmdId + " @ " + this.ixIf + nestLevel);
+        }
+
+        /**
+         * get the command index of the next ELSE, ELSEIF or ENDIF statement.
+         * 
+         * @param index - the current command index
+         * 
+         * @return index of next branch if the IF is not true
+         * 
+         * @throws ParserException
+         */
+        int getElseIndex (int index) throws ParserException {
+            String functionId = "IfStruct.getElseIndex: ";
+
+            if (this.ixElse != null && !this.ixElse.isEmpty()) {
+                // return the location of the next ELSE or ELSEIF statement
+                for (int ix = 0; ix < this.ixElse.size(); ix++) {
+                    if (index < this.ixElse.get(ix))
+                        return this.ixElse.get(ix);
+                }
+            }
+            // no ELSE case matches, go to end of IF
+            if (this.ixEndIf == null) {
+                throw new ParserException(functionId + "Missing ENDIF command index for IF @ " + this.ixIf);
+            }
+            return this.ixEndIf;
+        }
+        
+        /**
+         * verifies that the IF statement command has the required entries.
+         * 
+         * @return true if valid
+         */
+        boolean isValid () {
+            return this.ixIf != null && this.ixEndIf != null && this.ixElse != null && this.loopLevel != null;
+        }
+        
+        void setElseIndex (int index, boolean bElseIf) throws ParserException {
+            String command = (bElseIf) ? "ELSEIF" : "ELSE";
+            String cmdId = "line " + index + " " + command + " ";
+            String functionId = "IfStruct.setElseIndex: " + cmdId;
+            String nestLevel = " (nest level " + loopStack.size() + ")";
+        
+            // if ELSE statement was previously defined, can't have any more ELSEIF or another ELSE
+            if (this.bFinalElse && !this.ixElse.isEmpty()) {
+                throw new ParserException(functionId + "cmd already set for IF cmd @ " + this.ixIf + " on line : " + this.ixElse.getLast());
+            }
+            
+            // set flag to final when an ELSE startement is used - can't have any other ELSE or ELSEIF
+            this.bFinalElse = !bElseIf;
+            if (this.loopLevel != loopStack.size()) {
+                throw new ParserException(functionId + "cmd outside of loop level " + this.loopLevel + nestLevel);
+            }
+            this.ixElse.add(index);
+            frame.outputInfoMsg(STATUS_PROGRAM, "    " + cmdId + "    entry " + this.ixElse.size() + " for IF @ " + this.ixIf + nestLevel);
+        }
+        
+        void setEndIfIndex (int index) throws ParserException {
+            String cmdId = "line " + index + " ENDIF ";
+            String functionId = "IfStruct.setEndIfIndex: " + cmdId;
+            String nestLevel = " (nest level " + loopStack.size() + ")";
+        
+            if (this.ixEndIf != null) {
+                throw new ParserException(functionId + "cmd already set for IF cmd @ " + this.ixIf + " on line : " + this.ixEndIf);
+            }
+            if (this.loopLevel != loopStack.size()) {
+                throw new ParserException(functionId + "cmd outside of loop level " + this.loopLevel + nestLevel);
+            }
+            this.ixEndIf = index;
+            frame.outputInfoMsg(STATUS_PROGRAM, "    " + cmdId + "    for IF @ " + this.ixIf + nestLevel);
+        }
+    }
+    
+    // the key for loops uses both the name and the command index of the FOR statement.
+    //  this way, loop names can be reused as long as they aren't nested within each other.
     public class LoopId {
         String  name;       // name of the loop
         int     index;      // command index of the start of the loop
@@ -101,10 +204,17 @@ public class CommandParser {
             this.index = index;
         }
     }
-    
-    // loop stack for keeping track of current nesting of loops as program runs
-    private Stack<LoopId> loopStack = new Stack<>();
-    private LoopId curLoopId = null;
+
+    private IfStruct getIfEntry (int cmdIndex) throws ParserException {
+        String functionId = CLASS_NAME + ".getIfEntry: ";
+        
+        for (int ix = 0; ix < ifList.size(); ix++) {
+            if (ifList.get(ix).ixIf == cmdIndex) {
+                return ifList.get(ix);
+            }
+        }
+        throw new ParserException(functionId + "IF stack index " + cmdIndex + " not found in IF list");
+    }
     
     /**
      * runs the program from command line input
@@ -221,6 +331,7 @@ public class CommandParser {
             CommandStruct cmdStruct;
             String [] parmArr = null;
             int paramCnt = 0;
+            ArrayList<String> listParms;
             int offset = line.indexOf(" ");
             if (offset <= 0) {
                 cmdStruct = new CommandStruct(line);
@@ -238,7 +349,7 @@ public class CommandParser {
             switch (cmdStruct.command) {
                 case "SET":
                     String argList = (paramCnt > 2) ? "SL" : "SS";
-                    if (ParameterStruct.isIntegerParam(parmArr[0])) {
+                    if (parmArr[0].startsWith("I_")) {
                         argList = "SI";
                     }
                     cmdStruct.params = packParamList (line, argList);
@@ -254,17 +365,10 @@ public class CommandParser {
                         throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + exMsg);
                     }
 
-                    // if value is a parameter itself, we can only do run-time check, so just pass it
-                    if (strParmVal != null && strParmVal.startsWith("$")) {
-                        ParameterStruct.putStringParameter(strParmName, strParmVal);
-                    }
-                    
                     // for integer type parameters, verify it is an integer value being assigned
-                    if (ParameterStruct.isIntegerParam(strParmName)) {
-                        Integer intParmVal = cmdStruct.params.get(1).getIntegerValue();
-                        if (intParmVal == null) {
-                            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " Integer arg not defined for: " + strParmName);
-                        }
+                    char dataType = ParameterStruct.classifyDataType(strParmVal);
+                    if (dataType == 'I' || dataType == 'U') {
+                        Integer intParmVal = Utils.getIntValue (strParmVal);
                         ParameterStruct.putIntegerParameter(strParmName, intParmVal);
                     } else {
                         ParameterStruct.putStringParameter(strParmName, strParmVal);
@@ -278,55 +382,91 @@ public class CommandParser {
                     // TODO: 
                     break;
                 case "IF":
-                    // TODO: 
+                    // read the arguments passed
+                    // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Parameters)
+                    cmdStruct.params = packParamList (line, "ISI");
+                    
+                    String ifName = cmdStruct.params.get(0).getStringValue();
+
+                    // if not first IF statement, make sure previous IF had an ENDIF
+                    IfStruct ifInfo = null;
+                    if (!ifList.isEmpty() && !ifStack.empty()) {
+                        ifInfo = getIfEntry(ifStack.peek());
+                        if (!ifInfo.isValid()) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when previous IF has no matching ENDIF");
+                        }
+                    }
+                    
+                    // add entry to the current loop stack
+                    ifInfo = new IfStruct (cmdIndex);
+                    ifList.add(ifInfo);
+                    ifStack.push(cmdIndex);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - new IF level " + ifStack.size() + " parameter " + ifName);
                     break;
                 case "ELSE":
-                    // TODO: store line location in labelsMap
+                    if (ifList.isEmpty()) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
+                    }
+                    // save the current command index in the current if structure
+                    ifInfo = getIfEntry(ifStack.peek());
+                    ifInfo.setElseIndex(cmdIndex, false);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex);
                     break;
                 case "ELSEIF":
-                    // TODO: store line location in labelsMap
+                    if (ifStack.empty()) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
+                    }
+                    
+                    // read the arguments passed
+                    // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Parameters)
+                    cmdStruct.params = packParamList (line, "ISI");
+                    ifName = cmdStruct.params.get(0).getStringValue();
+                    
+                    // save the current command index in the current if structure
+                    ifInfo = getIfEntry(ifStack.peek());
+                    ifInfo.setElseIndex(cmdIndex, true);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex + " parameter " + ifName);
                     break;
                 case "ENDIF":
-                    // TODO: store line location in labelsMap
+                    if (ifStack.empty()) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
+                    }
+                    // save the current command index in the current if structure
+                    ifInfo = getIfEntry(ifStack.peek());
+                    ifInfo.setEndIfIndex(cmdIndex);
+                    ifStack.pop();
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex);
                     break;
                 case "FOR":
                     // read the arguments passed
                     // assumed format is: FOR Name = StartIx ; < EndIx ; IncrVal
                     // (and trailing "; IncrVal" is optional)
-                    ArrayList<String> loopParms = extractUserParams ("S=I;CI;I", parms);
-                    if (loopParms.size() < 4) {
+                    listParms = extractUserParams ("S=I;CI;I", parms);
+                    if (listParms.size() < 4) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing parameters");
+                    } else if (listParms.size() < 5) {
+                        listParms.add("1"); // use 1 as a default value
+                        frame.outputInfoMsg(STATUS_PROGRAM, "    (using default step size of 1)");
                     }
-                    String loopName = loopParms.get(0);
-                    String strStart = loopParms.get(1);
-                    String loopComp = loopParms.get(2);
-                    String strEnd   = loopParms.get(3);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    Loop name:  " + loopName);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    Loop start: " + strStart);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    Loop comp:  " + loopComp);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    Loop end:   " + strEnd);
-                    String strStep;
-                    if (loopParms.size() > 4)
-                        strStep = loopParms.get(4);
-                    else {
-                        strStep  = "1";
-                        frame.outputInfoMsg(STATUS_PROGRAM, "    Loop step:  " + strStep + " (defaulted to)");
-                    }
-                    
-                    // create the parameter list for execution (we only need the loop name,
-                    //  the rest is saved in the Loop parameter hashmap.
+
+                    // get the parameters and format them for use
+                    // NOTE: the null entries in the packParamEntry calls because we are not passing them to the execution phase
+                    ParameterStruct loopStart, loopEnd, loopStep;
+                    String loopName, loopComp;
+                    loopName  = listParms.get(0);
+                    loopStart = packParamEntry (listParms.get(1), 'I', null);
+                    loopComp  = listParms.get(2);
+                    loopEnd   = packParamEntry (listParms.get(3), 'I', null);
+                    loopStep  = packParamEntry (listParms.get(4), 'I', null);
+
+                    // create the parameter list for execution
+                    // (we only need the loop name, the rest is saved in the Loop parameter hashmap)
                     packParamEntry (loopName, 'S', cmdStruct.params);
-                    
-                    // these entries may be Integers or Parameters, so we send them as
-                    //  ParameterStruct entries.
-                    ParameterStruct loopStart = packParamEntry (strStart,  'I', null);
-                    ParameterStruct loopEnd   = packParamEntry (strEnd,    'I', null);
-                    ParameterStruct loopStep  = packParamEntry (strStep,   'I', null);
                     
                     // create a new loop ID (name + command index) for the entry and add it
                     // to the list of IDs for the loop parameter name
                     LoopId loopId = new LoopId(loopName, cmdIndex);
-                    LoopStruct loopInfo = new LoopStruct (loopName, loopStart, loopEnd, loopStep, loopComp, cmdIndex);
+                    LoopStruct loopInfo = new LoopStruct (loopName, loopStart, loopEnd, loopStep, loopComp, cmdIndex, ifStack.size());
                     ParameterStruct.saveLoopParameter (loopName, loopId, loopInfo);
                     
                     // add entry to the current loop stack
@@ -339,6 +479,9 @@ public class CommandParser {
                     if (loopStack.empty()) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                     }
+                    // verify the IF loop level hasn't been exceeded
+                    LoopId curLoop = loopStack.firstElement();
+                    ParameterStruct.checkLoopIfLevel (cmdStruct.command, ifStack.size(), curLoop);
                     break;
                 case "CONTINUE":
                     cmdStruct.params = packParamList (line, "");
@@ -346,6 +489,9 @@ public class CommandParser {
                     if (loopStack.empty()) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                     }
+                    // verify the IF loop level hasn't been exceeded
+                    curLoop = loopStack.firstElement();
+                    ParameterStruct.checkLoopIfLevel (cmdStruct.command, ifStack.size(), curLoop);
                     break;
                 case "NEXT":
                     cmdStruct.params = packParamList (line, "");
@@ -353,6 +499,9 @@ public class CommandParser {
                     if (loopStack.empty()) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                     }
+                    // verify the IF loop level hasn't been exceeded
+                    curLoop = loopStack.firstElement();
+                    ParameterStruct.checkLoopIfLevel (cmdStruct.command, ifStack.size(), curLoop);
                     break;
                 case "ENDFOR":
                     cmdStruct.params = packParamList (line, "");
@@ -361,7 +510,7 @@ public class CommandParser {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                     }
                     // store line location in labelsMap
-                    LoopId curLoop = loopStack.firstElement();
+                    curLoop = loopStack.firstElement();
                     ParameterStruct.setLoopEndIndex(cmdList.size(), curLoop);
 
                     // remove entry from loop stack
@@ -395,6 +544,9 @@ public class CommandParser {
         if (! loopStack.empty()) {
             throw new ParserException(functionId + "FOR loop not complete for " + loopStack.size() + " entries");
         }
+        if (!ifStack.isEmpty() && !getIfEntry(ifStack.peek()).isValid()) {
+            throw new ParserException(functionId + "Last IF has no matching ENDIF");
+        }
 
         fileReader.close();
         
@@ -406,7 +558,7 @@ public class CommandParser {
     /**
      * Executes a command from the list of CommandStruct entries created by the compileProgramCommand method.
      * 
-     * @param index     - index of current command in the CommandStruct list
+     * @param cmdIndex  - index of current command in the CommandStruct list
      * @param cmdStruct - the command to execute
      * 
      * @return index of next command in the CommandStruct list
@@ -416,9 +568,9 @@ public class CommandParser {
      * @throws SAXException
      * @throws TikaException 
      */
-    private int executeProgramCommand (int index, CommandStruct cmdStruct) throws ParserException, IOException, SAXException, TikaException {
+    private int executeProgramCommand (int cmdIndex, CommandStruct cmdStruct) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + ".executeProgramCommand: ";
-        String lineInfo = "PROGIX [" + index + "]: ";
+        String lineInfo = "PROGIX [" + cmdIndex + "]: ";
         int newIndex = -1;
         
         String command = cmdStruct.command;
@@ -449,32 +601,73 @@ public class CommandParser {
                 // TODO: 
                 break;
             case "IF":
-                // TODO: 
+                // get the params
+                verifyParamList(cmdStruct.params, 3); // check for 3 params
+                ParameterStruct parm1 = cmdStruct.params.get(0);
+                String comp           = cmdStruct.params.get(1).unpackStringValue();
+                ParameterStruct parm2 = cmdStruct.params.get(2);
+
+                // add entry to the current loop stack
+                ifStack.push(cmdIndex);
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - new IF level " + ifStack.size() + " " + parm1.getStringValue() + " " + comp + " " + parm2.getStringValue());
+
+                // check status to see if true of false.
+                boolean bBranch = Utils.compareParameterValues (parm1, parm2, comp);
+                if (bBranch) {
+                    IfStruct ifInfo = getIfEntry(cmdIndex);
+                    newIndex = ifInfo.getElseIndex(cmdIndex);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - goto next IF case @ " + newIndex);
+                }
                 break;
             case "ELSE":
-                // TODO: store line location in labelsMap
+                if (ifStack.empty()) {
+                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a IF structure");
+                }
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex);
                 break;
             case "ELSEIF":
-                // TODO: store line location in labelsMap
+                if (ifStack.empty()) {
+                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a IF structure");
+                }
+
+                // get the params
+                verifyParamList(cmdStruct.params, 3); // check for 3 params
+                parm1 = cmdStruct.params.get(0);
+                comp  = cmdStruct.params.get(1).unpackStringValue();
+                parm2 = cmdStruct.params.get(2);
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + ": " + parm1.getStringValue() + " " + comp + " " + parm2.getStringValue());
+
+                // check status to see if true of false.
+                bBranch = Utils.compareParameterValues (parm1, parm2, comp);
+                if (bBranch) {
+                    IfStruct ifInfo = getIfEntry(ifStack.peek());
+                    newIndex = ifInfo.getElseIndex(cmdIndex);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - goto next IF case @ " + newIndex);
+                }
                 break;
             case "ENDIF":
-                // TODO: store line location in labelsMap
+                if (ifStack.empty()) {
+                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a IF structure");
+                }
+                // save the current command index in the current if structure
+                ifStack.pop();
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - new IF level " + ifStack.size() + ": " + cmdStruct.command + " on line " + cmdIndex);
                 break;
             case "FOR":
                 verifyParamList(cmdStruct.params, 1);
                 String loopName  = cmdStruct.params.get(0).unpackStringValue();
-                curLoopId = new LoopId(loopName, index);
-                newIndex = ParameterStruct.getLoopNextIndex (command, index, curLoopId);
+                curLoopId = new LoopId(loopName, cmdIndex);
+                newIndex = ParameterStruct.getLoopNextIndex (command, cmdIndex, curLoopId);
                     
                 // add entry to the current loop stack
                 loopStack.push(curLoopId);
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + loopStack.size() + " parameter " + loopName + " index @ " + index);
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + loopStack.size() + " parameter " + loopName + " index @ " + cmdIndex);
                 break;
             case "BREAK":
                 if (loopStack.empty() || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
-                newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, index, curLoopId);
+                newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                 frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopStack.size()
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
@@ -482,7 +675,7 @@ public class CommandParser {
                 if (loopStack.empty() || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
-                newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, index, curLoopId);
+                newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                 frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopStack.size()
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
@@ -490,7 +683,7 @@ public class CommandParser {
                 if (loopStack.empty() || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
-                newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, index, curLoopId);
+                newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                 frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopStack.size()
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
@@ -545,12 +738,12 @@ public class CommandParser {
         
         // by default, the command will proceed to the next command
         if (newIndex >= 0) {
-            index = newIndex;
+            cmdIndex = newIndex;
         } else {
-            index++;
+            cmdIndex++;
         }
         
-        return index;
+        return cmdIndex;
     }
 
     /**
@@ -668,7 +861,7 @@ public class CommandParser {
         frame.outputInfoMsg(STATUS_PROGRAM, commands.size() + " options found");
         return commands;
     }
-
+    
     /**
      * executes the command line option specified
      * 
@@ -1146,7 +1339,31 @@ public class CommandParser {
         }
         return line.substring(0, offset).strip();
     }
-    
+
+    /**
+     * simple test if a directory path is valid
+     * 
+     * @param dirname - name of the directory
+     * 
+     * @return the directory File
+     * 
+     * @throws ParserException 
+     */
+    private static File checkDir (String dirname) throws ParserException {
+        String functionId = CLASS_NAME + ".checkDir: ";
+
+        if (dirname == null || dirname.isBlank()) {
+            throw new ParserException(functionId + "Path name is blank");
+        }
+        
+        File myPath = new File(dirname);
+        if (!myPath.isDirectory()) {
+            throw new ParserException(functionId + "Path not found: " + dirname);
+        }
+        frame.outputInfoMsg(UIFrame.STATUS_PROGRAM, "  Path param valid: " + dirname);
+        return myPath;
+    }
+
     /**
      * test if a file name is valid
      * 

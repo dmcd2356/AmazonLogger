@@ -1,9 +1,5 @@
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import java.util.Objects;
-
 /**
  * This handles the loop parameter processing
  * 
@@ -21,6 +17,7 @@ public class LoopStruct {
     private final String          comparator; // the comparison symbols used for checking against valEnd
     private final Integer         ixBegin;    // command index of start of loop (where it returns to)
     private       Integer         ixEnd;      // command index of ENDFOR (end of loop or break reached)
+    private       Integer         ifLevel;    // IF nest level (to make sure loop def doesn't exceed the boundaries)
     
     /**
      * Initializes the loop structure.
@@ -32,13 +29,14 @@ public class LoopStruct {
      * @param step  - amount to increase the parameter on each iteration
      * @param comp  - the type of comparison for the loop 
      * @param index - the index of the command list to return to on each loop (index of FOR)
+     * @param ifLev - the IF nest level at start of LOOP def
      * 
      * @throws ParserException
      */
     LoopStruct (String name, ParameterStruct start,
                              ParameterStruct end,
                              ParameterStruct step,
-                             String comp, int index) throws ParserException {
+                             String comp, int index, int ifLev) throws ParserException {
         String functionId = CLASS_NAME + " (new): ";
        
         // check for invalid input
@@ -65,6 +63,7 @@ public class LoopStruct {
         this.comparator = comp;
         this.ixBegin  = index;
         this .ixEnd   = null;
+        this.ifLevel  = ifLev;
     }
     
     /**
@@ -87,6 +86,19 @@ public class LoopStruct {
     }
     
     /**
+     * indicates if the loop exceeds the bounds of the IF block it is in.
+     * This should be called when any of the commands NEXT, BREAK, ENDFOR are called
+     * during compile.
+     * 
+     * @param level - the current level of the instruction
+     * 
+     * @return true if the loop is fully defined within same IF block (or not within IF at all
+     */
+    public boolean isLoopIfLevelValid (int level) {
+        return ifLevel == level;
+    }
+    
+    /**
      * resets the loop value.
      * This is called when the FOR command is parsed during the execution stage.
      * 
@@ -100,7 +112,8 @@ public class LoopStruct {
         value = valStart.unpackIntegerValue();
         
         // just in case the loop is set to not run, perform the exit comparison
-        if (checkLoopValue()) {
+        boolean bResult = Utils.compareParameterValues (valStart, valEnd, comparator);
+        if (! bResult) {
             return ixEnd;
         }
         return index + 1;
@@ -131,43 +144,13 @@ public class LoopStruct {
         // increment param by the step value and check if we have completed
         value += valStep.unpackIntegerValue();
         
-        if (checkLoopValue()) {
-            // loop completed
-            return ixEnd;
+        ParameterStruct newValue = new ParameterStruct(value);
+        boolean bResult = Utils.compareParameterValues (newValue, valEnd, comparator);
+        if (! bResult) {
+            return ixEnd;   // loop completed
         }
 
         // not done yet, start on the line following the FOR command
         return ixBegin + 1;
-    }
-
-    /**
-     * This performs the comparison of the loop param to the ending condition.
-     * 
-     * @return true if it is time to exit.
-     * 
-     * @throws ParserException
-     */
-    private boolean checkLoopValue () throws ParserException {
-        boolean bExit = true;
-        Integer endValue = valEnd.unpackIntegerValue();
-        
-        switch (comparator) {
-            case "<":   if (value < endValue) bExit = false;
-                break;
-            case "<=":  if (value <= endValue) bExit = false;
-                break;
-            case ">":   if (value > endValue) bExit = false;
-                break;
-            case ">=":  if (value >= endValue) bExit = false;
-                break;
-            case "!=":  if (!Objects.equals(value, endValue)) bExit = false;
-                break;
-            default:
-            case "=":
-            case "==":  if (Objects.equals(value, endValue)) bExit = false;
-                break;
-        }
-        frame.outputInfoMsg(STATUS_DEBUG, "checkLoopValue: " + value + " " + comparator + " " + endValue + " " + bExit);
-        return bExit;
     }
 }

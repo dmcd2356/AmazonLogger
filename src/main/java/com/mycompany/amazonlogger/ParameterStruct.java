@@ -13,14 +13,7 @@ import java.util.Map;
  * This class defines the structure of the parameters stored for the commands.
  * 
  * It allows Integer, Boolean and String data types and has a paramType that
- * corresponds to the data type:
- *  'I' - Integer (signed)
- *  'U' - Integer (unsigned and can also be specified as a hex value using 'x' or '0x')
- *  'B' - Boolean (true/false or numeric where 0 = false, all others are true)
- *  'S' - String (single word)
- *  'L' - String list (multi-word)
- *  'D' - String inferring a directory located off the base directory
- *  'F' - String inferring a file name
+ * corresponds to the data type.
  * 
  * @author dan
  */
@@ -52,35 +45,81 @@ public final class ParameterStruct {
     private static final HashMap<String, ArrayList<CommandParser.LoopId>> loopNames = new HashMap<>();
 
     /**
-     * Creates a parameter having the specified characteristics
+     * Creates a parameter and determines the data type.
+     * This is only used in the execution phase, so if a parameter value is found,
+     *  do a replacement of it.
+     * Note that the data is always stored in String format.
+     * 
+     * I = signed integer   ( LT 0 )
+     * U = unsigned integer ( GE 0 )
+     * B = boolean
+     * S = string (single word)
+     * L = list (multi-word string)
      * 
      * @param objValue - the parameter value to use
-     * @param dataType - the parameter type desired
      * 
      * @throws ParserException
      */
-    public ParameterStruct (Object objValue, char dataType) throws ParserException {
+    public ParameterStruct (Object objValue) throws ParserException {
          String functionId = CLASS_NAME + " (new Object): ";
         
         String classType = objValue.getClass().toString();
         switch (classType) {
             case "class java.lang.Integer":
-                setIntegerValue ((Integer) objValue, dataType);
+                Integer iVal = (Integer) objValue;
+                strParam = iVal.toString();
+                if (iVal >= 0)
+                    paramType = 'U';
+                else
+                    paramType = 'I';
                 break;
             case "class java.lang.Boolean":
-                setBooleanValue ((Boolean) objValue, dataType);
+                Boolean bValue = (Boolean) objValue;
+                strParam = bValue.toString();
+                paramType = 'B';
                 break;
             case "class java.lang.String":
-                setStringValue ((String) objValue, dataType);
+                strParam = (String) objValue;
+                if (strParam.equalsIgnoreCase("TRUE") || strParam.equalsIgnoreCase("FALSE")) {
+                    paramType = 'B';
+                }
+                try {
+                    iVal = Utils.getIntValue (strParam);
+                    if (iVal >= 0)
+                        paramType = 'U';
+                    else
+                        paramType = 'I';
+                } catch (ParserException ex) {
+                    if (strParam.startsWith("$")) {
+                        paramType = 'R';
+                        String parmVal = findStringParam (strParam);
+                        if (parmVal != null) {
+                            // parameter found - use the saved value and return its type
+                            strParam = parmVal;
+                            paramType = classifyDataType (parmVal);
+                        } else {
+                            // not found, use the entry simply as it is: a String
+                            paramType = 'S';
+                        }
+                    }
+                    else if (strParam.indexOf(' ') > 0)
+                        paramType = 'L';
+                    else
+                        paramType = 'S';
+                }
                 break;
             default:
-                throw new ParserException(functionId + "Invalid class type for " + dataType + " param: " + classType);
+                throw new ParserException(functionId + "Invalid class type for param: " + classType);
         }
-        frame.outputInfoMsg(STATUS_DEBUG, functionId + "type " + dataType + ", " + classType);
+        
+        frame.outputInfoMsg(STATUS_DEBUG, functionId + "type " + paramType + ", " + classType);
     }
         
     /**
-     * Creates a parameter having the specified characteristics
+     * Creates a parameter having the specified characteristics.
+     * This is only used in the Compilation phase, so we are verifying the type is valid,
+     *   but if it is a reference parameter, don't replace the parameter with its value.
+     *   That can only be done during execution phase.
      * 
      * @param strValue - the parameter value to use (can be a parameter reference)
      * @param dataType - the parameter type desired
@@ -88,60 +127,96 @@ public final class ParameterStruct {
      * @throws ParserException
      */
     public ParameterStruct (String strValue, char dataType) throws ParserException {
-         String functionId = CLASS_NAME + " (new): ";
+        String functionId = CLASS_NAME + " (new): ";
         
-        if (strValue == null) {
-            throw new ParserException(functionId + "Null parameter value passed");
-        }
-        dataType = Character.toUpperCase(dataType);
-        String nextArg = getNextWord (strValue);
-
-        // if entry is a parameter, verification will be a runtime check
-        if (strValue.startsWith("$")) {
-            setStringValue (nextArg, 'S');
-            return;
+        Integer iVal;
+        strParam = strValue;
+        if (strParam.startsWith("$")) {
+            String parmVal = findStringParam (strValue);
+            if (parmVal != null) {
+                strParam = parmVal;
+            }
         }
         
         switch (dataType) {
-            case 'U':
-                Integer intVal = Utils.getHexValue (nextArg);
-                if (intVal == null) {
-                    intVal = Utils.getIntValue (nextArg);
+            case 'B':
+                if (!strParam.equalsIgnoreCase("TRUE") &&
+                    !strParam.equalsIgnoreCase("FALSE")) {
+                    throw new ParserException(functionId + "Invalid value for '" + dataType + "' type param: " + strValue);
                 }
-                setIntegerValue (intVal, dataType);
+                paramType = 'B';
                 break;
             case 'I':
-                intVal = Utils.getIntValue (nextArg);
-                setIntegerValue (intVal, dataType);
+                try {
+                    Utils.getIntValue (strParam);
+                    paramType = 'I';
+                } catch (ParserException ex) {
+                    throw new ParserException(functionId + "Invalid value for '" + dataType + "' type param: " + strValue);
+                }
                 break;
-            case 'B':
-                Boolean boolVal = Utils.getBooleanValue (nextArg);
-                setBooleanValue (boolVal, dataType);
+            case 'U':
+                try {
+                    iVal = Utils.getIntValue (strParam);
+                    if (iVal >= 0)
+                        paramType = 'U';
+                } catch (ParserException ex) {
+                    throw new ParserException(functionId + "Invalid value for '" + dataType + "' type param: " + strValue);
+                }
                 break;
             case 'S':
-            case 'D':
-            case 'F':
-                setStringValue (nextArg, dataType);
+                int offset = strParam.indexOf(' ');
+                if (offset > 0) {
+                    strParam = strParam.substring(0, offset);
+                }
+                paramType = 'S';
                 break;
             case 'L':
-                // lists take the remaining string info in the command line
-                nextArg = strValue;
-                setStringValue (nextArg, dataType);
+                paramType = 'L';
                 break;
-            default:
-                throw new ParserException(functionId + "Invalid data type for param: " + dataType);
         }
-            
-        // do additional check for specific cases
-        if (dataType == 'D')
-            checkDir (nextArg);
-        else if (dataType == 'F')
-            checkFilename (nextArg);
-        frame.outputInfoMsg(STATUS_DEBUG, functionId + "type " + dataType + " value: " + nextArg);
+    }
+
+    /**
+     * determines the type of data in a String value.
+     * 
+     * @param strValue - the String value to check
+     * 
+     * @return the data type found
+     */
+    public static char classifyDataType (String strValue) {
+        char dataType;
+
+        if (strValue.startsWith("$I_")) {
+            dataType = 'I'; // these should always be integers (unsure if they are unsigned or not)
+        }
+        else if (strValue.startsWith("$")) {
+            dataType = 'S'; // these can be anything, but during compile we won't know runtime values
+        }
+        else if (strValue.equalsIgnoreCase("TRUE") ||
+            strValue.equalsIgnoreCase("FALSE")) {
+            dataType = 'B';
+        } else {
+            try {
+                Integer iVal = Utils.getIntValue (strValue);
+                if (iVal >= 0)
+                    dataType = 'U';
+                else
+                    dataType = 'I';
+            } catch (ParserException ex) {
+                int offset = strValue.indexOf(' ');
+                if (offset > 0) {
+                    dataType = 'L';
+                } else {
+                    dataType = 'S';
+                }
+            }
+        }
+        
+        return dataType;
     }
     
     /**
-     * returns the parameter type (I, U, B, S, L, D, F)
+     * returns the parameter type (I, U, B, S, L, R)
      * 
      * @return the parameter type
      */
@@ -177,24 +252,28 @@ public final class ParameterStruct {
     }
 
     /**
-     * converts the current parameter value to the specifed type
+     * converts the current parameter value to the specified type.
+     * This will replace 'strParam' with the reference parameter value if the
+     *  current value is a parameter reference, and will convert the 'strParam'
+     *  into Integer or Boolean value and save to 'intParam' or 'boolParam'
+     *  if the dataType param specifies it.
      * 
      * @param dataType - type of data to convert the current value to
      * 
      * @throws ParserException 
      */
     public void convertType (char dataType) throws ParserException {
-        String functionId = CLASS_NAME + ".convertType: ";
-        
         switch (Character.toUpperCase(dataType)) {
             case 'U', 'I' -> 
                 setIntegerValue(unpackIntegerValue(), dataType);
             case 'B' -> 
                 setBooleanValue(unpackBooleanValue(), dataType);
-            case 'S', 'D', 'F', 'L' ->
-                setStringValue(unpackStringValue(), dataType);
-            default ->
-                throw new ParserException(functionId + "Invalid data type: " + dataType);
+            case 'S' -> {
+                int offset = strParam.indexOf(' ');
+                if (offset > 0) {
+                    strParam = strParam.substring(0, offset);
+                }
+            }
         }
     }
     
@@ -208,16 +287,11 @@ public final class ParameterStruct {
     public String unpackStringValue () throws ParserException {
         // check for entry in params first
         String strVal = findStringParam(strParam);
-        if (strVal == null) {
-            // nope, use the actual "string"ified value
-            strVal = switch (paramType) {
-                case 'U', 'I' -> intParam.toString();
-                case 'B'      -> boolParam.toString();
-                default       -> strParam;  // default to String type
-            };
+        if (strVal != null) {
+            strParam = strVal;
         }
-        frame.outputInfoMsg(STATUS_DEBUG, "    unpacked '" + paramType + "' value: '" + strVal + "'");
-        return strVal;
+        frame.outputInfoMsg(STATUS_DEBUG, "    unpacked String from '" + paramType + "' value: '" + strParam + "'");
+        return strParam;
     }
         
     /**
@@ -228,24 +302,23 @@ public final class ParameterStruct {
      * @throws ParserException 
      */
     public Integer unpackIntegerValue () throws ParserException {
+        String functionId = CLASS_NAME + ".unpackIntegerValue: ";
+        
         // check for entry in params first
-        Integer intVal = findIntegerParam(strParam);
-        if (intVal == null) {
-            // nope, use the actual "int"ified value
-            switch (paramType) {
-                case 'U', 'I' -> // fall through...
-                    intVal  = intParam;
-                case 'B' -> intVal = (boolParam == true) ? 1 : 0;
-                default -> {
-                    // default to String type
-                    intVal = Utils.getHexValue(strParam);
-                    if (intVal == null)
-                        intVal = Utils.getIntValue(strParam);
-                }
+        Integer intVal;
+        if (paramType == 'R') {
+            intVal = findIntegerParam(strParam);
+            if (intVal == null) {
+                throw new ParserException(functionId + "Parameter Reference not found for dataType " + paramType + ": param: " + strParam);
             }
-            // fall through...
-                    }
-        frame.outputInfoMsg(STATUS_DEBUG, "    unpacked '" + paramType + "' value: " + intVal);
+        } else {
+            intVal = Utils.getHexValue(strParam);
+            if (intVal == null) {
+                intVal = Utils.getIntValue(strParam);
+            }
+        }
+        intParam = intVal;
+        frame.outputInfoMsg(STATUS_DEBUG, "    unpacked Integer from '" + paramType + "' value: " + intParam);
         return intVal;
     }
         
@@ -257,71 +330,25 @@ public final class ParameterStruct {
      * @throws ParserException 
      */
     public Boolean unpackBooleanValue () throws ParserException {
+        String functionId = CLASS_NAME + ".unpackBooleanValue: ";
+
         // check for entry in params first
         Boolean boolVal;
-        String strVal = findStringParam(strParam);
-        if (strVal != null) {
+        if (paramType == 'R') {
+            String strVal = findStringParam(strParam);
+            if (strVal == null) {
+                throw new ParserException(functionId + "Parameter Reference not found for dataType " + paramType + ": param: " + strParam);
+            }
             boolVal = Utils.getBooleanValue(strVal);
         }
         else {
-            // nope, use the actual stringified value
-            boolVal = switch (paramType) {
-                case 'U', 'I' -> intParam != 0;
-                case 'B' -> boolParam;
-                default -> Utils.getBooleanValue(strParam);
-            }; // fall through...
-            // default to String type
+            boolVal = Utils.getBooleanValue(strParam);
         }
-        frame.outputInfoMsg(STATUS_DEBUG, "    unpacked '" + paramType + "' value: " + boolVal);
+        boolParam = boolVal;
+        frame.outputInfoMsg(STATUS_DEBUG, "    unpacked Boolean from '" + paramType + "' value: " + boolParam);
         return boolVal;
     }
 
-    /**
-     * sets the current parameter to the specified String value, which may be a saved parameter.
-     * Performs and data type conversion necessary.
-     * 
-     * @param strVal   - the String value (could be a parameter reference)
-     * @param dataType - the data type the parameter should be
-     * 
-     * @throws ParserException 
-     */
-    public void setStringValue (String strVal, char dataType) throws ParserException {
-        String functionId = CLASS_NAME + ".setStringValue: ";
-        
-        intParam = null;
-        boolParam = null;
-        strParam = strVal;
-
-        // if it is a parameter, save the param name as a string and allow it
-        if (strVal.startsWith("$")) {
-            dataType = 'S';
-        } else {
-            try {
-                switch (dataType) {
-                    case 'I' -> intParam = Utils.getIntValue(strVal);
-                    case 'U' -> {
-                        intParam = Utils.getHexValue (strVal);
-                        if (intParam == null) {
-                            intParam = Utils.getIntValue(strVal);
-                            if (intParam < 0) {
-                                throw new NumberFormatException("");
-                            }
-                        }
-                    }
-                    case 'B' -> boolParam = Utils.getBooleanValue(strVal);
-                    default -> {
-                    }
-                }
-                // all string types
-                        } catch (NumberFormatException ex) {
-                throw new ParserException(functionId + "Invalid param data for dataType " + dataType + ": param: " + strVal);
-            }
-        }
-            
-        frame.outputInfoMsg(STATUS_PROGRAM, "     '" + dataType + "' param: " + strParam);
-        paramType = dataType;
-    }
-        
     /**
      * sets the current parameter to the specified Integer value.
      * Performs and data type conversion necessary.
@@ -331,27 +358,8 @@ public final class ParameterStruct {
      * 
      * @throws ParserException 
      */
-    public void setIntegerValue (Integer intVal, char dataType) throws ParserException {
-        String functionId = CLASS_NAME + ".setIntegerValue: ";
-        
-        strParam = null;
-        boolParam = null;
+    private void setIntegerValue (Integer intVal, char dataType) throws ParserException {
         intParam = intVal;
-
-        switch (dataType) {
-            case 'I' -> {
-            }
-            case 'U' -> {
-                if (intParam < 0) {
-                    throw new ParserException(functionId + "Invalid param data for dataType " + dataType + ": param: " + intVal);
-                }
-            }
-            case 'B' ->
-                boolParam = intParam != 0;
-            default -> // all string types
-                strParam = intParam.toString();
-        }
-            
         paramType = dataType;
         frame.outputInfoMsg(STATUS_PROGRAM, "     '" + paramType + "' param: " + intParam);
     }
@@ -363,21 +371,8 @@ public final class ParameterStruct {
      * @param boolVal  - the Boolean value
      * @param dataType - the data type the parameter should be
      */
-    public void setBooleanValue (Boolean boolVal, char dataType) {
-        
-        intParam = null;
-        strParam = null;
+    private void setBooleanValue (Boolean boolVal, char dataType) {
         boolParam = boolVal;
-
-        switch (dataType) {
-            case 'I', 'U' ->
-                intParam = boolVal ? 1 : 0;
-            case 'B' -> {
-            }
-            default -> // all string types
-                strParam = boolParam.toString();
-        }
-            
         paramType = dataType;
         frame.outputInfoMsg(STATUS_PROGRAM, "     '" + paramType + "' param: " + boolParam);
     }
@@ -388,25 +383,13 @@ public final class ParameterStruct {
      * @return a String indicating the parameter type and value
      */
     public String showParam () {
-        String strCommand = " [" + paramType + "]";
+        String strCommand;
         switch (paramType) {
-            case 'I', 'U' -> {
-                if (intParam == null)
-                    strCommand += " (null)";
-                else
-                    strCommand += " " + intParam.toString();
-            }
-            case 'B' -> {
-                if (boolParam == null)
-                    strCommand += " (null)";
-                else
-                    strCommand += " " + boolParam.toString();
+            case 'I', 'U', 'B' -> {
+                strCommand = " [" + paramType + "] " + strParam + "";
             }
             default -> {
-                if (strParam == null)
-                    strCommand += " (null)";
-                else
-                    strCommand += " '" + strParam + "'";
+                strCommand = " [" + paramType + "] '" + strParam + "'";
             }
         }
             
@@ -491,7 +474,7 @@ public final class ParameterStruct {
     public static void putIntegerParameter (String name, Integer value) {
         if (! intParams.containsKey(name)) {
             intParams.put(name, value);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Added Integer parameter " + name + " init to '" + value + "'");
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Added Integer parameter " + name + " init to " + value);
         } else {
             frame.outputInfoMsg(STATUS_PROGRAM, "   - Integer parameter " + name + " already defined");
         }
@@ -515,7 +498,17 @@ public final class ParameterStruct {
         return false;
     }
 
+    /**
+     * gets the LoopStruct entry corresponding to the LoopId value.
+     * 
+     * @param loopId - the loop name-index combo that uniquely defines a LoopStruct entry
+     * 
+     * @return the corresponding LoopStruct value from loopParams table
+     */
     private static LoopStruct getLoopStruct (CommandParser.LoopId loopId) {
+        if (loopParams== null || loopParams.isEmpty()) {
+            return null;
+        }
         // search for a LoopId match
         Iterator it = loopParams.entrySet().iterator();
         while (it.hasNext()) {
@@ -529,6 +522,27 @@ public final class ParameterStruct {
         return null;
     }
     
+    /**
+     * checks if the current Loop command is at the same IF level as its corresponding FOR statement.
+     * 
+     * @param command - the FOR command being run
+     * @param level  - current IF nest level for current FOR command
+     * @param loopId - the name-index ID for the current loop
+     * 
+     * @throws ParserException 
+     */    
+    public static void checkLoopIfLevel (String command, int level, CommandParser.LoopId loopId) throws ParserException {
+        String functionId = CLASS_NAME + ".setLoopEnd: ";
+        
+        LoopStruct loopInfo = getLoopStruct (loopId);
+        if (loopInfo == null) {
+            throw new ParserException(functionId + "FOR Loop " + loopId.name + " @ " + loopId.index + " not found");
+        }
+        if (! loopInfo.isLoopIfLevelValid(level)) {
+            throw new ParserException(functionId + command + "exceeded bounds of enclosing IF block: IF level = " + level);
+        }
+    }
+        
     /**
      * sets the location of the end of the loop when the ENDLOOP command is parsed
      * 
@@ -609,12 +623,11 @@ public final class ParameterStruct {
             // first loop defined, create an empty array list and add it to the list of names for this name.
             loopList = new ArrayList<>();
             loopNames.put(name, loopList);
-            frame.outputInfoMsg(STATUS_DEBUG, functionId + "First entry in loopList");
         } else {
             loopList = loopNames.get(name);
         }
-        frame.outputInfoMsg(STATUS_DEBUG, functionId + "loopList   [" + loopList.size() + "] " + loopId.name + " @ " + loopId.index);
         loopList.add(loopId);
+        frame.outputInfoMsg(STATUS_DEBUG, functionId + "Number of loops with name " + name + ": " + loopList.size());
         
         // now add loop entry to hashmap based on name/index ID
         frame.outputInfoMsg(STATUS_DEBUG, functionId + "loopParams [" + loopParams.size() + "] " + loopId.name + " @ " + loopId.index);
@@ -721,10 +734,7 @@ public final class ParameterStruct {
      * @return  true if Integer parameter
      */
     public static boolean isIntegerParam (String name) {
-        if (name.startsWith("I_")) {
-            return true;
-        }
-        return false;
+        return name.startsWith("I_");
     }
     
     //========================================================================
@@ -763,17 +773,19 @@ public final class ParameterStruct {
                 } else {
                     throw new ParserException(functionId + "Integer param not found: " + parmName);
                 }
-            }
-            if (intVal == null) {
+            } else {
                 if (strParams.containsKey(parmName)) {
                     strVal = strParams.get(parmName);
                 } else {
                     throw new ParserException(functionId + "String param not found: " + parmName);
                 }
             }
-            if (strVal != null) {
+            if (intVal == null && strVal != null) {
                 try {
-                    intVal = Integer.valueOf(strVal);
+                    intVal = Utils.getHexValue(strVal);
+                    if (intVal == null) {
+                        intVal = Integer.valueOf(strVal);
+                    }
                 } catch (NumberFormatException ex) {
                     throw new ParserException(functionId + "String value is not an Integer: " + strVal);
                 }
@@ -811,8 +823,7 @@ public final class ParameterStruct {
                 } else {
                     throw new ParserException(functionId + "Integer param not found: " + parmName);
                 }
-            }
-            if (strVal == null) {
+            } else {
                 if (strParams.containsKey(parmName)) {
                     strVal = strParams.get(parmName);
                 } else {
@@ -821,55 +832,6 @@ public final class ParameterStruct {
             }
         }        
         return strVal;
-    }
-
-    /**
-     * simple test if a directory path is valid
-     * 
-     * @param dirname - name of the directory
-     * 
-     * @return the directory File
-     * 
-     * @throws ParserException 
-     */
-    private static File checkDir (String dirname) throws ParserException {
-        String functionId = CLASS_NAME + ".checkDir: ";
-
-        if (dirname == null || dirname.isBlank()) {
-            throw new ParserException(functionId + "Path name is blank");
-        }
-        
-        File myPath = new File(dirname);
-        if (!myPath.isDirectory()) {
-            throw new ParserException(functionId + "Path not found: " + dirname);
-        }
-        frame.outputInfoMsg(UIFrame.STATUS_PROGRAM, "  Path param valid: " + dirname);
-        return myPath;
-    }
-
-    /**
-     * simple test if a file name is valid
-     * 
-     * @param fname - name of the file (referenced from base path)
-     * 
-     * @return the File
-     * 
-     * @throws ParserException 
-     */
-    private static File checkFilename (String fname) throws ParserException {
-        String functionId = CLASS_NAME + ".checkFilename: ";
-        
-        if (fname == null || fname.isBlank()) {
-            throw new ParserException(functionId + "Invalid filename is blank");
-        }
-        
-        fname = Utils.getTestPath() + "/" + fname;
-        File myFile = new File(fname);
-        if (!myFile.canRead()) {
-            throw new ParserException(functionId + "Invalid file - no read access: " + fname);
-        }
-        frame.outputInfoMsg(UIFrame.STATUS_PROGRAM, "  File exists & is readable: " + fname);
-        return myFile;
     }
 
     /**
