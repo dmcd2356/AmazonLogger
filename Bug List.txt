@@ -3,11 +3,11 @@ TODO:
     current entry item before copying the data.
 - After spreadsheet is loaded, show the last (most recent entry) in Dan and Connie tab to make it
     easier to find the next page to load without having to look at the spreadsheet directly.
-- Find a way to eliminate the need to rerun the AmazonReader for each command. Be able to pass a series
-    of commands into the AmazonReader at one time so it runs much quicker.
-- (LOW) Determine why running -RGB followed by -cellput options on a command line does not update the text
-    (but gives no error) and reversing the order by running -cellput followed by -RGB updates both
-    color and text.
+- Fix the issue of removing the OCR capability in the Tika jar for reading the PDF file. This
+    is causing the processing to slow down.
+- Add an option command to read a line from the PDF file and from the Clipboard.
+- Add the following capabilities to ScriptParser: Use of TABLEs, ability to execute an equation
+    (i.e. run the following as a command: PARAM1 = $PARAM2 + 3 * 200)
 
 TESTING:
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with
