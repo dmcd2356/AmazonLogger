@@ -1,3 +1,7 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
@@ -454,6 +458,71 @@ public class Utils {
             pathname = System.getProperty("user.dir");
         }
         return pathname;
+    }
+
+    /**
+     * test if a directory path is valid
+     * 
+     * @param dirname - name of the directory
+     * 
+     * @return the directory File
+     * 
+     * @throws ParserException 
+     */
+    public static File checkDir (String dirname) throws ParserException {
+        String functionId = CLASS_NAME + ".checkDir: ";
+
+        if (dirname == null || dirname.isBlank()) {
+            throw new ParserException(functionId + "Path name is blank");
+        }
+        
+        File myPath = new File(dirname);
+        if (!myPath.isDirectory()) {
+            throw new ParserException(functionId + "Path not found: " + dirname);
+        }
+        frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  Path param valid: " + dirname);
+        return myPath;
+    }
+
+    /**
+     * test if a file name is valid
+     * 
+     * @param fname     - name of the file (referenced from base path)
+     * @param type      - the file extension allowed (null of blank if don't check)
+     * @param filetype  - name of file type (only used for debug msgs & can be null)
+     * @param bWritable - true if check if file is writable (else only check if readable)
+     * 
+     * @return the File
+     * 
+     * @throws ParserException 
+     */
+    public static File checkFilename (String fname, String type, String filetype, boolean bWritable) throws ParserException {
+        String functionId = CLASS_NAME + ".checkFilename: ";
+        
+        if (filetype == null) {
+            filetype = "";
+        }
+        if (type != null && !type.isBlank() && !fname.endsWith(type)) {
+            throw new ParserException(functionId + "Invalid " + filetype + " filename: " + fname);
+        }
+        if (fname == null || fname.isBlank()) {
+            throw new ParserException(functionId + "Invalid " + filetype + " filename is blank");
+        }
+        
+        fname = Utils.getTestPath() + "/" + fname;
+        File myFile = new File(fname);
+        if (!myFile.canRead()) {
+            throw new ParserException(functionId + "Invalid " + filetype + " file - no read access: " + fname);
+        }
+        if (bWritable && !myFile.canWrite()) {
+            throw new ParserException(functionId + "Invalid " + filetype + " file - no write access: " + fname);
+        }
+        if (bWritable) {
+            frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  File exists & is readable and writable: " + fname);
+        } else {
+            frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  File exists & is readable: " + fname);
+        }
+        return myFile;
     }
 
     /**

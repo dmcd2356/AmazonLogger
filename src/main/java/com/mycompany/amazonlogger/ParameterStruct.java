@@ -1,9 +1,12 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -41,8 +44,8 @@ public final class ParameterStruct {
     // for each one. When compiling, we simply proceed through the instructions
     // sequentially, so if all current uses of the FOR parameter indicate they
     // are complete (i.e. ENDFOR has been found), we are safe to reuse the loop name.
-    private static final HashMap<CommandParser.LoopId, LoopStruct> loopParams = new HashMap<>();
-    private static final HashMap<String, ArrayList<CommandParser.LoopId>> loopNames = new HashMap<>();
+    private static final HashMap<ScriptParser.LoopId, LoopStruct> loopParams = new HashMap<>();
+    private static final HashMap<String, ArrayList<ScriptParser.LoopId>> loopNames = new HashMap<>();
 
     /**
      * Creates a parameter and determines the data type.
@@ -505,7 +508,7 @@ public final class ParameterStruct {
      * 
      * @return the corresponding LoopStruct value from loopParams table
      */
-    private static LoopStruct getLoopStruct (CommandParser.LoopId loopId) {
+    private static LoopStruct getLoopStruct (ScriptParser.LoopId loopId) {
         if (loopParams== null || loopParams.isEmpty()) {
             return null;
         }
@@ -513,7 +516,7 @@ public final class ParameterStruct {
         Iterator it = loopParams.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry pair = (Map.Entry)it.next();
-            CommandParser.LoopId mapId = (CommandParser.LoopId) pair.getKey();
+            ScriptParser.LoopId mapId = (ScriptParser.LoopId) pair.getKey();
             LoopStruct mapInfo = (LoopStruct) pair.getValue();
             if (loopId.name.contentEquals(mapId.name) && loopId.index == mapId.index) {
                 return mapInfo;
@@ -531,7 +534,7 @@ public final class ParameterStruct {
      * 
      * @throws ParserException 
      */    
-    public static void checkLoopIfLevel (String command, int level, CommandParser.LoopId loopId) throws ParserException {
+    public static void checkLoopIfLevel (String command, int level, ScriptParser.LoopId loopId) throws ParserException {
         String functionId = CLASS_NAME + ".setLoopEnd: ";
         
         LoopStruct loopInfo = getLoopStruct (loopId);
@@ -551,7 +554,7 @@ public final class ParameterStruct {
      * 
      * @throws ParserException 
      */    
-    public static void setLoopEndIndex (int index, CommandParser.LoopId loopId) throws ParserException {
+    public static void setLoopEndIndex (int index, ScriptParser.LoopId loopId) throws ParserException {
         String functionId = CLASS_NAME + ".setLoopEnd: ";
         
         LoopStruct loopInfo = getLoopStruct (loopId);
@@ -575,7 +578,7 @@ public final class ParameterStruct {
      * 
      * @throws ParserException
      */
-    public static int getLoopNextIndex (String command, int index, CommandParser.LoopId loopId) throws ParserException {
+    public static int getLoopNextIndex (String command, int index, ScriptParser.LoopId loopId) throws ParserException {
         String functionId = CLASS_NAME + ".getLoopNextIndex: ";
         
         int nextIndex = index;
@@ -585,22 +588,29 @@ public final class ParameterStruct {
             throw new ParserException(functionId + "FOR Loop " + loopId.name + " @ " + loopId.index + " not found");
         }
         
+        String action = "";
         switch (command) {
             case "FOR":
                 nextIndex = loopInfo.startLoop(index);
+                action = "starting";
                 break;
             case "BREAK":
                 nextIndex = loopInfo.loopBreak();
+                action = "exiting";
                 break;
             case "NEXT":
             case "CONTINUE":
                 nextIndex = loopInfo.loopNext();
+                if (nextIndex < index)
+                    action = "restarting";
+                else
+                    action = "exiting";
                 break;
             default:
                 break;
         }
         
-        frame.outputInfoMsg(STATUS_PROGRAM, command + " command restarting at index: " + nextIndex);
+        frame.outputInfoMsg(STATUS_PROGRAM, command + " command " + action + " at index: " + nextIndex);
         return nextIndex;
     }
 
@@ -613,12 +623,12 @@ public final class ParameterStruct {
      * @param loopId   - loop name-index combination to uniquely identify the loop param
      * @param loopInfo - the loop parameter to add
      */
-    public static void saveLoopParameter (String name, CommandParser.LoopId loopId, LoopStruct loopInfo) {
+    public static void saveLoopParameter (String name, ScriptParser.LoopId loopId, LoopStruct loopInfo) {
         String functionId = CLASS_NAME + ".saveLoopParameter: ";
         
         // create a new loop ID (name + command index) for the entry and add it
         // to the list of IDs for the loop parameter name
-        ArrayList<CommandParser.LoopId> loopList;
+        ArrayList<ScriptParser.LoopId> loopList;
         if (loopNames.isEmpty()) {
             // first loop defined, create an empty array list and add it to the list of names for this name.
             loopList = new ArrayList<>();
@@ -655,12 +665,19 @@ public final class ParameterStruct {
         if (name.contentEquals("RESULT")) {
             throw new ParserException(": using Reserved parameter name: " + name);
         }
+        if (ScriptParser.isValidCommand(name)) {
+            throw new ParserException(": using Reserved command name: " + name);
+        }
         for (int ix = 0; ix < name.length(); ix++) {
             if (  (name.charAt(ix) != '_' && name.charAt(ix) != '-') &&
                  ! Character.isLetter(name.charAt(ix)) &&
                  ! Character.isDigit(name.charAt(ix)) ) {
                 throw new ParserException(": invalid character '" + name.charAt(ix) + "' in parameter name: " + name);
             }
+        }
+        if (! Character.isLetter(name.charAt(0))) {
+            // 1st character must be a letter
+            throw new ParserException(": invalid first character (must be A-Z or a-z) in parameter name: " + name);
         }
         if (loopNames.containsKey(name)) {
             throw new ParserException(": using Loop parameter name: " + name);
@@ -708,12 +725,12 @@ public final class ParameterStruct {
         
         // now check if this loop name is nested in a loop having same name
         // get the list of loops using this parameter name (if any)
-        ArrayList<CommandParser.LoopId> loopList = loopNames.get(name);
+        ArrayList<ScriptParser.LoopId> loopList = loopNames.get(name);
         if (loopList != null && ! loopList.isEmpty()) {
             // we have one or more uses of the same name, check if this is nested in one
             frame.outputInfoMsg(STATUS_PROGRAM, "   - checking previous uses of FOR Loop parameter " + name + " to see if we have a nesting problem");
             for (int ix = 0; ix < loopList.size(); ix++) {
-                CommandParser.LoopId loopEntry = loopList.get(ix);
+                ScriptParser.LoopId loopEntry = loopList.get(ix);
                 LoopStruct loopInfo = getLoopStruct (loopEntry);
                 if (loopInfo == null || ! loopInfo.isLoopComplete()) {
                     throw new ParserException(": Loop param " + name + " @ " + index + " is nested in same name at " + loopEntry.index);

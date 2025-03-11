@@ -1,0 +1,528 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
+package com.mycompany.amazonlogger;
+
+import static com.mycompany.amazonlogger.AmazonReader.frame;
+import static com.mycompany.amazonlogger.AmazonReader.props;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import java.io.File;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import org.apache.tika.exception.TikaException;
+import org.xml.sax.SAXException;
+
+/**
+ *
+ * @author dan
+ */
+public class CmdOptions {
+    
+    private static final String CLASS_NAME = "CmdOptions";
+    
+    // List of all the command line options and the argument types each takes
+    // S = String, L = list, U = unsigned int, I = Int, B = boolean
+    //   (lowercase if optional, but must be at end of list)
+    private final OptionList [] OptionTable = {
+        new OptionList ("-h"        , ""),
+        new OptionList ("-d"        , "U"),
+        new OptionList ("-s"        , "S"),
+        new OptionList ("-l"        , "UB"),
+        new OptionList ("-t"        , "U"),
+        new OptionList ("-c"        , "S"),
+        new OptionList ("-u"        , ""),
+        new OptionList ("-p"        , "S"),
+        new OptionList ("-o"        , "s"),
+        new OptionList ("-save"     , ""),
+
+        new OptionList ("-date"     , "L"),
+        new OptionList ("-datep"    , "L"),
+        new OptionList ("-default"  , "UB"),
+        new OptionList ("-maxcol"   , ""),
+        new OptionList ("-maxrow"   , ""),
+        new OptionList ("-setsize"  , "UU"),
+        new OptionList ("-find"     , "S"),
+        new OptionList ("-class"    , "UU"),
+        new OptionList ("-color"    , "UUU"),
+        new OptionList ("-RGB"      , "UUU"),
+        new OptionList ("-HSB"      , "UUU"),
+        new OptionList ("-cellget"  , "UU"),
+        new OptionList ("-cellclr"  , "UU"),
+        new OptionList ("-cellput"  , "UUL"),
+    };
+    
+    private class OptionList {
+        String  optName;        // the option name
+        String  argTypes;       // argument types list
+        
+        OptionList (String opt, String args) {
+            optName  = opt;
+            argTypes = args;
+        }
+    }
+
+    public void runCommandLine (String [] args) throws ParserException, IOException, SAXException, TikaException {
+        // check for help message request
+        if (args[0].contentEquals("-h")) {
+            helpMessage();
+            return;
+        }
+        
+        // read the command line and separate into individual option commands, in case there
+        //  were more than one on the command line
+        ArrayList<String> optArgs = new ArrayList<>(Arrays.asList(args));
+                
+        ArrayList<CommandStruct> commandList = formatCmdOptions (optArgs);
+        ArrayList<String> response = new ArrayList<>();
+        for (int ix = 0; ! commandList.isEmpty(); ix++) {
+            // get each command option line and convert to an ArrayList (command followed by args)
+            CommandStruct cmdLine = commandList.removeFirst();
+
+            // execute the next command option
+            String rsp = executeCmdOption (cmdLine);
+            if (rsp != null) {
+                if (rsp.isEmpty())
+                    rsp = "---";
+                response.add(rsp);
+            }
+        }
+        if (response.isEmpty()) {
+            System.out.println("<OK>");
+        } else {
+            System.out.println("<" + String.join(",", response) + ">");
+        }
+    }
+    
+    public void runCmdOption (String command, ArrayList<ParameterStruct> params) throws ParserException, IOException, SAXException, TikaException {
+        String functionId = CLASS_NAME + ".runCmdOption: ";
+        
+        // convert the list of Strings into a struct of a command and list of args
+        CommandStruct cmdOption = new CommandStruct (command);
+        OptionList optInfo = null;
+        for (OptionList tblEntry : OptionTable) {
+            if (tblEntry.optName.contentEquals(command)) {
+                optInfo = tblEntry;
+                break;
+            }
+        }
+        if (optInfo == null) {
+            throw new ParserException(functionId + "option is not valid: " + command);
+        }
+        String argTypes = optInfo.argTypes;
+
+        // vewrify integrity of params
+        int paramCnt = argTypes.length();
+        if (params == null || (params.isEmpty() && paramCnt > 0)) {
+            throw new ParserException(functionId + "Null or empty param list");
+        }
+        if (paramCnt < 0 || paramCnt > params.size()) {
+            throw new ParserException(functionId + "Missing parameters in list: required " + paramCnt + ", only found " + params.size());
+        }
+        
+        // do any parameter conversions of the parameters passed and add
+        // the converted values to the command struct.
+        for (int ix = 0; ix < argTypes.length(); ix++) {
+            ParameterStruct argToPass = params.get(ix);
+            argToPass.convertType(argTypes.charAt(ix));
+            cmdOption.params.add(argToPass);
+        }
+                
+        // now run the command line option command and save any response msg
+        String rsp = executeCmdOption (cmdOption);
+        if (rsp != null) {
+            ParameterStruct.putResponseValue(rsp);
+        }
+    }
+    
+    /**
+     * creates a list of CommandStruct entries from the command line options.
+     * Does some verification of the command line and splits it into multiple
+     * lines if more than 1 option command is present on the line.
+     * 
+     * NOTE: that these are 'option' commands only, not the program commands
+     * that can direct program flow and assign parameter values.
+     * 
+     * @param argList - the command line arguments expressed as a list of Strings
+     * 
+     * @return a list of 1 or more CommandStruct entries of commands to execute
+     * 
+     * @throws ParserException 
+     */
+    public ArrayList<CommandStruct> formatCmdOptions (ArrayList<String> argList) throws ParserException {
+        String functionId = CLASS_NAME + ".formatCmdOptions: ";
+
+        if (argList == null || argList.isEmpty()) {
+            throw new ParserException(functionId + "Null command line");
+        }
+
+        ArrayList<CommandStruct> commands = new ArrayList<>(); // array of command lines extracted
+        frame.outputInfoMsg(STATUS_PROGRAM, "  splitting command option: " + String.join(" ", argList));
+        
+        // 1st entry is option, which may have additional args. let's see how many
+        String cmdArg = argList.removeFirst();
+        CommandStruct newCommand = new CommandStruct(cmdArg);
+        OptionList optInfo = null;
+        for (OptionList tblEntry : OptionTable) {
+            if (tblEntry.optName.contentEquals(cmdArg)) {
+                optInfo = tblEntry;
+                break;
+            }
+        }
+        if (optInfo == null) {
+            throw new ParserException(functionId + "option is not valid: " + cmdArg);
+        }
+        if (optInfo.argTypes.isEmpty()) {
+            frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (no args)");
+        } else {
+            frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
+        }
+        int minArgs = 0;
+        int maxArgs = (optInfo.argTypes == null || optInfo.argTypes.isEmpty()) ? 0 : optInfo.argTypes.length();
+        for (int off = 0; off < maxArgs; off++) {
+            // uppercase letters are required, which will indicate the min mumber
+            if (optInfo.argTypes.charAt(off) >= 'A' && optInfo.argTypes.charAt(off) <= 'Z') {
+                minArgs++;
+            }
+        }
+        
+        // remove entries 1 at a time starting with the command option and then
+        //  adding each of its args to 'newCommand' until either another command option is found
+        //  or the max number of args has been read. check for too few or too many args were
+        //  found for the option.
+        // Then, place this complete command into the array of commands in 'command'.
+        int parmCnt = 0;
+        for (int ix = 0; ! argList.isEmpty(); ix++) {
+            // get next entry, whic can be either and arg for current option or a new option
+            String nextArg = argList.removeFirst();
+            OptionList newInfo = null;
+            for (OptionList tblEntry : OptionTable) {
+                if (tblEntry.optName.contentEquals(nextArg)) {
+                    newInfo = tblEntry;
+                    break;
+                }
+            }
+            if (newInfo != null && parmCnt >= minArgs) {
+                // new command option
+                cmdArg = nextArg;
+                // add current command string to list of commands
+                commands.add(newCommand);
+                // restart the new command list with the new option
+                newCommand = new CommandStruct(cmdArg);
+                // update the option parameter list info
+                parmCnt = 0;
+                optInfo = newInfo;
+                minArgs = 0;
+                maxArgs = (optInfo.argTypes == null || optInfo.argTypes.isEmpty()) ? 0 : optInfo.argTypes.length();
+                for (int off = 0; off < maxArgs; off++) {
+                    // uppercase letters are required, which will indicate the min mumber
+                    if (optInfo.argTypes.charAt(off) >= 'A' && optInfo.argTypes.charAt(off) <= 'Z') {
+                        minArgs++;
+                    }
+                }
+                if (optInfo.argTypes.isEmpty()) {
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (no args)");
+                } else {
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
+                }
+            } else {
+                // assume it is a parameter - verify the option takes another parameter
+                if (maxArgs == 0) {
+                    throw new ParserException(functionId + "Invalid entry: option " + newCommand.command
+                                        + " has no params and " + nextArg + " is not a valid option");
+                }
+                int pix = (parmCnt < maxArgs) ? parmCnt : maxArgs - 1;
+                char parmType = Character.toUpperCase(optInfo.argTypes.charAt(pix));
+                if (parmCnt >= maxArgs && parmType != 'L') {
+                    throw new ParserException(functionId + "Too many args for option " + newCommand.command
+                                        + ": " + (parmCnt+1) + ", arglist = " + optInfo.argTypes);
+                }
+
+                // verify and format arg values
+                ParameterStruct parmData = new ParameterStruct(nextArg, parmType);
+                newCommand.params.add(parmData);
+                parmCnt += 1;
+            }
+        }
+            
+        // add the remaining entry to the list of commands
+        commands.add(newCommand);
+        frame.outputInfoMsg(STATUS_PROGRAM, commands.size() + " options found");
+        return commands;
+    }
+    
+    /**
+     * executes the command line option specified
+     * 
+     * @param cmdLine - the option command to execute
+     * 
+     * @return a response String if the command was a query type, else null
+     * 
+     * @throws ParserException
+     * @throws IOException
+     * @throws SAXException
+     * @throws TikaException 
+     */
+    private String executeCmdOption (CommandStruct cmdLine) throws ParserException, IOException, SAXException, TikaException {
+        String functionId = CLASS_NAME + ".executeCmdOption: ";
+        String response = null;
+        String filetype;
+        String fname;
+        String option = cmdLine.command;
+        ArrayList<ParameterStruct> params = cmdLine.params;
+        frame.outputInfoMsg(STATUS_PROGRAM, "  Executing: " + cmdLine.showCommand());
+
+        // the rest will be the parameters associated with the option (if any) plus any additional options
+        try {
+            switch (option) {
+                case "-d":
+                    frame.setMessageFlags(params.get(0).getIntegerValue());
+                    break;
+                case "-s":
+                    filetype = "Spreadsheet";
+                    fname = params.get(0).getStringValue();
+                    File ssheetFile = Utils.checkFilename (fname, ".ods", filetype, true);
+                    Spreadsheet.selectSpreadsheet(ssheetFile);
+                    break;
+                case "-l":
+                    Integer numTabs = params.get(0).getIntegerValue();
+                    boolean bCheckHeader = params.get(1).getBooleanValue();
+                    if (numTabs <= 0) {
+                        throw new ParserException(functionId + "Invalid number of tabs to load: " + numTabs);
+                    }
+                    Spreadsheet.loadSheets(numTabs, bCheckHeader);
+                    break;
+                case "-t":
+                    Integer tab = params.get(0).getIntegerValue();
+                    Spreadsheet.selectSpreadsheetTab (tab.toString());
+                    break;
+                case "-c":
+                    filetype = "Clipboard";
+                    fname = params.get(0).getStringValue();
+                    File fClip = Utils.checkFilename (fname, ".txt", filetype, false);
+                    frame.outputInfoMsg(STATUS_DEBUG, "  " + filetype + " file: " + fClip.getAbsolutePath());
+                    AmazonParser amazonParser = new AmazonParser(fClip);
+                    amazonParser.parseWebData();
+                    break;
+                case "-u":
+                    frame.outputInfoMsg(STATUS_DEBUG, "  Updating spreadsheet from clipboards");
+                    AmazonParser.updateSpreadsheet();
+                    break;
+                case "-p":
+                    filetype = "PDF";
+                    fname = params.get(0).getStringValue();
+                    File pdfFile = Utils.checkFilename (fname, ".pdf", filetype, false);
+                    frame.outputInfoMsg(STATUS_DEBUG, "  filetype + \" file: \" + pdfFile.getAbsolutePath()");
+                    PdfReader pdfReader = new PdfReader();
+                    pdfReader.readPdfContents(pdfFile);
+                    break;
+                case "-o":
+                    if (params.isEmpty()) {
+                        frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to stdout");
+                        frame.setTestOutputFile(null);
+                    } else {
+                        fname = params.get(0).getStringValue();
+                        fname = Utils.getTestPath() + "/" + fname;
+                    frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to file: " + fname);
+                        frame.setTestOutputFile(fname);
+                    }
+                    break;
+                case "-save":
+                    // save the spreadsheet and reload so another spreadsheet change can be made
+                    Spreadsheet.saveSpreadsheetFile();
+                    break;
+                case "-date":
+                    String strDate = params.get(0).getStringValue();
+                    LocalDate date = DateFormat.getFormattedDate (strDate, false);
+                    String convDate = DateFormat.convertDateToString(date, true);
+                    if (convDate == null) {
+                        throw new ParserException(functionId + "Invalid date conversion");
+                    }
+                    response = convDate;
+                    break;
+                case "-datep":
+                    strDate = params.get(0).getStringValue();
+                    date = DateFormat.getFormattedDate (strDate, true);
+                    convDate = DateFormat.convertDateToString(date, true);
+                    if (convDate == null) {
+                        throw new ParserException(functionId + "Invalid date conversion");
+                    }
+                    response = convDate;
+                    break;
+                case "-default":
+                    numTabs = params.get(0).getIntegerValue();
+                    bCheckHeader = params.get(1).getBooleanValue();
+                    if (numTabs <= 0) {
+                        throw new ParserException(functionId + "Invalid number of tabs to load: " + numTabs);
+                    }
+                    String ssPath = Utils.getPathFromPropertiesFile(PropertiesFile.Property.SpreadsheetPath);
+                    String ssFname = props.getPropertiesItem(PropertiesFile.Property.SpreadsheetFile, "");
+                    if (ssPath != null && ssFname != null) {
+                        File ssFile = new File(ssPath + "/" + ssFname);
+                        Spreadsheet.selectSpreadsheet(ssFile);
+                        Spreadsheet.loadSheets(numTabs, bCheckHeader);
+                    }
+                    String strTab = props.getPropertiesItem(PropertiesFile.Property.SpreadsheetTab, "0");
+                    Spreadsheet.selectSpreadsheetTab (strTab);
+                    break;
+                case "-maxcol":
+                    Integer iCol = Spreadsheet.getSpreadsheetColSize ();
+                    response = "" + iCol;
+                    break;
+                case "-maxrow":
+                    Integer iRow = Spreadsheet.getSpreadsheetRowSize ();
+                    response = "" + iRow;
+                    break;
+                case "-setsize":
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    if (iCol == null || iRow == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    Spreadsheet.setSpreadsheetSize (iCol, iRow);
+                    break;
+                case "-find":
+                    String order = params.get(0).getStringValue();
+                    iRow = Spreadsheet.findItemNumber(order);
+                    response = "" + iRow;
+                    break;
+                case "-class":
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    if (iCol == null || iRow == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    String strValue = Spreadsheet.getSpreadsheetCellClass(iCol, iRow);
+                    response = strValue;
+                    break;
+                case "-color":
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    Integer iColor = params.get(2).getIntegerValue();
+                    if (iCol == null || iRow == null || iColor == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", color = " + iColor);
+                    }
+                    Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColorOfTheMonth(iColor));
+                    break;
+                case "-RGB":
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    Integer iRGB = params.get(2).getIntegerValue();
+                    if (iCol == null || iRow == null || iRGB == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", RGB = " + iRGB);
+                    }
+                    Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("RGB", iRGB));
+                    break;
+                case "-HSB":
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    Integer iHSB = params.get(2).getIntegerValue();
+                    if (iCol == null || iRow == null || iHSB == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", HSB = " + iHSB);
+                    }
+                    Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("HSB", iHSB));
+                    break;
+                case "-cellget":
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    if (iCol == null || iRow == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    String cellValue = Spreadsheet.getSpreadsheetCell(iCol, iRow);
+                    response = cellValue;
+                    break;
+                case "-cellclr":
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    if (iCol == null || iRow == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    cellValue = Spreadsheet.putSpreadsheetCell(iCol, iRow, null);
+                    response = cellValue;
+                    break;
+                case "-cellput":
+                    iCol = params.get(0).getIntegerValue();
+                    iRow = params.get(1).getIntegerValue();
+                    String strText = params.get(2).getStringValue();
+                    if (iCol == null || iRow == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    cellValue = Spreadsheet.putSpreadsheetCell(iCol, iRow, strText);
+                    response = cellValue;
+                    break;
+                default:
+                    throw new ParserException(functionId + "Invalid option: " + option);
+            }
+        } catch (IndexOutOfBoundsException ex) {
+            throw new ParserException(functionId + "Index entry exceeded max of "
+                                    + (params.size()-1) + " for option " + option + "\n" + ex);
+        }
+        
+        return response;
+    }
+
+    private static void helpMessage() {
+        System.out.println(" -h         = to print this message");
+        System.out.println(" -f <file>  = to execute commands from a script file (*.scr)");
+        System.out.println(" -s <file>  = the name of the spreadsheet file to modify (*.ods)");
+        System.out.println(" -l <tabs> <0|1> = the number of tabs to load from the spreadsheet");
+        System.out.println("              0 if don't check for header, 1 if normal header check");
+        System.out.println(" -t <tab>   = the name (or number) of the tab selection in the spreadsheet");
+        System.out.println(" -p <file>  = the name of the PDF file to execute (*.pdf)");
+        System.out.println(" -c <file>  = the name of the clipboard file to load (*.txt)");
+        System.out.println(" -u         = execute the update of the clipboards loaded");
+        System.out.println(" -save      = save current data to spreadsheet file and reload");
+        System.out.println(" -o <file>  = the name of the file to output results to (default: use stdout)");
+        System.out.println(" -d <flags> = the debug messages to enable when running");
+        System.out.println("");
+        System.out.println("     The debug flag values are hex bit values and defined as:");
+        System.out.println("     x01 =   1 = STATUS_NORMAL");
+        System.out.println("     x02 =   2 = STATUS_PARSER");
+        System.out.println("     x04 =   4 = STATUS_SPREADSHEET");
+        System.out.println("     x08 =   8 = STATUS_INFO");
+        System.out.println("     x10 =  16 = STATUS_PROPS");
+        System.out.println("     x20 =  32 = STATUS_PROGRAM");
+        System.out.println("     x80 = 128 = STATUS_DEBUG");
+        System.out.println("     e.g. -d xFF will enable all msgs");
+        System.out.println();
+        System.out.println("The following commands test special features:");
+        System.out.println();
+        System.out.println(" -date  <date value>  = display the date converted to YYYY-MM-DD format (assume future)");
+        System.out.println(" -datep <date value>  = display the date converted to YYYY-MM-DD format (assume past)");
+        System.out.println(" -default <0|1>       = load the last spreadsheet and tab selection");
+        System.out.println("                        0 if don't check for header, 1 if normal header check");
+        System.out.println(" -maxcol              = display the number of columns in the spreadsheet");
+        System.out.println(" -maxrow              = display the number of rows    in the spreadsheet");
+        System.out.println(" -setsize <col> <row> = set the col and row size of the loaded spreadsheet");
+        System.out.println(" -find    <order #>   = display the spreadsheet 1st row containing order#");
+        System.out.println(" -class   <col> <row> = display the spreadsheet cell class type");
+        System.out.println(" -cellget <col> <row> = display the spreadsheet cell data");
+        System.out.println(" -cellclr <col> <row> = clear the spreadsheet cell data");
+        System.out.println(" -cellput <col> <row> <text> = write the spreadsheet cell data");
+        System.out.println("          (if more than 1 word, must wrap in quotes)");
+        System.out.println(" -color   <col> <row> <color> = set cell background to color of the month (0 to clear)");
+        System.out.println(" -RGB     <col> <row> <RGB> = set cell background to specified RGB hexadecimal color");
+        System.out.println(" -HSB     <col> <row> <HSB> = set cell background to specified HSB hexadecimal color");
+        System.out.println();
+        System.out.println(" The -s option is required, since it specifies the spreadsheet to work with.");
+        System.out.println("");
+        System.out.println(" The -p and the -c options are optional and specify the input files to parse.");
+        System.out.println("   Multiple Clipboard files can be specified to run back to back.");
+        System.out.println("   If neither is specified, it will simply open the Spreadsheet file and close it.");
+        System.out.println("");
+        System.out.println(" The -o option is optional. If not given, it will be output to the file specified");
+        System.out.println("   by the 'TestFileOut' entry in the site.properties file.");
+        System.out.println("   If the properties file doesn't exist or 'TestFileOut' is not defined in it or");
+        System.out.println("   the -o option omitted a <file> entry, all reporting will be output to stdout.");
+        System.out.println("   If outputting to a file and the file currently exists, it will be overwritten.");
+        System.out.println("");
+        System.out.println(" The path used for the all files is the value of the 'TestPath' entry in the");
+        System.out.println("   site.properties file. If the properties file doesn't exist or 'TestPath'");
+        System.out.println("   is not defined in it, the current directory will be used as the path.");
+        System.out.println();
+    }
+
+}

@@ -1,3 +1,7 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
@@ -9,7 +13,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Scanner;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -26,16 +29,6 @@ import org.xml.sax.SAXException;
  */
 public class PdfReader {
     
-    // This directory is at the same level as the execution directory.
-    // This is the base dir of the credit card files.
-    // NOTE: There should be a series of YYYY year directories under this that
-    //  represent each year.
-    public static final String CC_BASE_DIR = "Credit_card_statements";
-    
-    // This is the directory under CC_BASE_DIR/YYYY where the PDF files reside
-    //  that contain the Amazon credits & charges. There is a separate file for each month.
-    public static final String CC_RECORD_DIR = "Chase_VISA_3996";
-    
     private static File pdfFile = null;
     
     // this class is the information that is extracted from the charge card PDF file for
@@ -49,7 +42,6 @@ public class PdfReader {
     }
 
     public PdfReader () {
-        
     }
     
     /**
@@ -77,32 +69,8 @@ public class PdfReader {
             // if so, let's start the file selection process from there
             String pdfPath = Utils.getPathFromPropertiesFile(Property.PdfPath);
             if (pdfPath == null) {
-                // else, get the base directory of the credit card files (it's at same dir level as current dir)
+                // else, use the dir path application is being run from
                 pdfPath = System.getProperty("user.dir");
-                int offset = pdfPath.lastIndexOf('/');
-                if (offset > 0) {
-                    String pdfPathName = pdfPath.substring(0, offset) + "/" + CC_BASE_DIR;
-                    File tempDir = new File(pdfPathName);
-                    if (tempDir.exists() && tempDir.isDirectory()) {
-                        pdfPath = pdfPathName;
-                    }
-                }
-
-                // now find the latest year directory under this path advance to it
-                String strYear = getLatestYearDir(pdfPath);
-                if (strYear.isEmpty()) {
-                    frame.outputInfoMsg(UIFrame.STATUS_WARN, "PdfReader.readPdfContents: No year directory found in: " + pdfPath);
-                } else {
-                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "Latest directory year: " + strYear);
-                    pdfPath += '/' + strYear;
-                    // now check to make sure the specific credit card directory is located here
-                    // and has files under it
-                    String tempPath = pdfPath + '/' + CC_RECORD_DIR;
-                    File tempDir = new File(tempPath);
-                    if (tempDir.exists() && tempDir.isDirectory() && tempDir.listFiles() != null) {
-                        pdfPath = tempPath;
-                    }
-                }
             }
 
             // select the PDF file to read from
@@ -305,35 +273,16 @@ public class PdfReader {
         }
     }
 
-    /*********************************************************************
-    ** returns the most recent 'year' directory.
-    * 
-    *  @param path - the path to look for directories
-    * 
-    *  @return the directory name that has the form "20XX" that is the highest
-    *          numeric value from 2020 to 2030
-    */
-    public static String getLatestYearDir (String path) {
-        File f = new File(path);
-        ArrayList<String> aDirList = new ArrayList<>(Arrays.asList(f.list()));
-        String strYear = "";
-        int maxyear = 0;
-        for (int ix = 0; ix < aDirList.size(); ix++) {
-            int year = Utils.getIntegerValue (aDirList.get(ix), 4);
-            if (year > maxyear && year >= 2020 && year <= 2030) {
-                // check if this is a valid directory with files in it
-                String tempPath = path + "/" + strYear;
-                File tempDir = new File(tempPath);
-                if (tempDir.exists() && tempDir.isDirectory() && tempDir.listFiles() != null) {
-                    maxyear = year;
-                    strYear = String.valueOf(year);
-                }
-            }
-        }
-        
-        return strYear;
-    }
-
+    /**
+     * checks for uncompleted card transactions in the list.
+     * 
+     * @param sheetName - name of the spreadsheet tab
+     * @param transactionList - list of transactions found in the pdf file
+     * 
+     * @return list of transactions that have not been marked as completed
+     * 
+     * @throws ParserException 
+     */
     private ArrayList<CardTransaction> checkForNewEntries (String sheetName,
                                                            ArrayList<CardTransaction> transactionList) throws ParserException {
         // select the user tab

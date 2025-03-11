@@ -1,3 +1,7 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
@@ -88,12 +92,6 @@ public class ParseDetails {
                 
                 switch (keywordInfo.eKeyId) {
                     case Keyword.KeyTyp.ORDER_PLACED:
-                        // if an entry is already in process, it must have been completed, so add completed order to list
-//                        if (newOrder.isOrderDefined()) {
-//                            amazonList.add(newOrder);
-//                            frame.outputInfoMsg (UIFrame.STATUS_DEBUG, "* Added new ORDER entry to AMAZON LIST");
-//                        }
-
                         // this contains the date of the order, followed immediatly on the same line with the 'Order#'.
                         String search = "Order# ";
                         int offset = line.indexOf(search);

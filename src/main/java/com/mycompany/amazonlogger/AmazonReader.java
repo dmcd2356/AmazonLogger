@@ -1,3 +1,7 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 package com.mycompany.amazonlogger;
 
 // Importing java input/output classes
@@ -28,8 +32,13 @@ public class AmazonReader {
          
             // run the command line arguments
             try {
-                CommandParser parser = new CommandParser();
-                parser.runCommandLine (args);
+                if (args[0].contentEquals("-f")) {
+                    ScriptParser fileParser = new ScriptParser();
+                    fileParser.runFromFile (args);
+                } else {
+                    CmdOptions cmdLine = new CmdOptions();
+                    cmdLine.runCommandLine(args);
+                }
             } catch (ParserException | IOException | SAXException | TikaException ex) {
                 frame.outputInfoMsg (STATUS_ERROR, ex.getMessage());
             }

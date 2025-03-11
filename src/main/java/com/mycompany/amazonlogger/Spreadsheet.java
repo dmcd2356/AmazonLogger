@@ -1,3 +1,7 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
@@ -1226,17 +1230,6 @@ public class Spreadsheet {
             if (ssPath == null) {
                 // else, find the latest year directory under Amazon and default to it
                 ssPath = System.getProperty("user.dir");
-                String strYear = PdfReader.getLatestYearDir(ssPath);
-                if (strYear.isEmpty()) {
-                    frame.outputInfoMsg(UIFrame.STATUS_WARN, "Spreadsheet.loadSpreadsheet: No year directory found in: " + ssPath);
-                } else {
-                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "Latest directory year: " + strYear);
-                    String tempPath = ssPath + "/" + strYear;
-                    File tempDir = new File(tempPath);
-                    if (tempDir.exists() && tempDir.isDirectory() && tempDir.listFiles() != null) {
-                        ssPath = tempPath;
-                    }
-                }
             }
 
             // select the Amazon list spreadsheet file to read from
