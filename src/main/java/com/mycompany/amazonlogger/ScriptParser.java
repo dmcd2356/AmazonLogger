@@ -33,6 +33,7 @@ public class ScriptParser {
     
     private static final String [] CommandTable = {
         "EXIT",
+        "DEFINE",
         "SET",
         "IF",
         "ELSE",
@@ -43,8 +44,6 @@ public class ScriptParser {
         "CONTINUE",
         "NEXT",
         "ENDLOOP",
-        "TABLE",
-        "ENDTABLE",
         "RUN",
     };
             
@@ -54,26 +53,12 @@ public class ScriptParser {
     private final ArrayList<IFStruct> ifList  = new ArrayList<>();
     private final Stack<Integer>      ifStack = new Stack<>();
 
-    // FOR loop stack for keeping track of current nesting of loops as program runs
-    //  and curLoopId for identifying the current entry.
-    private final Stack<LoopId> loopStack = new Stack<>();
+    // identifies the current loopStack entry.
     private LoopId curLoopId = null;
     
     // this handles the command line options via the RUN command
-    private CmdOptions cmdOptionParser;
+    private final CmdOptions cmdOptionParser;
     
-
-    // the key for loops uses both the name and the command index of the FOR statement.
-    //  this way, loop names can be reused as long as they aren't nested within each other.
-    public class LoopId {
-        String  name;       // name of the loop
-        int     index;      // command index of the start of the loop
-        
-        LoopId (String name, int index) {
-            this.name  = name;
-            this.index = index;
-        }
-    }
 
     private IFStruct getIfEntry (int cmdIndex) throws ParserException {
         String functionId = CLASS_NAME + ".getIfEntry: ";
@@ -139,6 +124,62 @@ public class ScriptParser {
         frame.elapsedTimerDisable();
     }
 
+    private static String getParamTypes (CommandStruct command) {
+        String paramTypes = "";
+        for (int ix = 0; ix < command.params.size(); ix++) {
+            paramTypes += command.params.get(ix).getParamType();
+        }
+        
+        return paramTypes;
+    }
+    
+    private static String checkParamTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
+        String functionId = CLASS_NAME + ".checkParamTypes: ";
+        String prefix = functionId + "line " + linenum + ", " + command + " - ";
+        
+        // determine the min and max number of parameters
+        int min = 0;
+        int max = validTypes.length();
+        for (int ix = 0; ix < max; ix++) {
+            if (validTypes.charAt(ix) >= 'A' && validTypes.charAt(ix) <= 'Z') {
+                min++;
+            } else {
+                break;
+            }
+        }
+        
+        // verify we have the correct number of parameters
+        if (command.params.size() < min || command.params.size() > max) {
+            throw new ParserException(prefix + "Invalid number of parameters: " + command.params.size() + " (range " + min + " to " + max + ")");
+        }
+        
+        // now verify the types
+        String paramTypes = "";
+        for (int ix = 0; ix < command.params.size(); ix++) {
+            char type = command.params.get(ix).getParamType();
+            paramTypes += type;
+            switch (Character.toUpperCase(validTypes.charAt(ix))) {
+                case 'I': if (type == 'I' || type == 'U') continue;
+                    break;
+                case 'U': if (type == 'I' || type == 'U') continue;
+                    break;
+                case 'B': if (type == 'B') continue;
+                    break;
+                case 'S': if (type != 'A') continue;
+                    break;
+                case 'A': if (type == 'A' || type == 'I' || type == 'U') continue;
+                    break;
+                case 'L':
+                    continue; // allow anything
+                default:
+                    break;
+            }
+            throw new ParserException(prefix + "Invalid param[" + ix + "] type '" + validTypes.charAt(ix));
+        }
+        
+        return paramTypes;
+    }
+    
     /**
      * compiles the external script file (when -f option used) into a series of
      * CommandStruct entities to execute.
@@ -156,6 +197,7 @@ public class ScriptParser {
         frame.outputInfoMsg(STATUS_PROGRAM, "Compiling file: " + fname);
         ArrayList<CommandStruct> cmdList = new ArrayList<>();
         String line;
+        int cmdIndex = 0;
 
         // open the file to compile and extract the commands from it
         File scriptFile = Utils.checkFilename (fname, ".scr", "Script", false);
@@ -175,14 +217,13 @@ public class ScriptParser {
             }
 
             String lineInfo = "LINE " + lineNum + ": ";
-            int cmdIndex = cmdList.size(); // the command index
+            cmdIndex = cmdList.size(); // the command index
 
             // first, extract the 1st word as the command keyword
+            // 'parmString' is a string containing the parameters following the command
             // 'cmdStruct' will receive the command, with the params yet to be placed.
-            // 'parmList'  will be a string containing the remainder of the command line
-            // 'parmArr'   will be an array of Strings corresponding to 'parmList'
             CommandStruct cmdStruct;
-            String [] parmArr = null;
+            String parmString = "";
             int paramCnt = 0;
             ArrayList<String> listParms;
             int offset = line.indexOf(" ");
@@ -190,48 +231,74 @@ public class ScriptParser {
                 cmdStruct = new CommandStruct(line);
             } else {
                 cmdStruct = new CommandStruct(line.substring(0, offset).stripTrailing());
-                String parmList = line.substring(offset).strip();
-                parmArr = parmList.split(" ");
-                paramCnt = parmArr.length;
+                parmString = line.substring(offset).strip();
+                paramCnt = parmString.split(" ").length;
             }
-            String parms = (parmArr == null) ? "" : " " + String.join(" ", parmArr);
-            frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + parms);
+            
+            // extract the parameters to pass to the command
+            frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
+            cmdStruct.params = packParameters (parmString);
+            String parmTypeList = getParamTypes (cmdStruct);
+            frame.outputInfoMsg(STATUS_PROGRAM, "     dataTypes: " + parmTypeList);
 
             // now let's check for valid command keywords and extract the parameters
             //  into the cmdStruct structure.
             switch (cmdStruct.command) {
-                case "SET":
-                    String argList = (paramCnt > 2) ? "SL" : "SS";
-                    if (parmArr[0].startsWith("I_")) {
-                        argList = "SI";
+                case "DEFINE":
+                    // must be either a String or a List of parameter name entries
+                    checkParamTypes(cmdStruct, "L", cmdIndex);
+
+                    // this defines the parameter names, and must be done prior to their use.
+                    // This Compile method will allocate them, so the Execute does not need
+                    //  to do anything with this command.
+                    // Multiple parameters can be defined on one line, with the parameter names
+                    //  comma separated.
+                    ParameterStruct list = cmdStruct.params.getFirst();
+                    for (int ix = 0; ix < list.getListSize(); ix++) {
+                        String pName = list.getListElement(ix);
+                        try {
+                            // allocate the parameter
+                            ParameterStruct.allocateParameter(pName);
+                        } catch (ParserException exMsg) {
+                            throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
+                        }
                     }
-                    cmdStruct.params = packParamList (line, argList);
-                    
-                    // now get the parameter values so we can do some verification
-                    String strParmName = cmdStruct.params.get(0).getStringValue();
-                    String strParmVal  = cmdStruct.params.get(1).getStringValue();
+                    cmdStruct = null; // don't bother to run the command in execution phase
+                    break;
+                case "SET":
+                    char paramType = 'S';
+                    if (parmString.startsWith("I_")) {
+                        paramType = 'I';
+                    } else if (parmString.startsWith("B_")) {
+                        paramType = 'B';
+                    } else if (parmString.startsWith("A_")) {
+                        paramType = 'A';
+                    } else if (parmString.startsWith("L_")) {
+                        paramType = 'L';
+                    }
+                    String argList = "S" + paramType;
+
+                    // determine the type of parameter being defined
+                    // must be either a String or a List of parameter name entries
+                    checkParamTypes(cmdStruct, argList, cmdIndex);
 
                     // make sure we are not using a reserved parameter name
+                    String strParmName = cmdStruct.params.get(0).getStringValue();
                     try {
-                        ParameterStruct.isValidParamName(strParmName);
+                        boolean bIsDefined = ParameterStruct.isValidParamName(strParmName);
+                        if (! bIsDefined) {
+                            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " - parameter not defined: " + strParmName);
+                        }
                     } catch (ParserException exMsg) {
-                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + exMsg);
-                    }
-
-                    // for integer type parameters, verify it is an integer value being assigned
-                    char dataType = ParameterStruct.classifyDataType(strParmVal);
-                    if (dataType == 'I' || dataType == 'U') {
-                        Integer intParmVal = Utils.getIntValue (strParmVal);
-                        ParameterStruct.putIntegerParameter(strParmName, intParmVal);
-                    } else {
-                        ParameterStruct.putStringParameter(strParmName, strParmVal);
+                        throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
                     }
                     break;
                 case "IF":
+                    // verify number and type of arguments
+                    checkParamTypes(cmdStruct, "ISI", cmdIndex);
+
                     // read the arguments passed
                     // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Parameters)
-                    cmdStruct.params = packParamList (line, "ISI");
-                    
                     String ifName = cmdStruct.params.get(0).getStringValue();
 
                     // if not first IF statement, make sure previous IF had an ENDIF
@@ -244,7 +311,7 @@ public class ScriptParser {
                     }
                     
                     // add entry to the current loop stack
-                    ifInfo = new IFStruct (cmdIndex, loopStack.size());
+                    ifInfo = new IFStruct (cmdIndex, LoopStruct.getStackSize());
                     ifList.add(ifInfo);
                     ifStack.push(cmdIndex);
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - new IF level " + ifStack.size() + " parameter " + ifName);
@@ -255,7 +322,7 @@ public class ScriptParser {
                     }
                     // save the current command index in the current if structure
                     ifInfo = getIfEntry(ifStack.peek());
-                    ifInfo.setElseIndex(cmdIndex, false, loopStack.size());
+                    ifInfo.setElseIndex(cmdIndex, false, LoopStruct.getStackSize());
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex);
                     break;
                 case "ELSEIF":
@@ -265,12 +332,11 @@ public class ScriptParser {
                     
                     // read the arguments passed
                     // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Parameters)
-                    cmdStruct.params = packParamList (line, "ISI");
                     ifName = cmdStruct.params.get(0).getStringValue();
                     
                     // save the current command index in the current if structure
                     ifInfo = getIfEntry(ifStack.peek());
-                    ifInfo.setElseIndex(cmdIndex, true, loopStack.size());
+                    ifInfo.setElseIndex(cmdIndex, true, LoopStruct.getStackSize());
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex + " parameter " + ifName);
                     break;
                 case "ENDIF":
@@ -279,7 +345,7 @@ public class ScriptParser {
                     }
                     // save the current command index in the current if structure
                     ifInfo = getIfEntry(ifStack.peek());
-                    ifInfo.setEndIfIndex(cmdIndex, loopStack.size());
+                    ifInfo.setEndIfIndex(cmdIndex, LoopStruct.getStackSize());
                     ifStack.pop();
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex);
                     break;
@@ -287,7 +353,7 @@ public class ScriptParser {
                     // read the arguments passed
                     // assumed format is: FOR Name = StartIx ; < EndIx ; IncrVal
                     // (and trailing "; IncrVal" is optional)
-                    listParms = extractUserParams ("S=I;CI;I", parms);
+                    listParms = extractUserParams ("S=I;CI;I", parmString);
                     if (listParms.size() < 4) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing parameters");
                     } else if (listParms.size() < 5) {
@@ -296,89 +362,78 @@ public class ScriptParser {
                     }
 
                     // get the parameters and format them for use
-                    // NOTE: the null entries in the packParamEntry calls because we are not passing them to the execution phase
-                    ParameterStruct loopStart, loopEnd, loopStep;
+                    String loopStart, loopEnd, loopStep;
                     String loopName, loopComp;
                     loopName  = listParms.get(0);
-                    loopStart = packParamEntry (listParms.get(1), 'I', null);
+                    loopStart = listParms.get(1);
                     loopComp  = listParms.get(2);
-                    loopEnd   = packParamEntry (listParms.get(3), 'I', null);
-                    loopStep  = packParamEntry (listParms.get(4), 'I', null);
+                    loopEnd   = listParms.get(3);
+                    loopStep  = listParms.get(4);
 
-                    // create the parameter list for execution
-                    // (we only need the loop name, the rest is saved in the Loop parameter hashmap)
-                    packParamEntry (loopName, 'S', cmdStruct.params);
-                    
                     // create a new loop ID (name + command index) for the entry and add it
                     // to the list of IDs for the loop parameter name
                     LoopId loopId = new LoopId(loopName, cmdIndex);
-                    LoopStruct loopInfo = new LoopStruct (loopName, loopStart, loopEnd, loopStep, loopComp, cmdIndex, ifStack.size());
+                    LoopStruct loopInfo;
+                    try {
+                        loopInfo = new LoopStruct (loopName, loopStart, loopEnd, loopStep, loopComp, cmdIndex, ifStack.size());
+                    } catch (ParserException exMsg) {
+                        throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
+                    }
                     ParameterStruct.saveLoopParameter (loopName, loopId, loopInfo);
                     
                     // add entry to the current loop stack
-                    loopStack.push(loopId);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + loopStack.size() + " parameter " + loopName + " index @ " + cmdIndex);
+                    LoopStruct.pushStack(loopId);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + LoopStruct.getStackSize() + " parameter " + loopName + " index @ " + cmdIndex);
                     break;
                 case "BREAK":
-                    cmdStruct.params = packParamList (line, "");
                     // make sure we are in a FOR ... NEXT loop
-                    if (loopStack.empty()) {
+                    if (LoopStruct.getStackSize() == 0) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                     }
                     // verify the IF loop level hasn't been exceeded
-                    LoopId curLoop = loopStack.firstElement();
+                    LoopId curLoop = LoopStruct.peekStack();
                     ParameterStruct.checkLoopIfLevel (cmdStruct.command, ifStack.size(), curLoop);
                     break;
                 case "CONTINUE":
-                    cmdStruct.params = packParamList (line, "");
                     // make sure we are in a FOR ... NEXT loop
-                    if (loopStack.empty()) {
+                    if (LoopStruct.getStackSize() == 0) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                     }
                     // verify the IF loop level hasn't been exceeded
-                    curLoop = loopStack.firstElement();
+                    curLoop = LoopStruct.peekStack();
                     ParameterStruct.checkLoopIfLevel (cmdStruct.command, ifStack.size(), curLoop);
                     break;
                 case "NEXT":
-                    cmdStruct.params = packParamList (line, "");
                     // make sure we are in a FOR ... NEXT loop
-                    if (loopStack.empty()) {
+                    if (LoopStruct.getStackSize() == 0) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                     }
                     // verify the IF loop level hasn't been exceeded
-                    curLoop = loopStack.firstElement();
+                    curLoop = LoopStruct.peekStack();
                     ParameterStruct.checkLoopIfLevel (cmdStruct.command, ifStack.size(), curLoop);
                     break;
                 case "ENDFOR":
-                    cmdStruct.params = packParamList (line, "");
                     // make sure we are in a FOR ... NEXT loop
-                    if (loopStack.empty()) {
+                    if (LoopStruct.getStackSize() == 0) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                     }
                     // store line location in labelsMap
-                    curLoop = loopStack.firstElement();
+                    curLoop = LoopStruct.peekStack();
                     ParameterStruct.setLoopEndIndex(cmdList.size(), curLoop);
 
                     // remove entry from loop stack
-                    loopStack.pop();
-                    break;
-                case "TABLE":
-                    // TODO: 
-                    break;
-                case "ENDTABLE":
-                    // TODO: 
+                    LoopStruct.popStack();
                     break;
                 case "RUN":
                     // verify the option command and its parameters
                     // NOTE: when we place the command in cmdStruct, we remove the RUN label,
                     //       so executeProgramCommand does not need to check for it.
-                    ArrayList<String> optCmd = new ArrayList<>(Arrays.asList(parmArr));
+                    ArrayList<String> optCmd = new ArrayList<>(Arrays.asList(parmString.split(" ")));
                     ArrayList<CommandStruct> runList = cmdOptionParser.formatCmdOptions (optCmd);
                     
-                    // if there was more than 1 command on the line, move all but the last here
-                    for (int ix = 0; ix < runList.size(); ix++) {
-                        cmdStruct = runList.removeFirst();
-                        cmdList.add(cmdStruct);
+                    // append all option commands on the line to the command list, 1 option per command line
+                    while (! runList.isEmpty()) {
+                        cmdList.add(runList.removeFirst());
                     }
                     cmdStruct = null; // clear this since we have copied all the commands from here
                     break;
@@ -393,8 +448,9 @@ public class ScriptParser {
             }
         }
         
-        if (! loopStack.empty()) {
-            throw new ParserException(functionId + "FOR loop not complete for " + loopStack.size() + " entries");
+        int loopSize = LoopStruct.getStackSize();
+        if (loopSize != 0) {
+            throw new ParserException(functionId + "FOR loop not complete for " + loopSize + " entries");
         }
         if (!ifStack.isEmpty() && !getIfEntry(ifStack.peek()).isValid()) {
             throw new ParserException(functionId + "Last IF has no matching ENDIF");
@@ -404,6 +460,7 @@ public class ScriptParser {
         
         // the last line will be the one to end the program flow
         cmdList.add(new CommandStruct("EXIT"));
+        frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: EXIT  (appended)");
         return cmdList;
     }
 
@@ -425,32 +482,46 @@ public class ScriptParser {
         String lineInfo = "PROGIX [" + cmdIndex + "]: ";
         int newIndex = -1;
         
+        // replace all program references in the command to their corresponding values.
+        for (int ix = 0; ix < cmdStruct.params.size(); ix++) {
+            ParameterStruct param = cmdStruct.params.get(ix);
+            param.updateFromReference();
+        }
+        
         String command = cmdStruct.command;
         frame.outputInfoMsg(STATUS_PROGRAM, lineInfo + cmdStruct.showCommand());
         switch (command) {
             case "EXIT":
                 return -1; // this will terminate the program
+            case "DEFINE":
+                break;
             case "SET":
                 verifyParamList(cmdStruct.params, 2); // check for 2 params
-                String parmName = cmdStruct.params.get(0).unpackStringValue();
+                String parmName = cmdStruct.params.get(0).getStringValue();
 
-                if (ParameterStruct.isIntegerParam(parmName)) {
-                    Integer intValue = cmdStruct.params.get(1).unpackIntegerValue();
-                    if (! ParameterStruct.modifyIntegerParameter(parmName, intValue)) {
-                        throw new ParserException(functionId + lineInfo + "Integer param not found: " + parmName);
-                    }
+                ParameterStruct parmValue = cmdStruct.params.get(1);
+                if (parmValue.getParamType() == 'I' || parmValue.getParamType() == 'U') {
+                    ParameterStruct.modifyIntegerParameter(parmName, parmValue.getIntegerValue());
                 } else {
-                    String strValue = cmdStruct.params.get(1).unpackStringValue();
-                    if (! ParameterStruct.modifyStringParameter(parmName, strValue)) {
-                        throw new ParserException(functionId + lineInfo + "String param not found: " + parmName);
-                    }
+                    ParameterStruct.modifyStringParameter(parmName, parmValue.getStringValue());
                 }
+//                if (ParameterStruct.isIntegerParam(parmName)) {
+//                    Integer intValue = cmdStruct.params.get(1).unpackIntegerValue();
+//                    if (! ParameterStruct.modifyIntegerParameter(parmName, intValue)) {
+//                        throw new ParserException(functionId + lineInfo + "Integer param not found: " + parmName);
+//                    }
+//                } else {
+//                    String strValue = cmdStruct.params.get(1).unpackStringValue();
+//                    if (! ParameterStruct.modifyStringParameter(parmName, strValue)) {
+//                        throw new ParserException(functionId + lineInfo + "String param not found: " + parmName);
+//                    }
+//                }
                 break;
             case "IF":
                 // get the params
                 verifyParamList(cmdStruct.params, 3); // check for 3 params
                 ParameterStruct parm1 = cmdStruct.params.get(0);
-                String comp           = cmdStruct.params.get(1).unpackStringValue();
+                String comp           = cmdStruct.params.get(1).getStringValue();
                 ParameterStruct parm2 = cmdStruct.params.get(2);
 
                 // add entry to the current loop stack
@@ -458,7 +529,13 @@ public class ScriptParser {
                 frame.outputInfoMsg(STATUS_PROGRAM, "   - new IF level " + ifStack.size() + " " + parm1.getStringValue() + " " + comp + " " + parm2.getStringValue());
 
                 // check status to see if true of false.
-                boolean bBranch = Utils.compareParameterValues (parm1, parm2, comp);
+                boolean bBranch;
+                if ((parm1.getParamType() == 'I' || parm1.getParamType() == 'U') &&
+                    (parm2.getParamType() == 'I' || parm2.getParamType() == 'U')    ) {
+                    bBranch = Utils.compareParameterValues (parm1.getIntegerValue(), parm2.getIntegerValue(), comp);
+                } else {
+                    bBranch = Utils.compareParameterValues (parm1.getStringValue(), parm2.getStringValue(), comp);
+                }
                 if (bBranch) {
                     IFStruct ifInfo = getIfEntry(cmdIndex);
                     newIndex = ifInfo.getElseIndex(cmdIndex);
@@ -479,12 +556,17 @@ public class ScriptParser {
                 // get the params
                 verifyParamList(cmdStruct.params, 3); // check for 3 params
                 parm1 = cmdStruct.params.get(0);
-                comp  = cmdStruct.params.get(1).unpackStringValue();
+                comp  = cmdStruct.params.get(1).getStringValue();
                 parm2 = cmdStruct.params.get(2);
                 frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + ": " + parm1.getStringValue() + " " + comp + " " + parm2.getStringValue());
 
                 // check status to see if true of false.
-                bBranch = Utils.compareParameterValues (parm1, parm2, comp);
+                if ((parm1.getParamType() == 'I' || parm1.getParamType() == 'U') &&
+                    (parm2.getParamType() == 'I' || parm2.getParamType() == 'U')    ) {
+                    bBranch = Utils.compareParameterValues (parm1.getIntegerValue(), parm2.getIntegerValue(), comp);
+                } else {
+                    bBranch = Utils.compareParameterValues (parm1.getStringValue(), parm2.getStringValue(), comp);
+                }
                 if (bBranch) {
                     IFStruct ifInfo = getIfEntry(ifStack.peek());
                     newIndex = ifInfo.getElseIndex(cmdIndex);
@@ -501,57 +583,57 @@ public class ScriptParser {
                 break;
             case "FOR":
                 verifyParamList(cmdStruct.params, 1);
-                String loopName  = cmdStruct.params.get(0).unpackStringValue();
+                String loopName  = cmdStruct.params.get(0).getStringValue();
                 curLoopId = new LoopId(loopName, cmdIndex);
                 newIndex = ParameterStruct.getLoopNextIndex (command, cmdIndex, curLoopId);
                     
                 // add entry to the current loop stack
-                loopStack.push(curLoopId);
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + loopStack.size() + " parameter " + loopName + " index @ " + cmdIndex);
+                LoopStruct.pushStack(curLoopId);
+                int loopSize = LoopStruct.getStackSize();
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + loopSize+ " parameter " + loopName + " index @ " + cmdIndex);
                 break;
             case "BREAK":
-                if (loopStack.empty() || curLoopId == null) {
+                loopSize = LoopStruct.getStackSize();
+                if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
                 newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopStack.size()
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
             case "CONTINUE":
-                if (loopStack.empty() || curLoopId == null) {
+                loopSize = LoopStruct.getStackSize();
+                if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
                 newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopStack.size()
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
             case "NEXT":
-                if (loopStack.empty() || curLoopId == null) {
+                loopSize = LoopStruct.getStackSize();
+                if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
                 newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopStack.size()
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
             case "ENDFOR":
-                if (loopStack.empty() || curLoopId == null) {
+                loopSize = LoopStruct.getStackSize();
+                if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopStack.size()
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
-                curLoopId = loopStack.pop();
+                curLoopId = LoopStruct.popStack();
+                loopSize = LoopStruct.getStackSize();
                 if (curLoopId == null) {
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - All loops completed so far");
                 } else {
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - current Loop level " + loopStack.size()
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - current Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 }
-                break;
-            case "TABLE":
-                // TODO: 
-                break;
-            case "ENDTABLE":
-                // TODO: 
                 break;
             case "RUN":
                 // remove the RUN tag from the command line
@@ -597,7 +679,7 @@ public class ScriptParser {
                         bParam = true;
                         continue;
                     }
-                    if (Character.isLetterOrDigit(curChar) || curChar == '-' || curChar == '_') {
+                    if (Character.isLetterOrDigit(curChar) || curChar == '_') {
                         continue;
                     }
                     return ix;
@@ -611,7 +693,7 @@ public class ScriptParser {
                         continue;
                     }
                     if (bParam) {
-                        if (Character.isLetterOrDigit(curChar) || curChar == '-' || curChar == '_') {
+                        if (Character.isLetterOrDigit(curChar) || curChar == '_') {
                             continue;
                         }
                     }
@@ -700,107 +782,209 @@ public class ScriptParser {
     }
     
     /**
-     * This adds an entry to the parameter list.
-     *  NOTE: it allows for $ parameter substitution, but does not do any conversion here.
+     * This takes a command line and extracts the parameter list from it.
+     * This simply seperates the String of arguments into seperate parameter
+     *   values based on where it finds commas and quotes.
      * 
-     * @param entry     - the command line along with all of the arguments it contains
-     * @param paramType - the list of data types for each parameter it has
-     * @param paramList - the parameter list to add entry to
-     * 
-     * @return the ArrayList of arguments for the command
-     * 
-     * @throws ParserException 
-     */
-    private ParameterStruct packParamEntry (String entry, char paramType, ArrayList<ParameterStruct> paramList) throws ParserException {
-        paramType = Character.toUpperCase(paramType); // make sure it is in uppercase
-        ParameterStruct parmStc = new ParameterStruct (entry, paramType);
-        if (paramList != null) {
-            int index = paramList.size();
-            paramList.add(parmStc);
-            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + index + "]: type " + paramType + " value: " + entry);
-        }
-        return parmStc;
-    }
-    
-    /**
-     * This takes a command line and a list of arg types for the command,
-     *   extracts the parameter list from it, verifies the arg types,
-     *   and places them in an ArrayList.
-     *   NOTE: it allows for $ parameter substitution, but does not convert
-     *         the values;.
-     * 
-     * @param line     - the command line along with all of the arguments it contains
-     * @param argTypes - the list of data types for each parameter it has
+     * @param line - the string of parameters to seperate and classify
      * 
      * @return the ArrayList of arguments for the command
      * 
      * @throws ParserException 
      */
-    private ArrayList<ParameterStruct> packParamList (String line, String argTypes) throws ParserException {
-        String functionId = CLASS_NAME + ".packParamList: ";
-
-        int minParams = 0;  // count the min number of parameters for the command
-        int maxParams = 0;  // this is the max number of params for this option
-        if (argTypes == null) {
-            argTypes = "";
-        } else if (! argTypes.isEmpty()) {
-            maxParams = argTypes.length();
-            for (int ix = 0; ix < argTypes.length(); ix++) {
-                if (argTypes.charAt(ix) > 'Z')
-                    minParams++;
-            }
-        }
-        char lastParam = ' ';
-        if (! argTypes.isEmpty())
-            lastParam = Character.toUpperCase(argTypes.charAt(maxParams-1));
-        
-        // first, extract the 1st word as the command keyword
+    private ArrayList<ParameterStruct> packParameters (String line) throws ParserException {
         ArrayList<ParameterStruct> params = new ArrayList<>();
-        int offset = line.indexOf(" ");
-        if (offset <= 0) {
-            // single word, which would be the command with no params
-            if (minParams > 0) {
-                throw new ParserException(functionId + "command is missing arguments: ");
+        ParameterStruct parm;
+
+        for (int ix = 0; ! line.isEmpty(); ix++) {
+            // read next entry
+            char paramType = 'S';
+            String nextArg = getNextWord (line);
+            line = line.substring(nextArg.length());
+            
+            // determine if we have a series of Strings or Integers
+            if (nextArg.charAt(0) == '{') {
+                // check if matching brace
+                line = line.strip();
+                int offset = line.indexOf('}');
+                if (offset >= 0) {
+                    // matching brace found...
+                    // remove the begining brace and copy the characters up to
+                    // the end brace into the arg parameter
+                    nextArg = nextArg.substring(1);
+                    nextArg += line.substring(0, offset-1);
+
+                    // now remove the rest of the list from the line
+                    if (offset == line.length() - 1) {
+                        line = "";
+                    } else {
+                        line = line.substring(offset + 1);
+                    }
+                    
+                    // place them in the proper list structure
+                    ArrayList<String> list = new ArrayList<>(Arrays.asList(nextArg.split(",")));
+                    paramType = 'L';
+                    parm = new ParameterStruct(list, paramType);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: [ " + nextArg + " ]");
+                    params.add(parm);
+                    continue;
+                }
             }
-            return params;
-        }
+            
+            // determine if we have a quoted String
+            if (nextArg.charAt(0) == '"') {
+                // check if matching quote
+                int offset = line.indexOf('"');
+                if (offset >= 0) {
+                    // matching quote found...
+                    // remove the begining quote and copy the characters up to
+                    // the quote into the arg parameter
+                    nextArg = nextArg.substring(1);
+                    nextArg += line.substring(0, offset);
 
-        String command = line.substring(0, offset).strip();
-        line = line.substring(offset).strip();
-        int wordCount = new StringTokenizer(line).countTokens();
-
-        // make sure we have the correct number of parameters
-        if (wordCount > maxParams && lastParam != 'L') {
-            throw new ParserException(functionId + "Args list for option "
-                        + command + " exceeded max allowed: " + wordCount + " (max " + maxParams + ")");
-        } else if (wordCount < minParams) {
-            throw new ParserException(functionId + "Args list for option "
-                        + command + " less than min allowed: " + wordCount + " (min " + minParams + ")");
+                    // now remove the rest of the quoted string from the line
+                    if (offset == line.length() - 1) {
+                        line = "";
+                    } else {
+                        line = line.substring(offset + 1);
+                    }
+                }
+            }
+            line = line.strip();
+            
+            // determine the data type
+            if (paramType == 'S') {
+                //paramType = ParameterStruct.classifyDataType(nextArg);
+                if (nextArg.equalsIgnoreCase("TRUE") ||
+                    nextArg.equalsIgnoreCase("FALSE")) {
+                    paramType = 'B';
+                } else {
+                    try {
+                        Integer iVal = Utils.getHexValue (nextArg);
+                        if (iVal == null) {
+                            iVal = Utils.getIntValue (nextArg);
+                        }
+                        if (iVal >= 0)
+                            paramType = 'U';
+                        else
+                            paramType = 'I';
+                    } catch (ParserException ex) {
+                        paramType = 'S';
+                    }
+                }
+            }
+            
+            // create the parameter entry and add it to the list of parameters
+            parm = new ParameterStruct(nextArg, paramType);
+            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
+            params.add(parm);
         }
         
-        for (int ix = 0; ix < maxParams && ! line.isEmpty(); ix++) {
-            // get the next parameter type
-            char parmType = argTypes.charAt(ix);
-            parmType = Character.toUpperCase(parmType); // make sure it is in uppercase
-
-            // get the next entry in the string (L(ist) type takes the remainder of the string
-            String nextArg;
-            if (parmType == 'L') {
-                // take the remaining entries for a L(ist) parameter type
-                nextArg = line;
-                line = "";
-            } else {
-                // else, just get the next word and remove it from the param list
-                nextArg = getNextWord (line);
-                line = line.substring(nextArg.length()).strip();
-            }
-
-            // create the parameter entry and add it to the parameter list
-            packParamEntry (nextArg, parmType, params);
-        }
-
         return params;
     }
+    
+//    /**
+//     * This adds an entry to the parameter list.
+//     *  NOTE: it allows for $ parameter substitution, but does not do any conversion here.
+//     * 
+//     * @param entry     - the command line along with all of the arguments it contains
+//     * @param paramType - the list of data types for each parameter it has
+//     * @param paramList - the parameter list to add entry to
+//     * 
+//     * @return the ArrayList of arguments for the command
+//     * 
+//     * @throws ParserException 
+//     */
+//    private ParameterStruct packParamEntry (String entry, char paramType, ArrayList<ParameterStruct> paramList) throws ParserException {
+//        paramType = Character.toUpperCase(paramType); // make sure it is in uppercase
+//        ParameterStruct parmStc = new ParameterStruct (entry, paramType);
+//        if (paramList != null) {
+//            int index = paramList.size();
+//            paramList.add(parmStc);
+//            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + index + "]: type " + paramType + " value: " + entry);
+//        }
+//        return parmStc;
+//    }
+//
+//    /**
+//     * This takes a command line and a list of arg types for the command,
+//     *   extracts the parameter list from it, verifies the arg types,
+//     *   and places them in an ArrayList.
+//     *   NOTE: it allows for $ parameter substitution, but does not convert
+//     *         the values;.
+//     * 
+//     * @param line     - the command line along with all of the arguments it contains
+//     * @param argTypes - the list of data types for each parameter it has
+//     * 
+//     * @return the ArrayList of arguments for the command
+//     * 
+//     * @throws ParserException 
+//     */
+//    private ArrayList<ParameterStruct> packParamList (String line, String argTypes) throws ParserException {
+//        String functionId = CLASS_NAME + ".packParamList: ";
+//
+//        int minParams = 0;  // count the min number of parameters for the command
+//        int maxParams = 0;  // this is the max number of params for this option
+//        if (argTypes == null) {
+//            argTypes = "";
+//        } else if (! argTypes.isEmpty()) {
+//            maxParams = argTypes.length();
+//            for (int ix = 0; ix < argTypes.length(); ix++) {
+//                if (argTypes.charAt(ix) > 'Z')
+//                    minParams++;
+//            }
+//        }
+//        char lastParam = ' ';
+//        if (! argTypes.isEmpty())
+//            lastParam = Character.toUpperCase(argTypes.charAt(maxParams-1));
+//        
+//        // first, extract the 1st word as the command keyword
+//        ArrayList<ParameterStruct> params = new ArrayList<>();
+//        int offset = line.indexOf(" ");
+//        if (offset <= 0) {
+//            // single word, which would be the command with no params
+//            if (minParams > 0) {
+//                throw new ParserException(functionId + "command is missing arguments: ");
+//            }
+//            return params;
+//        }
+//
+//        String command = line.substring(0, offset).strip();
+//        line = line.substring(offset).strip();
+//        int wordCount = new StringTokenizer(line).countTokens();
+//
+//        // make sure we have the correct number of parameters
+//        if (wordCount > maxParams && lastParam != 'L') {
+//            throw new ParserException(functionId + "Args list for option "
+//                        + command + " exceeded max allowed: " + wordCount + " (max " + maxParams + ")");
+//        } else if (wordCount < minParams) {
+//            throw new ParserException(functionId + "Args list for option "
+//                        + command + " less than min allowed: " + wordCount + " (min " + minParams + ")");
+//        }
+//        
+//        for (int ix = 0; ix < maxParams && ! line.isEmpty(); ix++) {
+//            // get the next parameter type
+//            char parmType = argTypes.charAt(ix);
+//            parmType = Character.toUpperCase(parmType); // make sure it is in uppercase
+//
+//            // get the next entry in the string (L(ist) type takes the remainder of the string
+//            String nextArg;
+//            if (parmType == 'L') {
+//                // take the remaining entries for a L(ist) parameter type
+//                nextArg = line;
+//                line = "";
+//            } else {
+//                // else, just get the next word and remove it from the param list
+//                nextArg = getNextWord (line);
+//                line = line.substring(nextArg.length()).strip();
+//            }
+//
+//            // create the parameter entry and add it to the parameter list
+//            packParamEntry (nextArg, parmType, params);
+//        }
+//
+//        return params;
+//    }
 
     /**
      * verifies the parameter list is valid size

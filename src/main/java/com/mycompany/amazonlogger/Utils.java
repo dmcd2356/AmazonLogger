@@ -526,10 +526,7 @@ public class Utils {
     }
 
     /**
-     * This performs a comparison of 2 parameters.
-     * This does either an Integer or a String comparison based on the data type of
-     *  the parameters. If it is Integer or Unsigned, it performs an Integer comparison.
-     *  Otherwise, it performs a String comparison.
+     * This performs a comparison of 2 Integer parameters.
      * 
      * @param param1   - the first value to compare
      * @param param2   - the parameter to compare it to
@@ -539,55 +536,64 @@ public class Utils {
      * 
      * @throws ParserException
      */
-    public static boolean compareParameterValues (ParameterStruct param1, ParameterStruct param2, String compType) throws ParserException {
+    public static boolean compareParameterValues (Integer param1, Integer param2, String compType) throws ParserException {
         String functionId = CLASS_NAME + ".compareParameterValues: ";
         
         boolean bExit = false;
         
-        if ((param1.getParamType() == 'I' || param1.getParamType() == 'U') &&
-            (param2.getParamType() == 'I' || param2.getParamType() == 'U')    ) {
-            Integer iValue1 = param1.unpackIntegerValue();
-            Integer iValue2 = param2.unpackIntegerValue();
-
-            switch (compType) {
-                case "<":   if (iValue1 < iValue2) bExit = true;
-                    break;
-                case "<=":  if (iValue1 <= iValue2) bExit = true;
-                    break;
-                case ">":   if (iValue1 > iValue2) bExit = true;
-                    break;
-                case ">=":  if (iValue1 >= iValue2) bExit = true;
-                    break;
-                case "!=":  if (!Objects.equals(iValue1, iValue2)) bExit = true;
-                    break;
-                default:
-                case "=":
-                case "==":  if (Objects.equals(iValue1, iValue2)) bExit = true;
-                    break;
-            }
-            frame.outputInfoMsg(STATUS_DEBUG, functionId + " " + iValue1 + " " + compType + " " + iValue2 + " " + bExit);
-        } else {
-            String strValue1 = param1.unpackStringValue();
-            String strValue2 = param2.unpackStringValue();
-
-            switch (compType) {
-                case "<":   if (strValue1.compareTo(strValue2) < 0) bExit = true;
-                    break;
-                case "<=":  if (strValue1.compareTo(strValue2) <= 0) bExit = true;
-                    break;
-                case ">":   if (strValue1.compareTo(strValue2) > 0) bExit = true;
-                    break;
-                case ">=":  if (strValue1.compareTo(strValue2) >= 0) bExit = true;
-                    break;
-                case "!=":  if (strValue1.compareTo(strValue2) != 0) bExit = true;
-                    break;
-                default:
-                case "=":
-                case "==":  if (strValue1.compareTo(strValue2) == 0) bExit = true;
-                    break;
-            }
-            frame.outputInfoMsg(STATUS_DEBUG, functionId + " '" + strValue1 + "' " + compType + " '" + strValue2 + "' " + bExit);
+        switch (compType) {
+            case "<":   if (param1 < param2) bExit = true;
+                break;
+            case "<=":  if (param1 <= param2) bExit = true;
+                break;
+            case ">":   if (param1 > param2) bExit = true;
+                break;
+            case ">=":  if (param1 >= param2) bExit = true;
+                break;
+            case "!=":  if (!Objects.equals(param1, param2)) bExit = true;
+                break;
+            default:
+            case "=":
+            case "==":  if (Objects.equals(param1, param2)) bExit = true;
+                break;
         }
+        frame.outputInfoMsg(STATUS_DEBUG, functionId + " " + param1 + " " + compType + " " + param2 + " " + bExit);
+        return bExit;
+    }
+    
+    /**
+     * This performs a comparison of 2 String parameters.
+     * 
+     * @param param1   - the first value to compare
+     * @param param2   - the parameter to compare it to
+     * @param compType - the type of comparison to perform
+     * 
+     * @return true if condition is true.
+     * 
+     * @throws ParserException
+     */
+    public static boolean compareParameterValues (String param1, String param2, String compType) throws ParserException {
+        String functionId = CLASS_NAME + ".compareParameterValues: ";
+        
+        boolean bExit = false;
+        
+        switch (compType) {
+            case "<":   if (param1.compareTo(param2) < 0) bExit = true;
+                break;
+            case "<=":  if (param1.compareTo(param2) <= 0) bExit = true;
+                break;
+            case ">":   if (param1.compareTo(param2) > 0) bExit = true;
+                break;
+            case ">=":  if (param1.compareTo(param2) >= 0) bExit = true;
+                break;
+            case "!=":  if (param1.compareTo(param2) != 0) bExit = true;
+                break;
+            default:
+            case "=":
+            case "==":  if (param1.compareTo(param2) == 0) bExit = true;
+                break;
+        }
+        frame.outputInfoMsg(STATUS_DEBUG, functionId + " '" + param1 + "' " + compType + " '" + param2 + "' " + bExit);
         return bExit;
     }
     

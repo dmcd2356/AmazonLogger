@@ -114,7 +114,7 @@ public class CmdOptions {
         }
         String argTypes = optInfo.argTypes;
 
-        // vewrify integrity of params
+        // verify integrity of params
         int paramCnt = argTypes.length();
         if (params == null || (params.isEmpty() && paramCnt > 0)) {
             throw new ParserException(functionId + "Null or empty param list");
@@ -125,11 +125,12 @@ public class CmdOptions {
         
         // do any parameter conversions of the parameters passed and add
         // the converted values to the command struct.
-        for (int ix = 0; ix < argTypes.length(); ix++) {
-            ParameterStruct argToPass = params.get(ix);
-            argToPass.convertType(argTypes.charAt(ix));
-            cmdOption.params.add(argToPass);
-        }
+        cmdOption.params = params;
+//        for (int ix = 0; ix < argTypes.length(); ix++) {
+//            ParameterStruct argToPass = params.get(ix);
+//            argToPass.convertType(argTypes.charAt(ix));
+//            cmdOption.params.add(argToPass);
+//        }
                 
         // now run the command line option command and save any response msg
         String rsp = executeCmdOption (cmdOption);

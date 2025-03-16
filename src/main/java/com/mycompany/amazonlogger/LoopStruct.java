@@ -4,6 +4,8 @@
  */
 package com.mycompany.amazonlogger;
 
+import java.util.Stack;
+
 /**
  * This handles the loop parameter processing
  * 
@@ -13,15 +15,30 @@ public class LoopStruct {
 
     private static final String CLASS_NAME = "LoopStruct";
     
-    private final String          name;       // parameter name for the loop
-    private       Integer         value;      // current parameter value
-    private final ParameterStruct valStart;   // loop start value
-    private final ParameterStruct valEnd;     // loop end   value
-    private final ParameterStruct valStep;    // value to increment value by on each loop
-    private final String          comparator; // the comparison symbols used for checking against valEnd
-    private final Integer         ixBegin;    // command index of start of loop (where it returns to)
-    private       Integer         ixEnd;      // command index of ENDFOR (end of loop or break reached)
-    private       Integer         ifLevel;    // IF nest level (to make sure loop def doesn't exceed the boundaries)
+    private final String    name;       // parameter name for the loop
+    private       Integer   value;      // current parameter value
+    private final LoopParam valStart;   // loop start value
+    private final LoopParam valEnd;     // loop end   value
+    private final LoopParam valStep;    // value to increment value by on each loop
+    private final String    comparator; // the comparison symbols used for checking against valEnd
+    private final Integer   ixBegin;    // command index of start of loop (where it returns to)
+    private       Integer   ixEnd;      // command index of ENDFOR (end of loop or break reached)
+    private       Integer   ifLevel;    // IF nest level (to make sure loop def doesn't exceed the boundaries)
+
+    // loop stack for keeping track of current nesting of loops as program runs
+    private static final Stack<LoopId> loopStack = new Stack<>();
+
+    LoopStruct () {
+        this.name     = null;
+        this.value    = null;
+        this.valStart = null;
+        this.valEnd   = null;
+        this.valStep  = null;
+        this.comparator = null;
+        this.ixBegin  = null;
+        this .ixEnd   = null;
+        this.ifLevel  = null;
+    }
     
     /**
      * Initializes the loop structure.
@@ -37,10 +54,7 @@ public class LoopStruct {
      * 
      * @throws ParserException
      */
-    LoopStruct (String name, ParameterStruct start,
-                             ParameterStruct end,
-                             ParameterStruct step,
-                             String comp, int index, int ifLev) throws ParserException {
+    LoopStruct (String name, String start, String end, String step, String comp, int index, int ifLev) throws ParserException {
         String functionId = CLASS_NAME + " (new): ";
        
         // check for invalid input
@@ -56,14 +70,14 @@ public class LoopStruct {
         try {
             ParameterStruct.isValidLoopName(name, index);
         } catch (ParserException exMsg) {
-            throw new ParserException(functionId + "FOR param @ " + index + ": name error - " + exMsg);
+            throw new ParserException(exMsg + " [FOR param @ " + index + "]");
         }
         
         this.name     = name;
-        this.value    = start.unpackIntegerValue();
-        this.valStart = start;
-        this.valEnd   = end;
-        this.valStep  = step;
+        this.valStart = new LoopParam (start);
+        this.valEnd   = new LoopParam (end);
+        this.valStep  = new LoopParam (step);
+        this.value    = valStart.getIntValue(); // set to the current start value if this is a ref param
         this.comparator = comp;
         this.ixBegin  = index;
         this .ixEnd   = null;
@@ -90,6 +104,15 @@ public class LoopStruct {
     }
     
     /**
+     * indicates if the loop has been completely defined (matching ENDFOR found)
+     * 
+     * @return true if the loop has been fully defined (FOR and ENDFOR have been parsed)
+     */
+    public Integer getLoopValue () {
+        return value;
+    }
+    
+    /**
      * indicates if the loop exceeds the bounds of the IF block it is in.
      * This should be called when any of the commands NEXT, BREAK, ENDFOR are called
      * during compile.
@@ -113,10 +136,10 @@ public class LoopStruct {
      * @throws ParserException
      */
     public int startLoop (int index) throws ParserException {
-        value = valStart.unpackIntegerValue();
+        value = valStart.getIntValue();
         
         // just in case the loop is set to not run, perform the exit comparison
-        boolean bResult = Utils.compareParameterValues (valStart, valEnd, comparator);
+        boolean bResult = Utils.compareParameterValues (valStart.getIntValue(), valEnd.getIntValue(), comparator);
         if (! bResult) {
             return ixEnd;
         }
@@ -146,10 +169,9 @@ public class LoopStruct {
      */
     public int loopNext () throws ParserException {
         // increment param by the step value and check if we have completed
-        value += valStep.unpackIntegerValue();
+        value += valStep.getIntValue();
         
-        ParameterStruct newValue = new ParameterStruct(value);
-        boolean bResult = Utils.compareParameterValues (newValue, valEnd, comparator);
+        boolean bResult = Utils.compareParameterValues (value, valEnd.getIntValue(), comparator);
         if (! bResult) {
             return ixEnd;   // loop completed
         }
@@ -157,4 +179,62 @@ public class LoopStruct {
         // not done yet, start on the line following the FOR command
         return ixBegin + 1;
     }
+    
+    // THESE HANDLE THE LOOP STACK ACCESS
+
+    /**
+     * gets the current stack size.
+     * 
+     * @return the number of entries in the stack
+     */    
+    public static int getStackSize () {
+        return loopStack.size();
+    }
+    
+    /**
+     * pushes the next loop id onto the stack.
+     * 
+     * @param loopId - the name/index id value to identify the loop
+     */    
+    public static void pushStack (LoopId loopId) {
+        loopStack.push(loopId);
+    }
+    
+    /**
+     * pops the next entry off the stack.
+     * 
+     * @return the name/index loop id value to use
+     */    
+    public static LoopId popStack () {
+        return loopStack.pop();
+    }
+    
+    /**
+     * returns the next entry that is on the stack.
+     * 
+     * @return the name/index loop id value to use
+     */    
+    public static LoopId peekStack () {
+        return loopStack.firstElement();
+    }
+    
+    /**
+     * checks for a loop parameter that is currently active and returns its current value.
+     * 
+     * @param name - name of the loop parameter
+     * 
+     * @return the current value of the loop parameter (null if parameter not currently active)
+     */
+    public Integer getCurrentLoopValue (String name) {
+        if (!loopStack.empty()) {
+            for (int ix = 0; ix < loopStack.size(); ix++) {
+                LoopId loopId = loopStack.get(ix);
+                if (loopId.name.contentEquals(name)) {
+                    return ParameterStruct.getLoopValue(loopId);
+                }
+            }
+        }
+        return null;
+    }
+    
 }
