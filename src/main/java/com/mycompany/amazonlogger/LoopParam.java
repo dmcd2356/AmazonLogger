@@ -46,15 +46,15 @@ public class LoopParam {
     public Integer getIntValue () throws ParserException {
         String functionId = CLASS_NAME + ".getIntValue: ";
        
-        if (this.paramName != null) {
-            // it is a parameter, get the current value
-            ParameterStruct parStc = new ParameterStruct();
-            parStc = parStc.getParameterEntry (this.paramName);
-            this.value = parStc.getIntegerValue();
-            if (this.value == null) {
-                throw new ParserException(functionId + "reference parameter " + this.paramName + " is not an Integer: " + parStc.getStringValue());
-            }
-        }
+//        if (this.paramName != null) {
+//            // it is a parameter, get the current value
+//            ParameterStruct parStc = new ParameterStruct();
+//            parStc = parStc.getParameterEntry (this.paramName);
+//            this.value = parStc.getIntegerValue();
+//            if (this.value == null) {
+//                throw new ParserException(functionId + "reference parameter " + this.paramName + " is not an Integer: " + parStc.getStringValue());
+//            }
+//        }
 
         return this.value;
     }

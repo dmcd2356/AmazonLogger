@@ -966,12 +966,16 @@ public final class UIFrame extends JFrame implements ActionListener {
      *  the Error and Warning messages will always be sent to stdout, even if
      *  a test file output is specified.
      * A prefix is added to the message specifying the type of message, and
-     *  for non-GUI use, this is preceeded with a timestamp value as well.
+     *  for non-GUI use, this is preceded with a timestamp value as well.
      * 
      * @param errLevel - the message type
      * @param msg - the message to display
      */
     public void outputInfoMsg (int errLevel, String msg) {
+        if (msg == null || msg.isEmpty()) {
+            return;
+        }
+        
         String msgPrefix = "";
         String msgFont = "N";
         TextColor msgColor = TextColor.Black;

@@ -65,6 +65,32 @@ public class CmdOptions {
         }
     }
 
+    /**
+     * displays the program line number if the command was issued from a program file.
+     * 
+     * @param cmd - the command being executed
+     * 
+     * @return String containing line number info
+     */
+    private String showLineNumberInfo (int lineNum) {
+        if (lineNum > 0) {
+            return "(line " + lineNum + ") ";
+        }
+        return "";
+    }
+    
+    /**
+     * run a command option from the the command line (NOT from the program file).
+     * This will format the array of strings into 1 or more commands to execute
+     *   and then execute them one by one.
+     * 
+     * @param args - an array of Strings that consist of one or more command options and their arguments
+     * 
+     * @throws ParserException
+     * @throws IOException
+     * @throws SAXException
+     * @throws TikaException 
+     */
     public void runCommandLine (String [] args) throws ParserException, IOException, SAXException, TikaException {
         // check for help message request
         if (args[0].contentEquals("-h")) {
@@ -76,7 +102,9 @@ public class CmdOptions {
         //  were more than one on the command line
         ArrayList<String> optArgs = new ArrayList<>(Arrays.asList(args));
                 
-        ArrayList<CommandStruct> commandList = formatCmdOptions (optArgs);
+        // since this comes from the user and not a file, there is no line number for the command
+        // so we set it to 0 to indicate this.
+        ArrayList<CommandStruct> commandList = formatCmdOptions (optArgs, 0);
         ArrayList<String> response = new ArrayList<>();
         for (int ix = 0; ! commandList.isEmpty(); ix++) {
             // get each command option line and convert to an ArrayList (command followed by args)
@@ -97,40 +125,51 @@ public class CmdOptions {
         }
     }
     
-    public void runCmdOption (String command, ArrayList<ParameterStruct> params) throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + ".runCmdOption: ";
+    /**
+     * run a command option from the the program file.
+     * This will execute the single command option passed.
+     * 
+     * @param cmd - the command to execute
+     * 
+     * @throws ParserException
+     * @throws IOException
+     * @throws SAXException
+     * @throws TikaException 
+     */
+    public void runCmdOption (CommandStruct cmd) throws ParserException, IOException, SAXException, TikaException {
+        String functionId = CLASS_NAME + ".runCmdOption: " + showLineNumberInfo(cmd.line);
         
-        // convert the list of Strings into a struct of a command and list of args
-        CommandStruct cmdOption = new CommandStruct (command);
+        if (cmd.params == null) {
+            throw new ParserException(functionId + "Null or empty param list");
+        }
+
+        // copy the command structure to another command string with the option value replacing the RUN command
+        CommandStruct cmdOption = new CommandStruct (cmd.command, cmd.line);
+        for (int ix = 0; ix < cmd.params.size(); ix++) {
+            cmdOption.params.add(cmd.params.get(ix));
+        }
+        
         OptionList optInfo = null;
         for (OptionList tblEntry : OptionTable) {
-            if (tblEntry.optName.contentEquals(command)) {
+            if (tblEntry.optName.contentEquals(cmd.command)) {
                 optInfo = tblEntry;
                 break;
             }
         }
         if (optInfo == null) {
-            throw new ParserException(functionId + "option is not valid: " + command);
+            throw new ParserException(functionId + "option is not valid: " + cmd.command);
         }
         String argTypes = optInfo.argTypes;
 
         // verify integrity of params
         int paramCnt = argTypes.length();
-        if (params == null || (params.isEmpty() && paramCnt > 0)) {
+        if (cmdOption.params.isEmpty() && paramCnt > 0) {
             throw new ParserException(functionId + "Null or empty param list");
         }
-        if (paramCnt < 0 || paramCnt > params.size()) {
-            throw new ParserException(functionId + "Missing parameters in list: required " + paramCnt + ", only found " + params.size());
+        if (paramCnt > cmdOption.params.size()) {
+            throw new ParserException(functionId + "Missing parameters in list: required "
+                    + paramCnt + ", only found " + cmdOption.params.size());
         }
-        
-        // do any parameter conversions of the parameters passed and add
-        // the converted values to the command struct.
-        cmdOption.params = params;
-//        for (int ix = 0; ix < argTypes.length(); ix++) {
-//            ParameterStruct argToPass = params.get(ix);
-//            argToPass.convertType(argTypes.charAt(ix));
-//            cmdOption.params.add(argToPass);
-//        }
                 
         // now run the command line option command and save any response msg
         String rsp = executeCmdOption (cmdOption);
@@ -148,24 +187,26 @@ public class CmdOptions {
      * that can direct program flow and assign parameter values.
      * 
      * @param argList - the command line arguments expressed as a list of Strings
+     * @param lineNum - the program file source line number for the option command(s)
      * 
      * @return a list of 1 or more CommandStruct entries of commands to execute
      * 
      * @throws ParserException 
      */
-    public ArrayList<CommandStruct> formatCmdOptions (ArrayList<String> argList) throws ParserException {
-        String functionId = CLASS_NAME + ".formatCmdOptions: ";
+    public ArrayList<CommandStruct> formatCmdOptions (ArrayList<String> argList, int lineNum) throws ParserException {
+        String functionId = CLASS_NAME + ".formatCmdOptions: " + showLineNumberInfo(lineNum);
 
         if (argList == null || argList.isEmpty()) {
-            throw new ParserException(functionId + "Null command line");
+            throw new ParserException(functionId + showLineNumberInfo(lineNum) + "Null command line");
         }
 
         ArrayList<CommandStruct> commands = new ArrayList<>(); // array of command lines extracted
-        frame.outputInfoMsg(STATUS_PROGRAM, "  splitting command option: " + String.join(" ", argList));
+        frame.outputInfoMsg(STATUS_PROGRAM, showLineNumberInfo(lineNum) + "  splitting command option: " + String.join(" ", argList));
         
         // 1st entry is option, which may have additional args. let's see how many
         String cmdArg = argList.removeFirst();
-        CommandStruct newCommand = new CommandStruct(cmdArg);
+        CommandStruct newCommand = new CommandStruct(cmdArg, lineNum);
+        
         OptionList optInfo = null;
         for (OptionList tblEntry : OptionTable) {
             if (tblEntry.optName.contentEquals(cmdArg)) {
@@ -212,7 +253,7 @@ public class CmdOptions {
                 // add current command string to list of commands
                 commands.add(newCommand);
                 // restart the new command list with the new option
-                newCommand = new CommandStruct(cmdArg);
+                newCommand = new CommandStruct(cmdArg, lineNum);
                 // update the option parameter list info
                 parmCnt = 0;
                 optInfo = newInfo;
@@ -225,9 +266,9 @@ public class CmdOptions {
                     }
                 }
                 if (optInfo.argTypes.isEmpty()) {
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (no args)");
+                    frame.outputInfoMsg(STATUS_PROGRAM, showLineNumberInfo(lineNum) + "  option cmd: " + cmdArg + " (no args)");
                 } else {
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
+                    frame.outputInfoMsg(STATUS_PROGRAM, showLineNumberInfo(lineNum) + "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
                 }
             } else {
                 // assume it is a parameter - verify the option takes another parameter
@@ -259,6 +300,7 @@ public class CmdOptions {
      * executes the command line option specified
      * 
      * @param cmdLine - the option command to execute
+     *        (the command entry is ignored so the option is actually the 1st param entry)
      * 
      * @return a response String if the command was a query type, else null
      * 
@@ -268,13 +310,14 @@ public class CmdOptions {
      * @throws TikaException 
      */
     private String executeCmdOption (CommandStruct cmdLine) throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + ".executeCmdOption: ";
+        String functionId = CLASS_NAME + ".executeCmdOption: " + showLineNumberInfo(cmdLine.line);
         String response = null;
         String filetype;
         String fname;
         String option = cmdLine.command;
         ArrayList<ParameterStruct> params = cmdLine.params;
-        frame.outputInfoMsg(STATUS_PROGRAM, "  Executing: " + cmdLine.showCommand());
+
+        frame.outputInfoMsg(STATUS_DEBUG, "      Executing: " + cmdLine.showCommand());
 
         // the rest will be the parameters associated with the option (if any) plus any additional options
         try {
@@ -458,8 +501,13 @@ public class CmdOptions {
                     throw new ParserException(functionId + "Invalid option: " + option);
             }
         } catch (IndexOutOfBoundsException ex) {
-            throw new ParserException(functionId + "Index entry exceeded max of "
-                                    + (params.size()-1) + " for option " + option + "\n" + ex);
+            if (params.isEmpty()) {
+                throw new ParserException(functionId + "Attempt to retrieve parameter when parameter list is empty"
+                                    + " for option " + option + "\n  -> " + ex);
+            } else {
+                throw new ParserException(functionId + "Parameter index exceeded max of " + (params.size()-1)
+                                    + " for option " + option + "\n  -> " + ex);
+            }
         }
         
         return response;

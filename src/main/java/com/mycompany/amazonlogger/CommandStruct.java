@@ -13,10 +13,12 @@ import java.util.ArrayList;
 public class CommandStruct {
     
     // defines the structure for file commands
-    public String                     command;
-    public ArrayList<ParameterStruct> params;
+    public int     line;        // source code line number for the command
+    public String  command;     // the command to execute
+    public ArrayList<ParameterStruct> params;   // the arguments associated with the command
         
-    CommandStruct(String cmd) {
+    CommandStruct(String cmd, int linenum) {
+        line    = linenum;
         command = cmd;
         params  = new ArrayList<>();
     }
