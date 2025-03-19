@@ -26,7 +26,7 @@ public class LoopParam {
         try {
             Integer iVal = Utils.getHexValue(name);
             if (iVal == null) {
-                iVal = Utils.getIntValue(name);
+                iVal = Utils.getIntValue(name).intValue();
             }
             this.value = iVal;
             this.paramName = null;

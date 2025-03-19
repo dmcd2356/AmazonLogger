@@ -848,7 +848,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         try {
             intVal = Utils.getHexValue (strFlags);
             if (intVal == null) {
-                intVal = Utils.getIntValue (strFlags);
+                intVal = Utils.getIntValue (strFlags).intValue();
             }
         } catch (ParserException ex) {
             // the Propertiy value was neither Integer or hexadecimal format.

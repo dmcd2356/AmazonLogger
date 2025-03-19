@@ -8,7 +8,6 @@ import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -235,24 +234,33 @@ public class ScriptParser {
             cmdIndex = cmdList.size(); // the command index
 
             // first, extract the 1st word as the command keyword
-            // 'parmString' is a string containing the parameters following the command
-            // 'cmdStruct' will receive the command, with the params yet to be placed.
-            CommandStruct cmdStruct;
+            String command = line;
             String parmString = "";
-            ArrayList<String> listParms;
-            
-            // if the optional RUN command was omitted from an option command, let's add it here
-            if (line.startsWith("-")) {
-                line = "RUN " + line;
-            }
-
-            int offset = line.indexOf(" ");
-            if (offset <= 0) {
-                cmdStruct = new CommandStruct(line, lineNum);
-            } else {
-                cmdStruct = new CommandStruct(line.substring(0, offset).stripTrailing(), lineNum);
+            int offset = command.indexOf(" ");
+            if (offset > 0) {
+                command = command.substring(0, offset).strip();
                 parmString = line.substring(offset).strip();
             }
+            
+            // check for parameter names in the case of an assignment statement
+            ParamExtract parmInfo = new ParamExtract(line);
+            if (parmInfo.name != null && parmInfo.delimiter == '=' && parmInfo.remainder != null) {
+                command = "SET";
+                parmString = parmInfo.name + " " + parmInfo.remainder;
+            } else if (line.startsWith("-")) {
+                // if the optional RUN command was omitted from an option command, let's add it here
+                String argTypes = cmdOptionParser.getOptionParams(command);
+                if (argTypes == null) {
+                    throw new ParserException(functionId + "option is not valid: " + command);
+                }
+                command = "RUN";
+                parmString = line;
+            }
+
+            // 'parmString' is a string containing the parameters following the command
+            // 'cmdStruct' will receive the command, with the params yet to be placed.
+            CommandStruct cmdStruct = new CommandStruct(command, lineNum);
+            ArrayList<String> listParms;
             
             // extract the parameters to pass to the command
             frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
@@ -285,32 +293,66 @@ public class ScriptParser {
                     cmdStruct = null; // don't bother to run the command in execution phase
                     break;
                 case "SET":
-                    char paramType = 'S';
-                    if (parmString.startsWith("I_")) {
-                        paramType = 'I';
-                    } else if (parmString.startsWith("B_")) {
-                        paramType = 'B';
-                    } else if (parmString.startsWith("A_")) {
-                        paramType = 'A';
-                    } else if (parmString.startsWith("L_")) {
-                        paramType = 'L';
+                    // TODO: for now, we are only accepting a value or a parameter and are not doing any calculations.
+                    // (the first arg is the parameter name)
+                    if (parmTypeList.length() != 2) {
+                        throw new ParserException(functionId + lineInfo + "Only 1 value allowed for parameter assignment for now: " + parmString);
                     }
-                    String argList = "S" + paramType;
-
-                    // determine the type of parameter being defined
-                    // must be either a String or a List of parameter name entries
-                    checkParamTypes(cmdStruct, argList, cmdIndex);
-
-                    // make sure we are not using a reserved parameter name
                     String strParmName = cmdStruct.params.get(0).getStringValue();
-                    try {
-                        boolean bIsDefined = ParameterStruct.isValidParamName(strParmName);
-                        if (! bIsDefined) {
-                            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " - parameter not defined: " + strParmName);
-                        }
-                    } catch (ParserException exMsg) {
-                        throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
+                    String strParmVal  = cmdStruct.params.get(1).getStringValue();
+                    
+                    // check for valid data type assignment
+                    boolean bValid = false;
+                    char parmType = parmTypeList.charAt(1);
+                    switch (parmInfo.type) {
+                        case 'I':
+                            bValid = (parmType == 'I' || parmType == 'U' || parmType == 'S');
+                            break;
+                        case 'B':
+                            bValid = (parmType == 'B' || parmType == 'I' || parmType == 'U' || parmType == 'S');
+                            break;
+                        case 'S':
+                            bValid = (parmType != 'A');
+                            break;
+                        case 'A':
+                            bValid = (parmType == 'A' || parmType == 'I' || parmType == 'U');
+                            break;
+                        case 'L':
+                            bValid = (parmType == 'L' || parmType == 'S');
+                            break;
+                        default:
+                            break;
                     }
+                    if (!bValid) {
+                        throw new ParserException(functionId + lineInfo + "Invalid assignment type for " + strParmName + ": " + strParmVal);
+                    }
+//                    char paramType = 'S';
+//                    if (parmString.startsWith("I_")) {
+//                        paramType = 'I';
+//                    } else if (parmString.startsWith("B_")) {
+//                        paramType = 'B';
+//                    } else if (parmString.startsWith("A_")) {
+//                        paramType = 'A';
+//                    } else if (parmString.startsWith("L_")) {
+//                        paramType = 'L';
+//                    }
+//                    String argList = "S" + paramType;
+
+//
+//                    // determine the type of parameter being defined
+//                    // must be either a String or a List of parameter name entries
+//                    checkParamTypes(cmdStruct, argList, cmdIndex);
+//
+//                    // make sure we are not using a reserved parameter name
+//                    String strParmName = cmdStruct.params.get(0).getStringValue();
+//                    try {
+//                        boolean bIsDefined = ParameterStruct.isValidParamName(strParmName);
+//                        if (! bIsDefined) {
+//                            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " - parameter not defined: " + strParmName);
+//                        }
+//                    } catch (ParserException exMsg) {
+//                        throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
+//                    }
                     break;
                 case "IF":
                     // verify number and type of arguments
@@ -866,11 +908,8 @@ public class ScriptParser {
                     paramType = 'B';
                 } else {
                     try {
-                        Integer iVal = Utils.getHexValue (nextArg);
-                        if (iVal == null) {
-                            iVal = Utils.getIntValue (nextArg);
-                        }
-                        if (iVal >= 0)
+                        Long longVal = ParameterStruct.getLongOrUnsignedValue(nextArg);
+                        if (ParameterStruct.isUnsignedInt(longVal))
                             paramType = 'U';
                         else
                             paramType = 'I';

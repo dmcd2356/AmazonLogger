@@ -309,12 +309,12 @@ public class Utils {
      * 
      * @throws ParserException 
      */
-    public static Integer getIntValue (String strValue) throws ParserException {
+    public static Long getIntValue (String strValue) throws ParserException {
         String functionId = CLASS_NAME + ".getIntValue: ";
         
-        Integer intValue;
+        Long intValue;
         try {
-            intValue = Integer.valueOf(strValue);
+            intValue = Long.valueOf(strValue);
         } catch (NumberFormatException ex) {
             throw new ParserException(functionId + "Invalid Integer value: " + strValue);
         }
@@ -525,6 +525,42 @@ public class Utils {
         return myFile;
     }
 
+    /**
+     * This performs a comparison of 2 Long parameters.
+     * 
+     * @param param1   - the first value to compare
+     * @param param2   - the parameter to compare it to
+     * @param compType - the type of comparison to perform
+     * 
+     * @return true if condition is true.
+     * 
+     * @throws ParserException
+     */
+    public static boolean compareParameterValues (Long param1, Long param2, String compType) throws ParserException {
+        String functionId = CLASS_NAME + ".compareParameterValues: ";
+        
+        boolean bExit = false;
+        
+        switch (compType) {
+            case "<":   if (param1 < param2) bExit = true;
+                break;
+            case "<=":  if (param1 <= param2) bExit = true;
+                break;
+            case ">":   if (param1 > param2) bExit = true;
+                break;
+            case ">=":  if (param1 >= param2) bExit = true;
+                break;
+            case "!=":  if (!Objects.equals(param1, param2)) bExit = true;
+                break;
+            default:
+            case "=":
+            case "==":  if (Objects.equals(param1, param2)) bExit = true;
+                break;
+        }
+        frame.outputInfoMsg(STATUS_DEBUG, functionId + " " + param1 + " " + compType + " " + param2 + " " + bExit);
+        return bExit;
+    }
+    
     /**
      * This performs a comparison of 2 Integer parameters.
      * 

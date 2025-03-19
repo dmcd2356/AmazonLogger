@@ -27,20 +27,20 @@ public final class ParameterStruct {
     private static final String CLASS_NAME = "ParameterStruct";
     
     private String   strParam;      // value for the String  param type
-    private Integer  intParam;      // value for the Integer param type
+    private Long     intParam;      // value for the Integer param type (64 bit signed)
     private Boolean  boolParam;     // value for the Boolean param type
-    private ArrayList<Integer> arrayParam;  // value for Integer Array param type
+    private ArrayList<Long>    arrayParam;  // value for Integer Array param type
     private ArrayList<String>  listParam;   // value for String  List  param type
     private String   paramName;     // name of parameter if references a saved parameter
     private char     paramType;     // the corresponding data type stored
     
     // saved static parameters
     private static String  strResponse = "";    // response from last RUN command
-    private static Integer intResult = 0;       // result of last CALC command
+    private static Long    intResult = 0L;      // result of last CALC command
     private static final HashMap<String, String>  strParams  = new HashMap<>();
-    private static final HashMap<String, Integer> intParams  = new HashMap<>();
+    private static final HashMap<String, Long>    intParams  = new HashMap<>();
     private static final HashMap<String, Boolean> boolParams = new HashMap<>();
-    private static final HashMap<String, ArrayList<Integer>> arrayParams = new HashMap<>();
+    private static final HashMap<String, ArrayList<Long>>    arrayParams = new HashMap<>();
     private static final HashMap<String, ArrayList<String>>  listParams  = new HashMap<>();
     
     // for loops, the loopParams will find the loop parameter for the loop at the
@@ -118,14 +118,11 @@ public final class ParameterStruct {
             case 'U':
             case 'I':
                 try {
-                    intParam = Utils.getHexValue (strParam);
-                    if (intParam == null) {
-                        intParam = Utils.getIntValue (strParam);
-                    }
+                    intParam = getLongOrUnsignedValue(strParam);
                 } catch (ParserException ex) {
                     throw new ParserException(functionId + "Invalid value for '" + dataType + "' type param: " + strValue);
                 }
-                if (dataType == 'U' && (intParam < 0)) {
+                if (dataType == 'U' && ! isUnsignedInt(intParam)) {
                     frame.outputInfoMsg(STATUS_WARN, "Invalid value for '" + dataType + "' type param: " + intParam + " (reclassified as 'I')");
                     dataType = 'I';
                 }
@@ -170,11 +167,8 @@ public final class ParameterStruct {
         arrayParam = new ArrayList<>();
         for (int ix = 0; ix < listValue.size(); ix++) {
             try {
-                Integer iVal = Utils.getHexValue (listValue.get(ix));
-                if (iVal == null) {
-                    iVal = Utils.getIntValue (listValue.get(ix));
-                }
-                arrayParam.add(iVal);
+                Long longVal = getLongOrUnsignedValue (listValue.get(ix));
+                arrayParam.add(longVal);
             } catch (ParserException ex) {
                 arrayParam = null;
                 bFail = true;
@@ -220,8 +214,24 @@ public final class ParameterStruct {
      * 
      * @return the Integer value
      */
-    public Integer getIntegerValue () {
+    public Long getIntegerValue () {
         return intParam;
+    }
+        
+    /**
+     * returns the Unsigned Integer data value
+     * 
+     * @return the Integer value
+     * 
+     * @throws ParserException
+     */
+    public Integer getUnsignedValue () throws ParserException {
+        String functionId = CLASS_NAME + ".getUnsignedValue: ";
+
+        if (! isUnsignedInt(intParam)) {
+            throw new ParserException(functionId + "Parameter value exceeds bounds for Unsigned: " + intParam);
+        }
+        return intParam.intValue();
     }
         
     /**
@@ -281,7 +291,7 @@ public final class ParameterStruct {
                 break;
             case 'B':
                 strParam = boolParam.toString();
-                intParam = (boolParam) ? 1 : 0;
+                intParam = (boolParam) ? 1L : 0L;
                 break;
             case 'S':
                 if (strParam.equalsIgnoreCase("TRUE")) {
@@ -291,18 +301,13 @@ public final class ParameterStruct {
                     boolParam = false;
                     paramType = 'B';
                 } else {
-                    intParam = Utils.getHexValue(strParam);
-                    if (intParam != null) {
-                        paramType = 'U';
+                    try {
+                        Long longVal = getLongOrUnsignedValue (strParam);
+                        intParam = longVal;
+                        paramType = isUnsignedInt(longVal) ? 'U' : 'I';
                         boolParam = intParam != 0;
-                    } else {
-                        try {
-                            intParam = Utils.getIntValue(strParam);
-                            paramType = 'I';
-                            boolParam = intParam != 0;
-                        } catch (ParserException ex) {
-                            // keep param as String type and we can't do any conversions
-                        }
+                    } catch (ParserException ex) {
+                        // keep param as String type and we can't do any conversions
                     }
                 }
                 break;
@@ -326,7 +331,7 @@ public final class ParameterStruct {
      * 
      * @return the Array element value
      */
-    public Integer getArrayElement (int index) {
+    public Long getArrayElement (int index) {
         if (index >= arrayParam.size()) {
             return null;
         }
@@ -402,7 +407,7 @@ public final class ParameterStruct {
         loopParams.clear();
         loopNames.clear();
         strResponse = "";
-        intResult = 0;
+        intResult = 0L;
     }
 
     /**
@@ -419,7 +424,7 @@ public final class ParameterStruct {
      * 
      * @param value - value to set the result param to
      */
-    public static void putResultValue (Integer value) {
+    public static void putResultValue (Long value) {
         intResult = value;
     }
 
@@ -449,7 +454,7 @@ public final class ParameterStruct {
         switch (pType) {
             case 'I':  // Integer (and Unsigned) type
                 typeName = "Integer";
-                intParams.put(name, 0);         // default value to 0
+                intParams.put(name, 0L);         // default value to 0
                 break;
             case 'B':  // Boolean type
                 typeName = "Boolean";
@@ -540,10 +545,7 @@ public final class ParameterStruct {
             default:
                 if (name.contentEquals("RESULT")) {
                     paramValue.intParam = intResult;
-                    pType = 'I';
-                    if (paramValue.intParam >= 0 && paramValue.intParam <= 0xFFFFFFFF) {
-                        pType = 'U';
-                    }
+                    pType = isUnsignedInt(paramValue.intParam) ? 'U' : 'I';
                 } else if (name.contentEquals("RESPONSE")) {
                     paramValue.strParam = strResponse;
                     pType = 'S';
@@ -553,11 +555,8 @@ public final class ParameterStruct {
                         pType = 'S';
                     } else if (loopNames.containsKey(name)) {
                         LoopStruct loopInfo = new LoopStruct();
-                        paramValue.intParam = loopInfo.getCurrentLoopValue(name);
-                        pType = 'I';
-                        if (paramValue.intParam >= 0 && paramValue.intParam <= 0xFFFFFFFF) {
-                            pType = 'U';
-                        }
+                        paramValue.intParam = loopInfo.getCurrentLoopValue(name).longValue();
+                        pType = isUnsignedInt(paramValue.intParam) ? 'U' : 'I';
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " not found");
                     }
@@ -602,7 +601,7 @@ public final class ParameterStruct {
      * 
      * @return true if successful, false if the parameter was not found
      */
-    public static boolean modifyIntegerParameter (String name, Integer value) {
+    public static boolean modifyIntegerParameter (String name, Long value) {
         if (intParams.containsKey(name)) {
             intParams.replace(name, value);
             frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Integer param: " + name + " = " + value);
@@ -802,29 +801,28 @@ public final class ParameterStruct {
     public static char classifyDataType (String strValue) {
         char dataType;
 
-        if (strValue.startsWith("$I_")) {
-            dataType = 'I'; // these should always be integers (unsure if they are unsigned or not)
-        }
-        else if (strValue.startsWith("$")) {
-            dataType = 'S'; // these can be anything, but during compile we won't know runtime values
+        // first check if it is a parameter
+        if (strValue.startsWith("$")) {
+            char pType = 'S';
+            if (strValue.charAt(2) == '_') {
+                pType = strValue.charAt(1);
+            }
+            dataType = switch (pType) {
+                case 'I', 'B', 'A', 'L' -> pType;
+                default -> 'S';
+            };
         }
         else if (strValue.equalsIgnoreCase("TRUE") ||
                  strValue.equalsIgnoreCase("FALSE")) {
             dataType = 'B';
         } else {
             try {
-                Integer iVal = Utils.getHexValue (strValue);
-                if (iVal == null) {
-                    iVal = Utils.getIntValue (strValue);
-                }
-                if (iVal >= 0 && iVal <= 0xFFFFFFFF)
-                    dataType = 'U';
-                else
-                    dataType = 'I';
+                Long longVal = getLongOrUnsignedValue (strValue);
+                dataType = isUnsignedInt(longVal) ? 'U' : 'I';
             } catch (ParserException ex) {
-                int offset = strValue.indexOf(' ');
+                int offset = strValue.indexOf('{');
                 if (offset > 0) {
-                    dataType = 'L';
+                    dataType = 'L'; // NOTE: could also be Array, but let's leave it at List
                 } else {
                     dataType = 'S';
                 }
@@ -832,6 +830,75 @@ public final class ParameterStruct {
         }
         
         return dataType;
+    }
+    
+    /**
+     * converts a String hexadecimal unsigned value or 64-bit signed Integer value to a Long
+     * 
+     * @param strValue - value to convert
+     * 
+     * @return the corresponding unsigned Long value
+     * 
+     * @throws ParserException 
+     */
+    public static Long getLongOrUnsignedValue (String strValue) throws ParserException {
+        Long longVal;
+        Integer iVal = Utils.getHexValue (strValue);
+        if (iVal == null) {
+            longVal = Utils.getIntValue (strValue);
+        } else {
+            longVal = iVal.longValue();
+        }
+        return longVal;
+    }
+
+    /**
+     * checks if a value is an unsigned integer
+     * 
+     * @param longVal - value to check
+     * 
+     * @return true if value is an Unsigned Integer
+     */
+    public static boolean isUnsignedInt (Long longVal) {
+        return longVal >= 0L && longVal <= 0xFFFFFFFFL;
+    }
+    
+    /**
+     * determines if a parameter has been found with the specified name.
+     * (Does not check for loop parameters)
+     * 
+     * @param name - name of the parameter to search for
+     * 
+     * @return type of parameter if found, null if not found
+     */
+    public static String isParamDefined (String name) {
+        if (intParams.containsKey(name)) {
+            return "I";
+        }
+        if (strParams.containsKey(name)) {
+            return "S";
+        }
+        if (boolParams.containsKey(name)) {
+            return "B";
+        }
+        if (arrayParams.containsKey(name)) {
+            return "A";
+        }
+        if (listParams.containsKey(name)) {
+            return "L";
+        }
+        return null;
+    }
+
+    /**
+     * determines if a loop parameter has been found with the specified name.
+     * 
+     * @param name - name of the loop parameter to search for
+     * 
+     * @return true if the loop parameter was found
+     */
+    public static boolean isLoopParamDefined (String name) {
+        return loopNames.containsKey(name);
     }
     
     /**
@@ -855,24 +922,19 @@ public final class ParameterStruct {
         if (name.startsWith("$")) {
             name = name.substring(1);
         }
+        
+        // verify the formaat of the parameter name
         verifyParamFormat(name);
         verifyNotReservedName(name);
-        if (loopNames.containsKey(name)) {
+        
+        if (isLoopParamDefined(name)) {
             throw new ParserException(functionId + "using Loop parameter name: " + name);
         }
 
         // see if its already defined
-        if (intParams.containsKey(name)   ||
-            strParams.containsKey(name)   ||
-            boolParams.containsKey(name)  ||
-            arrayParams.containsKey(name) ||
-            listParams.containsKey(name)    ) {
-            return true;
-        }
-        
-        return false;
+        return isParamDefined(name) != null;
     }
-    
+
     /**
      * checks if a Loop parameter name is valid.
      * 
@@ -892,24 +954,15 @@ public final class ParameterStruct {
         if (name.startsWith("$")) {
             name = name.substring(1);
         }
+
+        // verify the formaat of the parameter name
         verifyParamFormat(name);
         verifyNotReservedName(name);
 
-        // make sure its not the same as a regular parameter
-        if (intParams.containsKey(name)) {
-            throw new ParserException(": using Integer parameter name: " + name);
-        }
-        if (strParams.containsKey(name)) {
-            throw new ParserException(": using String parameter name: " + name);
-        }
-        if (boolParams.containsKey(name)) {
-            throw new ParserException(": using Boolean parameter name: " + name);
-        }
-        if (arrayParams.containsKey(name)) {
-            throw new ParserException(": using Array parameter name: " + name);
-        }
-        if (listParams.containsKey(name)) {
-            throw new ParserException(": using List parameter name: " + name);
+        // make sure its not the same as a reference parameter
+        String type = isParamDefined(name);
+        if (type != null) {
+            throw new ParserException(": using " + type + " parameter name: " + name);
         }
         
         // now check if this loop name is nested in a loop having same name
@@ -922,7 +975,7 @@ public final class ParameterStruct {
                 LoopId loopEntry = loopList.get(ix);
                 LoopStruct loopInfo = getLoopStruct (loopEntry);
                 if (loopInfo == null || ! loopInfo.isLoopComplete()) {
-                    throw new ParserException(": Loop param " + name + " @ " + index + " is nested in same name at " + loopEntry.index);
+                    throw new ParserException(functionId + ": Loop param " + name + " @ " + index + " is nested in same name at " + loopEntry.index);
                 } else {
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - FOR Loop parameter " + name + " @ " + loopEntry.index + " was complete");
                 }
