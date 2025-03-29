@@ -21,12 +21,14 @@ public class IFStruct {
     boolean bFinalElse; // true if last entry in ixElse list was an ELSE, so there can be no more
     Integer ixEndIf;    // command index for ENDIF statement
     Integer loopLevel;  // loop nest level for start of IF statement
+    boolean bCondMet;   // set to the IF level condition being executed (null if none)
         
     IFStruct (int index, int loopLevel) {
         this.ixIf    = index;
         this.ixElse  = new ArrayList<>();
         this.ixEndIf = null;
         this.bFinalElse = false;
+        this.bCondMet = false;
             
         // save the loop level for testing whether ELSE and ENDIF are at same level
         this.loopLevel = loopLevel;
@@ -36,6 +38,36 @@ public class IFStruct {
         frame.outputInfoMsg(STATUS_PROGRAM, "    " + cmdId + " @ " + this.ixIf + nestLevel);
     }
 
+    /**
+     * verifies that the IF statement command has the required entries.
+     * 
+     * @return true if valid
+     */
+    boolean isValid () {
+        return this.ixIf != null && this.ixEndIf != null && this.ixElse != null && this.loopLevel != null;
+    }
+        
+    /**
+     * determines if one of the IF/ELSEIF conditions has been met.
+     * This is used to determine when the ELSE or ELSEIF command is the next
+     * command to run whether it was being jumped to because the previous condition
+     * was not met or because the previous condition WAS met and has completed its
+     * execution. If the first case, it should handle the ELSE or ELSEIF statement,
+     * but if the last case, it should jump to the next ENDIF statement.
+     * 
+     * @return true if condition was met
+     */
+    boolean isConditionMet () {
+        return this.bCondMet;
+    }
+        
+    /**
+     * sets the flag to indicate the IF condition has been met.
+     */
+    void setConditionMet () {
+        this.bCondMet = true;
+    }
+        
     /**
      * get the command index of the next ELSE, ELSEIF or ENDIF statement.
      * 
@@ -61,16 +93,27 @@ public class IFStruct {
         }
         return this.ixEndIf;
     }
-        
+
     /**
-     * verifies that the IF statement command has the required entries.
+     * get the command index of the next ENDIF statement.
      * 
-     * @return true if valid
+     * @param index - the current command index
+     * 
+     * @throws ParserException
      */
-    boolean isValid () {
-        return this.ixIf != null && this.ixEndIf != null && this.ixElse != null && this.loopLevel != null;
+    int getEndIndex () throws ParserException {
+        return this.ixEndIf;
     }
-        
+
+    /**
+     * sets the IF conditions when an ELSE or ELSEIF command is found.
+     * 
+     * @param index     - the current command line index
+     * @param bElseIf   - true if ELSEIF command, false if ELSE command
+     * @param loopLevel - the current FOR loop nest level
+     * 
+     * @throws ParserException 
+     */
     void setElseIndex (int index, boolean bElseIf, int loopLevel) throws ParserException {
         String functionId = CLASS_NAME + ".setElseIndex: ";
 
@@ -92,6 +135,14 @@ public class IFStruct {
         frame.outputInfoMsg(STATUS_PROGRAM, "    " + cmdId + "    entry " + this.ixElse.size() + " for IF @ " + this.ixIf + nestLevel);
     }
         
+    /**
+     * sets the IF conditions when an ENDIF command is found.
+     * 
+     * @param index     - the current command line index
+     * @param loopLevel - the current FOR loop nest level
+     * 
+     * @throws ParserException 
+     */
     void setEndIfIndex (int index, int loopLevel) throws ParserException {
         String functionId = CLASS_NAME + ".setEndIfIndex: ";
 

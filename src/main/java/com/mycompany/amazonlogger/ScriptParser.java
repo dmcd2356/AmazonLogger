@@ -326,33 +326,6 @@ public class ScriptParser {
                     if (!bValid) {
                         throw new ParserException(functionId + lineInfo + "Invalid assignment type for " + strParmName + ": " + strParmVal);
                     }
-//                    char paramType = 'S';
-//                    if (parmString.startsWith("I_")) {
-//                        paramType = 'I';
-//                    } else if (parmString.startsWith("B_")) {
-//                        paramType = 'B';
-//                    } else if (parmString.startsWith("A_")) {
-//                        paramType = 'A';
-//                    } else if (parmString.startsWith("L_")) {
-//                        paramType = 'L';
-//                    }
-//                    String argList = "S" + paramType;
-
-//
-//                    // determine the type of parameter being defined
-//                    // must be either a String or a List of parameter name entries
-//                    checkParamTypes(cmdStruct, argList, cmdIndex);
-//
-//                    // make sure we are not using a reserved parameter name
-//                    String strParmName = cmdStruct.params.get(0).getStringValue();
-//                    try {
-//                        boolean bIsDefined = ParameterStruct.isValidParamName(strParmName);
-//                        if (! bIsDefined) {
-//                            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " - parameter not defined: " + strParmName);
-//                        }
-//                    } catch (ParserException exMsg) {
-//                        throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
-//                    }
                     break;
                 case "IF":
                     // verify number and type of arguments
@@ -584,39 +557,57 @@ public class ScriptParser {
                 } else {
                     bBranch = Utils.compareParameterValues (parm1.getStringValue(), parm2.getStringValue(), comp);
                 }
+                IFStruct ifInfo = getIfEntry(cmdIndex);
                 if (bBranch) {
-                    IFStruct ifInfo = getIfEntry(cmdIndex);
                     newIndex = ifInfo.getElseIndex(cmdIndex);
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - goto next IF case @ " + newIndex);
+                } else {
+                    ifInfo.setConditionMet(); // we are running the condition, so ELSEs will be skipped
                 }
                 break;
             case "ELSE":
                 if (ifStack.empty()) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a IF structure");
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex);
+
+                // if the IF condition has already been met, jump to the ENDIF statement
+                ifInfo = getIfEntry(ifStack.peek());
+                if (ifInfo.isConditionMet()) {
+                    newIndex = ifInfo.getEndIndex();
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - goto ENDIF @ " + newIndex);
+                } else {
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex);
+                }
                 break;
             case "ELSEIF":
                 if (ifStack.empty()) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a IF structure");
                 }
 
-                parm1 = cmdStruct.params.get(0);
-                comp  = cmdStruct.params.get(1).getStringValue();
-                parm2 = cmdStruct.params.get(2);
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + ": " + parm1.getStringValue() + " " + comp + " " + parm2.getStringValue());
-
-                // check status to see if true of false.
-                if ((parm1.getParamType() == 'I' || parm1.getParamType() == 'U') &&
-                    (parm2.getParamType() == 'I' || parm2.getParamType() == 'U')    ) {
-                    bBranch = Utils.compareParameterValues (parm1.getIntegerValue(), parm2.getIntegerValue(), comp);
+                // if the IF condition has already been met, jump to the ENDIF statement
+                ifInfo = getIfEntry(ifStack.peek());
+                if (ifInfo.isConditionMet()) {
+                    newIndex = ifInfo.getEndIndex();
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - goto ENDIF @ " + newIndex);
                 } else {
-                    bBranch = Utils.compareParameterValues (parm1.getStringValue(), parm2.getStringValue(), comp);
-                }
-                if (bBranch) {
-                    IFStruct ifInfo = getIfEntry(ifStack.peek());
-                    newIndex = ifInfo.getElseIndex(cmdIndex);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - goto next IF case @ " + newIndex);
+                    parm1 = cmdStruct.params.get(0);
+                    comp  = cmdStruct.params.get(1).getStringValue();
+                    parm2 = cmdStruct.params.get(2);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + ": " + parm1.getStringValue() + " " + comp + " " + parm2.getStringValue());
+
+                    // check status to see if true of false.
+                    if ((parm1.getParamType() == 'I' || parm1.getParamType() == 'U') &&
+                        (parm2.getParamType() == 'I' || parm2.getParamType() == 'U')    ) {
+                        bBranch = Utils.compareParameterValues (parm1.getIntegerValue(), parm2.getIntegerValue(), comp);
+                    } else {
+                        bBranch = Utils.compareParameterValues (parm1.getStringValue(), parm2.getStringValue(), comp);
+                    }
+                    if (bBranch) {
+                        newIndex = ifInfo.getElseIndex(cmdIndex);
+                        frame.outputInfoMsg(STATUS_PROGRAM, "   - goto next IF case @ " + newIndex);
+                    } else {
+                        ifInfo.setConditionMet(); // we are running the condition, so ELSEs will be skipped
+                    }
                 }
                 break;
             case "ENDIF":
