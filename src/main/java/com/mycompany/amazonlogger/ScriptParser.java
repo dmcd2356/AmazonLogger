@@ -31,22 +31,6 @@ public class ScriptParser {
     
     private static final String CLASS_NAME = "ScriptParser";
     
-    private static final String [] CommandTable = {
-        "EXIT",
-        "DEFINE",
-        "SET",
-        "IF",
-        "ELSE",
-        "ELSEIF",
-        "ENDIF",
-        "FOR",
-        "BREAK",
-        "CONTINUE",
-        "NEXT",
-        "ENDLOOP",
-        "RUN",
-    };
-            
     // IF List is built during Compile phase and referenced during Execution phase.
     // IF Stack is used during Compile and Execution phases. Compile time for
     //   verification, and Execution for running the branches.
@@ -58,7 +42,7 @@ public class ScriptParser {
     
     // this handles the command line options via the RUN command
     private final CmdOptions cmdOptionParser;
-    
+     
 
     private IFStruct getIfEntry (int cmdIndex) throws ParserException {
         String functionId = CLASS_NAME + ".getIfEntry: ";
@@ -83,22 +67,6 @@ public class ScriptParser {
             return "(line " + lineNum + ") ";
         }
         return "";
-    }
-    
-    /**
-     * checks if a string is one of the reserved command values
-     * 
-     * @param strValue - the string to check
-     * 
-     * @return true if it is a reserved command value
-     */
-    public static boolean isValidCommand (String strValue) {
-        for (int ix = 0; ix < CommandTable.length; ix++) {
-            if (strValue.contentEquals(CommandTable[ix])) {
-                return true;
-            }
-        }
-        return false;
     }
     
     /**
@@ -234,26 +202,27 @@ public class ScriptParser {
             cmdIndex = cmdList.size(); // the command index
 
             // first, extract the 1st word as the command keyword
-            String command = line;
+            String strCmd = line;
             String parmString = "";
-            int offset = command.indexOf(" ");
+            int offset = strCmd.indexOf(" ");
             if (offset > 0) {
-                command = command.substring(0, offset).strip();
+                strCmd = strCmd.substring(0, offset).strip();
                 parmString = line.substring(offset).strip();
             }
+            CommandStruct.CommandTable command = CommandStruct.isValidCommand(strCmd);
             
             // check for parameter names in the case of an assignment statement
             ParamExtract parmInfo = new ParamExtract(line);
             if (parmInfo.name != null && parmInfo.delimiter == '=' && parmInfo.remainder != null) {
-                command = "SET";
+                command = CommandStruct.CommandTable.SET;
                 parmString = parmInfo.name + " " + parmInfo.remainder;
             } else if (line.startsWith("-")) {
                 // if the optional RUN command was omitted from an option command, let's add it here
-                String argTypes = cmdOptionParser.getOptionParams(command);
+                String argTypes = cmdOptionParser.getOptionParams(strCmd);
                 if (argTypes == null) {
-                    throw new ParserException(functionId + "option is not valid: " + command);
+                    throw new ParserException(functionId + "option is not valid: " + strCmd);
                 }
-                command = "RUN";
+                command = CommandStruct.CommandTable.RUN;
                 parmString = line;
             }
 
@@ -271,7 +240,7 @@ public class ScriptParser {
             // now let's check for valid command keywords and extract the parameters
             //  into the cmdStruct structure.
             switch (cmdStruct.command) {
-                case "DEFINE":
+                case CommandStruct.CommandTable.DEFINE:
                     // must be either a String or a List of parameter name entries
                     checkParamTypes(cmdStruct, "L", cmdIndex);
 
@@ -290,9 +259,8 @@ public class ScriptParser {
                             throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
                         }
                     }
-                    cmdStruct = null; // don't bother to run the command in execution phase
                     break;
-                case "SET":
+                case CommandStruct.CommandTable.SET:
                     // TODO: for now, we are only accepting a value or a parameter and are not doing any calculations.
                     // (the first arg is the parameter name)
                     if (parmTypeList.length() != 2) {
@@ -327,7 +295,7 @@ public class ScriptParser {
                         throw new ParserException(functionId + lineInfo + "Invalid assignment type for " + strParmName + ": " + strParmVal);
                     }
                     break;
-                case "IF":
+                case CommandStruct.CommandTable.IF:
                     // verify number and type of arguments
                     checkParamTypes(cmdStruct, "ISI", cmdIndex);
 
@@ -350,7 +318,7 @@ public class ScriptParser {
                     ifStack.push(cmdIndex);
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - new IF level " + ifStack.size() + " parameter " + ifName);
                     break;
-                case "ELSE":
+                case CommandStruct.CommandTable.ELSE:
                     if (ifList.isEmpty()) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
                     }
@@ -359,7 +327,7 @@ public class ScriptParser {
                     ifInfo.setElseIndex(cmdIndex, false, LoopStruct.getStackSize());
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex);
                     break;
-                case "ELSEIF":
+                case CommandStruct.CommandTable.ELSEIF:
                     if (ifStack.empty()) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
                     }
@@ -373,7 +341,7 @@ public class ScriptParser {
                     ifInfo.setElseIndex(cmdIndex, true, LoopStruct.getStackSize());
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex + " parameter " + ifName);
                     break;
-                case "ENDIF":
+                case CommandStruct.CommandTable.ENDIF:
                     if (ifStack.empty()) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
                     }
@@ -383,7 +351,7 @@ public class ScriptParser {
                     ifStack.pop();
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex);
                     break;
-                case "FOR":
+                case CommandStruct.CommandTable.FOR:
                     // read the arguments passed
                     // assumed format is: FOR Name = StartIx ; < EndIx ; IncrVal
                     // (and trailing "; IncrVal" is optional)
@@ -419,7 +387,7 @@ public class ScriptParser {
                     LoopStruct.pushStack(loopId);
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + LoopStruct.getStackSize() + " parameter " + loopName + " index @ " + cmdIndex);
                     break;
-                case "BREAK":
+                case CommandStruct.CommandTable.BREAK:
                     // make sure we are in a FOR ... NEXT loop
                     if (LoopStruct.getStackSize() == 0) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
@@ -428,7 +396,7 @@ public class ScriptParser {
                     LoopId curLoop = LoopStruct.peekStack();
                     ParameterStruct.checkLoopIfLevel (cmdStruct.command, ifStack.size(), curLoop);
                     break;
-                case "CONTINUE":
+                case CommandStruct.CommandTable.CONTINUE:
                     // make sure we are in a FOR ... NEXT loop
                     if (LoopStruct.getStackSize() == 0) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
@@ -437,7 +405,7 @@ public class ScriptParser {
                     curLoop = LoopStruct.peekStack();
                     ParameterStruct.checkLoopIfLevel (cmdStruct.command, ifStack.size(), curLoop);
                     break;
-                case "NEXT":
+                case CommandStruct.CommandTable.NEXT:
                     // make sure we are in a FOR ... NEXT loop
                     if (LoopStruct.getStackSize() == 0) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
@@ -446,7 +414,7 @@ public class ScriptParser {
                     curLoop = LoopStruct.peekStack();
                     ParameterStruct.checkLoopIfLevel (cmdStruct.command, ifStack.size(), curLoop);
                     break;
-                case "ENDFOR":
+                case CommandStruct.CommandTable.ENDFOR:
                     // make sure we are in a FOR ... NEXT loop
                     if (LoopStruct.getStackSize() == 0) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
@@ -458,7 +426,7 @@ public class ScriptParser {
                     // remove entry from loop stack
                     LoopStruct.popStack();
                     break;
-                case "RUN":
+                case CommandStruct.CommandTable.RUN:
                     // verify the option command and its parameters
                     // NOTE: when we place the command in cmdStruct, we remove the RUN label,
                     //       so executeProgramCommand does not need to check for it.
@@ -493,7 +461,7 @@ public class ScriptParser {
         fileReader.close();
         
         // the last line will be the one to end the program flow
-        cmdList.add(new CommandStruct("EXIT", lineNum));
+        cmdList.add(new CommandStruct(CommandStruct.CommandTable.EXIT, lineNum));
         frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: EXIT  (appended)");
         return cmdList;
     }
@@ -522,16 +490,15 @@ public class ScriptParser {
             param.updateFromReference();
         }
 
-        String command = cmdStruct.command;
         frame.outputInfoMsg(STATUS_PROGRAM, lineInfo + cmdStruct.showCommand());
 
         try {
-        switch (command) {
-            case "EXIT":
+        switch (cmdStruct.command) {
+            case CommandStruct.CommandTable.EXIT:
                 return -1; // this will terminate the program
-            case "DEFINE":
+            case CommandStruct.CommandTable.DEFINE:
                 break;
-            case "SET":
+            case CommandStruct.CommandTable.SET:
                 String parmName = cmdStruct.params.get(0).getStringValue();
                 ParameterStruct parmValue = cmdStruct.params.get(1);
                 if (parmValue.getParamType() == 'I' || parmValue.getParamType() == 'U') {
@@ -540,7 +507,7 @@ public class ScriptParser {
                     ParameterStruct.modifyStringParameter(parmName, parmValue.getStringValue());
                 }
                 break;
-            case "IF":
+            case CommandStruct.CommandTable.IF:
                 ParameterStruct parm1 = cmdStruct.params.get(0);
                 String comp           = cmdStruct.params.get(1).getStringValue();
                 ParameterStruct parm2 = cmdStruct.params.get(2);
@@ -565,7 +532,7 @@ public class ScriptParser {
                     ifInfo.setConditionMet(); // we are running the condition, so ELSEs will be skipped
                 }
                 break;
-            case "ELSE":
+            case CommandStruct.CommandTable.ELSE:
                 if (ifStack.empty()) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a IF structure");
                 }
@@ -579,7 +546,7 @@ public class ScriptParser {
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + " " + cmdStruct.command + " on line " + cmdIndex);
                 }
                 break;
-            case "ELSEIF":
+            case CommandStruct.CommandTable.ELSEIF:
                 if (ifStack.empty()) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a IF structure");
                 }
@@ -610,7 +577,7 @@ public class ScriptParser {
                     }
                 }
                 break;
-            case "ENDIF":
+            case CommandStruct.CommandTable.ENDIF:
                 if (ifStack.empty()) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a IF structure");
                 }
@@ -618,49 +585,49 @@ public class ScriptParser {
                 ifStack.pop();
                 frame.outputInfoMsg(STATUS_PROGRAM, "   - new IF level " + ifStack.size() + ": " + cmdStruct.command + " on line " + cmdIndex);
                 break;
-            case "FOR":
+            case CommandStruct.CommandTable.FOR:
                 String loopName  = cmdStruct.params.get(0).getStringValue();
                 curLoopId = new LoopId(loopName, cmdIndex);
-                newIndex = ParameterStruct.getLoopNextIndex (command, cmdIndex, curLoopId);
+                newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                     
                 // add entry to the current loop stack
                 LoopStruct.pushStack(curLoopId);
                 int loopSize = LoopStruct.getStackSize();
                 frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + loopSize+ " parameter " + loopName + " index @ " + cmdIndex);
                 break;
-            case "BREAK":
+            case CommandStruct.CommandTable.BREAK:
                 loopSize = LoopStruct.getStackSize();
                 if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
                 newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopSize
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
-            case "CONTINUE":
+            case CommandStruct.CommandTable.CONTINUE:
                 loopSize = LoopStruct.getStackSize();
                 if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
                 newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopSize
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
-            case "NEXT":
+            case CommandStruct.CommandTable.NEXT:
                 loopSize = LoopStruct.getStackSize();
                 if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
                 newIndex = ParameterStruct.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopSize
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
-            case "ENDFOR":
+            case CommandStruct.CommandTable.ENDFOR:
                 loopSize = LoopStruct.getStackSize();
                 if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + command + " command for Loop level " + loopSize
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - " + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 curLoopId = LoopStruct.popStack();
                 loopSize = LoopStruct.getStackSize();
@@ -671,16 +638,16 @@ public class ScriptParser {
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 }
                 break;
-            case "RUN":
+            case CommandStruct.CommandTable.RUN:
                 // remove the RUN tag from the command line
-                command = cmdStruct.params.removeFirst().getStringValue();
+//                cmdStruct.params.removeFirst().getStringValue();
                 // fall through...
             default:
                 cmdOptionParser.runCmdOption (cmdStruct);
                 break;
         }
         } catch (ParserException exMsg) {
-            frame.outputInfoMsg(STATUS_ERROR, functionId + "command: " + command + "\n  -> " + exMsg);
+            frame.outputInfoMsg(STATUS_ERROR, functionId + "command: " + cmdStruct.command.toString() + "\n  -> " + exMsg);
             throw new ParserException();
         }
         

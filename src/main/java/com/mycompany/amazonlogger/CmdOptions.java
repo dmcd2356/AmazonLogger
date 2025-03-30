@@ -148,29 +148,23 @@ public class CmdOptions {
      * run a command option from the the program file.
      * This will execute the single command option passed.
      * 
-     * @param cmd - the command to execute
+     * @param cmdOption - the command to execute
      * 
      * @throws ParserException
      * @throws IOException
      * @throws SAXException
      * @throws TikaException 
      */
-    public void runCmdOption (CommandStruct cmd) throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + ".runCmdOption: " + showLineNumberInfo(cmd.line);
+    public void runCmdOption (CommandStruct cmdOption) throws ParserException, IOException, SAXException, TikaException {
+        String functionId = CLASS_NAME + ".runCmdOption: " + showLineNumberInfo(cmdOption.line);
         
-        if (cmd.params == null) {
+        if (cmdOption.params == null) {
             throw new ParserException(functionId + "Null or empty param list");
         }
 
-        // copy the command structure to another command string with the option value replacing the RUN command
-        CommandStruct cmdOption = new CommandStruct (cmd.command, cmd.line);
-        for (int ix = 0; ix < cmd.params.size(); ix++) {
-            cmdOption.params.add(cmd.params.get(ix));
-        }
-        
-        String argTypes = getOptionParams(cmd.command);
+        String argTypes = getOptionParams(cmdOption.option);
         if (argTypes == null) {
-            throw new ParserException(functionId + "option is not valid: " + cmd.command);
+            throw new ParserException(functionId + "option is not valid: " + cmdOption.option);
         }
 
         // verify integrity of params
@@ -326,7 +320,7 @@ public class CmdOptions {
         String response = null;
         String filetype;
         String fname;
-        String option = cmdLine.command;
+        String option = cmdLine.option;
         ArrayList<ParameterStruct> params = cmdLine.params;
 
         frame.outputInfoMsg(STATUS_DEBUG, "      Executing: " + cmdLine.showCommand());

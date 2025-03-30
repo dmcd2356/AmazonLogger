@@ -681,7 +681,7 @@ public final class ParameterStruct {
      * 
      * @throws ParserException 
      */    
-    public static void checkLoopIfLevel (String command, int level, LoopId loopId) throws ParserException {
+    public static void checkLoopIfLevel (CommandStruct.CommandTable command, int level, LoopId loopId) throws ParserException {
         String functionId = CLASS_NAME + ".setLoopEnd: ";
         
         LoopStruct loopInfo = getLoopStruct (loopId);
@@ -725,7 +725,7 @@ public final class ParameterStruct {
      * 
      * @throws ParserException
      */
-    public static int getLoopNextIndex (String command, int index, LoopId loopId) throws ParserException {
+    public static int getLoopNextIndex (CommandStruct.CommandTable command, int index, LoopId loopId) throws ParserException {
         String functionId = CLASS_NAME + ".getLoopNextIndex: ";
         
         int nextIndex = index;
@@ -737,16 +737,16 @@ public final class ParameterStruct {
         
         String action = "";
         switch (command) {
-            case "FOR":
+            case CommandStruct.CommandTable.FOR:
                 nextIndex = loopInfo.startLoop(index);
                 action = "starting";
                 break;
-            case "BREAK":
+            case CommandStruct.CommandTable.BREAK:
                 nextIndex = loopInfo.loopBreak();
                 action = "exiting";
                 break;
-            case "NEXT":
-            case "CONTINUE":
+            case CommandStruct.CommandTable.NEXT:
+            case CommandStruct.CommandTable.CONTINUE:
                 nextIndex = loopInfo.loopNext();
                 if (nextIndex < index)
                     action = "restarting";
@@ -757,7 +757,7 @@ public final class ParameterStruct {
                 break;
         }
         
-        frame.outputInfoMsg(STATUS_PROGRAM, command + " command " + action + " at index: " + nextIndex);
+        frame.outputInfoMsg(STATUS_PROGRAM, command.toString() + " command " + action + " at index: " + nextIndex);
         return nextIndex;
     }
 
@@ -1039,7 +1039,7 @@ public final class ParameterStruct {
         if (name.contentEquals("RESPONSE") || name.contentEquals("RESULT")) {
             throw new ParserException(functionId + "using Reserved parameter name: " + name);
         }
-        if (ScriptParser.isValidCommand(name)) {
+        if (CommandStruct.isValidCommand(name) != null) {
             throw new ParserException(functionId + "using Reserved command name: " + name);
         }
         // TODO: verify against operation names
