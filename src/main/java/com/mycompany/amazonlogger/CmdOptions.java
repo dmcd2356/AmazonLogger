@@ -376,7 +376,7 @@ public class CmdOptions {
                     } else {
                         fname = params.get(0).getStringValue();
                         fname = Utils.getTestPath() + "/" + fname;
-                    frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to file: " + fname);
+                        frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to file: " + fname);
                         frame.setTestOutputFile(fname);
                     }
                     break;
