@@ -24,6 +24,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import org.jopendocument.dom.spreadsheet.MutableCell;
 //import org.jopendocument.dom.OOUtils;
 //import org.jopendocument.dom.OOUtils;
 import org.jopendocument.dom.spreadsheet.Sheet;
@@ -832,7 +833,10 @@ public class Spreadsheet {
                 } else if (col == getColumn(Column.Pending) && bRemaining) {
                     // skip highlighting the Pending column if the total amount did not match
                 } else {
-                    sheetSel.getCellAt(col,row).setBackgroundColor(colorOfMonth);
+                    MutableCell cell = sheetSel.getCellAt(col,row);
+                    if (cell != null) {
+                        cell.setBackgroundColor(colorOfMonth);
+                    }
                 }
             }
         } else {

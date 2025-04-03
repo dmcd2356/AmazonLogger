@@ -9,18 +9,6 @@ package com.mycompany.amazonlogger;
  * @author dan
  */
 
-import com.mycompany.amazonlogger.ParameterStruct;
-import com.mycompany.amazonlogger.ParserException;
-
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
-/**
- *
- * @author dan
- */
 public class ParamExtract {
     private static final String CLASS_NAME = "ParamExtract";
     
@@ -42,7 +30,7 @@ public class ParamExtract {
         // first, let's see if there are extraneous space characters following
         //  the potential parameter name and an '=' sign (can't have intervening
         //  spaces for either the '.' or '@' delimiters).
-        // If we finde the next non-space char is the '=', remove the intervening
+        // If we find the next non-space char is the '=', remove the intervening
         //  space characters.
         int offset = field.indexOf(' ');
         int equals = field.indexOf('=');
@@ -55,10 +43,10 @@ public class ParamExtract {
         }
         
         // extract the name of the parameter from the string
-        // it dan be delimited by a space, an '=', a '.' or an '@'.
+        // it can be delimited by any of the following: { space = . [ @ }.
         for (int ix = 0; ix < field.length(); ix++) {
             if (field.charAt(ix) == ' ' || field.charAt(ix) == '=' ||
-                field.charAt(ix) == '.' || field.charAt(ix) == '@') {
+                field.charAt(ix) == '.' || field.charAt(ix) == '[' || field.charAt(ix) == '@') {
                 name = field.substring(0, ix);
                 delimiter = field.charAt(ix);
                 String leftover = "";
@@ -67,9 +55,7 @@ public class ParamExtract {
                 }
                 String strType = ParameterStruct.isParamDefined(name);
                 if (strType == null) {
-                    name = null;
-                    delimiter = 0;
-                    return;
+                    throw new ParserException(functionId + "Parameter not defined prior to assignment: " + name);
                 }
                 type = strType.charAt(0);
                 if (delimiter == '.' || delimiter == '@') {

@@ -29,8 +29,9 @@ public final class ParameterStruct {
     private String   strParam;      // value for the String  param type
     private Long     intParam;      // value for the Integer param type (64 bit signed)
     private Boolean  boolParam;     // value for the Boolean param type
-    private ArrayList<Long>    arrayParam;  // value for Integer Array param type
-    private ArrayList<String>  listParam;   // value for String  List  param type
+    private ArrayList<Long>      arrayParam; // value for Integer Array param type
+    private ArrayList<String>    listParam;  // value for String  List  param type
+    private ArrayList<CalcEntry> calcParam;  // value for Calculation param type
     private String   paramName;     // name of parameter if references a saved parameter
     private char     paramType;     // the corresponding data type stored
     
@@ -61,6 +62,7 @@ public final class ParameterStruct {
         boolParam = null;
         arrayParam = null;
         listParam = null;
+        calcParam = null;
         paramName = "";
         paramType = '?';
     }
@@ -81,9 +83,10 @@ public final class ParameterStruct {
         String functionId = CLASS_NAME + " (new): ";
         
         paramName = null;
+        calcParam = null;
         strParam = strValue;
         
-        if (strParam.startsWith("$")) {
+        if (strParam.startsWith("$") && dataType != 'C') {
             paramName = strValue.substring(1);
             paramType = 'S';
             strParam = paramName;
@@ -136,6 +139,20 @@ public final class ParameterStruct {
                 listParam = new ArrayList<>();
                 listParam.add(strParam);
                 break;
+            case 'C':
+                // save the calculation entry
+                Calculation calc = new Calculation(strValue);
+                calcParam = calc.copyCalc();
+                paramType = 'C';
+                
+                // if calc is a single entry, don't use Calculation type, switch to Integer type
+                Long value = calc.getCalcValue();
+                if (value != null) {
+                    intParam = value;
+                    paramType = 'I';
+                    frame.outputInfoMsg(STATUS_DEBUG, "Converted Calculation parameter to Integer value: " + value);
+                }
+                break;
         }
     }
 
@@ -152,6 +169,7 @@ public final class ParameterStruct {
         String functionId = CLASS_NAME + " (new list): ";
 
         paramName = null;
+        calcParam = null;
         listParam = listValue;
         strParam = listValue.getFirst();
         paramType = 'L';
@@ -215,6 +233,17 @@ public final class ParameterStruct {
      * @return the Integer value
      */
     public Long getIntegerValue () {
+        return intParam;
+    }
+        
+    /**
+     * returns the Calculation data value
+     * 
+     * @return the Integer value of the calculation
+     */
+    public Long getCalculationValue () throws ParserException {
+        Calculation calc = new Calculation(calcParam);
+        intParam = calc.compute();
         return intParam;
     }
         
@@ -294,20 +323,22 @@ public final class ParameterStruct {
                 intParam = (boolParam) ? 1L : 0L;
                 break;
             case 'S':
-                if (strParam.equalsIgnoreCase("TRUE")) {
-                    boolParam = true;
-                    paramType = 'B';
-                } else if (strParam.equalsIgnoreCase("FALSE")) {
-                    boolParam = false;
-                    paramType = 'B';
-                } else {
-                    try {
-                        Long longVal = getLongOrUnsignedValue (strParam);
-                        intParam = longVal;
-                        paramType = isUnsignedInt(longVal) ? 'U' : 'I';
-                        boolParam = intParam != 0;
-                    } catch (ParserException ex) {
-                        // keep param as String type and we can't do any conversions
+                if (!strParam.isBlank()) {
+                    if (strParam.equalsIgnoreCase("TRUE")) {
+                        boolParam = true;
+                        paramType = 'B';
+                    } else if (strParam.equalsIgnoreCase("FALSE")) {
+                        boolParam = false;
+                        paramType = 'B';
+                    } else {
+                        try {
+                            Long longVal = getLongOrUnsignedValue (strParam);
+                            intParam = longVal;
+                            paramType = isUnsignedInt(longVal) ? 'U' : 'I';
+                            boolParam = intParam != 0;
+                        } catch (ParserException ex) {
+                            // keep param as String type and we can't do any conversions
+                        }
                     }
                 }
                 break;
@@ -628,9 +659,63 @@ public final class ParameterStruct {
         return false;
     }
 
+    /**
+     * modifies the value of an existing entry in the Array params table.
+     * Indicates if the param was not found (does NOT create a new entry).
+     * 
+     * @param name  - parameter name
+     * @param index - index of entry in array to change
+     * @param value - parameter value
+     * 
+     * @return true if successful, false if the parameter was not found
+     * 
+     * @throws ParserException
+     */
+    public static boolean modifyArrayParameterEntry (String name, int index, Long value) throws ParserException {
+        String functionId = CLASS_NAME + ".modifyArrayParameterEntry: ";
+
+        if (arrayParams.containsKey(name)) {
+            ArrayList<Long> entry = arrayParams.get(name);
+            if (index >= entry.size()) {
+                throw new ParserException(functionId + "Array Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+            }
+            entry.set(index, value);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Boolean param: " + name + " = " + value);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * modifies the value of an existing entry in the List params table.
+     * Indicates if the param was not found (does NOT create a new entry).
+     * 
+     * @param name  - parameter name
+     * @param index - index of entry in list to change
+     * @param value - parameter value
+     * 
+     * @return true if successful, false if the parameter was not found
+     * 
+     * @throws ParserException
+     */
+    public static boolean modifyListParameterEntry (String name, int index, String value) throws ParserException {
+        String functionId = CLASS_NAME + ".modifyArrayParameterEntry: ";
+
+        if (listParams.containsKey(name)) {
+            ArrayList<String> entry = listParams.get(name);
+            if (index >= entry.size()) {
+                throw new ParserException(functionId + "Array Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+            }
+            entry.set(index, value);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Boolean param: " + name + " = " + value);
+            return true;
+        }
+        return false;
+    }
+
     
-    // TODO: make a mofifyArrayParameter
-    // TODO: make a modifyListParameter
+    // TODO: make a mofifyArrayParameter to set entire array
+    // TODO: make a modifyListParameter  to set entire list
     
     
     /**

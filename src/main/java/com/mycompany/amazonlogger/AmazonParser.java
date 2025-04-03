@@ -216,35 +216,38 @@ public class AmazonParser {
                     // get the date of the last entry in the spreadsheet
                     // (this gets returned in format: "MM-DD")
                     Integer lastOrderDate = DateFormat.cvtSSDateToInteger(ssOrderDate, false);
+                    String ssLastOrderNumber = Spreadsheet.getOrderNumber(lastRow - 1);
                     frame.outputInfoMsg(UIFrame.STATUS_INFO, "Date of last entry in spreadsheet: " + ssOrderDate + " (" + lastOrderDate + ")");
 
-                    if (startDate < lastOrderDate) {
-                        // all entries should already be in spreadsheet
-                        bExit = true;
-                    } else if (endDate > lastOrderDate) {
+                    if (endDate > lastOrderDate) {
                         // the entire list of the entries in the page occurred after the last entry in
                         // the spreadsheet, so we just copy the entire list.
                         frame.outputInfoMsg(UIFrame.STATUS_INFO, "All Amazon page entries will be copied to spreadsheet.");
+                    } else if (startDate < lastOrderDate) {
+                        // all entries should already be in spreadsheet
+                        frame.outputInfoMsg(UIFrame.STATUS_WARN, "most recent date in clipboard is older than last entry in spreadsheet");
+                        bExit = true;
+                    } else if (ssLastOrderNumber.contentEquals(amazonList.get(amazonList.size() - 1).getOrderNumber())) {
+                        // if the latest entry in the clipboard is the same as the last entry listed in the spreadsheet,
+                        // we have already read all the entries, so indicate nothing to do.
+                        frame.outputInfoMsg(UIFrame.STATUS_WARN, "most recent order in clipboard is the last entry already in spreadsheet");
+                        bExit = true;
                     } else {
                         // OK, so either this page list contains the last entry or they are all new entries.
                         // search the list for the last entry from the spreadsheet to see if we only copy a partial list.
                         boolean bFound = false;
-                        String ssOrderNumber = Spreadsheet.getOrderNumber(lastRow - 1);
-                        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Last order # in spreadsheet: " + ssOrderNumber);
+                        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Last order # in spreadsheet: " + ssLastOrderNumber);
                         for (startIx = amazonList.size() - 1; startIx >= 0; startIx--) {
                             // find matching order number (if it is in there)
                             AmazonOrder ixOrder = amazonList.get(startIx);
-                            if (ssOrderNumber.contentEquals(ixOrder.getOrderNumber())) {
+                            if (ssLastOrderNumber.contentEquals(ixOrder.getOrderNumber())) {
                                 bFound = true;
                                 frame.outputInfoMsg(UIFrame.STATUS_INFO, "Order # found at index: " + startIx + ", " + ixOrder.item.size() + " items");
                                 startIx--;  // go to next item to copy
                                 break;
                             }
                         }
-                        if (startIx < 0) {
-                            // the latest entry in the list was the one we were looking for, therefore there are no entries to add.
-                             bExit = true;
-                        } else if (!bFound) {
+                        if (!bFound) {
                             // entry wasn't found in list, so the list must all be just after the current last item
                             //  in spreadsheet, so we copy all entries.
                             startIx = amazonList.size() - 1;
@@ -256,7 +259,7 @@ public class AmazonParser {
                 // to get the entries in chronological order, start with the last entry and work backwards.
                 // let's proceed from the item number that matched and loop backwards to the more recent entries.
                 if (bExit) {
-                    frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "All Amazon page entries are already contained in spreadsheet.");
+                    frame.outputInfoMsg(UIFrame.STATUS_INFO, functionId + "All Amazon page entries are already contained in spreadsheet.");
                     frame.outputInfoMsg(UIFrame.STATUS_INFO, "If there is a more recent page, copy it to the file and try again.");
                 } else {
                     frame.outputInfoMsg(UIFrame.STATUS_NORMAL, "Appending the following rows starting at row: " + (lastRow + 1));
