@@ -66,6 +66,26 @@ public class CmdOptions {
     }
 
     /**
+     * converts the OptionTable values to parameter type values.
+     * 
+     * @param dataType - the char representation of the data type
+     * 
+     * @return the corresponding ParameterType value
+     */
+    private ParameterStruct.ParamType getParameterType (char dataType) {
+        switch(dataType) {
+            case 'I':   return ParameterStruct.ParamType.Integer;
+            case 'U':   return ParameterStruct.ParamType.Unsigned;
+            case 'B':   return ParameterStruct.ParamType.Boolean;
+            case 'A':   return ParameterStruct.ParamType.IntArray;
+            case 'L':   return ParameterStruct.ParamType.StringArray;
+            case 'C':   return ParameterStruct.ParamType.Calculation;
+            default:
+            case 'S':   return ParameterStruct.ParamType.String;
+        }
+    }
+    
+    /**
      * displays the program line number if the command was issued from a program file.
      * 
      * @param cmd - the command being executed
@@ -283,8 +303,9 @@ public class CmdOptions {
                                         + " has no params and " + nextArg + " is not a valid option");
                 }
                 int pix = (parmCnt < maxArgs) ? parmCnt : maxArgs - 1;
-                char parmType = Character.toUpperCase(optInfo.argTypes.charAt(pix));
-                if (parmCnt >= maxArgs && parmType != 'L') {
+                char nextType = Character.toUpperCase(optInfo.argTypes.charAt(pix));
+                ParameterStruct.ParamType parmType = getParameterType(nextType);
+                if (parmCnt >= maxArgs && (parmType != ParameterStruct.ParamType.StringArray || parmType != ParameterStruct.ParamType.IntArray)) {
                     throw new ParserException(functionId + "Too many args for option " + newCommand.command
                                         + ": " + (parmCnt+1) + ", arglist = " + optInfo.argTypes);
                 }

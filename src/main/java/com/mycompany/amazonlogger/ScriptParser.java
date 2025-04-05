@@ -106,16 +106,16 @@ public class ScriptParser {
         frame.elapsedTimerDisable();
     }
 
-    private static String getParamTypes (CommandStruct command) {
-        String paramTypes = "";
-        for (int ix = 0; ix < command.params.size(); ix++) {
-            paramTypes += command.params.get(ix).getParamType();
-        }
-        
-        return paramTypes;
-    }
-    
-    private static String checkParamTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
+    /**
+     * verifies the parameter types found in the command line match what is specified for the command.
+     * 
+     * @param command    - the command line to run
+     * @param validTypes - the list of data types to match to
+     * @param linenum    - the current line number of the program (for debug msgs)
+     * 
+     * @throws ParserException 
+     */
+    private static void checkParamTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
         String functionId = CLASS_NAME + ".checkParamTypes: ";
         String prefix = functionId + "line " + linenum + ", " + command + " - ";
         
@@ -136,30 +136,12 @@ public class ScriptParser {
         }
         
         // now verify the types
-        String paramTypes = "";
         for (int ix = 0; ix < command.params.size(); ix++) {
-            char type = command.params.get(ix).getParamType();
-            paramTypes += type;
-            switch (Character.toUpperCase(validTypes.charAt(ix))) {
-                case 'I': if (type == 'I' || type == 'U') continue;
-                    break;
-                case 'U': if (type == 'I' || type == 'U') continue;
-                    break;
-                case 'B': if (type == 'B') continue;
-                    break;
-                case 'S': if (type != 'A') continue;
-                    break;
-                case 'A': if (type == 'A' || type == 'I' || type == 'U') continue;
-                    break;
-                case 'L':
-                    continue; // allow anything
-                default:
-                    break;
+            char reqType = Character.toUpperCase(validTypes.charAt(ix));
+            if (! command.params.get(ix).isValidForType (reqType)) {
+                throw new ParserException(prefix + "Invalid param[" + ix + "] type '" + reqType + "'");
             }
-            throw new ParserException(prefix + "Invalid param[" + ix + "] type '" + validTypes.charAt(ix));
         }
-        
-        return paramTypes;
     }
     
     /**
@@ -240,15 +222,14 @@ public class ScriptParser {
             frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
             if (command != CommandStruct.CommandTable.SET) {
                 cmdStruct.params = packParameters (parmString);
-                String parmTypeList = getParamTypes (cmdStruct);
-                frame.outputInfoMsg(STATUS_PROGRAM, "     dataTypes: " + parmTypeList);
+                ParameterStruct.showParamTypeList(cmdStruct.params);
             }
 
             // now let's check for valid command keywords and extract the parameters
             //  into the cmdStruct structure.
             switch (cmdStruct.command) {
                 case CommandStruct.CommandTable.DEFINE:
-                    // must be either a String or a List of parameter name entries
+                    // must be a List of parameter name entries
                     checkParamTypes(cmdStruct, "L", cmdIndex);
 
                     // this defines the parameter names, and must be done prior to their use.
@@ -281,8 +262,7 @@ public class ScriptParser {
                     if (! eqSign.contentEquals("=")) {
                         throw new ParserException(functionId + lineInfo + "SET command missing = sign: " + parmString);
                     }
-                    String parmTypeList = getParamTypes (cmdStruct);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "     dataTypes: " + parmTypeList);
+                    ParameterStruct.showParamTypeList(cmdStruct.params);
                     break;
                 case CommandStruct.CommandTable.IF:
                     // verify number and type of arguments
@@ -493,7 +473,7 @@ public class ScriptParser {
                 switch (parmName.substring(0, 2)) {
                     case "I_":
                         Long result;
-                        if (parmValue.getParamType() == 'C') {
+                        if (parmValue.getParamType() == ParameterStruct.ParamType.Calculation) {
                             result = parmValue.getCalculationValue();
                         } else {
                             result = parmValue.getIntegerValue();
@@ -526,8 +506,8 @@ public class ScriptParser {
 
                 // check status to see if true of false.
                 boolean bBranch;
-                if ((parm1.getParamType() == 'I' || parm1.getParamType() == 'U') &&
-                    (parm2.getParamType() == 'I' || parm2.getParamType() == 'U')    ) {
+                if ((parm1.getParamType() == ParameterStruct.ParamType.Integer || parm1.getParamType() == ParameterStruct.ParamType.Unsigned) &&
+                    (parm2.getParamType() == ParameterStruct.ParamType.Integer || parm2.getParamType() == ParameterStruct.ParamType.Unsigned)    ) {
                     bBranch = Utils.compareParameterValues (parm1.getIntegerValue(), parm2.getIntegerValue(), comp);
                 } else {
                     bBranch = Utils.compareParameterValues (parm1.getStringValue(), parm2.getStringValue(), comp);
@@ -571,8 +551,8 @@ public class ScriptParser {
                     frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + ifStack.size() + ": " + parm1.getStringValue() + " " + comp + " " + parm2.getStringValue());
 
                     // check status to see if true of false.
-                    if ((parm1.getParamType() == 'I' || parm1.getParamType() == 'U') &&
-                        (parm2.getParamType() == 'I' || parm2.getParamType() == 'U')    ) {
+                    if ((parm1.getParamType() == ParameterStruct.ParamType.Integer || parm1.getParamType() == ParameterStruct.ParamType.Unsigned) &&
+                        (parm2.getParamType() == ParameterStruct.ParamType.Integer || parm2.getParamType() == ParameterStruct.ParamType.Unsigned)    ) {
                         bBranch = Utils.compareParameterValues (parm1.getIntegerValue(), parm2.getIntegerValue(), comp);
                     } else {
                         bBranch = Utils.compareParameterValues (parm1.getStringValue(), parm2.getStringValue(), comp);
@@ -713,13 +693,6 @@ public class ScriptParser {
                         }
                     }
                     return ix;
-                case 'X':
-                    // Hexadecimal
-                    curChar = Character.toUpperCase(curChar);
-                    if (Character.isDigit(curChar) || (curChar >= 'A' && curChar <= 'F')) {
-                        continue;
-                    }
-                    return ix;
                 case 'C':
                     // Comparison sign
                     if (curChar == '=' || curChar == '!' || curChar == '>' || curChar == '<') {
@@ -747,7 +720,6 @@ public class ScriptParser {
      * parameter types:
      * S is a String or String parameter
      * I is an Integer or String/Integer parameter
-     * X is a Hexadecimal value
      * C is a comparison string (==, !=, >, >=, <, <=)
      * other entries are taken as separator chars, such as ; , = etc.
      * 
@@ -783,7 +755,6 @@ public class ScriptParser {
             switch (curType) {
                 case 'S':
                 case 'I':
-                case 'X':
                 case 'C':
                     frame.outputInfoMsg(STATUS_DEBUG, "    extracted param[" + parmList.size() + "]: '" + param + "'");
                     parmList.add(param);
@@ -813,7 +784,7 @@ public class ScriptParser {
 
         for (int ix = 0; ! line.isEmpty(); ix++) {
             // read next entry
-            char paramType = 'S';
+            ParameterStruct.ParamType paramType = ParameterStruct.ParamType.String;
             String nextArg = getNextWord (line);
             line = line.substring(nextArg.length());
             
@@ -837,9 +808,7 @@ public class ScriptParser {
                     }
                     
                     // place them in the proper list structure
-                    ArrayList<String> list = new ArrayList<>(Arrays.asList(nextArg.split(",")));
-                    paramType = 'L';
-                    parm = new ParameterStruct(list);
+                    parm = new ParameterStruct (nextArg, ParameterStruct.ParamType.StringArray);
                     frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: [ " + nextArg + " ]");
                     params.add(parm);
                     continue;
@@ -868,19 +837,19 @@ public class ScriptParser {
             line = line.strip();
             
             // determine the data type
-            if (paramType == 'S') {
+            if (paramType == ParameterStruct.ParamType.String) {
                 if (nextArg.equalsIgnoreCase("TRUE") ||
                     nextArg.equalsIgnoreCase("FALSE")) {
-                    paramType = 'B';
+                    paramType = ParameterStruct.ParamType.Boolean;
                 } else {
                     try {
                         Long longVal = ParameterStruct.getLongOrUnsignedValue(nextArg);
                         if (ParameterStruct.isUnsignedInt(longVal))
-                            paramType = 'U';
+                            paramType = ParameterStruct.ParamType.Unsigned;
                         else
-                            paramType = 'I';
+                            paramType = ParameterStruct.ParamType.Integer;
                     } catch (ParserException ex) {
-                        paramType = 'S';
+                        paramType = ParameterStruct.ParamType.String;
                     }
                 }
             }
@@ -916,7 +885,7 @@ public class ScriptParser {
             throw new ParserException("ScriptParser.packCalculation: no arguments following parameter name: " + line);
         }
         line = line.substring(nextArg.length()).strip();
-        parm = new ParameterStruct(nextArg, 'S');
+        parm = new ParameterStruct(nextArg, ParameterStruct.ParamType.String);
         frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type S value: " + nextArg);
         params.add(parm);
 
@@ -935,12 +904,12 @@ public class ScriptParser {
                 throw new ParserException("ScriptParser.packCalculation: invalid equality sign: " + nextArg);
         }
         line = line.substring(nextArg.length()).strip();
-        parm = new ParameterStruct(nextArg, 'S');
+        parm = new ParameterStruct(nextArg, ParameterStruct.ParamType.String);
         frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type S value: " + nextArg);
         params.add(parm);
         
         // remaining data is the Calculation, which may be a single value or a complex formula
-        parm = new ParameterStruct(line, 'C');
+        parm = new ParameterStruct(line, ParameterStruct.ParamType.Calculation);
         frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type C value: " + line);
         params.add(parm);
         

@@ -50,7 +50,7 @@ public class CalcEntry {
                 if (this.paramName == null) {
                     throw new ParserException ("CalcEntry.getValue: Parameter name not found (null)");
                 }
-                ParameterStruct param = new ParameterStruct(this.paramName, 'I');
+                ParameterStruct param = new ParameterStruct(this.paramName, ParameterStruct.ParamType.Integer);
                 param.updateFromReference();
                 this.value = param.getIntegerValue();
             }
