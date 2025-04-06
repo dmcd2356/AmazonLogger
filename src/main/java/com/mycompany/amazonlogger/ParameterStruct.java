@@ -263,28 +263,6 @@ public final class ParameterStruct {
     }
 
     /**
-     * determines the type of parameter from the first 2 chars of the parameter name.
-     * 
-     * @param name - name of the parameter (don't include the '$' char)
-     * 
-     * @return the corresponding parameter type
-     */    
-    private static ParamType getParamTypeFromName (String name) {
-        if (name.charAt(1) == '_') {
-            char firstChar = name.charAt(0);
-            switch (firstChar) {
-                case 'I': return ParamType.Integer;
-                case 'U': return ParamType.Unsigned;
-                case 'B': return ParamType.Boolean;
-                case 'A': return ParamType.IntArray;
-                case 'L': return ParamType.StringArray;
-                default:  return ParamType.String;
-            }
-        }
-        return ParamType.String;
-    }
-    
-    /**
      * returns the parameter name
      * 
      * @return the parameter name (null if parameter is not a reference to a saved parameter)
@@ -1226,6 +1204,27 @@ public final class ParameterStruct {
     }
 
     /**
+     * determines the type of parameter from the first 2 chars of the parameter name.
+     * 
+     * @param name - name of the parameter (don't include the '$' char)
+     * 
+     * @return the corresponding parameter type
+     */    
+    private static ParamType getParamTypeFromName (String name) {
+        if (name.length() > 1 && name.charAt(1) == '_') {
+            switch (name.charAt(0)) {
+                case 'I': return ParamType.Integer;
+                case 'U': return ParamType.Unsigned;
+                case 'B': return ParamType.Boolean;
+                case 'A': return ParamType.IntArray;
+                case 'L': return ParamType.StringArray;
+                default:  return ParamType.String;
+            }
+        }
+        return ParamType.String;
+    }
+    
+    /**
      * determines if a parameter has been found with the specified name.
      * (Does not check for loop parameters)
      * 
@@ -1365,17 +1364,26 @@ public final class ParameterStruct {
     // LOCAL METHODS
     //========================================================================
 
+    static final int NAME_MAXLEN = 20;
     /**
      * checks if a parameter name is valid.
      *   name must be only alphanumeric or '_' chars and start with an alpha.
      * 
      * @param name - the name to check
      * 
+     * @return the parameter name (stripped of appendages, such as index)
+     * 
      * @throws ParserException - if not valid
      */
-    private static void verifyParamFormat (String name) throws ParserException {
+    private static String verifyParamFormat (String name) throws ParserException {
         String functionId = CLASS_NAME + ".verifyParamFormat: ";
         
+        if (name == null) {
+            throw new ParserException(functionId + "parameter name is null");
+        }
+        if (name.isBlank()) {
+            throw new ParserException(functionId + "parameter name is blank");
+        }
         if (name.startsWith("$")) {
             name = name.substring(1);
         }
@@ -1383,11 +1391,57 @@ public final class ParameterStruct {
             // 1st character must be a letter
             throw new ParserException(functionId + "invalid initial character in parameter name: " + name);
         }
+        // determine if we have a special param type that can take on appendages
+        ParamType type = ParamType.String;
+        if (name.length() > 1 && name.charAt(1) == '_') {
+            type = getParamTypeFromName (name);
+        }
+        // TODO: we need to do this for the '.' operator as well
+        int indexStart = 0;
+        int indexEnd = 0;
         for (int ix = 0; ix < name.length(); ix++) {
-            if (  (name.charAt(ix) != '_') && ! Character.isLetterOrDigit(name.charAt(ix)) ) {
-                throw new ParserException(functionId + "invalid character '" + name.charAt(ix) + "' in parameter name: " + name);
+            char curch = name.charAt(ix);
+            // check for bracket index on Array, List and String parameters
+            if (type == ParamType.String || type == ParamType.StringArray || type == ParamType.IntArray) {
+                if (curch == '[') {
+                    indexStart = ix;
+                    if (ix > NAME_MAXLEN) {
+                        throw new ParserException(functionId + "parameter name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
+                    }
+                    continue;
+                }
+                if (curch == ']') {
+                    indexEnd = ix;
+                    if (indexStart == 0) {
+                        throw new ParserException(functionId + "invalid character '" + curch + "' in parameter name: " + name);
+                    }
+                    continue;
+                }
+            }
+            if (indexStart == 0) {
+                // no brackets yet, check for alphanumerics & underscore in name
+                if ( (curch != '_') && ! Character.isLetterOrDigit(curch) ) {
+                    throw new ParserException(functionId + "invalid character '" + curch + "' in parameter name: " + name);
+                }
+            } else if (indexEnd == 0) {
+                // defining the bracketed index value - can only have numerics and the end bracket
+                if ( ! Character.isDigit(curch)) {
+                    throw new ParserException(functionId + "invalid character '" + curch + "' in parameter name index: " + name);
+                }
+            } else {
+                throw new ParserException(functionId + "invalid characters following parameter name index: " + name);
             }
         }
+        if (indexStart == 0 && name.length() > NAME_MAXLEN) {
+            throw new ParserException(functionId + "parameter name too long (max len " + NAME_MAXLEN + ") in name: " + name);
+        }
+        if (indexStart > 0 && indexEnd == 0) {
+            throw new ParserException(functionId + "parameter name index missing ending bracket: " + name);
+        }
+        if (indexStart > 0) {
+            name = name.substring(0, indexStart);
+        }
+        return name;
     }
 
     /**
