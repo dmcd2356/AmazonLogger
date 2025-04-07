@@ -5,9 +5,16 @@ TODO:
     easier to find the next page to load without having to look at the spreadsheet directly.
 - Fix the issue of removing the OCR capability in the Tika jar for reading the PDF file. This
     is causing the processing to slow down.
-- Add an option command to read a line from the PDF file and from the Clipboard.
-- Add the following capabilities to ScriptParser: Use of TABLEs, ability to execute an equation
-    (i.e. run the following as a command: PARAM1 = $PARAM2 + 3 * 200)
+- Add the following PROGRAM features:
+    - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
+    - add command to search StrArray and IntArray for a value given a starting index (returns index or -1)
+    - modify RESPONSE to be a StrArray instead of a String to access each element
+    - add the ability to use an operation prior to the '=' in a Calculation
+    - allow setting Boolean param to the result of a Comparison
+    - add command to read a row of data from the Spreadsheet into a StrArray
+    - add command to read a column of data from the Spreadsheet into a StrArray
+    - read the PDF file into a StrArray that is accessible
+    - read the clipboard (file and actual clipbaord) into a StrArray that is accessible Clipboard.
 
 TESTING:
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with

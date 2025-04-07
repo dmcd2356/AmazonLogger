@@ -9,12 +9,14 @@ package com.mycompany.amazonlogger;
  * @author dan
  */
 public class CalcEntry {
-        private Calculation.EntryType type;
-        private Long    value;
-        private String  paramName;
+        private Calculation.EntryType type; // classification of the entry
+        private Long    value;              // calc value (if value given)
+        private String  paramName;          // parameter name (if parameter)
+        private boolean bInvert;            // true if param or parenthesis group is negated
 
-        CalcEntry (Calculation.EntryType type, String entry) throws ParserException {
-            this.type = type;
+        CalcEntry (Calculation.EntryType type, String entry, boolean bNot) throws ParserException {
+            this.type    = type;
+            this.bInvert = bNot;
             if (null == type) {
                 throw new ParserException ("CalcEntry (new): null component");
             }
@@ -38,10 +40,15 @@ public class CalcEntry {
             this.type = Calculation.EntryType.Value;
             this.value = value;
             this.paramName = null;
+            this.bInvert = false;
         }
         
         public Calculation.EntryType getType() {
             return this.type;
+        }
+
+        public boolean isInverted() {
+            return this.bInvert;
         }
 
         public Long getValue() throws ParserException {

@@ -87,8 +87,8 @@ public final class ParameterStruct {
      *   don't replace the parameter with its value.
      *   That can only be done during execution phase.
      * 
-     * @param strValue - the parameter value to use (can be a parameter reference)
-     * @param dataType - the parameter type desired
+     * @param strValue   - the parameter value to use (can be a parameter reference)
+     * @param dataType   - the parameter type desired
      * 
      * @throws ParserException
      */
@@ -101,7 +101,7 @@ public final class ParameterStruct {
         
         if (strParam.startsWith("$") && dataType != ParamType.Calculation) {
             paramName = strValue.substring(1);
-//            strParam = paramName;
+
             // set type based on the parameter name prefix rather than desired data type
             ParamType type = getParamTypeFromName(paramName);
             paramType = type;
@@ -178,24 +178,49 @@ public final class ParameterStruct {
                 listParam.add(strParam);
                 break;
             case ParamType.Calculation:
-                // save the calculation entry
-                Calculation calc = new Calculation(strValue);
-                calcParam = calc.copyCalc();
-                paramType = dataType;
-                paramTypeID = getParamTypeID (paramType);
-                
-                // if calc is a single entry, don't use Calculation type, switch to Integer type
-                Long value = calc.getCalcValue();
-                if (value != null) {
-                    longParam = value;
-                    paramType = ParamType.Integer;
-                    paramTypeID = getParamTypeID (paramType);
-                    frame.outputInfoMsg(STATUS_DEBUG, "Converted Calculation parameter to Integer value: " + value);
-                }
-                break;
+                throw new ParserException(functionId + "Wrong form of constructor: This is for standard data types only");
         }
     }
 
+    /**
+     * Creates a parameter having the specified characteristics.
+     * This is only used in the Compilation phase, so we are creating the parameter
+     *   entry and verifying the type is valid, but if it is a reference parameter,
+     *   don't replace the parameter with its value.
+     *   That can only be done during execution phase.
+     * 
+     * @param strValue   - the parameter value to use (can be a parameter reference)
+     * @param dataType   - the parameter type to be returned
+     * @param resultType - the format of the data type being calculated
+     * 
+     * @throws ParserException
+     */
+    public ParameterStruct (String strValue, ParamType dataType, ParamType resultType) throws ParserException {
+        String functionId = CLASS_NAME + " (new): ";
+        
+        if (dataType != ParamType.Calculation) {
+            throw new ParserException(functionId + "Wrong form of constructor: This is for calculations only");
+        }
+
+        paramName = null;
+        strParam = strValue;
+        
+        // save the calculation entry
+        Calculation calc = new Calculation(strValue, resultType);
+        calcParam = calc.copyCalc();
+        paramType = dataType;
+        paramTypeID = getParamTypeID (paramType);
+                
+        // if calc is a single entry, don't use Calculation type, switch to Integer type
+        Long value = calc.getCalcValue();
+        if (value != null) {
+            longParam = value;
+            paramType = ParamType.Integer;
+            paramTypeID = getParamTypeID (paramType);
+            frame.outputInfoMsg(STATUS_DEBUG, "Converted Calculation parameter to Integer value: " + value);
+        }
+    }
+    
     /**
      * sets the parameter type value.
      * 
@@ -292,13 +317,15 @@ public final class ParameterStruct {
     /**
      * returns the Calculation data value
      * 
+     * @param type - the data type being calculated
+     * 
      * @return the Integer value of the calculation
      * 
      * @throws com.mycompany.amazonlogger.ParserException
      */
-    public Long getCalculationValue () throws ParserException {
+    public Long getCalculationValue (ParamType type) throws ParserException {
         Calculation calc = new Calculation(calcParam);
-        longParam = calc.compute();
+        longParam = calc.compute(type);
         return longParam;
     }
         
@@ -480,6 +507,9 @@ public final class ParameterStruct {
             }
             case ParamType.StringArray -> {
                 strValue = listParam.toString();
+            }
+            case ParamType.Calculation -> {
+                strValue = strParam;
             }
             default -> {
                 strValue = "'" + strParam + "'";
@@ -1112,7 +1142,7 @@ public final class ParameterStruct {
                 pType = strValue.charAt(1);
             }
             dataType = switch (pType) {
-                case 'I', 'B', 'A', 'L' -> pType;
+                case 'I', 'U', 'B', 'A', 'L' -> pType;
                 default -> 'S';
             };
         }
@@ -1210,7 +1240,7 @@ public final class ParameterStruct {
      * 
      * @return the corresponding parameter type
      */    
-    private static ParamType getParamTypeFromName (String name) {
+    public static ParamType getParamTypeFromName (String name) {
         if (name.length() > 1 && name.charAt(1) == '_') {
             switch (name.charAt(0)) {
                 case 'I': return ParamType.Integer;
