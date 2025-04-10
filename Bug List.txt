@@ -15,6 +15,8 @@ TODO:
     - add command to read a column of data from the Spreadsheet into a StrArray
     - read the PDF file into a StrArray that is accessible
     - read the clipboard (file and actual clipbaord) into a StrArray that is accessible Clipboard.
+    - cleanup error handling messages.
+    - add Runtime Error Policy Handling feature.
 
 TESTING:
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with

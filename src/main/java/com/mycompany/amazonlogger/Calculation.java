@@ -112,8 +112,6 @@ public class Calculation {
      *  the calculation contents.
      * 
      * @param savedValue - the saved calculation value to process
-     * 
-     * @throws ParserException 
      */
     Calculation (ArrayList<CalcEntry> savedValue) throws ParserException {
         calcList = new ArrayList<>();
@@ -124,6 +122,15 @@ public class Calculation {
     }
 
     /**
+     * returns the number of calculation operand values.
+     * 
+     * @return the number of calculation operands
+     */
+    public int getCalcCount() {
+        return opCount;
+    }
+    
+    /**
      * returns the calculation operand value if there is only 1 operand.
      * 
      * @return the calculation operand value if no calculation to perform, else returns null
@@ -131,8 +138,22 @@ public class Calculation {
      * @throws ParserException
      */
     public Long getCalcValue() throws ParserException {
-        if (opCount == 1) {
+        if (opCount == 1 && calcList.getFirst().getType() == EntryType.Value) {
             return calcList.getFirst().getValue();
+        }
+        return null;
+    }
+    
+    /**
+     * returns the calculation operand value if there is only 1 operand.
+     * 
+     * @return the calculation operand parameter name if no calculation to perform, else returns null
+     * 
+     * @throws ParserException
+     */
+    public String getCalcParam() throws ParserException {
+        if (opCount == 1 && calcList.getFirst().getType() == EntryType.Param) {
+            return calcList.getFirst().getParam();
         }
         return null;
     }
@@ -585,13 +606,39 @@ public class Calculation {
         char nextch = formula.charAt(0);
         if (nextch == '$') {
             entry += nextch;
+            char mode = 'A';
+            boolean bExit = false;
             // extracts the Parameter Reference name
-            for (int ix = 1; ix < formula.length(); ix++) {
+            // (this will include any Trait or Bracketed index value attached to it)
+            for (int ix = 1; !bExit && ix < formula.length(); ix++) {
                 nextch = formula.charAt(ix);
-                if (Character.isLetterOrDigit(nextch) || nextch == '_') {
-                    entry += formula.charAt(ix);
-                } else {
-                    break;
+                switch (mode) {
+                    case 'A':
+                        if (Character.isLetterOrDigit(nextch) || nextch == '_') {
+                            entry += formula.charAt(ix);
+                        } else if (nextch == '.' || nextch == '[') {
+                            entry += formula.charAt(ix);
+                            mode = nextch;
+                        } else {
+                            bExit = true;
+                        }
+                        break;
+                    case '.':
+                        if (Character.isUpperCase(nextch)) {
+                            entry += formula.charAt(ix);
+                        } else {
+                            bExit = true;
+                        }
+                        break;
+                    case '[':
+                        if (Character.isDigit(nextch) || nextch == ']') {
+                            entry += formula.charAt(ix);
+                        } else {
+                            bExit = true;
+                        }
+                        break;
+                    default:
+                        break;
                 }
             }
         }

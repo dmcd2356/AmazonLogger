@@ -43,12 +43,16 @@ public class CalcEntry {
             this.bInvert = false;
         }
         
+        public boolean isInverted() {
+            return this.bInvert;
+        }
+
         public Calculation.EntryType getType() {
             return this.type;
         }
 
-        public boolean isInverted() {
-            return this.bInvert;
+        public String getParam() {
+            return this.paramName;
         }
 
         public Long getValue() throws ParserException {
@@ -57,7 +61,10 @@ public class CalcEntry {
                 if (this.paramName == null) {
                     throw new ParserException ("CalcEntry.getValue: Parameter name not found (null)");
                 }
-                ParameterStruct param = new ParameterStruct(this.paramName, ParameterStruct.ParamType.Integer);
+
+                ParameterStruct param = new ParameterStruct(this.paramName, 
+                                         ParameterStruct.ParamClass.Reference, 
+                                        ParameterStruct.ParamType.Integer);
                 param.updateFromReference();
                 this.value = param.getIntegerValue();
             }

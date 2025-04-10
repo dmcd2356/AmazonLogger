@@ -79,7 +79,6 @@ public class CmdOptions {
             case 'B':   return ParameterStruct.ParamType.Boolean;
             case 'A':   return ParameterStruct.ParamType.IntArray;
             case 'L':   return ParameterStruct.ParamType.StringArray;
-            case 'C':   return ParameterStruct.ParamType.Calculation;
             default:
             case 'S':   return ParameterStruct.ParamType.String;
         }
@@ -311,7 +310,11 @@ public class CmdOptions {
                 }
 
                 // verify and format arg values
-                ParameterStruct parmData = new ParameterStruct(nextArg, parmType);
+                ParameterStruct.ParamClass pClass = ParameterStruct.ParamClass.Discrete;
+                if (nextArg.startsWith("$")) {
+                    pClass = ParameterStruct.ParamClass.Reference;
+                }
+                ParameterStruct parmData = new ParameterStruct(nextArg, pClass, parmType);
                 newCommand.params.add(parmData);
                 parmCnt += 1;
             }
