@@ -222,10 +222,9 @@ public class ScriptParser {
             
             // extract the parameters to pass to the command
             frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
-            if (command != CommandStruct.CommandTable.SET) {
-                cmdStruct.params = packParameters (parmString, false);
-                ParameterStruct.showParamTypeList(cmdStruct.params);
-            }
+            boolean bParamAssign = (CommandStruct.CommandTable.SET == command);
+            cmdStruct.params = packParameters (parmString, bParamAssign);
+            ParameterStruct.showParamTypeList(cmdStruct.params);
 
             // now let's check for valid command keywords and extract the parameters
             //  into the cmdStruct structure.
@@ -251,23 +250,135 @@ public class ScriptParser {
                     }
                     break;
                 case CommandStruct.CommandTable.SET:
-                    // we pack parameters differently for calculations
                     // 1st entry is always the parameter the calc is being applied to. get its type.
                     ParameterStruct.ParamType ptype = ParameterStruct.getParamTypeFromName(parmString);
-                    if (ptype == ParameterStruct.ParamType.Integer ||
-                        ptype == ParameterStruct.ParamType.Unsigned   ) {
+                    if (cmdStruct.params.size() > 3 &&
+                        (ptype == ParameterStruct.ParamType.Integer ||
+                         ptype == ParameterStruct.ParamType.Unsigned  )  ) {
+                        // we pack parameters differently for calculations, so let's repack params for calcs
                         cmdStruct.params = packCalculation (parmString, ptype);
-                    } else {
-                        // TODO: for now, no operations allowed on Strings
-                        cmdStruct.params = packParameters (parmString, true);
+                        ParameterStruct.showParamTypeList(cmdStruct.params);
                     }
                     
                     String eqSign = cmdStruct.params.get(1).getStringValue();
                     if (! eqSign.contentEquals("=")) {
-                        throw new ParserException(functionId + lineInfo + "SET command missing = sign: " + parmString);
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command missing = sign: " + parmString);
                     }
-                    ParameterStruct.showParamTypeList(cmdStruct.params);
                     break;
+
+                // these are the Array-only commands
+                case CommandStruct.CommandTable.INSERT:
+                case CommandStruct.CommandTable.APPEND:
+                    // ARGS: ParamName, Value (String or Integer)
+                    // verify there are the correct number and type of arguments
+                    if (cmdStruct.params.size() != 2) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 arguments : " + parmString);
+                    }
+                    ParameterStruct param1 = cmdStruct.params.get(0);
+                    ParameterStruct param2 = cmdStruct.params.get(1);
+                    if (param1.getParamType() != ParameterStruct.ParamType.String) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be parameter reference name : " + parmString);
+                    }
+                    ptype = ParameterStruct.isParamDefined(param1.getStringValue());
+                    ParameterStruct.ParamType argtype = param2.getParamType();
+                    switch (ptype) {
+                        case ParameterStruct.ParamType.IntArray -> {
+                            if (argtype != ParameterStruct.ParamType.Integer &&
+                                argtype != ParameterStruct.ParamType.Unsigned) {
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference parameter: " + parmString);
+                            }
+                    }
+                        case ParameterStruct.ParamType.StringArray -> {
+                            if (argtype != ParameterStruct.ParamType.String) {
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference parameter: " + parmString);
+                            }
+                    }
+                        default -> throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
+                    }
+                    break;
+
+                case CommandStruct.CommandTable.MODIFY:
+                    // ParamName, Index (Integer), Value (String or Integer)
+                    // verify there are the correct number and type of arguments
+                    if (cmdStruct.params.size() != 3) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 3 arguments : " + parmString);
+                    }
+                    ParameterStruct param3;
+                    param1 = cmdStruct.params.get(0);
+                    param2 = cmdStruct.params.get(1);
+                    param3 = cmdStruct.params.get(2);
+                    if (param1.getParamType() != ParameterStruct.ParamType.String) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be parameter reference name : " + parmString);
+                    }
+                    if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
+                        param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
+                    }
+                    ptype = ParameterStruct.isParamDefined(param1.getStringValue());
+                    argtype = param3.getParamType();
+                    switch (ptype) {
+                        case ParameterStruct.ParamType.IntArray -> {
+                            if (argtype != ParameterStruct.ParamType.Integer &&
+                                argtype != ParameterStruct.ParamType.Unsigned) {
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference parameter: " + parmString);
+                            }
+                    }
+                        case ParameterStruct.ParamType.StringArray -> {
+                            if (argtype != ParameterStruct.ParamType.String) {
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference parameter: " + parmString);
+                            }
+                    }
+                        default -> throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
+                    }
+                    break;
+
+                case CommandStruct.CommandTable.REMOVE:
+                    // ParamName, Index (Integer)
+                    // verify there are the correct number and type of arguments
+                    if (cmdStruct.params.size() != 2) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 arguments : " + parmString);
+                    }
+                    param1 = cmdStruct.params.get(0);
+                    param2 = cmdStruct.params.get(1);
+                    if (param1.getParamType() != ParameterStruct.ParamType.String) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be parameter reference name : " + parmString);
+                    }
+                    if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
+                        param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
+                    }
+                    ptype = ParameterStruct.isParamDefined(param1.getStringValue());
+                    if (ptype != ParameterStruct.ParamType.IntArray &&
+                        ptype != ParameterStruct.ParamType.StringArray) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for parameter " + param1.getStringValue());
+                    }
+                    break;
+
+                case CommandStruct.CommandTable.TRUNCATE:
+                case CommandStruct.CommandTable.POP:
+                    // ParamName, Index (Integer - optional)
+                    // verify there are the correct number and type of arguments
+                    if (cmdStruct.params.size() != 1 && cmdStruct.params.size() != 2) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 arguments : " + parmString);
+                    }
+                    param1 = cmdStruct.params.get(0);
+                    if (param1.getParamType() != ParameterStruct.ParamType.String) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be parameter reference name : " + parmString);
+                    }
+                    ptype = ParameterStruct.isParamDefined(param1.getStringValue());
+                    if (ptype != ParameterStruct.ParamType.IntArray &&
+                        ptype != ParameterStruct.ParamType.StringArray) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for parameter " + param1.getStringValue());
+                    }
+                    if (cmdStruct.params.size() == 2) {
+                        param2 = cmdStruct.params.get(1);
+                        if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
+                            param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
+                        }
+                    }
+                    break;
+
                 case CommandStruct.CommandTable.IF:
                     // verify number and type of arguments
                     checkParamTypes(cmdStruct, "ISI", cmdIndex);
@@ -460,12 +571,14 @@ public class ScriptParser {
         // replace all program references in the command to their corresponding values.
         // (skip for SET command so as not to modify the parameter we are setting.
         //  the conversion for this will be done in Calculation)
-        if (cmdStruct.command != CommandStruct.CommandTable.SET) {
+//        if (cmdStruct.command != CommandStruct.CommandTable.SET) {
             for (int ix = 0; ix < cmdStruct.params.size(); ix++) {
+                if (ix > 0 || cmdStruct.command != CommandStruct.CommandTable.SET) {
                 ParameterStruct param = cmdStruct.params.get(ix);
                 param.updateFromReference();
+                }
             }
-        }
+//        }
         frame.outputInfoMsg(STATUS_PROGRAM, lineInfo + cmdStruct.showCommand());
 
         try {
@@ -476,11 +589,10 @@ public class ScriptParser {
                 break;
             case CommandStruct.CommandTable.SET:
                 ParameterStruct parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to assigned a value to
-                ParameterStruct parmValue = cmdStruct.params.get(2); // element 2 is the value being assigned to it (1 should be the = sign)
+                ParameterStruct parmEqu   = cmdStruct.params.get(1); // element 1 is the assignment type (could be: =, +=, -=, etc)
+                ParameterStruct parmValue = cmdStruct.params.get(2); // element 2 is the value being assigned to it
                 String parmName = parmRef.getParamRefName();
                 ParameterStruct.ParamType type = parmRef.getParamRefType();
-//                String parmName = parmRef.getStringValue();
-//                ParameterStruct.ParamType type = ParameterStruct.getParamTypeFromName(parmName);
                 if (type == null || parmName == null) {
                     parmName = parmRef.getStringValue();
                     type = ParameterStruct.ParamType.String;
@@ -489,6 +601,7 @@ public class ScriptParser {
                 switch (type) {
                     case ParameterStruct.ParamType.Integer:
                     case ParameterStruct.ParamType.Unsigned:
+                        // TODO: use 'parmEqu' (the type of assignment) in the calculation
                         Long result;
                         if (parmValue.isCalculation()) {
                             result = parmValue.getCalculationValue(type);
@@ -501,6 +614,7 @@ public class ScriptParser {
                         ParameterStruct.modifyIntegerParameter(parmName, result);
                         break;
                     case ParameterStruct.ParamType.Boolean:
+                        // TODO: allow comparison on right-hand assignment of Boolean
                         ParameterStruct.modifyBooleanParameter(parmName, parmValue.getBooleanValue());
                         break;
                     case ParameterStruct.ParamType.IntArray:
@@ -511,11 +625,112 @@ public class ScriptParser {
                         break;
                     default:
                     case ParameterStruct.ParamType.String:
-                        ParameterStruct.modifyStringParameter(parmName, parmValue.getStringValue());
+                        String concat = parmValue.getStringValue();
+                        if (parmEqu.getStringValue().equals("+=")) {
+                            concat += parmRef.getStringValue();
+                        }
+                        if (cmdStruct.params.size() > 3) {
+                            // need to concatenate the strings into 1.
+                            for (int ix = 3; ix + 1 < cmdStruct.params.size(); ix+=2) {
+                                String sign = cmdStruct.params.get(ix).getStringValue();
+                                String next = cmdStruct.params.get(ix+1).getStringValue();
+                                if (sign.contentEquals("+"))
+                                    concat += next;
+                                else
+                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " Invalid String concatenation");
+                            }
+                        }
+                        ParameterStruct.modifyStringParameter(parmName, concat);
                         break;
                 }
                 break;
 
+            // TODO: these are the Array-only commands
+            case CommandStruct.CommandTable.INSERT:
+                // ParamName, Value (String or Integer)
+                parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be inserted into
+                parmValue = cmdStruct.params.get(1); // element 1 is the value being inserted
+                boolean bSuccess = ParameterStruct.arrayInsertEntry (parmRef.getStringValue(), 0, parmValue.getStringValue());
+                if (!bSuccess) {
+                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " " + parmRef.getParamRefType().toString() +
+                                                " parameter ref not found: " + parmRef.getStringValue());
+                }
+                break;
+            case CommandStruct.CommandTable.APPEND:
+                // ParamName, Value (String or Integer)
+                parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be appended to
+                parmValue = cmdStruct.params.get(1); // element 1 is the value being appended
+                bSuccess = ParameterStruct.arrayAppendEntry (parmRef.getStringValue(), parmValue.getStringValue());
+                if (!bSuccess) {
+                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " " + parmRef.getParamRefType().toString() +
+                                                " parameter ref not found: " + parmRef.getStringValue());
+                }
+                break;
+            case CommandStruct.CommandTable.MODIFY:
+                // ParamName, Index (Integer), Value (String or Integer)
+                ParameterStruct parmIndex;
+                parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be modified
+                parmIndex = cmdStruct.params.get(1); // element 1 is the index element being modified
+                parmValue = cmdStruct.params.get(2); // element 2 is the value to set the entry to
+                int index = parmIndex.getIntegerValue().intValue();
+                bSuccess = ParameterStruct.arrayModifyEntry (parmRef.getStringValue(), index, parmValue.getStringValue());
+                if (!bSuccess) {
+                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " " + parmRef.getParamRefType().toString() +
+                                                " parameter ref not found: " + parmRef.getStringValue());
+                }
+                break;
+            case CommandStruct.CommandTable.REMOVE:
+                // ParamName, Index (Integer)
+                parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be modified
+                parmIndex = cmdStruct.params.get(1); // element 1 is the index element being removed
+                index = parmIndex.getIntegerValue().intValue();
+                bSuccess = ParameterStruct.arrayRemoveEntries (parmRef.getStringValue(), index, 1);
+                if (!bSuccess) {
+                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " " + parmRef.getParamRefType().toString() +
+                                                " parameter ref not found: " + parmRef.getStringValue());
+                }
+                break;
+            case CommandStruct.CommandTable.TRUNCATE:
+                // ParamName, Count (Integer - optional)
+                parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
+                int size = ParameterStruct.getArraySize(parmRef.getStringValue());
+                int iCount = 1;
+                if (cmdStruct.params.size() > 1) {
+                    parmIndex = cmdStruct.params.get(1); // element 1 is the (optional) number of entries being removed
+                    iCount = parmIndex.getIntegerValue().intValue();
+                    if (iCount > size) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " item count " + iCount +
+                                " exceeds size of " + parmRef.getParamRefType().toString());
+                    }
+                }
+                int iStart = size - iCount;
+                bSuccess = ParameterStruct.arrayRemoveEntries (parmRef.getStringValue(), iStart, iCount);
+                if (!bSuccess) {
+                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " " + parmRef.getParamRefType().toString() +
+                                                " parameter ref not found: " + parmRef.getStringValue());
+                }
+                break;
+            case CommandStruct.CommandTable.POP:
+                // ParamName, Index (Integer - optional)
+                parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
+                size = ParameterStruct.getArraySize(parmRef.getStringValue());
+                iCount = 1;
+                iStart = 0;
+                if (cmdStruct.params.size() > 1) {
+                    parmIndex = cmdStruct.params.get(1); // element 1 is the (optional) number of entries being removed
+                    iCount = parmIndex.getIntegerValue().intValue();
+                    if (iCount > size) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " item count " + iCount +
+                                " exceeds size of " + parmRef.getParamRefType().toString());
+                    }
+                }
+                bSuccess = ParameterStruct.arrayRemoveEntries (parmRef.getStringValue(), iStart, iCount);
+                if (!bSuccess) {
+                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " " + parmRef.getParamRefType().toString() +
+                                                " parameter ref not found: " + parmRef.getStringValue());
+                }
+                break;
+                
             case CommandStruct.CommandTable.IF:
                 ParameterStruct parm1 = cmdStruct.params.get(0);
                 String comp           = cmdStruct.params.get(1).getStringValue();
@@ -903,21 +1118,22 @@ public class ScriptParser {
      * @throws ParserException 
      */
     private ArrayList<ParameterStruct> packCalculation (String line, ParameterStruct.ParamType ptype) throws ParserException {
+        String functionId = CLASS_NAME + ".packCalculation: ";
+
         ArrayList<ParameterStruct> params = new ArrayList<>();
         ParameterStruct parm;
         
         // 1st entry should be the parameter name
         String paramName = getParamName (line);
         if (! ParameterStruct.isValidParamName(paramName)) {
-            throw new ParserException("ScriptParser.packCalculation: invalid parameter name: " + paramName);
+            throw new ParserException(functionId + "parameter name not found: " + paramName);
         }
         if (line.contentEquals(paramName)) {
-            throw new ParserException("ScriptParser.packCalculation: no arguments following parameter name: " + line);
+            throw new ParserException(functionId + "no arguments following parameter name: " + line);
         }
-        // the parameter name to assign will be typed as String, since it is the 1st argument of a SET command
+        // the 1st argument of a SET command is the parameter name to assign the value to
         line = line.substring(paramName.length()).strip();
-        ParameterStruct.ParamType pType = ParameterStruct.getParamTypeFromName(paramName);
-        parm = new ParameterStruct(paramName, ParameterStruct.ParamClass.Reference, pType);
+        parm = new ParameterStruct(paramName, ParameterStruct.ParamClass.Reference, ptype);
         frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type S value: " + paramName);
         params.add(parm);
 
@@ -938,21 +1154,27 @@ public class ScriptParser {
             case "XOR=":
                 // these are the unsigned bitwise assignment entries
                 break;
-            case "==":
-            case "!=":
-            case ">=":
-            case "<=":
-            case ">":
-            case "<":
-                // these are the comparison entries
-                break;
             default:
-                throw new ParserException("ScriptParser.packCalculation: invalid equality sign: " + nextArg);
+                throw new ParserException(functionId + "invalid equality sign: " + nextArg);
         }
         line = line.substring(nextArg.length()).strip();
         parm = new ParameterStruct(nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
         frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type S value: " + nextArg);
         params.add(parm);
+        
+        // make sure the type is correct for the equate sign
+        switch (ptype) {
+            case ParameterStruct.ParamType.Integer:
+                if (nextArg.equals("AND=") || nextArg.equals("OR=") || nextArg.equals("XOR=")) {
+                    throw new ParserException(functionId + "Bitwise assignments not allowed for type: " + ptype);
+                }
+                break;
+            case ParameterStruct.ParamType.Unsigned:
+                // all equates are valid for Unsigned
+                break;
+            default:
+                throw new ParserException(functionId + "Assignment command not allowed for type: " + ptype);
+        }
         
         // remaining data is the Calculation, which may be a single value or a complex formula
         parm = new ParameterStruct(line, ParameterStruct.ParamClass.Calculation, ptype);

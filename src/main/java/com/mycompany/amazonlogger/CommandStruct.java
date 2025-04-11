@@ -21,19 +21,25 @@ public class CommandStruct {
     public ArrayList<ParameterStruct> params;   // the arguments associated with the command
         
     public static enum CommandTable {
-        EXIT,
-        DEFINE,
-        SET,
-        IF,
+        EXIT,       // this command is added automatically by the compiler
+        RUN,        // this command is for running the command-line commands
+        DEFINE,     // this defines the parameters used by the program
+        SET,        // this sets the value of the parameters
+        IF,         // these handles the conditional IF-ELSEIF-ELSE-ENDIF
         ELSE,
         ELSEIF,
         ENDIF,
-        FOR,
+        FOR,        // these handle the FOR loop
         BREAK,
         CONTINUE,
         NEXT,
         ENDFOR,
-        RUN,
+        INSERT,     // these are Array commands only
+        APPEND,
+        MODIFY,
+        REMOVE,
+        TRUNCATE,
+        POP,
     };
 
     /**

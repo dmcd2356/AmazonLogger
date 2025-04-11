@@ -6,20 +6,22 @@ TODO:
 - Fix the issue of removing the OCR capability in the Tika jar for reading the PDF file. This
     is causing the processing to slow down.
 - Add the following PROGRAM features:
-    - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
-    - add command to search StrArray and IntArray for a value given a starting index (returns index or -1)
-    - modify RESPONSE to be a StrArray instead of a String to access each element
     - add the ability to use an operation prior to the '=' in a Calculation
     - allow setting Boolean param to the result of a Comparison
+    - add command to search StrArray and IntArray for a value given a starting index (returns index or -1)
     - add command to read a row of data from the Spreadsheet into a StrArray
     - add command to read a column of data from the Spreadsheet into a StrArray
+    - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
     - read the PDF file into a StrArray that is accessible
     - read the clipboard (file and actual clipbaord) into a StrArray that is accessible Clipboard.
     - cleanup error handling messages.
     - add Runtime Error Policy Handling feature.
-
-TESTING:
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with
     certain debug messages enabled. Then capturing the debug output and comparing them to expected
     results.
+
+TESTING:
+ * modify RESPONSE to be a StrArray instead of a String to access each element
+ * add the ability to use '+=' for a String param
+ * add Array command functionality
 

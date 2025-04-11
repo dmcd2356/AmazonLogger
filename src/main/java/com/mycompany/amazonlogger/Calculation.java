@@ -53,6 +53,12 @@ public class Calculation {
     Calculation (String formula, ParameterStruct.ParamType resultType) throws ParserException {
         String functionId = CLASS_NAME + " (new): ";
 
+        if (null == formula || null == resultType) {
+            throw new ParserException (functionId + "Calculation type is null");
+        } else if (resultType != ParameterStruct.ParamType.Integer &&
+                   resultType != ParameterStruct.ParamType.Unsigned) {
+            throw new ParserException (functionId + "Calculation not permitted for type: " + resultType.toString());
+        }
         
         calcList = new ArrayList<>();
         boolean bNot = false;
@@ -537,68 +543,51 @@ public class Calculation {
             throw new ParserException (functionId + "Blank formula");
         }
         char firstch = formula.charAt(0);
+        
         // in case 1st char is '-', see if 2nd char is digit to know if this is value or operation
         boolean bDigit = false;
         if (strlen > 1 && Character.isDigit(formula.charAt(1))) {
             bDigit = true;
         }
         // we allow bitwise operations as well for unsigned values
-        if (ptype == ParameterStruct.ParamType.Unsigned) {
-            if (formula.startsWith("!")) {
-                return EntryType.NOT;
-            }
-            if (formula.startsWith("AND")) {
-                return EntryType.AND;
-            }
-            if (formula.startsWith("OR")) {
-                return EntryType.OR;
-            }
-            if (formula.startsWith("XOR")) {
-                return EntryType.XOR;
-            }
-            if (formula.startsWith("ROR")) {
-                return EntryType.ROR;
-            }
-            if (formula.startsWith("ROL")) {
-                return EntryType.ROL;
+        boolean bBitwise = true;
+        if      (formula.startsWith("!"))    type = EntryType.NOT;
+        else if (formula.startsWith("AND"))  type = EntryType.AND;
+        else if (formula.startsWith("OR"))   type = EntryType.OR;
+        else if (formula.startsWith("XOR"))  type = EntryType.XOR;
+        else if (formula.startsWith("ROR"))  type = EntryType.ROR;
+        else if (formula.startsWith("ROL"))  type = EntryType.ROL;
+        else {
+            bBitwise = false;
+            switch (firstch) {
+                case '(' -> type = EntryType.Lbracket;
+                case ')' -> type = EntryType.Rbracket;
+                case '+' -> type = EntryType.ADD;
+                case '-' -> type = EntryType.SUB;
+                case '*' -> type = EntryType.MUL;
+                case '/' -> type = EntryType.DIV;
+                case '%' -> type = EntryType.MOD;
+                case '$' -> type = EntryType.Param;
+                default -> {
+                    if (!Character.isDigit(firstch)) {
+                        throw new ParserException (functionId + "Invalid character entry for calculation: " + firstch);
+                    }
+                    type = EntryType.Value;
+                }
             }
         }
-        switch (firstch) {
-            case '(':
-                type = EntryType.Lbracket;
-                break;
-            case ')':
-                type = EntryType.Rbracket;
-                break;
-            case '+':
-                type = EntryType.ADD;
-                break;
-            case '-':
-                if (!bDigit)
-                    type = EntryType.SUB;
-                else
-                    type = EntryType.Value;
-                break;
-            case '*':
-                type = EntryType.MUL;
-                break;
-            case '/':
-                type = EntryType.DIV;
-                break;
-            case '%':
-                type = EntryType.MOD;
-                break;
-            case '$':
-                type = EntryType.Param;
-                break;
-            default:
-                if (!Character.isDigit(firstch)) {
-                    throw new ParserException (functionId + "Invalid character entry for calculation: " + firstch);
-                }
-                type = EntryType.Value;
-                break;
-            }
-            return type;
+
+        // change 
+        if (bDigit && type == EntryType.SUB) {
+            type = EntryType.Value;
+        }
+
+        // now make sure the operation is allowed for the data type
+        if (ptype == ParameterStruct.ParamType.Integer && bBitwise) {
+            throw new ParserException (functionId + "Invalid operator entry for Integer calculation: " + type.toString());
+        }
+        
+        return type;
     }
     
     private String getNextEntry (String formula) {
