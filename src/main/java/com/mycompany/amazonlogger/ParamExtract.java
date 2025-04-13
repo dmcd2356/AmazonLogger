@@ -17,11 +17,12 @@ public class ParamExtract {
     
     private String  name;           // parameter name (null if not found)
     private ParameterStruct.ParamType type; // type of parameter
-    private boolean bEquals;        // true if '=' sign was found
+    private String  equalSign;      // type of '=' sign found (null if none)
     private Integer index;          // associated index [x] for String, StrArray, IntArray params
     private Integer indexmax;       // associated ending index for String, StrArray, IntArray params
     private Trait   trait;          // object after '.' demarcation
     private String  evaluation;     // evaluation on Right-side of '=' to set parameter to
+    private boolean bRightSide;     // true if parameter is a reference and must be on right side of '='
 
     // traits extensions to String, StrArray and IntArray types
     public enum Trait {
@@ -39,7 +40,7 @@ public class ParamExtract {
      *      ParamName = Calculation
      * Or it can be within the Calculation of the Right-side of the '=':
      *      $ParamName
-     * The 1st case will not have a '$' infront of the parameter name and should
+     * The 1st case will not have a '$' in front of the parameter name and should
      *   have an '=' sign in it. It cannot have any extensions to it (brackets or
      *   Traits).
      * The 2nd form must be preceeded by a '$' character and must not have any '='
@@ -56,40 +57,100 @@ public class ParamExtract {
         String functionId = CLASS_NAME + " (new): ";
         
         field = field.strip();
-        name = null;
+        
+        name = field;
         index = null;
         indexmax = null;
         trait = null;
         evaluation = null;
-        bEquals = false;
+        equalSign = null;
+        bRightSide = name.startsWith("$");
+        if (name.isEmpty()) {
+            return;
+        }
+        
+        // let's allow a "++" to be at the end of a param value (no intervening spaces)
+        int offset = name.indexOf(' ');
+        if (offset < 0) {
+            // only 1 field, check if last 2 chars are ++
+            int strlen = name.length();
+            if (name.substring(strlen-2).contentEquals("++")) {
+                // ok, then let's replace the "++" with a "+= 1"
+                name = name.substring(0, strlen-2);
+                equalSign = "+=";
+                evaluation = "1";
+                getExtensions ();
+                return;
+            }
+        }
         
         // first, let's see if there are extraneous space characters following
         //  the potential parameter name and an '=' sign (can't have intervening
         //  spaces for either the '.' or '[' delimiters).
         // 'field' then is modified to be terminated with a space char or end-of-line.
-        boolean bRightSide = field.startsWith("$");
-        int offset = field.indexOf(' ');
-        int equals = field.indexOf('=');
-        if (offset > 0 || equals > 0) {
-            if (offset < equals)
-                offset = equals;
-            evaluation = field.substring(offset).strip();
-            field = field.substring(0, offset);
-            equals = evaluation.indexOf('=');
-            if (equals >= 0) {
-                if (equals >= evaluation.length() - 1) {
-                    throw new ParserException(functionId + "Invalid command format (missing data after '='): " + field + evaluation);
+        int equals = name.indexOf('=');
+        if (equals > 0) {
+            offset = equals;
+            equalSign = "=";
+            char signVal = name.charAt(offset-1);
+            switch (signVal) {
+                case '+', '-', '*', '/', '%' -> {
+                    equalSign = signVal + "=";
+                    offset--;
                 }
-                if (bRightSide) {
-                    throw new ParserException(functionId + "Invalid command format ('$' can't be used on left-side of '='): " + field + evaluation);
+                default -> {
+                    int backup = offset - 4;
+                    if (backup >= 0) {
+                        String preEqu = name.substring(backup);
+                        if (preEqu.startsWith(" AND=")) {
+                            equalSign = "AND=";
+                            offset = backup;
+                        } else if (preEqu.startsWith(" XOR=")) {
+                            equalSign = "XOR=";
+                            offset = backup;
+                        } else {
+                            preEqu = preEqu.substring(1);
+                            if (preEqu.startsWith(" OR=")) {
+                                equalSign = "OR=";
+                                offset = backup + 1;
+                            }
+                        }
+                    }
                 }
-                bEquals = true;
-                evaluation = evaluation.substring(equals + 1).strip();
             }
+            evaluation = name.substring(equals+1).strip();
+            name = name.substring(0, offset).strip();
+
+            if (evaluation.isEmpty()) {
+                throw new ParserException(functionId + "Invalid command format (missing data after '='): " + field);
+            }
+            if (bRightSide) {
+                throw new ParserException(functionId + "Invalid command format ('$' can't be used on left-side of '='): " + field);
+            }
+        }
+        else if (offset > 0) {
+            evaluation = name.substring(offset).strip();
+            name = name.substring(0, offset).strip();
         }
         
         // extract the name of the parameter from the string.
         // it can be delimited by either a space, a '.' or a ['.
+        getExtensions ();
+    }
+
+    /**
+     * this looks at the parameter reference name and separates out any extensions.
+     *  the 'name' will be set to the parameter name by itself
+     *  bracket index values will set the entries 'index' and 'indexmax' (if any)
+     *  traits will be saved in the entry 'trait'
+     * 
+     * @throws ParserException 
+     */
+    private void getExtensions () throws ParserException {
+        String functionId = CLASS_NAME + ".getExtensions: ";
+        
+        // check for bracketed index or trait extensions
+        String field = name;
         String leftover = "";
         int offTrait  = field.indexOf('.');
         int offLeftB  = field.indexOf('[');
@@ -130,7 +191,7 @@ public class ParamExtract {
                 throw new ParserException(functionId + "Invalid bracketing of parameter: " + name + " = " + leftover);
             }
             // now see if we have a single entry or a range
-            offset = leftover.indexOf('-');
+            int offset = leftover.indexOf('-');
             if (offset > 0) {
                 index = Utils.getIntValue (leftover.substring(0, offset)).intValue();
                 indexmax = Utils.getIntValue (leftover.substring(offset+1)).intValue();
@@ -145,33 +206,42 @@ public class ParamExtract {
             name = field;
             type = ParameterStruct.getParamTypeFromName (name);
         }
+        
+        // verify param name is valid
+        if (!ParameterStruct.isValidParamName(name)) {
+            throw new ParserException(functionId + "parameter not found: " + name);
+        }
     }
     
-    String getName () {
+    public String getName () {
         return name;
     }
     
-    ParameterStruct.ParamType getType () {
+    public ParameterStruct.ParamType getType () {
         return type;
     }
     
-    boolean isEquation () {
-        return bEquals;
+    public boolean isEquation () {
+        return (equalSign != null);
     }
     
-    Integer getIndex () {
+    public String getEquality () {
+        return equalSign;
+    }
+    
+    public Integer getIndex () {
         return index;
     }
     
-    Integer getIndexEnd () {
+    public Integer getIndexEnd () {
         return indexmax;
     }
     
-    Trait getTrait () {
+    public Trait getTrait () {
         return trait;
     }
     
-    String getEvaluation () {
+    public String getEvaluation () {
         return evaluation;
     }
 }

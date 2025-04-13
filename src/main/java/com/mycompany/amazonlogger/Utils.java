@@ -312,6 +312,12 @@ public class Utils {
     public static Long getIntValue (String strValue) throws ParserException {
         String functionId = CLASS_NAME + ".getIntValue: ";
         
+        if (strValue == null) {
+            throw new ParserException(functionId + "null entry");
+        }
+        if (strValue.isEmpty()) {
+            throw new ParserException(functionId + "Zero length input");
+        }
         Long intValue;
         try {
             intValue = Long.valueOf(strValue);
@@ -331,8 +337,14 @@ public class Utils {
      * @throws ParserException 
      */
     public static Integer getHexValue (String strValue) throws ParserException {
-        String functionId = CLASS_NAME + ".getUnsignedHexValue: ";
+        String functionId = CLASS_NAME + ".getHexValue: ";
 
+        if (strValue == null) {
+            throw new ParserException(functionId + "null entry");
+        }
+        if (strValue.isEmpty()) {
+            throw new ParserException(functionId + "Zero length input");
+        }
         Integer retVal;
         int offset;
         if (strValue.charAt(0) == 'x') {

@@ -27,16 +27,16 @@ public final class ParameterStruct {
     
     static final int NAME_MAXLEN = 20;  // the max # chars in a param name
 
-    private String      strParam;           // value for the String  param type
-    private Long        longParam;          // value for the Integer param type (64 bit signed)
-    private Boolean     boolParam;          // value for the Boolean param type
-    private ArrayList<Long>     arrayParam; // value for Integer Array param type
-    private ArrayList<String>   listParam;  // value for String  List  param type
-    private ArrayList<CalcEntry> calcParam; // value for Calculation param type
-    private ParamClass  paramClass;         // class of the parameter
-    private ParamType   paramType;          // parameter classification
-    private char        paramTypeID;        // ID corresponding to the paramType
-    private ParamContents paramRef;         // info if a referenced parameter is used instead of a value
+    private String              strParam;       // value for the String  param type
+    private Long                longParam;      // value for the Integer param type (64 bit signed)
+    private Boolean             boolParam;      // value for the Boolean param type
+    private ArrayList<Long>     arrayParam;     // value for Integer Array param type
+    private ArrayList<String>   listParam;      // value for String  List  param type
+    private ArrayList<CalcEntry> calcParam;     // value for Calculation param type
+    private ParamClass          paramClass;     // class of the parameter
+    private ParamType           paramType;      // parameter classification
+    private char                paramTypeID;    // ID corresponding to the paramType
+    private ParamContents       paramRef;       // info if a referenced parameter is used instead of a value
     
     // saved static parameters
     private static ArrayList<String>  strResponse = new ArrayList<>();    // responses from RUN commands
@@ -75,29 +75,6 @@ public final class ParameterStruct {
         StringArray,    // 'L' type
     }
 
-    // this defines characteristics for a referenced parameter
-    public class ParamContents {
-        private String      name;           // name of parameter
-        private ParamType   type;      // parameter classification
-        private Integer     index;          // associated index [x] for String, StrArray, IntArray params
-        private Integer     indexmax;       // associated ending index for String, StrArray, IntArray params
-        private ParamExtract.Trait trait;   // object after '.' demarcation
-        
-        ParamContents () {
-            name = null;
-            type = null;
-            index = null;
-            indexmax = null;
-            trait = null;
-        }
-        
-        public void setParamTraits (ParamExtract data) {
-            index    = data.getIndex();
-            indexmax = data.getIndexEnd();
-            trait    = data.getTrait();
-        }
-    }
-    
     public ParameterStruct() {
         strParam = null;
         longParam = null;
@@ -135,116 +112,112 @@ public final class ParameterStruct {
         paramType = dataType;
         paramTypeID = getParamTypeID (paramType);
 
-        // Need to do these special cases before we handle the mundane hard-coded entries.
-        if (pClass == ParamClass.Calculation) {
-            // CALCULATION ENTRY:
-            // save the calculation entry
-            Calculation calc = new Calculation(strValue, dataType);
-            calcParam = calc.copyCalc();
+        try {
+            // Need to do these special cases before we handle the mundane hard-coded entries.
+            if (pClass == ParamClass.Calculation) {
+                // CALCULATION ENTRY:
+                // save the calculation entry
+                Calculation calc = new Calculation(strValue, dataType);
+                calcParam = calc.copyCalc();
 
-            // if calc is a single entry, don't use Calculation type, switch to Discreet or Parameter type
-            if (calc.getCalcCount() == 1) {
-                String paramName = calc.getCalcParam();
-                if (paramName != null) {
-                    ParamExtract paramInfo = new ParamExtract(paramName);
-                    paramRef.name     = paramInfo.getName();
-                    paramRef.index    = paramInfo.getIndex();
-                    paramRef.indexmax = paramInfo.getIndexEnd();
-                    paramRef.trait    = paramInfo.getTrait();
-                    paramRef.type     = paramInfo.getType();
-                    paramClass = ParamClass.Reference;
-                    frame.outputInfoMsg(STATUS_DEBUG, msgGap + "Converted Calculation parameter to single Reference value: " + paramRef.name);
-                } else {
-                    Long value = calc.getCalcValue();
-                    if (value != null) {
-                        longParam = value;
-                        paramClass = ParamClass.Discrete;
-                        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "Converted Calculation parameter to single " + paramType + " value: " + value);
+                // if calc is a single entry, don't use Calculation type, switch to Discreet or Parameter type
+                if (calc.getCalcCount() == 1) {
+                    String paramName = calc.getCalcParam();
+                    if (paramName != null) {
+                        ParamExtract paramInfo = new ParamExtract(paramName);
+                        paramRef = new ParamContents(paramInfo);
+                        paramClass = ParamClass.Reference;
+                        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "Converted Calculation parameter to single Reference value: " + paramRef.getName());
+                    } else {
+                        Long value = calc.getCalcValue();
+                        if (value != null) {
+                            longParam = value;
+                            paramClass = ParamClass.Discrete;
+                            frame.outputInfoMsg(STATUS_DEBUG, msgGap + "Converted Calculation parameter to single " + paramType + " value: " + value);
+                        }
                     }
+                } else {
+                    frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Calculation type " + paramType + " value: " + strValue);
                 }
-            } else {
-                frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Calculation type " + paramType + " value: " + strValue);
+                return;
             }
-            return;
-        }
-        if (pClass == ParamClass.Reference) {
-            // PARAMETER REFERENCE ENTRY:
-            // extract any extension added to the parameter
-            ParamExtract paramInfo = new ParamExtract(strParam);
-            paramRef.name     = paramInfo.getName();
-            paramRef.index    = paramInfo.getIndex();
-            paramRef.indexmax = paramInfo.getIndexEnd();
-            paramRef.trait    = paramInfo.getTrait();
-            paramRef.type     = paramInfo.getType();
-            frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Reference type " + paramType + " name: " + paramRef.name);
-            return;
-        }
-        
-        // HARD-CODED ENTRIES:
-        String invalidMsg = "Invalid value for '" + dataType + "' type param: " + strValue;
-        switch (dataType) {
-            case ParamType.Boolean:
-                if (!strParam.equalsIgnoreCase("TRUE") &&
-                    !strParam.equalsIgnoreCase("FALSE") &&
-                    !strParam.contentEquals("0") &&
-                    !strParam.contentEquals("1") ) {
-                    throw new ParserException(functionId + invalidMsg);
-                }
-                boolParam = strParam.equalsIgnoreCase("TRUE") || strParam.contentEquals("1");
-                break;
-            case ParamType.Unsigned:
-                try {
-                    longParam = getLongOrUnsignedValue(strParam);
-                } catch (ParserException ex) {
-                    throw new ParserException(functionId + invalidMsg);
-                }
-                if (! isUnsignedInt(longParam)) {
-                    throw new ParserException(functionId + invalidMsg);
-                }
-                break;
-            case ParamType.Integer:
-                try {
-                    longParam = getLongOrUnsignedValue(strParam);
-                } catch (ParserException ex) {
-                    throw new ParserException(functionId + invalidMsg);
-                }
-                break;
-            case ParamType.IntArray:
-            case ParamType.StringArray:
-                // first transfer the array entries to the String Array param
-                listParam = new ArrayList<>(Arrays.asList(strParam.split(",")));
-                arrayParam = new ArrayList<>();
-                for (int ix = 0; ix < listParam.size(); ix++) {
+            if (pClass == ParamClass.Reference) {
+                // PARAMETER REFERENCE ENTRY:
+                // extract any extension added to the parameter
+                ParamExtract paramInfo = new ParamExtract(strParam);
+                paramRef = new ParamContents(paramInfo);
+                frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Reference type " + paramType + " name: " + paramRef.getName());
+                return;
+            }
+
+            // HARD-CODED ENTRIES:
+            String invalidMsg = "Invalid value for '" + dataType + "' type param: " + strValue;
+            switch (dataType) {
+                case ParamType.Boolean:
+                    if (!strParam.equalsIgnoreCase("TRUE") &&
+                        !strParam.equalsIgnoreCase("FALSE") &&
+                        !strParam.contentEquals("0") &&
+                        !strParam.contentEquals("1") ) {
+                        throw new ParserException(functionId + invalidMsg);
+                    }
+                    boolParam = strParam.equalsIgnoreCase("TRUE") || strParam.contentEquals("1");
+                    break;
+                case ParamType.Unsigned:
                     try {
-                        // now check if all entries were Integer, even if it was String Array
-                        String cleanStr = listParam.get(ix).strip();
-                        listParam.set(ix, cleanStr); // remove leading & trailing spaces
-                        longParam = getLongOrUnsignedValue(cleanStr);
-                        arrayParam.add(longParam);
-                        if (paramType == ParamType.StringArray) {
-                            // if it was a String Array but was all Integers, reclassify it
-                            paramType = ParamType.IntArray;
-                            paramTypeID = getParamTypeID (paramType);
-                        }
+                        longParam = getLongOrUnsignedValue(strParam);
                     } catch (ParserException ex) {
-                        if (paramType == ParamType.IntArray) {
-                            throw new ParserException(functionId + invalidMsg);
+                        throw new ParserException(functionId + invalidMsg);
+                    }
+                    if (! isUnsignedInt(longParam)) {
+                        throw new ParserException(functionId + invalidMsg);
+                    }
+                    break;
+                case ParamType.Integer:
+                    try {
+                        longParam = getLongOrUnsignedValue(strParam);
+                    } catch (ParserException ex) {
+                        throw new ParserException(functionId + invalidMsg);
+                    }
+                    break;
+                case ParamType.IntArray:
+                case ParamType.StringArray:
+                    // first transfer the array entries to the String Array param
+                    listParam = new ArrayList<>(Arrays.asList(strParam.split(",")));
+                    arrayParam = new ArrayList<>();
+                    for (int ix = 0; ix < listParam.size(); ix++) {
+                        try {
+                            // now check if all entries were Integer, even if it was String Array
+                            String cleanStr = listParam.get(ix).strip();
+                            listParam.set(ix, cleanStr); // remove leading & trailing spaces
+                            longParam = getLongOrUnsignedValue(cleanStr);
+                            arrayParam.add(longParam);
+                            if (paramType == ParamType.StringArray) {
+                                // if it was a String Array but was all Integers, reclassify it
+                                paramType = ParamType.IntArray;
+                                paramTypeID = getParamTypeID (paramType);
+                            }
+                        } catch (ParserException ex) {
+                            if (paramType == ParamType.IntArray) {
+                                throw new ParserException(functionId + invalidMsg);
+                            }
                         }
                     }
-                }
-                if (paramType == ParamType.IntArray) {
-                    frame.outputInfoMsg(STATUS_DEBUG, msgGap + "new " + paramType + " size " + arrayParam.size());
-                } else {
-                    frame.outputInfoMsg(STATUS_DEBUG, msgGap + "new " + paramType + " size " + listParam.size());
-                }
-                break;
-            case ParamType.String:
-                // the data has already been added to the String entry, so we are done
-                break;
-            default:
-                break;
+                    if (paramType == ParamType.IntArray) {
+                        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "new " + paramType + " size " + arrayParam.size());
+                    } else {
+                        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "new " + paramType + " size " + listParam.size());
+                    }
+                    break;
+                case ParamType.String:
+                    // the data has already been added to the String entry, so we are done
+                    break;
+                default:
+                    break;
+            }
+            frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Discreet type " + paramType + " value: " + strParam);
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
         }
-        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Discreet type " + paramType + " value: " + strParam);
     }
 
     /**
@@ -252,7 +225,7 @@ public final class ParameterStruct {
      * 
      * @param type 
      */
-    private char getParamTypeID (ParamType type) {
+    private static char getParamTypeID (ParamType type) {
         switch (type) {
             case ParamType.Integer:     return 'I';
             case ParamType.Unsigned:    return 'U';
@@ -289,8 +262,8 @@ public final class ParameterStruct {
     public boolean isValidForType (char typeID) {
         boolean bParmRef = false;
         ParamType pType = paramType;
-        if (paramRef != null && paramRef.name != null && !paramRef.name.isEmpty()) {
-            pType = paramRef.type;
+        if (paramRef != null && paramRef.getName() != null && !paramRef.getName().isEmpty()) {
+            pType = paramRef.getType();
             bParmRef = true;
         }
         switch (typeID) {
@@ -346,10 +319,10 @@ public final class ParameterStruct {
     /**
      * determines if the parameter is a parameter reference
      * 
-     * @return true if the parameter is a Parameter Refefence
+     * @return true if the parameter is a Parameter Reference
      */
     public boolean isParamRef () {
-        return paramClass == ParamClass.Reference && (paramRef != null) && (paramRef.name != null);
+        return paramClass == ParamClass.Reference && (paramRef != null) && (paramRef.getName() != null);
     }
        
     /**
@@ -359,7 +332,7 @@ public final class ParameterStruct {
      */
     public String getParamRefName () {
         if (isParamRef())
-            return paramRef.name;
+            return paramRef.getName();
         else
             return null;
     }
@@ -371,7 +344,7 @@ public final class ParameterStruct {
      */
     public ParamType getParamRefType () {
         if (isParamRef())
-            return paramRef.type;
+            return paramRef.getType();
         else
             return null;
     }
@@ -409,9 +382,13 @@ public final class ParameterStruct {
         if (calcParam == null) {
             throw new ParserException(functionId + "Calculation value is null");
         }
-        Calculation calc = new Calculation(calcParam);
-        longParam = calc.compute(type);
-        return longParam;
+        try {
+            Calculation calc = new Calculation(calcParam);
+            longParam = calc.compute(type);
+            return longParam;
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
+        }
     }
         
     /**
@@ -500,7 +477,7 @@ public final class ParameterStruct {
             this.paramClass  = value.paramClass;
             this.paramRef    = value.paramRef;
             
-            frame.outputInfoMsg(STATUS_DEBUG, "    unpacked param " + paramRef.name + " as type '" + paramTypeID);
+            frame.outputInfoMsg(STATUS_DEBUG, "    unpacked param " + paramRef.getName() + " as type '" + paramTypeID);
         }
     }
 
@@ -516,17 +493,17 @@ public final class ParameterStruct {
             case ParamType.Integer:
                 strParam = longParam.toString();
                 boolParam = longParam != 0;
-                frame.outputInfoMsg(STATUS_DEBUG, "Converted " + paramType + " value: " + strParam);
+                frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case ParamType.Unsigned:
                 strParam = longParam.toString();
                 boolParam = longParam != 0;
-                frame.outputInfoMsg(STATUS_DEBUG, "Converted " + paramType + " value: " + strParam);
+                frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case ParamType.Boolean:
                 strParam = boolParam.toString();
                 longParam = (boolParam) ? 1L : 0L;
-                frame.outputInfoMsg(STATUS_DEBUG, "Converted " + paramType + " value: " + strParam);
+                frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case ParamType.String:
                 if (!strParam.isBlank()) {
@@ -554,18 +531,18 @@ public final class ParameterStruct {
                             // keep param as String type and we can't do any conversions
                         }
                     }
-                    frame.outputInfoMsg(STATUS_DEBUG, "Converted " + paramType + " value: " + strParam);
+                    frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 }
                 break;
             case ParamType.IntArray:
                 strParam = arrayParam.getFirst().toString();
                 longParam = arrayParam.getFirst();
                 boolParam = !arrayParam.isEmpty(); // set to true if array has an entry
-                frame.outputInfoMsg(STATUS_DEBUG, "Converted " + paramType + " value: " + strParam);
+                frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case ParamType.StringArray:  // String List type
                 strParam = listParam.getFirst();
-                frame.outputInfoMsg(STATUS_DEBUG, "Converted " + paramType + " value: " + strParam);
+                frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             default:
                 break;
@@ -621,7 +598,7 @@ public final class ParameterStruct {
         String strID = "" + paramTypeID;
         switch (paramClass) {
             case ParamClass.Reference:
-                strValue = paramRef.name;
+                strValue = paramRef.getName();
                 strID += "ref";
                 break;
             case ParamClass.Calculation:
@@ -761,21 +738,21 @@ public final class ParameterStruct {
      * 
      * @throws ParserException - if parameter not found
      */
-    private ParameterStruct getParameterEntry (ParamContents paramInfo) throws ParserException {
+    public static ParameterStruct getParameterEntry (ParamContents paramInfo) throws ParserException {
         String functionId = CLASS_NAME + ".getParameterEntry: ";
 
-        if (paramInfo == null || paramInfo.name == null || paramInfo.type == null) {
+        if (paramInfo == null || paramInfo.getName() == null || paramInfo.getType() == null) {
             return null;
         }
         
         // create a new parameter with all null entries
         ParameterStruct paramValue = new ParameterStruct();
 
-        String name = paramInfo.name;
+        String name = paramInfo.getName();
         if (name.charAt(0) == '$') {
             name = name.substring(1);
         }
-        ParamType pType = paramInfo.type;
+        ParamType pType = paramInfo.getType();
         
         switch (pType) {
             case ParamType.Integer:
@@ -783,31 +760,31 @@ public final class ParameterStruct {
                 if (paramValue.longParam == null) {
                     throw new ParserException(functionId + "Parameter " + name + " not found");
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.longParam);
+                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.longParam);
                 break;
             case ParamType.Unsigned:
                 paramValue.longParam = uintParams.get(name);
                 if (paramValue.longParam == null) {
                     throw new ParserException(functionId + "Parameter " + name + " not found");
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.longParam);
+                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.longParam);
                 break;
             case ParamType.Boolean:
                 paramValue.boolParam = boolParams.get(name);
                 if (paramValue.boolParam == null) {
                     throw new ParserException(functionId + "Parameter " + name + " not found");
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.boolParam);
+                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.boolParam);
                 break;
             case ParamType.IntArray:
                 paramValue.arrayParam = arrayParams.get(name);
                 if (paramValue.arrayParam == null) {
                     throw new ParserException(functionId + "Parameter " + name + " not found");
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.arrayParam.toString());
+                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.arrayParam.toString());
                 // check for extensions to reference param
-                if (paramInfo.index != null) {
-                    int iStart = paramInfo.index;
+                if (paramInfo.getIndexStart() != null) {
+                    int iStart = paramInfo.getIndexStart();
                     if (iStart < paramValue.arrayParam.size()) {
                         paramValue.longParam = paramValue.arrayParam.get(iStart);
                         pType = ParamType.Integer;
@@ -815,11 +792,11 @@ public final class ParameterStruct {
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
-                } else if (paramInfo.trait == ParamExtract.Trait.SIZE) {
+                } else if (paramInfo.getTrait() == ParamExtract.Trait.SIZE) {
                     paramValue.longParam = (long)paramValue.arrayParam.size();
                     pType = ParamType.Integer;
                     frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".SIZE ' as type Integer: " + paramValue.longParam);
-                } else if (paramInfo.trait == ParamExtract.Trait.ISEMPTY) {
+                } else if (paramInfo.getTrait() == ParamExtract.Trait.ISEMPTY) {
                     paramValue.boolParam = paramValue.arrayParam.isEmpty();
                     pType = ParamType.Boolean;
                     frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".ISEMPTY ' as type Boolean: " + paramValue.boolParam);
@@ -830,10 +807,10 @@ public final class ParameterStruct {
                 if (paramValue.listParam == null) {
                     throw new ParserException(functionId + "Parameter " + name + " not found");
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.listParam.toString());
+                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.listParam.toString());
                 // check for extensions to reference param
-                if (paramInfo.index != null) {
-                    int iStart = paramInfo.index;
+                if (paramInfo.getIndexStart() != null) {
+                    int iStart = paramInfo.getIndexStart();
                     if (iStart < paramValue.listParam.size()) {
                         paramValue.strParam = paramValue.listParam.get(iStart);
                         pType = ParamType.String;
@@ -841,11 +818,11 @@ public final class ParameterStruct {
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
-                } else if (paramInfo.trait == ParamExtract.Trait.SIZE) {
+                } else if (paramInfo.getTrait() == ParamExtract.Trait.SIZE) {
                     paramValue.longParam = (long)paramValue.listParam.size();
                     pType = ParamType.Integer;
                     frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".SIZE ' as type Integer: " + paramValue.longParam);
-                } else if (paramInfo.trait == ParamExtract.Trait.ISEMPTY) {
+                } else if (paramInfo.getTrait() == ParamExtract.Trait.ISEMPTY) {
                     paramValue.boolParam = paramValue.listParam.isEmpty();
                     pType = ParamType.Boolean;
                     frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".ISEMPTY ' as type Boolean: " + paramValue.boolParam);
@@ -868,12 +845,12 @@ public final class ParameterStruct {
                     if (paramValue.strParam != null) {
                         pType = ParamType.String;
                         // check for extensions to reference param
-                        if (paramInfo.index != null) {
-                            int iStart = paramInfo.index;
+                        if (paramInfo.getIndexStart() != null) {
+                            int iStart = paramInfo.getIndexStart();
                             int iEnd = iStart + 1;
                             String ixRange = "[" + iStart + "]";
-                            if(paramInfo.indexmax != null) {
-                                iEnd = paramInfo.indexmax;
+                            if(paramInfo.getIndexEnd() != null) {
+                                iEnd = paramInfo.getIndexEnd();
                                 ixRange = "[" + iStart + "-" + iEnd + "]";
                             }
                             if (iEnd <= paramValue.listParam.size()) {
@@ -882,11 +859,11 @@ public final class ParameterStruct {
                             } else {
                                 throw new ParserException(functionId + "Parameter " + name + " index" + ixRange + " exceeds array");
                             }
-                        } else if (paramInfo.trait == ParamExtract.Trait.SIZE) {
+                        } else if (paramInfo.getTrait() == ParamExtract.Trait.SIZE) {
                             paramValue.longParam = (long)paramValue.strParam.length();
                             pType = ParamType.Integer;
                             frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".SIZE ' as type Integer: " + paramValue.longParam);
-                        } else if (paramInfo.trait == ParamExtract.Trait.ISEMPTY) {
+                        } else if (paramInfo.getTrait() == ParamExtract.Trait.ISEMPTY) {
                             paramValue.boolParam = paramValue.strParam.isEmpty();
                             pType = ParamType.Boolean;
                             frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".ISEMPTY ' as type Boolean: " + paramValue.boolParam);
@@ -903,16 +880,15 @@ public final class ParameterStruct {
                         throw new ParserException(functionId + "Parameter " + name + " not found");
                     }
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.strParam);
+                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.strParam);
                 break;
         }
 
         // save the parameter type and name
-        paramValue.paramRef.name = name;
-        paramValue.paramRef.type = pType;
-        paramValue.paramType     = pType;
-        paramValue.paramTypeID   = getParamTypeID (pType);
-        paramValue.paramClass    = ParamClass.Discrete;
+        paramValue.paramRef.setParamName(name, pType);
+        paramValue.paramType   = pType;
+        paramValue.paramTypeID = getParamTypeID (pType);
+        paramValue.paramClass  = ParamClass.Discrete;
 
         // convert value to other forms where possible
         paramValue.updateConversions();
@@ -1156,28 +1132,32 @@ public final class ParameterStruct {
     public static boolean arrayModifyEntry (String name, int index, String value) throws ParserException {
         String functionId = CLASS_NAME + ".arrayModifyEntry: ";
 
-        String arrayContents;
-        if (arrayParams.containsKey(name)) {
-            ArrayList<Long> entry = arrayParams.get(name);
-            if (index >= entry.size()) {
-                throw new ParserException(functionId + "Array Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+        try {
+            String arrayContents;
+            if (arrayParams.containsKey(name)) {
+                ArrayList<Long> entry = arrayParams.get(name);
+                if (index >= entry.size()) {
+                    throw new ParserException(functionId + "Array Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+                }
+                Long longVal = getLongOrUnsignedValue (value);
+                entry.set(index, longVal);
+                arrayContents = entry.toString();
             }
-            Long longVal = getLongOrUnsignedValue (value);
-            entry.set(index, longVal);
-            arrayContents = entry.toString();
-        }
-        else if (listParams.containsKey(name)) {
-            ArrayList<String> entry = listParams.get(name);
-            if (index >= entry.size()) {
-                throw new ParserException(functionId + "List Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+            else if (listParams.containsKey(name)) {
+                ArrayList<String> entry = listParams.get(name);
+                if (index >= entry.size()) {
+                    throw new ParserException(functionId + "List Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+                }
+                entry.set(index, value);
+                arrayContents = entry.toString();
+            } else {
+                return false;
             }
-            entry.set(index, value);
-            arrayContents = entry.toString();
-        } else {
-            return false;
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified List param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - " + name + ": " + arrayContents);
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified List param: " + name + " = " + value);
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - " + name + ": " + arrayContents);
         return true;
     }
 
@@ -1197,38 +1177,42 @@ public final class ParameterStruct {
     public static boolean arrayInsertEntry (String name, int index, String value) throws ParserException {
         String functionId = CLASS_NAME + ".arrayInsertEntry: ";
 
-        String arrayContents;
-        if (arrayParams.containsKey(name)) {
-            ArrayList<Long> entry = arrayParams.get(name);
-            Long longVal = getLongOrUnsignedValue (value);
-            if (index >= entry.size() || entry.isEmpty()) {
-                throw new ParserException(functionId + "Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+        try {
+            String arrayContents;
+            if (arrayParams.containsKey(name)) {
+                ArrayList<Long> entry = arrayParams.get(name);
+                Long longVal = getLongOrUnsignedValue (value);
+                if (index >= entry.size() || entry.isEmpty()) {
+                    throw new ParserException(functionId + "Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+                }
+                // bump current entries back 1
+                entry.addLast(entry.getLast());
+                for (int ix = entry.size()-2; ix >= index; ix--) {
+                    entry.set(ix+1, entry.get(ix));
+                }
+                entry.set(index, longVal);
+                arrayContents = entry.toString();
             }
-            // bump current entries back 1
-            entry.addLast(entry.getLast());
-            for (int ix = entry.size()-2; ix >= index; ix--) {
-                entry.set(ix+1, entry.get(ix));
+            else if (listParams.containsKey(name)) {
+                ArrayList<String> entry = listParams.get(name);
+                if (index >= entry.size() || entry.isEmpty()) {
+                    throw new ParserException(functionId + "Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+                }
+                // bump current entries back 1
+                entry.addLast(entry.getLast());
+                for (int ix = entry.size()-2; ix >= index; ix--) {
+                    entry.set(ix+1, entry.get(ix));
+                }
+                entry.set(index, value);
+                arrayContents = entry.toString();
+            } else {
+                return false;
             }
-            entry.set(index, longVal);
-            arrayContents = entry.toString();
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Inserted entry[" + index + "] in param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - " + name + ": " + arrayContents);
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
         }
-        else if (listParams.containsKey(name)) {
-            ArrayList<String> entry = listParams.get(name);
-            if (index >= entry.size() || entry.isEmpty()) {
-                throw new ParserException(functionId + "Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
-            }
-            // bump current entries back 1
-            entry.addLast(entry.getLast());
-            for (int ix = entry.size()-2; ix >= index; ix--) {
-                entry.set(ix+1, entry.get(ix));
-            }
-            entry.set(index, value);
-            arrayContents = entry.toString();
-        } else {
-            return false;
-        }
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Inserted entry[" + index + "] in param: " + name + " = " + value);
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - " + name + ": " + arrayContents);
         return true;
     }
 
@@ -1244,12 +1228,18 @@ public final class ParameterStruct {
      * @throws ParserException
      */
     public static boolean arrayAppendEntry (String name, String value) throws ParserException {
+        String functionId = CLASS_NAME + ".arrayAppendEntry: ";
+
         String arrayContents;
         if (arrayParams.containsKey(name)) {
             ArrayList<Long> entry = arrayParams.get(name);
-            Long longVal = getLongOrUnsignedValue (value);
-            entry.addLast(longVal);
-            arrayContents = entry.toString();
+            try {
+                Long longVal = getLongOrUnsignedValue (value);
+                entry.addLast(longVal);
+                arrayContents = entry.toString();
+            } catch (ParserException exMsg) {
+                throw new ParserException(exMsg + "\n  -> " + functionId);
+            }
         }
         else if (listParams.containsKey(name)) {
             ArrayList<String> entry = listParams.get(name);
@@ -1472,12 +1462,18 @@ public final class ParameterStruct {
      * @throws ParserException 
      */
     public static Long getLongOrUnsignedValue (String strValue) throws ParserException {
+        String functionId = CLASS_NAME + ".getLongOrUnsignedValue: ";
+        
         Long longVal;
-        Integer iVal = Utils.getHexValue (strValue);
-        if (iVal == null) {
-            longVal = Utils.getIntValue (strValue);
-        } else {
-            longVal = iVal.longValue();
+        try {
+            Integer iVal = Utils.getHexValue (strValue);
+            if (iVal == null) {
+                longVal = Utils.getIntValue (strValue);
+            } else {
+                longVal = iVal.longValue();
+            }
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
         }
         return longVal;
     }
@@ -1611,21 +1607,25 @@ public final class ParameterStruct {
      */
     public static boolean isValidParamName (String name) throws ParserException {
         String functionId = CLASS_NAME + ".isValidParamName: ";
-        
-        if (name.startsWith("$")) {
-            name = name.substring(1);
-        }
-        
-        // verify the formaat of the parameter name
-        verifyParamFormat(name);
-        verifyNotReservedName(name);
-        
-        if (isLoopParamDefined(name)) {
-            throw new ParserException(functionId + "using Loop parameter name: " + name);
-        }
 
-        // see if its already defined
-        return isParamDefined(name) != null;
+        try {
+            if (name.startsWith("$")) {
+                name = name.substring(1);
+            }
+
+            // verify the formaat of the parameter name
+            verifyParamFormat(name);
+            verifyNotReservedName(name);
+
+            if (isLoopParamDefined(name)) {
+                throw new ParserException(functionId + "using Loop parameter name: " + name);
+            }
+
+            // see if its already defined
+            return isParamDefined(name) != null;
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
+        }
     }
 
     /**
@@ -1641,36 +1641,40 @@ public final class ParameterStruct {
      */
     public static void isValidLoopName (String name, int index) throws ParserException {
         String functionId = CLASS_NAME + ".isValidLoopName: ";
-        
-        if (name.startsWith("$")) {
-            name = name.substring(1);
-        }
 
-        // verify the formaat of the parameter name
-        verifyParamFormat(name);
-        verifyNotReservedName(name);
+        try {
+            if (name.startsWith("$")) {
+                name = name.substring(1);
+            }
 
-        // make sure its not the same as a reference parameter
-        ParamType type = isParamDefined(name);
-        if (type != null) {
-            throw new ParserException(": using " + type.toString() + " parameter name: " + name);
-        }
-        
-        // now check if this loop name is nested in a loop having same name
-        // get the list of loops using this parameter name (if any)
-        ArrayList<LoopId> loopList = loopNames.get(name);
-        if (loopList != null && ! loopList.isEmpty()) {
-            // we have one or more uses of the same name, check if this is nested in one
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - checking previous uses of FOR Loop parameter " + name + " to see if we have a nesting problem");
-            for (int ix = 0; ix < loopList.size(); ix++) {
-                LoopId loopEntry = loopList.get(ix);
-                LoopStruct loopInfo = getLoopStruct (loopEntry);
-                if (loopInfo == null || ! loopInfo.isLoopComplete()) {
-                    throw new ParserException(functionId + ": Loop param " + name + " @ " + index + " is nested in same name at " + loopEntry.index);
-                } else {
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - FOR Loop parameter " + name + " @ " + loopEntry.index + " was complete");
+            // verify the formaat of the parameter name
+            verifyParamFormat(name);
+            verifyNotReservedName(name);
+
+            // make sure its not the same as a reference parameter
+            ParamType type = isParamDefined(name);
+            if (type != null) {
+                throw new ParserException(": using " + type.toString() + " parameter name: " + name);
+            }
+
+            // now check if this loop name is nested in a loop having same name
+            // get the list of loops using this parameter name (if any)
+            ArrayList<LoopId> loopList = loopNames.get(name);
+            if (loopList != null && ! loopList.isEmpty()) {
+                // we have one or more uses of the same name, check if this is nested in one
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - checking previous uses of FOR Loop parameter " + name + " to see if we have a nesting problem");
+                for (int ix = 0; ix < loopList.size(); ix++) {
+                    LoopId loopEntry = loopList.get(ix);
+                    LoopStruct loopInfo = getLoopStruct (loopEntry);
+                    if (loopInfo == null || ! loopInfo.isLoopComplete()) {
+                        throw new ParserException(functionId + ": Loop param " + name + " @ " + index + " is nested in same name at " + loopEntry.index);
+                    } else {
+                        frame.outputInfoMsg(STATUS_PROGRAM, "   - FOR Loop parameter " + name + " @ " + loopEntry.index + " was complete");
+                    }
                 }
             }
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
         }
     }
     
@@ -1721,55 +1725,59 @@ public final class ParameterStruct {
         // determine if we have a special param type that can take on appendages
         ParamType type = getParamTypeFromName (name);
         
-        // TODO: we need to do this for the '.' operator as well
-        String paramName = "";
-        int indexStart = 0;
-        int indexEnd = 0;
-        for (int ix = 0; ix < name.length(); ix++) {
-            char curch = name.charAt(ix);
-            // valid char for parameter
-            if ( (curch == '_') || Character.isLetterOrDigit(curch) ) {
-                paramName += curch;
-                if (ix > NAME_MAXLEN) {
-                    throw new ParserException(functionId + "parameter name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
-                }
-            } else {
-                // this will terminate the parameter search
-                if (curch == ' ' || curch == '=') {
-                    break;
-                }
-                if (!bRighthand) {
-                    throw new ParserException(functionId + "Parameter assignment should not include '$': " + name);
-                }
-                if (type != ParamType.String && type != ParamType.StringArray && type != ParamType.IntArray) {
-                    throw new ParserException(functionId + "Parameter extensions are only valid for String and Array types: " + name);
-                }
-                // check for bracket index on Array, List and String parameters
-                switch (curch) {
-                    case '[':
-                        int offset = name.indexOf(']');
-                        if (offset <= 0 || offset >= name.length() - 1) {
-                            throw new ParserException(functionId + "missing end bracket in parameter name: " + name);
-                        }
-                        indexStart = Utils.getIntValue(name.substring(ix+1)).intValue();
-                        // TODO: evaluate indexEnd
+        try {
+            // TODO: we need to do this for the '.' operator as well
+            String paramName = "";
+            int indexStart = 0;
+            int indexEnd = 0;
+            for (int ix = 0; ix < name.length(); ix++) {
+                char curch = name.charAt(ix);
+                // valid char for parameter
+                if ( (curch == '_') || Character.isLetterOrDigit(curch) ) {
+                    paramName += curch;
+                    if (ix > NAME_MAXLEN) {
+                        throw new ParserException(functionId + "parameter name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
+                    }
+                } else {
+                    // this will terminate the parameter search
+                    if (curch == ' ' || curch == '=') {
                         break;
-                    case '.':
-                        // TODO:
-                        break;
-                    default:
-                        throw new ParserException(functionId + "invalid character '" + curch + "' in parameter name: " + name);
+                    }
+                    if (!bRighthand) {
+                        throw new ParserException(functionId + "Parameter assignment should not include '$': " + name);
+                    }
+                    if (type != ParamType.String && type != ParamType.StringArray && type != ParamType.IntArray) {
+                        throw new ParserException(functionId + "Parameter extensions are only valid for String and Array types: " + name);
+                    }
+                    // check for bracket index on Array, List and String parameters
+                    switch (curch) {
+                        case '[':
+                            int offset = name.indexOf(']');
+                            if (offset <= 0 || offset >= name.length() - 1) {
+                                throw new ParserException(functionId + "missing end bracket in parameter name: " + name);
+                            }
+                            indexStart = Utils.getIntValue(name.substring(ix+1)).intValue();
+                            // TODO: evaluate indexEnd
+                            break;
+                        case '.':
+                            // TODO:
+                            break;
+                        default:
+                            throw new ParserException(functionId + "invalid character '" + curch + "' in parameter name: " + name);
+                    }
                 }
             }
-        }
-        if (indexStart == 0 && name.length() > NAME_MAXLEN) {
-            throw new ParserException(functionId + "parameter name too long (max len " + NAME_MAXLEN + ") in name: " + name);
-        }
-        if (indexStart > 0 && indexEnd == 0) {
-            throw new ParserException(functionId + "parameter name index missing ending bracket: " + name);
-        }
-        if (indexStart > 0) {
-            name = name.substring(0, indexStart);
+            if (indexStart == 0 && name.length() > NAME_MAXLEN) {
+                throw new ParserException(functionId + "parameter name too long (max len " + NAME_MAXLEN + ") in name: " + name);
+            }
+            if (indexStart > 0 && indexEnd == 0) {
+                throw new ParserException(functionId + "parameter name index missing ending bracket: " + name);
+            }
+            if (indexStart > 0) {
+                name = name.substring(0, indexStart);
+            }
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
         }
         return name;
     }

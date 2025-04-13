@@ -353,8 +353,12 @@ public class Calculation {
      * @param ops     - list of operations to perform
      * @param filter  - list of operations that are allowed on this iteration
      * 
+     * @throws ParserException
+     * 
      */    
-    private void computeOperationType (ArrayList<Long> bracket, ArrayList<EntryType> ops, ArrayList<EntryType> filter) {
+    private void computeOperationType (ArrayList<Long> bracket, ArrayList<EntryType> ops, ArrayList<EntryType> filter) throws ParserException {
+        String functionId = CLASS_NAME + ".computeOperationType: ";
+
         // first determine if any of the allowed operations is in the formula
         int count = 0;
         for (int ix = 0; ix < filter.size(); ix++) {
@@ -389,6 +393,9 @@ public class Calculation {
                         }
                         break;
                     case EntryType.DIV:
+                        if (op2 == 0) {
+                            throw new ParserException (functionId + "Division by 0 in calc: " + op1 + " / " + op2);
+                        }
                         strOp = "/";
                         if (filter.contains(curOp)) {
                             value = op1 / op2;

@@ -173,7 +173,8 @@ public class ScriptParser {
 
         // read the program and compile into ArrayList 'cmdList'
         int lineNum = 0;
-        while ((line = fileReader.readLine()) != null) {
+        boolean bExit = false;
+        while (!bExit && (line = fileReader.readLine()) != null) {
             lineNum++;
             line = line.strip();
             if (line.isBlank() || line.charAt(0) == '#') {
@@ -196,10 +197,11 @@ public class ScriptParser {
                 // check for parameter names in the case of an assignment statement
                 ParamExtract parmInfo = new ParamExtract(line);
                 String parmName = parmInfo.getName();
+                String parmEqu  = parmInfo.getEquality();
                 String parmCalc = parmInfo.getEvaluation();
                 if (parmInfo.isEquation() && parmName != null && parmCalc != null) {
                     command = CommandStruct.CommandTable.SET;
-                    parmString = parmName + " = " + parmCalc;
+                    parmString = parmName + " " + parmEqu + " " + parmCalc;
                 } else if (line.startsWith("-")) {
                     // if the optional RUN command was omitted from an option command, let's add it here
                     String argTypes = cmdOptionParser.getOptionParams(strCmd);
@@ -226,9 +228,13 @@ public class ScriptParser {
             cmdStruct.params = packParameters (parmString, bParamAssign);
             ParameterStruct.showParamTypeList(cmdStruct.params);
 
+            try {
             // now let's check for valid command keywords and extract the parameters
             //  into the cmdStruct structure.
             switch (cmdStruct.command) {
+                case CommandStruct.CommandTable.EXIT:
+                    bExit = true;
+                    break;
                 case CommandStruct.CommandTable.DEFINE:
                     // must be a List of parameter name entries
                     checkParamTypes(cmdStruct, "L", cmdIndex);
@@ -250,19 +256,38 @@ public class ScriptParser {
                     }
                     break;
                 case CommandStruct.CommandTable.SET:
-                    // 1st entry is always the parameter the calc is being applied to. get its type.
+                    // we pack parameters differently for calculations, so if the param
+                    //  is a numeric parameter and it is more than a simple assignment to
+                    //  a discrete value or a single parameter reference, let's pepack.
+                    // The arguments are: ParamName = Calculation
                     ParameterStruct.ParamType ptype = ParameterStruct.getParamTypeFromName(parmString);
-                    if (cmdStruct.params.size() > 3 &&
-                        (ptype == ParameterStruct.ParamType.Integer ||
-                         ptype == ParameterStruct.ParamType.Unsigned  )  ) {
-                        // we pack parameters differently for calculations, so let's repack params for calcs
-                        cmdStruct.params = packCalculation (parmString, ptype);
-                        ParameterStruct.showParamTypeList(cmdStruct.params);
-                    }
-                    
-                    String eqSign = cmdStruct.params.get(1).getStringValue();
-                    if (! eqSign.contentEquals("=")) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command missing = sign: " + parmString);
+                    if (cmdStruct.params.size() > 3) {
+                        switch (ptype) {
+                            case ParameterStruct.ParamType.Integer:
+                            case ParameterStruct.ParamType.Unsigned:
+                                cmdStruct.params = packCalculation (parmString, ptype);
+                                ParameterStruct.showParamTypeList(cmdStruct.params);
+                                break;
+                            case ParameterStruct.ParamType.Boolean:
+                                // TODO: The form should be: ParamName = Calculation compSign Calculation
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " Boolean entries cannot perform complex comparisons yet!");
+                                //break;
+                            case ParameterStruct.ParamType.String:
+                                // go through all the arg list and remove all the "+" entries
+                                // that way, all we have left is a list of all the Strings to add
+                                for (int ix = cmdStruct.params.size() - 2; ix >= 3; ix-=2) {
+                                    String sign = cmdStruct.params.get(ix).getStringValue();
+                                    if (sign.contentEquals("+"))
+                                        cmdStruct.params.remove(ix);
+                                    else
+                                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " Invalid String concatenation");
+                                }
+                                break;
+                            default:
+                                // Strings are handled in the execution phase
+                                // Arrays are not allowed to have any operations, just simple assignments
+                                break;
+                        }
                     }
                     break;
 
@@ -527,6 +552,9 @@ public class ScriptParser {
                 default:
                     throw new ParserException(functionId + lineInfo + "Unknown command: " + cmdStruct.command);
             }
+            } catch (ParserException exMsg) {
+                throw new ParserException(exMsg + "\n  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + cmdStruct.command.toString());
+            }
 
             // all good, add command to list
             if (cmdStruct != null) {
@@ -574,8 +602,8 @@ public class ScriptParser {
 //        if (cmdStruct.command != CommandStruct.CommandTable.SET) {
             for (int ix = 0; ix < cmdStruct.params.size(); ix++) {
                 if (ix > 0 || cmdStruct.command != CommandStruct.CommandTable.SET) {
-                ParameterStruct param = cmdStruct.params.get(ix);
-                param.updateFromReference();
+                    ParameterStruct param = cmdStruct.params.get(ix);
+                    param.updateFromReference();
                 }
             }
 //        }
@@ -625,20 +653,12 @@ public class ScriptParser {
                         break;
                     default:
                     case ParameterStruct.ParamType.String:
-                        String concat = parmValue.getStringValue();
-                        if (parmEqu.getStringValue().equals("+=")) {
-                            concat += parmRef.getStringValue();
-                        }
-                        if (cmdStruct.params.size() > 3) {
-                            // need to concatenate the strings into 1.
-                            for (int ix = 3; ix + 1 < cmdStruct.params.size(); ix+=2) {
-                                String sign = cmdStruct.params.get(ix).getStringValue();
-                                String next = cmdStruct.params.get(ix+1).getStringValue();
-                                if (sign.contentEquals("+"))
-                                    concat += next;
-                                else
-                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " Invalid String concatenation");
-                            }
+                        // The entries should be a list of 1 or more Strings to concatenate into 1
+                        // (any parameter references should have been converted to their appropriate value
+                        //  at the begining of the execution phase)
+                        String concat = "";
+                        for (int ix = 2; ix < cmdStruct.params.size(); ix++) {
+                            concat += cmdStruct.params.get(ix).getStringValue();
                         }
                         ParameterStruct.modifyStringParameter(parmName, concat);
                         break;
@@ -869,8 +889,7 @@ public class ScriptParser {
                 break;
         }
         } catch (ParserException exMsg) {
-            frame.outputInfoMsg(STATUS_ERROR, functionId + "command: " + cmdStruct.command.toString() + "\n  -> " + exMsg);
-            throw new ParserException();
+            throw new ParserException(exMsg + "\n  -> " + functionId + "command: " + cmdStruct.command.toString());
         }
         
         // by default, the command will proceed to the next command
@@ -1014,14 +1033,50 @@ public class ScriptParser {
      * @throws ParserException 
      */
     private ArrayList<ParameterStruct> packParameters (String line, boolean bParamAssign) throws ParserException {
+        String functionId = CLASS_NAME + ".packParameters: ";
+
         ArrayList<ParameterStruct> params = new ArrayList<>();
-        ParameterStruct parm;
+        ParameterStruct arg;
+        String paramName = null;
 
         for (int ix = 0; ! line.isEmpty(); ix++) {
             // read next entry
             ParameterStruct.ParamType paramType = ParameterStruct.ParamType.String;
             String nextArg = getNextWord (line);
             line = line.substring(nextArg.length());
+
+            // if this is the 1st parameter of a parameter assignment, the 1st param
+            // must be the parameter name. verify it is valid.
+            if (bParamAssign) {
+                if (ix == 0) {
+                    if (! ParameterStruct.isValidParamName(nextArg)) {
+                        throw new ParserException(functionId + "parameter name not found: " + nextArg);
+                    }
+                    if (line.isEmpty()) {
+                        throw new ParserException(functionId + "no arguments following parameter name: " + nextArg);
+                    }
+                    // check if this is a String parameter ( we may have extra stuff to do here)
+                    if (ParameterStruct.getParamTypeFromName(nextArg) == ParameterStruct.ParamType.String) {
+                        paramName = "$" + nextArg;
+                    }
+                } else if (ix == 1 && paramName != null && nextArg.contentEquals("+=")) {
+                    // if it is a String parameter and the 2nd entry is a "+=", then we need to
+                    //  insert the current parameter value at the begining of the list of Strings to add
+                    line = line.strip();
+                    nextArg = "=";
+                    arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
+                    params.add(arg);
+                    arg = new ParameterStruct (paramName, ParameterStruct.ParamClass.Reference, ParameterStruct.ParamType.String);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + paramName);
+                    params.add(arg);
+                    nextArg = "+";
+                    arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
+                    params.add(arg);
+                    continue;
+                }
+            }
             
             // determine if we have a series of Strings or Integers
             if (nextArg.charAt(0) == '{') {
@@ -1043,9 +1098,9 @@ public class ScriptParser {
                     }
                     
                     // place them in the proper list structure
-                    parm = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.StringArray);
+                    arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.StringArray);
                     frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: [ " + nextArg + " ]");
-                    params.add(parm);
+                    params.add(arg);
                     continue;
                 }
             }
@@ -1088,7 +1143,7 @@ public class ScriptParser {
                     }
                 }
             }
-            
+
             // create the parameter entry and add it to the list of parameters
             ParameterStruct.ParamClass pClass = ParameterStruct.ParamClass.Discrete;
             if (nextArg.startsWith("$") || (bParamAssign && params.isEmpty())) {
@@ -1096,9 +1151,9 @@ public class ScriptParser {
                 paramType = ParameterStruct.getParamTypeFromName(nextArg);
             }
             
-            parm = new ParameterStruct(nextArg, pClass, paramType);
+            arg = new ParameterStruct(nextArg, pClass, paramType);
             frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
-            params.add(parm);
+            params.add(arg);
         }
         
         return params;
@@ -1107,8 +1162,10 @@ public class ScriptParser {
     /**
      * This takes a command line and extracts the calculation parameter list from it.
      * This will be in the form:  ParamName = Calculation
+     *      (+=, -=, *=, ... also allowed in place of =)
      * where: Calculation will be a string or one or more value/parameters with
      *        associated parenthesis and operations.
+     * Note that this method is only valid for Integer and Unsigned parameters.
      * 
      * @param line  - the string of parameters to separate and classify
      * @param ptype - the type of parameter being set
@@ -1120,6 +1177,10 @@ public class ScriptParser {
     private ArrayList<ParameterStruct> packCalculation (String line, ParameterStruct.ParamType ptype) throws ParserException {
         String functionId = CLASS_NAME + ".packCalculation: ";
 
+        if (ptype != ParameterStruct.ParamType.Unsigned && ptype != ParameterStruct.ParamType.Integer) {
+            throw new ParserException(functionId + "Assignment command not allowed for type: " + ptype);
+        }
+        
         ArrayList<ParameterStruct> params = new ArrayList<>();
         ParameterStruct parm;
         
@@ -1134,46 +1195,51 @@ public class ScriptParser {
         // the 1st argument of a SET command is the parameter name to assign the value to
         line = line.substring(paramName.length()).strip();
         parm = new ParameterStruct(paramName, ParameterStruct.ParamClass.Reference, ptype);
-        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type S value: " + paramName);
+        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + paramName);
         params.add(parm);
 
         // next entry should be the equality sign
-        // TODO: need to categorize these and save the type
         String nextArg = getNextWord (line);
+        line = line.substring(nextArg.length()).strip();
+        String newOp = "";
         switch (nextArg) {
             case "=":
+                break;
             case "+=":
             case "-=":
             case "*=":
             case "/=":
             case "%=":
-                // these are the integer assignment entries
-                break;
             case "AND=":
             case "OR=":
             case "XOR=":
-                // these are the unsigned bitwise assignment entries
+                int opLen = nextArg.length() - 1;
+                newOp = nextArg.substring(0, opLen);
                 break;
             default:
                 throw new ParserException(functionId + "invalid equality sign: " + nextArg);
         }
-        line = line.substring(nextArg.length()).strip();
-        parm = new ParameterStruct(nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
-        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type S value: " + nextArg);
+        
+        // bitwise ops are only allowed for Unsigned type
+        if (ptype != ParameterStruct.ParamType.Unsigned) {
+            if (newOp.equals("AND") || newOp.equals("OR") || newOp.equals("XOR")) {
+                throw new ParserException(functionId + "Bitwise assignments not allowed for type: " + ptype);
+            }
+        }
+        
+        // this will pack the "=" sign
+        parm = new ParameterStruct("=", ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
+        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type S value: =");
         params.add(parm);
         
-        // make sure the type is correct for the equate sign
-        switch (ptype) {
-            case ParameterStruct.ParamType.Integer:
-                if (nextArg.equals("AND=") || nextArg.equals("OR=") || nextArg.equals("XOR=")) {
-                    throw new ParserException(functionId + "Bitwise assignments not allowed for type: " + ptype);
-                }
-                break;
-            case ParameterStruct.ParamType.Unsigned:
-                // all equates are valid for Unsigned
-                break;
-            default:
-                throw new ParserException(functionId + "Assignment command not allowed for type: " + ptype);
+        // if there was an operation preceeding the "=" sign, let's sneek the operation in here
+        //  by adding it to the rest of the line
+        if (!newOp.isEmpty()) {
+            // first we add the parameter name that has the $ attached, so it becomes a reference value,
+            // followed by the operation to perform, followed by the opening parenthesis and then
+            // the remainder of the calculation, then we end it with the closing parenthesis.
+            // (the parenthesis are included to assure that the newOp operation is performed last.
+            line = "$" + paramName + " " + newOp + " (" + line + ")";
         }
         
         // remaining data is the Calculation, which may be a single value or a complex formula
@@ -1202,7 +1268,18 @@ public class ScriptParser {
         }
         return line.substring(0, offset).strip();
     }
-    
+
+    /**
+     * extracts the parameter name from the string.
+     * It searches only for the valid chars in a parameter name and stops on the first value
+     * that i not valid, so that it doesn't depend on any particular delimiter, such as whitespace.
+     * Therefore, if the parameter name has an extension added to the end of it, this
+     * will only return the parameter name portion of it.
+     * 
+     * @param line - the string to extract the parameter name from
+     * 
+     * @return the parameter name (if one existed)
+     */
     private static String getParamName (String line) {
         for (int ix = 0; ix < line.length(); ix++) {
             if (! Character.isLetterOrDigit(line.charAt(ix)) && line.charAt(ix) != '_')
