@@ -544,7 +544,13 @@ public final class UIFrame extends JFrame implements ActionListener {
                 pdfReader.readPdfContents(null);
             }
         } catch (ParserException | IOException | SAXException | TikaException ex) {
-            outputInfoMsg (STATUS_ERROR, ex.getMessage());
+            String msg = ex.getMessage();
+            String header = "com.mycompany.amazonlogger.";
+            int offset = msg.lastIndexOf(header);
+            if (offset >= 0) {
+                msg = msg.substring(offset + header.length());
+            }
+            outputInfoMsg (STATUS_ERROR, msg);
             disableAllButton();
         }
     }
@@ -1006,7 +1012,15 @@ public final class UIFrame extends JFrame implements ActionListener {
             if (testFile != null) {
                 testFile.println(msg);
                 // errors and warnings will always go to console, even if reporting to file
-                if (errLevel == STATUS_ERROR || errLevel == STATUS_WARN) {
+                if (errLevel == STATUS_ERROR) {
+                    // if this contains any Exceptions, remove the header portion of them.
+                    String header = "com.mycompany.amazonlogger.";
+                    int offset = msg.lastIndexOf(header);
+                    if (offset >= 0) {
+                        msg = msg.substring(offset + header.length());
+                    }
+                    System.out.println(msg);
+                } else if (errLevel == STATUS_WARN) {
                     System.out.println(msg);
                 }
             } else {

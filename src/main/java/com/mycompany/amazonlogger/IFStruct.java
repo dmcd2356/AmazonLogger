@@ -7,6 +7,7 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.util.ArrayList;
+import java.util.Stack;
 
 /**
  *
@@ -22,7 +23,15 @@ public class IFStruct {
     Integer ixEndIf;    // command index for ENDIF statement
     Integer loopLevel;  // loop nest level for start of IF statement
     boolean bCondMet;   // set to the IF level condition being executed (null if none)
-        
+
+    // IF List is built during Compile phase and referenced during Execution phase.
+    private final static ArrayList<IFStruct> ifList  = new ArrayList<>();
+
+    // IF Stack is used during Compile and Execution phases. Compile time for
+    //   verification, and Execution for running the branches.
+    private final static Stack<Integer>      ifStack = new Stack<>();
+
+    
     IFStruct (int index, int loopLevel) {
         this.ixIf    = index;
         this.ixElse  = new ArrayList<>();
@@ -36,6 +45,47 @@ public class IFStruct {
         String cmdId = "line " + index + " IF ";
         String nestLevel = " (nest level " + loopLevel + ")";
         frame.outputInfoMsg(STATUS_PROGRAM, "    " + cmdId + " @ " + this.ixIf + nestLevel);
+    }
+
+    // Get and Put functions for ifList
+    public static IFStruct getIfListEntry (int cmdIndex) throws ParserException {
+        String functionId = CLASS_NAME + ".getIfEntry: ";
+        
+        for (int ix = 0; ix < ifList.size(); ix++) {
+            if (ifList.get(ix).ixIf == cmdIndex) {
+                return ifList.get(ix);
+            }
+        }
+        throw new ParserException(functionId + "IF stack index " + cmdIndex + " not found in IF list");
+    }
+
+    public static IFStruct getIfListEntry() throws ParserException {
+        return getIfListEntry(ifStack.peek());
+    }
+
+    public static void ifListPush (IFStruct info) {
+        ifList.add(info);
+    }
+    
+    public static boolean isIfListEnpty() {
+        return ifList.isEmpty();
+    }
+    
+    // Get and Put functions for ifStack
+    public static void stackPush (Integer entry) {
+        ifStack.push(entry);
+    }
+    
+    public static Integer stackPop() {
+        return ifStack.pop();
+    }
+    
+    public static int getStackSize() {
+        return ifStack.size();
+    }
+    
+    public static boolean isIfStackEnpty() {
+        return ifStack.isEmpty();
     }
 
     /**

@@ -6,8 +6,8 @@ TODO:
 - Fix the issue of removing the OCR capability in the Tika jar for reading the PDF file. This
     is causing the processing to slow down.
 - Add the following PROGRAM features:
-    - add the ability to use an operation prior to the '=' in a Calculation
     - allow setting Boolean param to the result of a Comparison
+    - add a command to clear the contents of the RESPONSE array
     - add command to search StrArray and IntArray for a value given a starting index (returns index or -1)
     - add command to read a row of data from the Spreadsheet into a StrArray
     - add command to read a column of data from the Spreadsheet into a StrArray
@@ -20,8 +20,11 @@ TODO:
     certain debug messages enabled. Then capturing the debug output and comparing them to expected
     results.
 
-TESTING:
+TESTING PHASE:
  * modify RESPONSE to be a StrArray instead of a String to access each element
  * add the ability to use '+=' for a String param
- * add Array command functionality
+ * add the ability to use an operation prior to the '=' in a Calculation
+ * add functionality for the Array commands
+ * add a command to output text to the console
+ * add commands to open, read, write, and close a file
 

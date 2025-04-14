@@ -781,7 +781,11 @@ public final class ParameterStruct {
                 if (paramValue.arrayParam == null) {
                     throw new ParserException(functionId + "Parameter " + name + " not found");
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.arrayParam.toString());
+                String arrayValue = paramValue.arrayParam.toString();
+                if (arrayValue.length() > 100) {
+                    arrayValue = arrayValue.substring(0,100) + "...";
+                }
+                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
                 // check for extensions to reference param
                 if (paramInfo.getIndexStart() != null) {
                     int iStart = paramInfo.getIndexStart();
@@ -803,11 +807,19 @@ public final class ParameterStruct {
                 }
                 break;
             case ParamType.StringArray:
-                paramValue.listParam = listParams.get(name);
-                if (paramValue.listParam == null) {
-                    throw new ParserException(functionId + "Parameter " + name + " not found");
+                if (name.contentEquals("RESPONSE")) {
+                    paramValue.listParam = strResponse;
+                } else  {
+                    paramValue.listParam = listParams.get(name);
+                    if (paramValue.listParam == null) {
+                        throw new ParserException(functionId + "Parameter " + name + " not found");
+                    }
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.listParam.toString());
+                arrayValue = paramValue.listParam.toString();
+                if (arrayValue.length() > 100) {
+                    arrayValue = arrayValue.substring(0,100) + "...";
+                }
+                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
                 // check for extensions to reference param
                 if (paramInfo.getIndexStart() != null) {
                     int iStart = paramInfo.getIndexStart();
@@ -836,10 +848,6 @@ public final class ParameterStruct {
                     } else {
                         pType = ParamType.Integer;
                     }
-                } else if (name.contentEquals("RESPONSE")) {
-                    paramValue.listParam = strResponse;
-                    paramValue.strParam = strResponse.getLast(); // String will get the most recent response value
-                    pType = ParamType.StringArray;
                 } else {
                     paramValue.strParam = strParams.get(name);
                     if (paramValue.strParam != null) {
@@ -993,6 +1001,8 @@ public final class ParameterStruct {
         } else if (listParams.containsKey(name)) {
             ArrayList<String> entry = listParams.get(name);
             return entry.size();
+        } else if (name.contentEquals("RESPONSE")) {
+            return strResponse.size();
         }
         throw new ParserException(functionId + "Array Parameter " + name + " not found");
     }
@@ -1265,9 +1275,7 @@ public final class ParameterStruct {
             return null;
         }
         // search for a LoopId match
-        Iterator it = loopParams.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry pair = (Map.Entry)it.next();
+        for (Map.Entry pair : loopParams.entrySet()) {
             LoopId mapId = (LoopId) pair.getKey();
             LoopStruct mapInfo = (LoopStruct) pair.getValue();
             if (loopId.name.contentEquals(mapId.name) && loopId.index == mapId.index) {
@@ -1545,7 +1553,12 @@ public final class ParameterStruct {
                 case 'L': return ParamType.StringArray;
                 default:  return ParamType.String;
             }
+        } else if (name.contentEquals("RESPONSE")) {
+            return ParamType.StringArray;
+        } else if (name.contentEquals("RESULT")) {
+            return ParamType.Integer;
         }
+        // default
         return ParamType.String;
     }
     
@@ -1589,7 +1602,7 @@ public final class ParameterStruct {
     public static boolean isLoopParamDefined (String name) {
         return loopNames.containsKey(name);
     }
-    
+
     /**
      * checks if a parameter name is valid.
      *   - name must begin with an alpha character
@@ -1615,7 +1628,17 @@ public final class ParameterStruct {
 
             // verify the formaat of the parameter name
             verifyParamFormat(name);
-            verifyNotReservedName(name);
+
+            // check if it is a reserved param name
+            if (name.contentEquals("RESPONSE") ||
+                name.contentEquals("RESULT")  ) {
+                return true;
+            }
+
+            // make sure it is not a command namee
+            if (CommandStruct.isValidCommand(name) != null) {
+                throw new ParserException(functionId + "using Reserved command name: " + name);
+            }
 
             if (isLoopParamDefined(name)) {
                 throw new ParserException(functionId + "using Loop parameter name: " + name);
@@ -1649,7 +1672,15 @@ public final class ParameterStruct {
 
             // verify the formaat of the parameter name
             verifyParamFormat(name);
-            verifyNotReservedName(name);
+
+            // make sure it is not a command name of a reserved param name
+            if (name.contentEquals("RESPONSE") ||
+                name.contentEquals("RESULT")  ) {
+                throw new ParserException(functionId + "using Reserved parameter name: " + name);
+            }
+            if (CommandStruct.isValidCommand(name) != null) {
+                throw new ParserException(functionId + "using Reserved command name: " + name);
+            }
 
             // make sure its not the same as a reference parameter
             ParamType type = isParamDefined(name);
@@ -1699,11 +1730,11 @@ public final class ParameterStruct {
      * 
      * @param name - the name to check
      * 
-     * @return the parameter name (stripped of appendages, such as index)
+     * @return true if parameter name is syntactically valid
      * 
      * @throws ParserException - if not valid
      */
-    private static String verifyParamFormat (String name) throws ParserException {
+    private static boolean verifyParamFormat (String name) throws ParserException {
         String functionId = CLASS_NAME + ".verifyParamFormat: ";
         
         if (name == null) {
@@ -1725,16 +1756,13 @@ public final class ParameterStruct {
         // determine if we have a special param type that can take on appendages
         ParamType type = getParamTypeFromName (name);
         
-        try {
             // TODO: we need to do this for the '.' operator as well
-            String paramName = "";
             int indexStart = 0;
             int indexEnd = 0;
             for (int ix = 0; ix < name.length(); ix++) {
                 char curch = name.charAt(ix);
                 // valid char for parameter
                 if ( (curch == '_') || Character.isLetterOrDigit(curch) ) {
-                    paramName += curch;
                     if (ix > NAME_MAXLEN) {
                         throw new ParserException(functionId + "parameter name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
                     }
@@ -1756,7 +1784,11 @@ public final class ParameterStruct {
                             if (offset <= 0 || offset >= name.length() - 1) {
                                 throw new ParserException(functionId + "missing end bracket in parameter name: " + name);
                             }
-                            indexStart = Utils.getIntValue(name.substring(ix+1)).intValue();
+                            try {
+                                indexStart = Utils.getIntValue(name.substring(ix+1)).intValue();
+                            } catch (ParserException exMsg) {
+                                throw new ParserException(functionId + "invalid numeric in brackets");
+                            }
                             // TODO: evaluate indexEnd
                             break;
                         case '.':
@@ -1773,33 +1805,8 @@ public final class ParameterStruct {
             if (indexStart > 0 && indexEnd == 0) {
                 throw new ParserException(functionId + "parameter name index missing ending bracket: " + name);
             }
-            if (indexStart > 0) {
-                name = name.substring(0, indexStart);
-            }
-        } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
-        }
-        return name;
-    }
-
-    /**
-     * checks if a parameter name matches a reserved name.
-     *   checks against command names, operation names and reserved param names.
-     * 
-     * @param name - the name to check
-     * 
-     * @throws ParserException - if not valid
-     */
-    private static void verifyNotReservedName (String name) throws ParserException {
-        String functionId = CLASS_NAME + ".verifyNotReservedName: ";
-        
-        if (name.contentEquals("RESPONSE") || name.contentEquals("RESULT")) {
-            throw new ParserException(functionId + "using Reserved parameter name: " + name);
-        }
-        if (CommandStruct.isValidCommand(name) != null) {
-            throw new ParserException(functionId + "using Reserved command name: " + name);
-        }
-        // TODO: verify against operation names
+            
+        return true;
     }
     
 }

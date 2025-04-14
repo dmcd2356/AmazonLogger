@@ -23,22 +23,28 @@ public class CommandStruct {
     public static enum CommandTable {
         EXIT,       // this command is added automatically by the compiler
         RUN,        // this command is for running the command-line commands
+        PRINT,      // outputs text to console
+        OPENR,      // text file access functions
+        OPENW,      //  "       "       "
+        CLOSE,      //  "       "       "
+        READ,       //  "       "       "
+        WRITE,      //  "       "       "
         DEFINE,     // this defines the parameters used by the program
         SET,        // this sets the value of the parameters
         IF,         // these handles the conditional IF-ELSEIF-ELSE-ENDIF
-        ELSE,
-        ELSEIF,
-        ENDIF,
+        ELSE,       //  "       "       "
+        ELSEIF,     //  "       "       "
+        ENDIF,      //  "       "       "
         FOR,        // these handle the FOR loop
-        BREAK,
-        CONTINUE,
-        NEXT,
-        ENDFOR,
+        BREAK,      //  "       "       "
+        CONTINUE,   //  "       "       "
+        NEXT,       //  "       "       "
+        ENDFOR,     //  "       "       "
         INSERT,     // these are Array commands only
-        APPEND,
-        MODIFY,
-        REMOVE,
-        TRUNCATE,
+        APPEND,     //  "       "       "
+        MODIFY,     //  "       "       "
+        REMOVE,     //  "       "       "
+        TRUNCATE,   //  "       "       "
         POP,
     };
 
