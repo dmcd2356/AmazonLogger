@@ -10,7 +10,6 @@ import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -672,6 +671,15 @@ public final class ParameterStruct {
     }
     
     /**
+     * set the value of the $RESPONSE parameter
+     * 
+     * @param value - value to set the response param to
+     */
+    public static void putResponseValue (ArrayList<String> value) {
+        strResponse.addAll(value);
+    }
+    
+    /**
      * set the value of the $RESULT parameter
      * 
      * @param value - value to set the result param to
@@ -693,7 +701,12 @@ public final class ParameterStruct {
 
         // first, verify parameter name to make sure it is valid format and
         //  not already used.
-        boolean bIsDefined = isValidParamName(name);
+        boolean bIsDefined;
+        try {
+            bIsDefined = isValidParamName(name);
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
+        }
         if (bIsDefined) {
             throw new ParserException(functionId + "Parameter " + name + " already defined");
         }
@@ -1054,7 +1067,13 @@ public final class ParameterStruct {
      * @return true if successful, false if the parameter was not found
      */
     public static boolean arrayRemoveAll (String name) {
-        if (arrayParams.containsKey(name)) {
+        if (name.contentEquals("RESPONSE")) {
+            int size = strResponse.size();
+            strResponse.clear();
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted " + size + " entries in Array param: " + name);
+            return true;
+        }
+        else if (arrayParams.containsKey(name)) {
             ArrayList<Long> entry = arrayParams.get(name);
             int size = entry.size();
             entry.clear();
@@ -1647,7 +1666,7 @@ public final class ParameterStruct {
             // see if its already defined
             return isParamDefined(name) != null;
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            throw new ParserException(exMsg + "\n  -> " + functionId + name);
         }
     }
 

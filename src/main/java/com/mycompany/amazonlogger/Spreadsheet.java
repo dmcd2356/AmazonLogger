@@ -1120,6 +1120,88 @@ public class Spreadsheet {
     }
 
     /**    
+     * writes the text data to the specified row of the selected spreadsheet tab.
+     * 
+     * @param col  - the starting column of the spreadsheet
+     * @param row  - the row of the spreadsheet
+     * @param listVal - the array of data to write to the row
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
+    public static void putSpreadsheetRow (int col, int row, ArrayList<String> listVal) throws ParserException, IOException {
+        String functionId = CLASS_NAME + ".putSpreadsheetRow: ";
+
+        if (listVal == null || listVal.isEmpty()) {
+            throw new ParserException(functionId + "selected sheet is null");
+        }
+        for (int ix = 0; ix < listVal.size(); ix++) {
+            putSpreadsheetCell (col + ix, row, listVal.get(ix));
+        }
+    }
+    
+    /**    
+     * writes the text data to the specified column of the selected spreadsheet tab.
+     * 
+     * @param col  - the column of the spreadsheet
+     * @param row  - the starting row of the spreadsheet
+     * @param listVal - the array of data to write to the column
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
+    public static void putSpreadsheetCol (int col, int row, ArrayList<String> listVal) throws ParserException, IOException {
+        String functionId = CLASS_NAME + ".putSpreadsheetCol: ";
+
+        if (listVal == null || listVal.isEmpty()) {
+            throw new ParserException(functionId + "selected sheet is null");
+        }
+        for (int ix = 0; ix < listVal.size(); ix++) {
+            putSpreadsheetCell (col, row + ix, listVal.get(ix));
+        }
+    }
+    
+    /**    
+     * gets the text data from the specified row of the selected spreadsheet tab.
+     * 
+     * @param col   - the starting column of the spreadsheet
+     * @param row   - the row of the spreadsheet
+     * @param count - the number of columns to read
+     * @return the entries from the specified row
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
+    public static ArrayList<String> getSpreadsheetRow (int col, int row, int count) throws ParserException, IOException {
+        ArrayList<String> listVal = new ArrayList<>();
+        for (int ix = 0; ix < count; ix++) {
+            listVal.add(getSpreadsheetCell (col + ix, row));
+        }
+        
+        return listVal;
+    }
+    
+    /**    
+     * gets the text data from the specified column of the selected spreadsheet tab.
+     * 
+     * @param col   - the column of the spreadsheet
+     * @param row   - the starting row of the spreadsheet
+     * @param count - the number of rows to read
+     * @return the entries from the specified column
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
+    public static ArrayList<String> getSpreadsheetCol (int col, int row, int count) throws ParserException, IOException {
+        ArrayList<String> listVal = new ArrayList<>();
+        for (int ix = 0; ix < count; ix++) {
+            listVal.add(getSpreadsheetCell (col, row + ix));
+        }
+        
+        return listVal;
+    }
+    
+    /**    
      * sets the background color of the specified column and row of the selected spreadsheet tab.
      * 
      * @param col   - the column of the spreadsheet

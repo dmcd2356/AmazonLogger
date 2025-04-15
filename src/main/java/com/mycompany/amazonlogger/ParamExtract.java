@@ -135,7 +135,11 @@ public class ParamExtract {
         
         // extract the name of the parameter from the string.
         // it can be delimited by either a space, a '.' or a ['.
-        getExtensions ();
+        try {
+            getExtensions ();
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
+        }
     }
 
     /**
@@ -208,7 +212,13 @@ public class ParamExtract {
         }
         
         // verify param name is valid
-        if (!ParameterStruct.isValidParamName(name)) {
+        boolean bValid;
+        try {
+            bValid = ParameterStruct.isValidParamName(name);
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
+        }
+        if (! bValid) {
             throw new ParserException(functionId + "parameter not found: " + name);
         }
     }

@@ -39,8 +39,8 @@ public class CmdOptions {
         new OptionList ("-o"        , "s"),
         new OptionList ("-save"     , ""),
 
-        new OptionList ("-date"     , "L"),
-        new OptionList ("-datep"    , "L"),
+        new OptionList ("-date"     , "S"),
+        new OptionList ("-datep"    , "S"),
         new OptionList ("-default"  , "UB"),
         new OptionList ("-maxcol"   , ""),
         new OptionList ("-maxrow"   , ""),
@@ -52,7 +52,11 @@ public class CmdOptions {
         new OptionList ("-HSB"      , "UUU"),
         new OptionList ("-cellget"  , "UU"),
         new OptionList ("-cellclr"  , "UU"),
-        new OptionList ("-cellput"  , "UUL"),
+        new OptionList ("-cellput"  , "UUS"),
+        new OptionList ("-rowget"   , "UUU"),
+        new OptionList ("-colget"   , "UUU"),
+        new OptionList ("-rowput"   , "UUL"),
+        new OptionList ("-colput"   , "UUL"),
     };
     
     private class OptionList {
@@ -114,6 +118,9 @@ public class CmdOptions {
                 break;
             }
         }
+        if (optInfo == null)
+            return null;
+        
         return optInfo.argTypes;
     }
     
@@ -149,11 +156,9 @@ public class CmdOptions {
             CommandStruct cmdLine = commandList.removeFirst();
 
             // execute the next command option
-            String rsp = executeCmdOption (cmdLine);
+            ArrayList<String> rsp = executeCmdOption (cmdLine);
             if (rsp != null) {
-                if (rsp.isEmpty())
-                    rsp = "---";
-                response.add(rsp);
+                response.addAll(rsp);
             }
         }
         if (response.isEmpty()) {
@@ -197,7 +202,7 @@ public class CmdOptions {
         }
                 
         // now run the command line option command and save any response msg
-        String rsp = executeCmdOption (cmdOption);
+        ArrayList<String> rsp = executeCmdOption (cmdOption);
         if (rsp != null) {
             ParameterStruct.putResponseValue(rsp);
         }
@@ -339,13 +344,14 @@ public class CmdOptions {
      * @throws SAXException
      * @throws TikaException 
      */
-    private String executeCmdOption (CommandStruct cmdLine) throws ParserException, IOException, SAXException, TikaException {
+    private ArrayList<String> executeCmdOption (CommandStruct cmdLine) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + ".executeCmdOption: " + showLineNumberInfo(cmdLine.line);
-        String response = null;
+        ArrayList<String> response = new ArrayList<>();
         String filetype;
         String fname;
         String option = cmdLine.option;
         ArrayList<ParameterStruct> params = cmdLine.params;
+        String noret = "---";
 
         frame.outputInfoMsg(STATUS_DEBUG, "      Executing: " + cmdLine.showCommand());
 
@@ -354,12 +360,14 @@ public class CmdOptions {
             switch (option) {
                 case "-d":
                     frame.setMessageFlags(params.get(0).getUnsignedValue());
+                    response.add(noret);
                     break;
                 case "-s":
                     filetype = "Spreadsheet";
                     fname = params.get(0).getStringValue();
                     File ssheetFile = Utils.checkFilename (fname, ".ods", filetype, true);
                     Spreadsheet.selectSpreadsheet(ssheetFile);
+                    response.add(noret);
                     break;
                 case "-l":
                     Integer numTabs = params.get(0).getUnsignedValue();
@@ -368,10 +376,12 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid number of tabs to load: " + numTabs);
                     }
                     Spreadsheet.loadSheets(numTabs, bCheckHeader);
+                    response.add(noret);
                     break;
                 case "-t":
                     Integer tab = params.get(0).getUnsignedValue();
                     Spreadsheet.selectSpreadsheetTab (tab.toString());
+                    response.add(noret);
                     break;
                 case "-c":
                     filetype = "Clipboard";
@@ -380,10 +390,12 @@ public class CmdOptions {
                     frame.outputInfoMsg(STATUS_DEBUG, "  " + filetype + " file: " + fClip.getAbsolutePath());
                     AmazonParser amazonParser = new AmazonParser(fClip);
                     amazonParser.parseWebData();
+                    response.add(noret);
                     break;
                 case "-u":
                     frame.outputInfoMsg(STATUS_DEBUG, "  Updating spreadsheet from clipboards");
                     AmazonParser.updateSpreadsheet();
+                    response.add(noret);
                     break;
                 case "-p":
                     filetype = "PDF";
@@ -392,6 +404,7 @@ public class CmdOptions {
                     frame.outputInfoMsg(STATUS_DEBUG, "  filetype + \" file: \" + pdfFile.getAbsolutePath()");
                     PdfReader pdfReader = new PdfReader();
                     pdfReader.readPdfContents(pdfFile);
+                    response.add(noret);
                     break;
                 case "-o":
                     if (params.isEmpty()) {
@@ -403,10 +416,12 @@ public class CmdOptions {
                         frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to file: " + fname);
                         frame.setTestOutputFile(fname);
                     }
+                    response.add(noret);
                     break;
                 case "-save":
                     // save the spreadsheet and reload so another spreadsheet change can be made
                     Spreadsheet.saveSpreadsheetFile();
+                    response.add(noret);
                     break;
                 case "-date":
                     String strDate = params.get(0).getStringValue();
@@ -415,7 +430,7 @@ public class CmdOptions {
                     if (convDate == null) {
                         throw new ParserException(functionId + "Invalid date conversion");
                     }
-                    response = convDate;
+                    response.add(convDate);
                     break;
                 case "-datep":
                     strDate = params.get(0).getStringValue();
@@ -424,7 +439,7 @@ public class CmdOptions {
                     if (convDate == null) {
                         throw new ParserException(functionId + "Invalid date conversion");
                     }
-                    response = convDate;
+                    response.add(convDate);
                     break;
                 case "-default":
                     numTabs = params.get(0).getUnsignedValue();
@@ -441,14 +456,15 @@ public class CmdOptions {
                     }
                     String strTab = props.getPropertiesItem(PropertiesFile.Property.SpreadsheetTab, "0");
                     Spreadsheet.selectSpreadsheetTab (strTab);
+                    response.add(noret);
                     break;
                 case "-maxcol":
                     Integer iCol = Spreadsheet.getSpreadsheetColSize ();
-                    response = "" + iCol;
+                    response.add("" + iCol);
                     break;
                 case "-maxrow":
                     Integer iRow = Spreadsheet.getSpreadsheetRowSize ();
-                    response = "" + iRow;
+                    response.add("" + iRow);
                     break;
                 case "-setsize":
                     iCol = params.get(0).getUnsignedValue();
@@ -457,11 +473,12 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     Spreadsheet.setSpreadsheetSize (iCol, iRow);
+                    response.add(noret);
                     break;
                 case "-find":
                     String order = params.get(0).getStringValue();
                     iRow = Spreadsheet.findItemNumber(order);
-                    response = "" + iRow;
+                    response.add("" + iRow);
                     break;
                 case "-class":
                     iCol = params.get(0).getUnsignedValue();
@@ -470,7 +487,7 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     String strValue = Spreadsheet.getSpreadsheetCellClass(iCol, iRow);
-                    response = strValue;
+                    response.add("" + strValue);
                     break;
                 case "-color":
                     iCol = params.get(0).getUnsignedValue();
@@ -480,6 +497,7 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", color = " + iColor);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColorOfTheMonth(iColor));
+                    response.add(noret);
                     break;
                 case "-RGB":
                     iCol = params.get(0).getUnsignedValue();
@@ -489,6 +507,7 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", RGB = " + iRGB);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("RGB", iRGB));
+                    response.add(noret);
                     break;
                 case "-HSB":
                     iCol = params.get(0).getUnsignedValue();
@@ -498,6 +517,7 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", HSB = " + iHSB);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("HSB", iHSB));
+                    response.add(noret);
                     break;
                 case "-cellget":
                     iCol = params.get(0).getUnsignedValue();
@@ -506,7 +526,7 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     String cellValue = Spreadsheet.getSpreadsheetCell(iCol, iRow);
-                    response = cellValue;
+                    response.add(cellValue);
                     break;
                 case "-cellclr":
                     iCol = params.get(0).getUnsignedValue();
@@ -515,7 +535,7 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     cellValue = Spreadsheet.putSpreadsheetCell(iCol, iRow, null);
-                    response = cellValue;
+                    response.add(cellValue);
                     break;
                 case "-cellput":
                     iCol = params.get(0).getUnsignedValue();
@@ -525,7 +545,49 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     cellValue = Spreadsheet.putSpreadsheetCell(iCol, iRow, strText);
-                    response = cellValue;
+                    response.add(cellValue);
+                    break;
+                case "-rowget":
+                    Integer iCount;
+                    iCol   = params.get(0).getUnsignedValue();
+                    iRow   = params.get(1).getUnsignedValue();
+                    iCount = params.get(2).getUnsignedValue();
+                    if (iCol == null || iRow == null || iCount == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", count = " + iCount);
+                    }
+                    ArrayList<String> arrValue = Spreadsheet.getSpreadsheetRow(iCol, iRow, iCount);
+                    response.addAll(arrValue);
+                    break;
+                case "-colget":
+                    iCol   = params.get(0).getUnsignedValue();
+                    iRow   = params.get(1).getUnsignedValue();
+                    iCount = params.get(2).getUnsignedValue();
+                    if (iCol == null || iRow == null || iCount == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", count = " + iCount);
+                    }
+                    arrValue = Spreadsheet.getSpreadsheetCol(iCol, iRow, iCount);
+                    response.addAll(arrValue);
+                    break;
+                case "-rowput":
+                    ArrayList<String> arrList;
+                    iCol    = params.get(0).getUnsignedValue();
+                    iRow    = params.get(1).getUnsignedValue();
+                    arrList = params.get(2).getStrArray();
+                    if (iCol == null || iRow == null || arrList == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    Spreadsheet.putSpreadsheetRow(iCol, iRow, arrList);
+                    response.add(noret);
+                    break;
+                case "-colput":
+                    iCol    = params.get(0).getUnsignedValue();
+                    iRow    = params.get(1).getUnsignedValue();
+                    arrList = params.get(2).getStrArray();
+                    if (iCol == null || iRow == null || arrList == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    Spreadsheet.putSpreadsheetCol(iCol, iRow, arrList);
+                    response.add(noret);
                     break;
                 default:
                     throw new ParserException(functionId + "Invalid option: " + option);

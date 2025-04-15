@@ -31,7 +31,13 @@ public class LoopParam {
             this.value = iVal;
             this.paramName = null;
         } catch (ParserException ex) {
-            if (!name.startsWith("$") || !ParameterStruct.isValidParamName(name)) {
+            boolean bValid;
+            try {
+                bValid = ParameterStruct.isValidParamName(name);
+            } catch (ParserException exMsg) {
+                throw new ParserException(exMsg + "\n  -> " + functionId);
+            }
+            if (!name.startsWith("$") || ! bValid) {
                 throw new ParserException(functionId + "reference parameter " + this.paramName + " is not valid parameter name");
             }
             this.value = null;

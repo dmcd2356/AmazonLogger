@@ -20,15 +20,15 @@ import org.xml.sax.SAXException;
  *
  * @author dan
  */
-public class ScriptParser {
+public class ScriptCompile {
     
-    private static final String CLASS_NAME = "ScriptParser";
+    private static final String CLASS_NAME = "ScriptCompile";
     
     // this handles the command line options via the RUN command
     private final CmdOptions cmdOptionParser;
      
 
-    ScriptParser() {
+    ScriptCompile() {
         // create an instance of the command options parser for any RUN commands
         cmdOptionParser = new CmdOptions();
     }
@@ -57,16 +57,20 @@ public class ScriptParser {
         // enable timestamp on log messages
         frame.elapsedTimerEnable();
 
-        // compile the program
-        frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM COMPILE");
-        ArrayList<CommandStruct> cmdList = compileProgram(args[1]);
+        try {
+            // compile the program
+            frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM COMPILE");
+            ArrayList<CommandStruct> cmdList = compileProgram(args[1]);
 
-        // execute the program by running each 'cmdList' entry
-        frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM EXECUTION");
-        ScriptExecute exec = new ScriptExecute();
-        int cmdIx = 0;
-        while (cmdIx >= 0 && cmdIx < cmdList.size()) {
-            cmdIx = exec.executeProgramCommand (cmdIx, cmdList.get(cmdIx));
+            // execute the program by running each 'cmdList' entry
+            frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM EXECUTION");
+            ScriptExecute exec = new ScriptExecute();
+            int cmdIx = 0;
+            while (cmdIx >= 0 && cmdIx < cmdList.size()) {
+                cmdIx = exec.executeProgramCommand (cmdIx, cmdList.get(cmdIx));
+            }
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
         }
         frame.elapsedTimerDisable();
     }
@@ -125,10 +129,13 @@ public class ScriptParser {
 
         frame.outputInfoMsg(STATUS_PROGRAM, "Compiling file: " + fname);
         ArrayList<CommandStruct> cmdList = new ArrayList<>();
-        String line;
+        String line = "";
         int cmdIndex = 0;
+        String lineInfo = "";
+        CommandStruct cmdStruct;
 
         // open the file to compile and extract the commands from it
+        try {
         File scriptFile = Utils.checkFilename (fname, ".scr", "Script", false);
         FileReader fReader = new FileReader(scriptFile);
         BufferedReader fileReader = new BufferedReader(fReader);
@@ -146,7 +153,7 @@ public class ScriptParser {
                 continue;
             }
 
-            String lineInfo = "LINE " + lineNum + ": ";
+            lineInfo = "LINE " + lineNum + ": ";
             cmdIndex = cmdList.size(); // the command index
 
             // first, extract the 1st word as the command keyword
@@ -157,24 +164,28 @@ public class ScriptParser {
                 strCmd = strCmd.substring(0, offset).strip();
                 parmString = line.substring(offset).strip();
             }
-            CommandStruct.CommandTable command = CommandStruct.isValidCommand(strCmd);
-            if (command == null) {
-                // check for parameter names in the case of an assignment statement
-                ParamExtract parmInfo = new ParamExtract(line);
-                String parmName = parmInfo.getName();
-                String parmEqu  = parmInfo.getEquality();
-                String parmCalc = parmInfo.getEvaluation();
-                if (parmInfo.isEquation() && parmName != null && parmCalc != null) {
-                    command = CommandStruct.CommandTable.SET;
-                    parmString = parmName + " " + parmEqu + " " + parmCalc;
-                } else if (line.startsWith("-")) {
-                    // if the optional RUN command was omitted from an option command, let's add it here
-                    String argTypes = cmdOptionParser.getOptionParams(strCmd);
-                    if (argTypes == null) {
-                        throw new ParserException(functionId + "option is not valid: " + strCmd);
+            CommandStruct.CommandTable command;
+            if (line.startsWith("-")) {
+                // if the optional RUN command was omitted from an option command, let's add it here
+                String argTypes = cmdOptionParser.getOptionParams(strCmd);
+                if (argTypes == null) {
+                    throw new ParserException(functionId + "command option is not valid: " + strCmd);
+                }
+                command = CommandStruct.CommandTable.RUN;
+                parmString = line;
+            } else {
+                // next, check if it is a standard program command
+                command = CommandStruct.isValidCommand(strCmd);
+                if (command == null) {
+                    // lastly, check for parameter names in the case of an assignment statement
+                    ParamExtract parmInfo = new ParamExtract(line);
+                    String parmName = parmInfo.getName();
+                    String parmEqu  = parmInfo.getEquality();
+                    String parmCalc = parmInfo.getEvaluation();
+                    if (parmInfo.isEquation() && parmName != null && parmCalc != null) {
+                        command = CommandStruct.CommandTable.SET;
+                        parmString = parmName + " " + parmEqu + " " + parmCalc;
                     }
-                    command = CommandStruct.CommandTable.RUN;
-                    parmString = line;
                 }
             }
             
@@ -184,11 +195,10 @@ public class ScriptParser {
 
             // 'parmString' is a string containing the parameters following the command
             // 'cmdStruct' will receive the command, with the params yet to be placed.
-            CommandStruct cmdStruct = new CommandStruct(command, lineNum);
+            cmdStruct = new CommandStruct(command, lineNum);
             ArrayList<String> listParms;
             
             // extract the parameters to pass to the command
-            try {
             frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
             boolean bParamAssign = (CommandStruct.CommandTable.SET == command);
             cmdStruct.params = packParameters (parmString, bParamAssign);
@@ -206,26 +216,49 @@ public class ScriptParser {
                         throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: text");
                     }
                     break;
-                case OPENR:
-                    // verify 1 String argument: file name
-                    if (cmdStruct.params.size() != 1) {
-                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
-                    }
-                    // TODO: verify file exists and is readable
-                    break;
-                case OPENW:
+                case FCREATER:
                     // verify 1 String argument: file name
                     if (cmdStruct.params.size() != 1) {
                         throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
                     }
                     break;
-                case CLOSE:
+                case FEXISTS:
+                    // verify 1 String argument: file name
+                    if (cmdStruct.params.size() != 1) {
+                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
+                    }
+                    break;
+                case FDELETE:
+                    // verify 1 String argument: file name
+                    if (cmdStruct.params.size() != 1) {
+                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
+                    }
+                    break;
+                case FCREATEW:
+                    // verify 1 String argument: file name
+                    if (cmdStruct.params.size() != 1) {
+                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
+                    }
+                    break;
+                case FOPENR:
+                    // verify 1 String argument: file name
+                    if (cmdStruct.params.size() != 1) {
+                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
+                    }
+                    break;
+                case FOPENW:
+                    // verify 1 String argument: file name
+                    if (cmdStruct.params.size() != 1) {
+                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
+                    }
+                    break;
+                case FCLOSE:
                     // verify 1 String argument: file name
                     if (cmdStruct.params.size() != 1) {
                         throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name ");
                     }
                     break;
-                case READ:
+                case FREAD:
                     // verify 1 optional number of lines to read
                     if (cmdStruct.params.isEmpty()) {
                         // argument is missing, supply the default value
@@ -240,7 +273,7 @@ public class ScriptParser {
                         }
                     }
                     break;
-                case WRITE:
+                case FWRITE:
                     // verify 2 arguments: file name and message to write
                     if (cmdStruct.params.size() != 1) {
                         throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: message");
@@ -415,6 +448,22 @@ public class ScriptParser {
                     }
                     break;
 
+                case CLEAR:
+                    // ARGS: 0 = ParamName
+                    // verify there are the correct number and type of arguments
+                    if (cmdStruct.params.size() != 1) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 1 argument : " + parmString);
+                    }
+                    param1 = cmdStruct.params.get(0);
+                    if (param1.getParamType() != ParameterStruct.ParamType.String) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be parameter reference name : " + parmString);
+                    }
+                    ptype = ParameterStruct.isParamDefined(param1.getStringValue());
+                    if (ptype == null && ! param1.getStringValue().contentEquals("RESPONSE")) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
+                    }
+                    break;
+                    
                 case CommandStruct.CommandTable.IF:
                     // verify number and type of arguments
                     checkParamTypes(cmdStruct, "ISI", cmdIndex);
@@ -563,9 +612,6 @@ public class ScriptParser {
                 default:
                     throw new ParserException(functionId + lineInfo + "Unknown command: " + cmdStruct.command);
             }
-            } catch (ParserException exMsg) {
-                throw new ParserException(exMsg + "\n  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + cmdStruct.command.toString());
-            }
 
             // all good, add command to list
             if (cmdStruct != null) {
@@ -587,6 +633,9 @@ public class ScriptParser {
         cmdList.add(new CommandStruct(CommandStruct.CommandTable.EXIT, lineNum));
         frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: EXIT  (appended)");
         return cmdList;
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + line);
+        }
     }
 
     /**
@@ -877,7 +926,13 @@ public class ScriptParser {
         
         // 1st entry should be the parameter name
         String paramName = getParamName (line);
-        if (! ParameterStruct.isValidParamName(paramName)) {
+        boolean bValid;
+        try {
+            bValid = ParameterStruct.isValidParamName(paramName);
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
+        }
+        if (! bValid) {
             throw new ParserException(functionId + "parameter name not found: " + paramName);
         }
         if (line.contentEquals(paramName)) {

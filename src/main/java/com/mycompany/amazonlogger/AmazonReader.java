@@ -12,6 +12,8 @@ import org.xml.sax.SAXException;
 
 public class AmazonReader {
 
+    private static final String CLASS_NAME = "AmazonReader";
+    
     // GLOBALS
     public  static UIFrame frame;
     public  static Keyword keyword;
@@ -21,6 +23,8 @@ public class AmazonReader {
     // Main driver method
     public static void main(String[] args)
     {
+        String functionId = CLASS_NAME + "main: ";
+
         // check for arguments passed (non-GUI interface for testing):
         if (args.length > 0) {
             // command line version for testing
@@ -33,14 +37,20 @@ public class AmazonReader {
             // run the command line arguments
             try {
                 if (args[0].contentEquals("-f")) {
-                    ScriptParser fileParser = new ScriptParser();
+                    ScriptCompile fileParser = new ScriptCompile();
                     fileParser.runFromFile (args);
                 } else {
                     CmdOptions cmdLine = new CmdOptions();
                     cmdLine.runCommandLine(args);
                 }
             } catch (ParserException | IOException | SAXException | TikaException ex) {
-                frame.outputInfoMsg (STATUS_ERROR, ex.getMessage());
+                frame.outputInfoMsg (STATUS_ERROR, ex.getMessage() + "\n  -> " + functionId);
+                ScriptExecute exec = new ScriptExecute();
+                try {
+                    exec.close();
+                } catch (IOException exIO) {
+                    frame.outputInfoMsg (STATUS_ERROR, exIO.getMessage() + "\n  -> " + functionId);
+                }
             }
             
             // close the test output file

@@ -24,11 +24,15 @@ public class CommandStruct {
         EXIT,       // this command is added automatically by the compiler
         RUN,        // this command is for running the command-line commands
         PRINT,      // outputs text to console
-        OPENR,      // text file access functions
-        OPENW,      //  "       "       "
-        CLOSE,      //  "       "       "
-        READ,       //  "       "       "
-        WRITE,      //  "       "       "
+        FEXISTS,    // text file access functions
+        FDELETE,    //  "       "       "
+        FCREATER,   //  "       "       "
+        FCREATEW,   //  "       "       "
+        FOPENR,     //  "       "       "
+        FOPENW,     //  "       "       "
+        FCLOSE,     //  "       "       "
+        FREAD,      //  "       "       "
+        FWRITE,     //  "       "       "
         DEFINE,     // this defines the parameters used by the program
         SET,        // this sets the value of the parameters
         IF,         // these handles the conditional IF-ELSEIF-ELSE-ENDIF
@@ -45,7 +49,8 @@ public class CommandStruct {
         MODIFY,     //  "       "       "
         REMOVE,     //  "       "       "
         TRUNCATE,   //  "       "       "
-        POP,
+        POP,        //  "       "       "
+        CLEAR,      //  "       "       "
     };
 
     /**

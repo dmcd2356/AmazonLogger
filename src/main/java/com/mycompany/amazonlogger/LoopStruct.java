@@ -70,18 +70,22 @@ public class LoopStruct {
         try {
             ParameterStruct.isValidLoopName(name, index);
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + " [FOR param @ " + index + "]");
+            throw new ParserException(exMsg + "\n  -> " + functionId + " [FOR param @ " + index + "]");
         }
-        
-        this.name     = name;
-        this.valStart = new LoopParam (start);
-        this.valEnd   = new LoopParam (end);
-        this.valStep  = new LoopParam (step);
-        this.value    = valStart.getIntValue(); // set to the current start value if this is a ref param
-        this.comparator = comp;
-        this.ixBegin  = index;
-        this .ixEnd   = null;
-        this.ifLevel  = ifLev;
+
+        try {
+            this.name     = name;
+            this.valStart = new LoopParam (start);
+            this.valEnd   = new LoopParam (end);
+            this.valStep  = new LoopParam (step);
+            this.value    = valStart.getIntValue(); // set to the current start value if this is a ref param
+            this.comparator = comp;
+            this.ixBegin  = index;
+            this .ixEnd   = null;
+            this.ifLevel  = ifLev;
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
+        }
     }
     
     /**

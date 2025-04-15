@@ -7,10 +7,7 @@ TODO:
     is causing the processing to slow down.
 - Add the following PROGRAM features:
     - allow setting Boolean param to the result of a Comparison
-    - add a command to clear the contents of the RESPONSE array
     - add command to search StrArray and IntArray for a value given a starting index (returns index or -1)
-    - add command to read a row of data from the Spreadsheet into a StrArray
-    - add command to read a column of data from the Spreadsheet into a StrArray
     - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
     - read the PDF file into a StrArray that is accessible
     - read the clipboard (file and actual clipbaord) into a StrArray that is accessible Clipboard.
@@ -27,4 +24,7 @@ TESTING PHASE:
  * add functionality for the Array commands
  * add a command to output text to the console
  * add commands to open, read, write, and close a file
+ * add command to read a row of data from the Spreadsheet into a StrArray
+ * add command to read a column of data from the Spreadsheet into a StrArray
+ * add a command to clear the contents of the RESPONSE array
 
