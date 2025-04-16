@@ -5,6 +5,7 @@
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.io.BufferedReader;
 import java.io.File;
@@ -48,11 +49,10 @@ public class ScriptExecute {
     public void close() throws IOException {
         if (fileReader != null) {
             fileReader.close();
-            fileReader = null;
-        } else if (fileWriter != null) {
+        } if (fileWriter != null) {
             fileWriter.close();
-            fileWriter = null;
         }
+        frame.outputInfoMsg(STATUS_DEBUG, "Closed file: " + fileName);
     }
     
     /**

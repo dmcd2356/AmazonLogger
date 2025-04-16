@@ -473,6 +473,32 @@ public class Utils {
     }
 
     /**
+     * gets the path used for accessing files from properties file
+     * 
+     * @param type - type of file
+     * 
+     * @return the test path
+     */
+    public static String getDefaultPath (String type) {
+        String pathname;
+        switch (type) {
+            case "PDF":
+                pathname = getPathFromPropertiesFile (PropertiesFile.Property.PdfPath);
+                break;
+            case "Spreadsheet":
+                pathname = getPathFromPropertiesFile (PropertiesFile.Property.SpreadsheetPath);
+                break;
+            default:
+                pathname = getPathFromPropertiesFile (PropertiesFile.Property.TestPath);
+                break;
+        }
+        if (pathname == null || pathname.isBlank()) {
+            pathname = System.getProperty("user.dir");
+        }
+        return pathname;
+    }
+
+    /**
      * test if a directory path is valid
      * 
      * @param dirname - name of the directory
@@ -521,7 +547,7 @@ public class Utils {
             throw new ParserException(functionId + "Invalid " + filetype + " filename is blank");
         }
         
-        fname = Utils.getTestPath() + "/" + fname;
+        fname = getDefaultPath(filetype) + "/" + fname;
         File myFile = new File(fname);
         if (!myFile.canRead()) {
             throw new ParserException(functionId + "Invalid " + filetype + " file - no read access: " + fname);

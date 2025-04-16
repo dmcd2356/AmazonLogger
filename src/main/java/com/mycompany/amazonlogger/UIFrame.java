@@ -542,6 +542,7 @@ public final class UIFrame extends JFrame implements ActionListener {
                 outputSeparatorLine("BALANCE FROM PDF");
                 PdfReader pdfReader = new PdfReader();
                 pdfReader.readPdfContents(null);
+                pdfReader.processData();
             }
         } catch (ParserException | IOException | SAXException | TikaException ex) {
             String msg = ex.getMessage();

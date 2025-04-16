@@ -1162,6 +1162,52 @@ public class Spreadsheet {
     }
     
     /**    
+     * sets the background color of the specified row of the selected spreadsheet tab.
+     * 
+     * @param col  - the starting column of the spreadsheet
+     * @param row  - the row of the spreadsheet
+     * @param listVal - the array of data to write to the row
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
+    public static void putSpreadsheetColorRow (int col, int row, ArrayList<Long> listVal) throws ParserException, IOException {
+        String functionId = CLASS_NAME + ".putSpreadsheetColorRow: ";
+
+        if (listVal == null || listVal.isEmpty()) {
+            throw new ParserException(functionId + "selected sheet is null");
+        }
+        for (int ix = 0; ix < listVal.size(); ix++) {
+            int rgb = listVal.get(ix).intValue();
+            Color cellColor = Utils.getColor("RGB", rgb);
+            setSpreadsheetCellColor (col + ix, row, cellColor);
+        }
+    }
+    
+    /**    
+     * sets the background color of the specified column of the selected spreadsheet tab.
+     * 
+     * @param col  - the column of the spreadsheet
+     * @param row  - the starting row of the spreadsheet
+     * @param listVal - the array of data to write to the column
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
+    public static void putSpreadsheetColorCol (int col, int row, ArrayList<Long> listVal) throws ParserException, IOException {
+        String functionId = CLASS_NAME + ".putSpreadsheetColorCol: ";
+
+        if (listVal == null || listVal.isEmpty()) {
+            throw new ParserException(functionId + "selected sheet is null");
+        }
+        for (int ix = 0; ix < listVal.size(); ix++) {
+            int rgb = listVal.get(ix).intValue();
+            Color cellColor = Utils.getColor("RGB", rgb);
+            setSpreadsheetCellColor (col, row + ix, cellColor);
+        }
+    }
+    
+    /**    
      * gets the text data from the specified row of the selected spreadsheet tab.
      * 
      * @param col   - the starting column of the spreadsheet

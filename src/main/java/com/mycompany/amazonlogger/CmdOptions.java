@@ -25,7 +25,7 @@ public class CmdOptions {
     private static final String CLASS_NAME = "CmdOptions";
     
     // List of all the command line options and the argument types each takes
-    // S = String, L = list, U = unsigned int, I = Int, B = boolean
+    // S = String, L = String array, U = Unsigned Int, I = Int, A = Int array, B = Boolean
     //   (lowercase if optional, but must be at end of list)
     private final OptionList [] OptionTable = {
         new OptionList ("-h"        , ""),
@@ -36,6 +36,7 @@ public class CmdOptions {
         new OptionList ("-c"        , "S"),
         new OptionList ("-u"        , ""),
         new OptionList ("-p"        , "S"),
+        new OptionList ("-prun"     , ""),
         new OptionList ("-o"        , "s"),
         new OptionList ("-save"     , ""),
 
@@ -57,6 +58,8 @@ public class CmdOptions {
         new OptionList ("-colget"   , "UUU"),
         new OptionList ("-rowput"   , "UUL"),
         new OptionList ("-colput"   , "UUL"),
+        new OptionList ("-rowcolor" , "UUA"),
+        new OptionList ("-colcolor" , "UUA"),
     };
     
     private class OptionList {
@@ -350,8 +353,9 @@ public class CmdOptions {
         String filetype;
         String fname;
         String option = cmdLine.option;
+        PdfReader pdfReader = null;
         ArrayList<ParameterStruct> params = cmdLine.params;
-        String noret = "---";
+        String noret = "<OK>";
 
         frame.outputInfoMsg(STATUS_DEBUG, "      Executing: " + cmdLine.showCommand());
 
@@ -402,8 +406,15 @@ public class CmdOptions {
                     fname = params.get(0).getStringValue();
                     File pdfFile = Utils.checkFilename (fname, ".pdf", filetype, false);
                     frame.outputInfoMsg(STATUS_DEBUG, "  filetype + \" file: \" + pdfFile.getAbsolutePath()");
-                    PdfReader pdfReader = new PdfReader();
+                    pdfReader = new PdfReader();
                     pdfReader.readPdfContents(pdfFile);
+                    response.addAll(pdfReader.getContents());
+                    break;
+                case "-prun":
+                    if (pdfReader == null) {
+                        throw new ParserException(functionId + "Invalid date conversion");
+                    }
+                    pdfReader.processData();
                     response.add(noret);
                     break;
                 case "-o":
@@ -587,6 +598,27 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     Spreadsheet.putSpreadsheetCol(iCol, iRow, arrList);
+                    response.add(noret);
+                    break;
+                case "-rowcolor":
+                    ArrayList<Long> arrLong;
+                    iCol    = params.get(0).getUnsignedValue();
+                    iRow    = params.get(1).getUnsignedValue();
+                    arrLong  = params.get(2).getIntArray();
+                    if (iCol == null || iRow == null || arrLong == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    Spreadsheet.putSpreadsheetColorRow(iCol, iRow, arrLong);
+                    response.add(noret);
+                    break;
+                case "-colcolor":
+                    iCol    = params.get(0).getUnsignedValue();
+                    iRow    = params.get(1).getUnsignedValue();
+                    arrLong  = params.get(2).getIntArray();
+                    if (iCol == null || iRow == null || arrLong == null) {
+                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    Spreadsheet.putSpreadsheetColorCol(iCol, iRow, arrLong);
                     response.add(noret);
                     break;
                 default:

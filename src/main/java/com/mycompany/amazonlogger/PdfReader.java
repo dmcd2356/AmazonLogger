@@ -30,7 +30,8 @@ import org.xml.sax.SAXException;
 public class PdfReader {
     
     private static File pdfFile = null;
-    
+    private static final ArrayList<String> contents = new ArrayList<>();  // the contents of the pdf file read
+
     // this class is the information that is extracted from the charge card PDF file for
     // balancing the amounts charged to the account with the Amazon purchases.
     private class CardTransaction {
@@ -43,14 +44,13 @@ public class PdfReader {
 
     public PdfReader () {
     }
+
+    public ArrayList<String> getContents () {
+        return contents;
+    }
     
     /**
-    * parses the credit card credits and debits from the PDF file.
-    *  This extracts vital info from the credit card file for Amazon charges
-    *    and refunds and saves it in an array.
-    *  It then looks for the entries in the spreadsheet file for the corresponding
-    *   order numbers and modifies the spreadsheet file to highlight the rows that
-    *   match up with the charges/credits.
+    * loads the selected PDF file and reads its contents into a String array.
     * 
     * @param pFile - the name of the pdf file to load (null to run user interface to request file)
     * 
@@ -93,27 +93,6 @@ public class PdfReader {
             }
         }
 
-        // get the name of the selected file, minus the file extension
-        String strPdfName = Utils.getFileRootname(pdfFile);
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "PDF File name: " + strPdfName);
-            
-        // check if the file has already been balanced in the spreadsheet
-        String strTabSelect = "";
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Checking if file has been already balanced");
-        if (! Spreadsheet.findCreditCardEntry("Dan", strPdfName)) {
-            strTabSelect = "Dan";
-        }
-        if (! Spreadsheet.findCreditCardEntry("Connie", strPdfName)) {
-            if (strTabSelect.isBlank()) {
-                strTabSelect = "Connie";
-            } else {
-                strTabSelect = "Both";
-            }
-        }
-        if (strTabSelect.isEmpty()) {
-            return;
-        }
-            
         // Create a file in local directory
         File f = new File(pdfFile.getAbsolutePath());
 
@@ -135,86 +114,131 @@ public class PdfReader {
         // Method parse invoked on PDFParser class
         pdfparser.parse(fstream, contenthandler, data, context);
 
+        // now load the data into an array for processing
+        try (
+            // Read the contents of the PDF file line at a time
+            Scanner scanner = new Scanner(contenthandler.toString())) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                if (! line.isBlank()) {
+                    contents.add(line);
+                }
+            }
+        }
+    }
+
+    /**
+    * parses the credit card credits and debits from the PDF file.
+    *  This extracts vital info from the credit card file for Amazon charges
+    *    and refunds and saves it in an array.
+    *  It then looks for the entries in the spreadsheet file for the corresponding
+    *   order numbers and modifies the spreadsheet file to highlight the rows that
+    *   match up with the charges/credits.
+    * 
+    * It assumes the pdf file data has been placed in the array 'contents'.
+    * 
+    * @throws ParserException
+    * @throws IOException
+    */
+    public void processData () throws ParserException, IOException {
+        // get the name of the selected file, minus the file extension
+        String strPdfName = Utils.getFileRootname(pdfFile);
+        frame.outputInfoMsg(UIFrame.STATUS_INFO, "PDF File name: " + strPdfName);
+            
+        // check if the file has already been balanced in the spreadsheet
+        String strTabSelect = "";
+        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Checking if file has been already balanced");
+        if (! Spreadsheet.findCreditCardEntry("Dan", strPdfName)) {
+            strTabSelect = "Dan";
+        }
+        if (! Spreadsheet.findCreditCardEntry("Connie", strPdfName)) {
+            if (strTabSelect.isBlank()) {
+                strTabSelect = "Connie";
+            } else {
+                strTabSelect = "Both";
+            }
+        }
+        if (strTabSelect.isEmpty()) {
+            return;
+        }
+            
         // init the array list of Amazon transactions
         ArrayList<CardTransaction> transactionList = new ArrayList<>();
         Boolean bValid = false;
 
-      try (
-            // Read the contents of the PDF file line at a time
-            Scanner scanner = new Scanner(contenthandler.toString())) {
-            while (scanner.hasNextLine()) {
-                   
-                String line = scanner.nextLine();
+        // Read the contents of the PDF file line at a time
+        for (int lineix = 0; lineix < contents.size(); lineix++) {
+            // process next line
+            String line = contents.get(lineix);
                     
-                // this will only be true if the previous line read was a valid Amazon entry.
-                // The line following that entry will contain the Amazon order number.
-                if (bValid) {
-                    if (line.length() < 36 || ! line.contains("Order Number")) {
-                        // we must be at a page crossing where we have some invalid lines
-                        // prior to the order number, so just skip to the next line.
-                        continue;
-                    }
-                    frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  order number: " + line);
-                    // we have a valid order number, let's post it to the list of transactions
-                        
-                    String ordernum = line.substring(19);
-                    if (transactionList.isEmpty()) {
-                        throw new ParserException("PdfReader.readPdfContents: Order # " + ordernum + " received prior to any transactions");
-                    }
-                    CardTransaction newEntry = transactionList.removeLast();
-                    if (newEntry.order_num == null || newEntry.order_num.isEmpty()) {
-                        newEntry.order_num = ordernum;
-                    } else {
-                        throw new ParserException("PdfReader.readPdfContents: Order # " + ordernum + " received with no preceding data");
-                    }
-                    transactionList.add(newEntry);
-                    bValid = false;
+            // this will only be true if the previous line read was a valid Amazon entry.
+            // The line following that entry will contain the Amazon order number.
+            if (bValid) {
+                if (line.length() < 36 || ! line.contains("Order Number")) {
+                    // we must be at a page crossing where we have some invalid lines
+                    // prior to the order number, so just skip to the next line.
+                    continue;
                 }
+                frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  order number: " + line);
+                // we have a valid order number, let's post it to the list of transactions
                     
-                // let's weed out the unimportant lines
-                Integer amountIx = line.length();
-                if (amountIx > 16) {
-                    // this is checking for the date section and the gap preceding the vendor name
-                    bValid = true;
-                    for (int ix = 0; ix < 9; ix++) {
-                        char c = line.charAt(ix);
-                        if ((ix < 2 && (c < '0' || c > '9')) ||
-                                (ix == 2 && c != '/') ||
-                                (ix > 2 && ix < 5 && (c < '0' || c > '9')) ||
-                                (ix >= 5 && c != ' ') ) {
+                String ordernum = line.substring(19);
+                if (transactionList.isEmpty()) {
+                    throw new ParserException("PdfReader.readPdfContents: Order # " + ordernum + " received prior to any transactions");
+                }
+                CardTransaction newEntry = transactionList.removeLast();
+                if (newEntry.order_num == null || newEntry.order_num.isEmpty()) {
+                    newEntry.order_num = ordernum;
+                } else {
+                    throw new ParserException("PdfReader.readPdfContents: Order # " + ordernum + " received with no preceding data");
+                }
+                transactionList.add(newEntry);
+                bValid = false;
+            }
+                    
+            // let's weed out the unimportant lines
+            Integer amountIx = line.length();
+            if (amountIx > 16) {
+                // this is checking for the date section and the gap preceding the vendor name
+                bValid = true;
+                for (int ix = 0; ix < 9; ix++) {
+                    char c = line.charAt(ix);
+                    if ((ix < 2 && (c < '0' || c > '9')) ||
+                            (ix == 2 && c != '/') ||
+                            (ix > 2 && ix < 5 && (c < '0' || c > '9')) ||
+                            (ix >= 5 && c != ' ') ) {
+                        bValid = false;
+                        break;
+                    }
+                }
+                // this is checking for the cost at the end of the string
+                if (bValid) {
+                    while (line.charAt(amountIx - 1) != ' ') {
+                        char c = line.charAt(amountIx - 1);
+                        if (c != '.' && c != '-' && (c < '0' || c > '9')) {
                             bValid = false;
                             break;
                         }
+                        amountIx--;
                     }
-                    // this is checking for the cost at the end of the string
-                    if (bValid) {
-                        while (line.charAt(amountIx - 1) != ' ') {
-                            char c = line.charAt(amountIx - 1);
-                            if (c != '.' && c != '-' && (c < '0' || c > '9')) {
-                                bValid = false;
-                                break;
-                            }
-                            amountIx--;
-                        }
-                    }
-                    if (bValid) {
-                        CardTransaction newEntry = new CardTransaction();
-                        frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  transaction: " + line);
+                }
+                if (bValid) {
+                    CardTransaction newEntry = new CardTransaction();
+                    frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  transaction: " + line);
                             
-                        // we have a valid debit/credit line - save useful contents
-                        newEntry.completed = false;
-                        newEntry.vendor = line.substring(10, 20);
-                        newEntry.trans_date = line.substring(0, 5);
-                        newEntry.amount = Utils.getAmountValue(line.substring(amountIx));
+                    // we have a valid debit/credit line - save useful contents
+                    newEntry.completed = false;
+                    newEntry.vendor = line.substring(10, 20);
+                    newEntry.trans_date = line.substring(0, 5);
+                    newEntry.amount = Utils.getAmountValue(line.substring(amountIx));
                             
-                        // now let's check for Amazon receipts only
-                        if (newEntry.vendor.contentEquals("AMAZON MKT") ||
-                                newEntry.vendor.contentEquals("AMZN Mktp ") ||
-                                newEntry.vendor.contentEquals("Amazon.com") ) {
-                            transactionList.add(newEntry);
-                        } else {
-                            bValid = false;
-                        }
+                    // now let's check for Amazon receipts only
+                    if (newEntry.vendor.contentEquals("AMAZON MKT") ||
+                        newEntry.vendor.contentEquals("AMZN Mktp ") ||
+                        newEntry.vendor.contentEquals("Amazon.com") ) {
+                        transactionList.add(newEntry);
+                    } else {
+                        bValid = false;
                     }
                 }
             }
@@ -272,7 +296,7 @@ public class PdfReader {
             }
         }
     }
-
+    
     /**
      * checks for uncompleted card transactions in the list.
      * 
