@@ -13,8 +13,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import org.apache.tika.exception.TikaException;
-import org.xml.sax.SAXException;
 
 /**
  *
@@ -34,43 +32,7 @@ public class ScriptCompile {
     }
     
     /**
-     * runs the program from command line input
-     * 
-     * @param fname - the name of the script file to run
-     * 
-     * @throws ParserException
-     * @throws IOException
-     * @throws SAXException
-     * @throws TikaException 
-     */
-    public void runFromFile (String fname) throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + ".runCommandLine: ";
-        
-        frame.outputInfoMsg(STATUS_PROGRAM, "Running from script: " + fname);
-
-        // enable timestamp on log messages
-        frame.elapsedTimerEnable();
-
-        try {
-            // compile the program
-            frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM COMPILE");
-            ArrayList<CommandStruct> cmdList = compileProgram(fname);
-
-            // execute the program by running each 'cmdList' entry
-            frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM EXECUTION");
-            ScriptExecute exec = new ScriptExecute();
-            int cmdIx = 0;
-            while (cmdIx >= 0 && cmdIx < cmdList.size()) {
-                cmdIx = exec.executeProgramCommand (cmdIx, cmdList.get(cmdIx));
-            }
-        } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
-        }
-        frame.elapsedTimerDisable();
-    }
-
-    /**
-     * verifies the parameter types found in the command line match what is specified for the command.
+     * verifies the argument types found in the command line match what is specified for the command.
      * 
      * @param command    - the command line to run
      * @param validTypes - the list of data types to match to
@@ -78,14 +40,14 @@ public class ScriptCompile {
      * 
      * @throws ParserException 
      */
-    public static void checkParamTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
-        String functionId = CLASS_NAME + ".checkParamTypes: ";
+    public static void checkArgTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
+        String functionId = CLASS_NAME + ".checkArgTypes: ";
         String prefix = command + " - ";
         if (linenum >= 0) {  // omit the line numberinfo if < 0
             prefix = "line " + linenum + ", " + prefix;
         }
         
-        // determine the min and max number of parameters
+        // determine the min and max number of arguments
         int min = 0;
         int max = validTypes.length();
         for (int ix = 0; ix < max; ix++) {
@@ -96,16 +58,16 @@ public class ScriptCompile {
             }
         }
         
-        // verify we have the correct number of parameters
+        // verify we have the correct number of arguments
         if (command.params.size() < min || command.params.size() > max) {
-            throw new ParserException(functionId + prefix + "Invalid number of parameters: " + command.params.size() + " (valid = " + validTypes + ")");
+            throw new ParserException(functionId + prefix + "Invalid number of arguments: " + command.params.size() + " (valid = " + validTypes + ")");
         }
         
         // now verify the types
         for (int ix = 0; ix < command.params.size(); ix++) {
             char reqType = Character.toUpperCase(validTypes.charAt(ix));
             if (! command.params.get(ix).isValidForType (reqType)) {
-                throw new ParserException(functionId + prefix + "Invalid param[" + ix + "] type '" + reqType + "'");
+                throw new ParserException(functionId + prefix + "Invalid arg[" + ix + "] type '" + reqType + "'");
             }
         }
     }
@@ -121,7 +83,7 @@ public class ScriptCompile {
      * @throws ParserException
      * @throws IOException 
      */
-    private ArrayList<CommandStruct> compileProgram (String fname) throws ParserException, IOException {
+    public ArrayList<CommandStruct> compileProgram (String fname) throws ParserException, IOException {
         String functionId = CLASS_NAME + ".compileProgram: ";
 
         frame.outputInfoMsg(STATUS_PROGRAM, "Compiling file: " + fname);
@@ -137,8 +99,8 @@ public class ScriptCompile {
         FileReader fReader = new FileReader(scriptFile);
         BufferedReader fileReader = new BufferedReader(fReader);
 
-        // clear out the parameter values
-        ParameterStruct.initParameters();
+        // clear out the static Variable values
+        ParameterStruct.initVariables();
 
         // read the program and compile into ArrayList 'cmdList'
         int lineNum = 0;
@@ -164,7 +126,7 @@ public class ScriptCompile {
             CommandStruct.CommandTable command;
             if (line.startsWith("-")) {
                 // if the optional RUN command was omitted from an option command, let's add it here
-                String argTypes = cmdOptionParser.getOptionParams(strCmd);
+                String argTypes = cmdOptionParser.getOptionArgs(strCmd);
                 if (argTypes == null) {
                     throw new ParserException(functionId + "command option is not valid: " + strCmd);
                 }
@@ -174,8 +136,8 @@ public class ScriptCompile {
                 // next, check if it is a standard program command
                 command = CommandStruct.isValidCommand(strCmd);
                 if (command == null) {
-                    // lastly, check for parameter names in the case of an assignment statement
-                    ParamExtract parmInfo = new ParamExtract(line);
+                    // lastly, check for variable names in the case of an assignment statement
+                    VariableExtract parmInfo = new VariableExtract(line);
                     String parmName = parmInfo.getName();
                     String parmEqu  = parmInfo.getEquality();
                     String parmCalc = parmInfo.getEvaluation();
@@ -190,18 +152,18 @@ public class ScriptCompile {
                 throw new ParserException(functionId + lineInfo + "Invalid command " + strCmd);
             }
 
-            // 'parmString' is a string containing the parameters following the command
-            // 'cmdStruct' will receive the command, with the params yet to be placed.
+            // 'parmString' is a string containing the arguments following the command
+            // 'cmdStruct'  will receive the command, with the arguments yet to be placed.
             cmdStruct = new CommandStruct(command, lineNum);
             ArrayList<String> listParms;
             
-            // extract the parameters to pass to the command
+            // extract the arguments to pass to the command
             frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
             boolean bParamAssign = (CommandStruct.CommandTable.SET == command);
             cmdStruct.params = packParameters (parmString, bParamAssign);
             ParameterStruct.showParamTypeList(cmdStruct.params);
 
-            // now let's check for valid command keywords and extract the parameters
+            // now let's check for valid command keywords and extract the arguments
             //  into the cmdStruct structure.
             switch (cmdStruct.command) {
                 case CommandStruct.CommandTable.EXIT:
@@ -277,20 +239,19 @@ public class ScriptCompile {
                     }
                     break;
                 case CommandStruct.CommandTable.DEFINE:
-                    // must be a List of parameter name entries
-                    checkParamTypes(cmdStruct, "L", cmdIndex);
+                    // must be a List of Variable name entries
+                    checkArgTypes(cmdStruct, "L", cmdIndex);
 
-                    // this defines the parameter names, and must be done prior to their use.
+                    // this defines the Variable names, and must be done prior to their use.
                     // This Compile method will allocate them, so the Execute does not need
                     //  to do anything with this command.
-                    // Multiple parameters can be defined on one line, with the parameter names
-                    //  comma separated.
+                    // Multiple Variables can be defined on one line, with the names comma separated.
                     ParameterStruct list = cmdStruct.params.getFirst();
                     for (int ix = 0; ix < list.getListSize(); ix++) {
                         String pName = list.getListElement(ix);
                         try {
-                            // allocate the parameter
-                            ParameterStruct.allocateParameter(pName);
+                            // allocate the Variable
+                            ParameterStruct.allocateVariable(pName);
                         } catch (ParserException exMsg) {
                             throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
                         }
@@ -301,7 +262,7 @@ public class ScriptCompile {
                     //  is a numeric parameter and it is more than a simple assignment to
                     //  a discrete value or a single parameter reference, let's pepack.
                     // The arguments are: ParamName = Calculation
-                    ParameterStruct.ParamType ptype = ParameterStruct.getParamTypeFromName(parmString);
+                    ParameterStruct.ParamType ptype = ParameterStruct.getVariableTypeFromName(parmString);
                     if (cmdStruct.params.size() > 3) {
                         switch (ptype) {
                             case ParameterStruct.ParamType.Integer:
@@ -343,20 +304,20 @@ public class ScriptCompile {
                     ParameterStruct param1 = cmdStruct.params.get(0);
                     ParameterStruct param2 = cmdStruct.params.get(1);
                     if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be parameter reference name : " + parmString);
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
                     }
-                    ptype = ParameterStruct.isParamDefined(param1.getStringValue());
+                    ptype = ParameterStruct.isVariableDefined(param1.getStringValue());
                     ParameterStruct.ParamType argtype = param2.getParamType();
                     switch (ptype) {
                         case ParameterStruct.ParamType.IntArray -> {
                             if (argtype != ParameterStruct.ParamType.Integer &&
                                 argtype != ParameterStruct.ParamType.Unsigned) {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference parameter: " + parmString);
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
                             }
                     }
                         case ParameterStruct.ParamType.StringArray -> {
                             if (argtype != ParameterStruct.ParamType.String) {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference parameter: " + parmString);
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
                             }
                     }
                         default -> throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
@@ -374,24 +335,24 @@ public class ScriptCompile {
                     param2 = cmdStruct.params.get(1);
                     param3 = cmdStruct.params.get(2);
                     if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be parameter reference name : " + parmString);
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
                     }
                     if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
                         param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
                     }
-                    ptype = ParameterStruct.isParamDefined(param1.getStringValue());
+                    ptype = ParameterStruct.isVariableDefined(param1.getStringValue());
                     argtype = param3.getParamType();
                     switch (ptype) {
                         case ParameterStruct.ParamType.IntArray -> {
                             if (argtype != ParameterStruct.ParamType.Integer &&
                                 argtype != ParameterStruct.ParamType.Unsigned) {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference parameter: " + parmString);
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
                             }
                     }
                         case ParameterStruct.ParamType.StringArray -> {
                             if (argtype != ParameterStruct.ParamType.String) {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference parameter: " + parmString);
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
                             }
                     }
                         default -> throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
@@ -407,16 +368,16 @@ public class ScriptCompile {
                     param1 = cmdStruct.params.get(0);
                     param2 = cmdStruct.params.get(1);
                     if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be parameter reference name : " + parmString);
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
                     }
                     if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
                         param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
                     }
-                    ptype = ParameterStruct.isParamDefined(param1.getStringValue());
+                    ptype = ParameterStruct.isVariableDefined(param1.getStringValue());
                     if (ptype != ParameterStruct.ParamType.IntArray &&
                         ptype != ParameterStruct.ParamType.StringArray) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for parameter " + param1.getStringValue());
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
                     }
                     break;
 
@@ -429,12 +390,12 @@ public class ScriptCompile {
                     }
                     param1 = cmdStruct.params.get(0);
                     if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be parameter reference name : " + parmString);
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
                     }
-                    ptype = ParameterStruct.isParamDefined(param1.getStringValue());
+                    ptype = ParameterStruct.isVariableDefined(param1.getStringValue());
                     if (ptype != ParameterStruct.ParamType.IntArray &&
                         ptype != ParameterStruct.ParamType.StringArray) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for parameter " + param1.getStringValue());
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
                     }
                     if (cmdStruct.params.size() == 2) {
                         param2 = cmdStruct.params.get(1);
@@ -453,9 +414,9 @@ public class ScriptCompile {
                     }
                     param1 = cmdStruct.params.get(0);
                     if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be parameter reference name : " + parmString);
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
                     }
-                    ptype = ParameterStruct.isParamDefined(param1.getStringValue());
+                    ptype = ParameterStruct.isVariableDefined(param1.getStringValue());
                     if (ptype == null && ! param1.getStringValue().contentEquals("RESPONSE")) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
                     }
@@ -463,10 +424,10 @@ public class ScriptCompile {
                     
                 case CommandStruct.CommandTable.IF:
                     // verify number and type of arguments
-                    checkParamTypes(cmdStruct, "ISI", cmdIndex);
+                    checkArgTypes(cmdStruct, "ISI", cmdIndex);
 
                     // read the arguments passed
-                    // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Parameters)
+                    // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Variables)
                     String ifName = cmdStruct.params.get(0).getStringValue();
 
                     // if not first IF statement, make sure previous IF had an ENDIF
@@ -482,7 +443,7 @@ public class ScriptCompile {
                     ifInfo = new IFStruct (cmdIndex, LoopStruct.getStackSize());
                     IFStruct.ifListPush(ifInfo);
                     IFStruct.stackPush(cmdIndex);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - new IF level " + IFStruct.getStackSize() + " parameter " + ifName);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - new IF level " + IFStruct.getStackSize() + " Variable " + ifName);
                     break;
                 case CommandStruct.CommandTable.ELSE:
                     if (IFStruct.isIfListEnpty()) {
@@ -499,13 +460,13 @@ public class ScriptCompile {
                     }
                     
                     // read the arguments passed
-                    // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Parameters)
+                    // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Variables)
                     ifName = cmdStruct.params.get(0).getStringValue();
                     
                     // save the current command index in the current if structure
                     ifInfo = IFStruct.getIfListEntry();
                     ifInfo.setElseIndex(cmdIndex, true, LoopStruct.getStackSize());
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " parameter " + ifName);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " Variable " + ifName);
                     break;
                 case CommandStruct.CommandTable.ENDIF:
                     if (IFStruct.isIfStackEnpty()) {
@@ -551,7 +512,7 @@ public class ScriptCompile {
                     
                     // add entry to the current loop stack
                     LoopStruct.pushStack(loopId);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + LoopStruct.getStackSize() + " parameter " + loopName + " index @ " + cmdIndex);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + LoopStruct.getStackSize() + " Variable " + loopName + " index @ " + cmdIndex);
                     break;
                 case CommandStruct.CommandTable.BREAK:
                     // make sure we are in a FOR ... NEXT loop
@@ -730,7 +691,7 @@ public class ScriptCompile {
             parmArr = parmArr.strip();
             int offset = getValidStringLen (curType, parmArr);
             if (offset <= 0) {
-                throw new ParserException (functionId + "Missing parameter for param [" + parmList.size() + "] type " + curType);
+                throw new ParserException (functionId + "Missing parameter for arg[" + parmList.size() + "] type " + curType);
             }
             
             // get the parameter we are searching for and remove it from the input list
@@ -742,7 +703,7 @@ public class ScriptCompile {
                 case 'S':
                 case 'I':
                 case 'C':
-                    frame.outputInfoMsg(STATUS_DEBUG, "    extracted param[" + parmList.size() + "]: '" + param + "'");
+                    frame.outputInfoMsg(STATUS_DEBUG, "    extracted arg[" + parmList.size() + "]: '" + param + "'");
                     parmList.add(param);
                     break;
                 default:
@@ -783,14 +744,14 @@ public class ScriptCompile {
             // must be the parameter name. verify it is valid.
             if (bParamAssign) {
                 if (ix == 0) {
-                    if (! ParameterStruct.isValidParamName(nextArg)) {
-                        throw new ParserException(functionId + "parameter name not found: " + nextArg);
+                    if (! ParameterStruct.isValidVariableName(nextArg)) {
+                        throw new ParserException(functionId + "Variable name not found: " + nextArg);
                     }
                     if (line.isEmpty()) {
-                        throw new ParserException(functionId + "no arguments following parameter name: " + nextArg);
+                        throw new ParserException(functionId + "no arguments following Variable name: " + nextArg);
                     }
                     // check if this is a String parameter ( we may have extra stuff to do here)
-                    if (ParameterStruct.getParamTypeFromName(nextArg) == ParameterStruct.ParamType.String) {
+                    if (ParameterStruct.getVariableTypeFromName(nextArg) == ParameterStruct.ParamType.String) {
                         paramName = "$" + nextArg;
                     }
                 } else if (ix == 1 && paramName != null && nextArg.contentEquals("+=")) {
@@ -882,7 +843,7 @@ public class ScriptCompile {
             ParameterStruct.ParamClass pClass = ParameterStruct.ParamClass.Discrete;
             if (nextArg.startsWith("$") || (bParamAssign && params.isEmpty())) {
                 pClass = ParameterStruct.ParamClass.Reference;
-                paramType = ParameterStruct.getParamTypeFromName(nextArg);
+                paramType = ParameterStruct.getVariableTypeFromName(nextArg);
             }
             
             arg = new ParameterStruct(nextArg, pClass, paramType);
@@ -925,7 +886,7 @@ public class ScriptCompile {
         String paramName = getParamName (line);
         boolean bValid;
         try {
-            bValid = ParameterStruct.isValidParamName(paramName);
+            bValid = ParameterStruct.isValidVariableName(paramName);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }

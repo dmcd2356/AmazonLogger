@@ -35,11 +35,12 @@ public final class ParameterStruct {
     private ParamClass          paramClass;     // class of the parameter
     private ParamType           paramType;      // parameter classification
     private char                paramTypeID;    // ID corresponding to the paramType
-    private ParamContents       paramRef;       // info if a referenced parameter is used instead of a value
+    private VariableInfo        variableRef;    // info if a referenced Variable is used instead of a value
     
-    // saved static parameters
+    // reserved static Variables
     private static ArrayList<String>  strResponse = new ArrayList<>();    // responses from RUN commands
-    private static Long    intResult = 0L;      // result of last CALC command
+    private static Long               intResult = 0L;      // result of last CALC command
+    // user-defined static Variables
     private static final HashMap<String, String>  strParams  = new HashMap<>();
     private static final HashMap<String, Long>    longParams = new HashMap<>();
     private static final HashMap<String, Long>    uintParams = new HashMap<>();
@@ -60,9 +61,9 @@ public final class ParameterStruct {
     private static final HashMap<String, ArrayList<LoopId>> loopNames = new HashMap<>();
 
     public enum ParamClass {
-        Discrete,       // a hard-coded value
-        Reference,      // a parameter reference
-        Calculation,    // a calculation formula
+        Discrete,       // a Hard-coded value
+        Reference,      // a Variable reference
+        Calculation,    // a Calculation formula
     }
     
     public enum ParamType {
@@ -82,7 +83,7 @@ public final class ParameterStruct {
         listParam = null;
         calcParam = null;
         paramClass = null;
-        paramRef = new ParamContents();
+        variableRef = new VariableInfo();
         paramType = null;
         paramTypeID = '?';
     }
@@ -90,12 +91,12 @@ public final class ParameterStruct {
     /**
      * Creates a parameter having the specified characteristics.
      * This is only used in the Compilation phase, so we are creating the parameter
-     *   entry and verifying the type is valid, but if it is a reference parameter,
-     *   don't replace the parameter with its value.
+     *   entry and verifying the type is valid, but if it is a Variable reference,
+     *   don't replace the Variable with its value.
      *   That can only be done during execution phase.
      * 
-     * @param strValue   - the parameter value to use (hard-coded or a parameter reference)
-     * @param pClass     - the parameter classification
+     * @param strValue   - the parameter value to use
+     * @param pClass     - the parameter classification (Hard-coded, Variable, or Calculation)
      * @param dataType   - the parameter type desired
      * 
      * @throws ParserException
@@ -104,7 +105,7 @@ public final class ParameterStruct {
         String functionId = CLASS_NAME + " (new): ";
         String msgGap = "      ";
         
-        paramRef = new ParamContents();
+        variableRef = new VariableInfo();
         calcParam = null;
         strParam = strValue;
         paramClass = pClass;
@@ -119,14 +120,14 @@ public final class ParameterStruct {
                 Calculation calc = new Calculation(strValue, dataType);
                 calcParam = calc.copyCalc();
 
-                // if calc is a single entry, don't use Calculation type, switch to Discreet or Parameter type
+                // if calc is a single entry, don't use Calculation type, switch to Discreet or Variable type
                 if (calc.getCalcCount() == 1) {
                     String paramName = calc.getCalcParam();
                     if (paramName != null) {
-                        ParamExtract paramInfo = new ParamExtract(paramName);
-                        paramRef = new ParamContents(paramInfo);
+                        VariableExtract paramInfo = new VariableExtract(paramName);
+                        variableRef = new VariableInfo(paramInfo);
                         paramClass = ParamClass.Reference;
-                        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "Converted Calculation parameter to single Reference value: " + paramRef.getName());
+                        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "Converted Calculation parameter to single Reference value: " + variableRef.getName());
                     } else {
                         Long value = calc.getCalcValue();
                         if (value != null) {
@@ -141,11 +142,11 @@ public final class ParameterStruct {
                 return;
             }
             if (pClass == ParamClass.Reference) {
-                // PARAMETER REFERENCE ENTRY:
-                // extract any extension added to the parameter
-                ParamExtract paramInfo = new ParamExtract(strParam);
-                paramRef = new ParamContents(paramInfo);
-                frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Reference type " + paramType + " name: " + paramRef.getName());
+                // VARIABLE REFERENCE ENTRY:
+                // extract any extension added to the Variable
+                VariableExtract paramInfo = new VariableExtract(strParam);
+                variableRef = new VariableInfo(paramInfo);
+                frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Reference type " + paramType + " name: " + variableRef.getName());
                 return;
             }
 
@@ -251,7 +252,7 @@ public final class ParameterStruct {
     /**
      * determines if the parameter is valid for the specified requested type.
      * This is used during the Compile phase, so we don't know what the actual
-     *   values are at runtime for parameter references. So we need to base
+     *   values are at runtime for Variable references. So we need to base
      *   it on the types of parameters that can be converted.
      * 
      * @param typeID - the type of parameter desired
@@ -261,8 +262,8 @@ public final class ParameterStruct {
     public boolean isValidForType (char typeID) {
         boolean bParmRef = false;
         ParamType pType = paramType;
-        if (paramRef != null && paramRef.getName() != null && !paramRef.getName().isEmpty()) {
-            pType = paramRef.getType();
+        if (variableRef != null && variableRef.getName() != null && !variableRef.getName().isEmpty()) {
+            pType = variableRef.getType();
             bParmRef = true;
         }
         switch (typeID) {
@@ -294,11 +295,13 @@ public final class ParameterStruct {
                 }
                 break;
             case 'S':
-                // anything is good for String except a String Array
-                if (pType != ParamType.StringArray) {
+                // anything is good for String except an Array
+                if (pType != ParamType.StringArray &&
+                    pType != ParamType.IntArray) {
                     return true;
                 }
             case 'L':
+                // anything works here
                 return true;
             default:
                 break;
@@ -316,34 +319,34 @@ public final class ParameterStruct {
     }
        
     /**
-     * determines if the parameter is a parameter reference
+     * determines if the parameter is a Variable reference
      * 
-     * @return true if the parameter is a Parameter Reference
+     * @return true if the parameter is a Variable Reference
      */
-    public boolean isParamRef () {
-        return paramClass == ParamClass.Reference && (paramRef != null) && (paramRef.getName() != null);
+    public boolean isVariableRef () {
+        return paramClass == ParamClass.Reference && (variableRef != null) && (variableRef.getName() != null);
     }
        
     /**
-     * returns the parameter name if it is a reference.
+     * returns the Variable name if it is a reference.
      * 
-     * @return the reference parameter name (null if parameter is not a reference)
+     * @return the reference Variable name (null if parameter is not a reference)
      */
-    public String getParamRefName () {
-        if (isParamRef())
-            return paramRef.getName();
+    public String getVariableRefName () {
+        if (isVariableRef())
+            return variableRef.getName();
         else
             return null;
     }
        
     /**
-     * returns the parameter type if it is a reference
+     * returns the parameter type if it is a Variable reference
      * 
-     * @return the reference parameter type (null if parameter is not a reference)
+     * @return the reference parameter type (null if parameter is not a Variable reference)
      */
-    public ParamType getParamRefType () {
-        if (isParamRef())
-            return paramRef.getType();
+    public ParamType getVariableRefType () {
+        if (isVariableRef())
+            return variableRef.getType();
         else
             return null;
     }
@@ -456,14 +459,14 @@ public final class ParameterStruct {
     }
 
     /**
-     * checks if the parameter is a reference and, if so, reads the value into the structure.
+     * checks if the parameter is a Variable reference and, if so, reads the value into the structure.
      * It also marks the type of data placed and converts values to other types where possible.
      * 
      * @throws ParserException 
      */
     public void updateFromReference () throws ParserException {
         
-        ParameterStruct value = getParameterEntry (paramRef);
+        ParameterStruct value = getVariableInfo (variableRef);
         if (value != null) {
             this.paramType   = value.paramType;
             this.paramTypeID = value.paramTypeID;
@@ -474,9 +477,9 @@ public final class ParameterStruct {
             this.listParam   = value.listParam;
             this.calcParam   = value.calcParam;
             this.paramClass  = value.paramClass;
-            this.paramRef    = value.paramRef;
+            this.variableRef = value.variableRef;
             
-            frame.outputInfoMsg(STATUS_DEBUG, "    unpacked param " + paramRef.getName() + " as type '" + paramTypeID);
+            frame.outputInfoMsg(STATUS_DEBUG, "    unpacked param " + variableRef.getName() + " as type '" + paramTypeID);
         }
     }
 
@@ -597,7 +600,7 @@ public final class ParameterStruct {
         String strID = "" + paramTypeID;
         switch (paramClass) {
             case ParamClass.Reference:
-                strValue = paramRef.getName();
+                strValue = variableRef.getName();
                 strID += "ref";
                 break;
             case ParamClass.Calculation:
@@ -646,9 +649,9 @@ public final class ParameterStruct {
     //========================================================================
 
     /**
-     * initializes the saved parameters
+     * initializes the saved Variables
      */
-    public static void initParameters () {
+    public static void initVariables () {
         strParams.clear();
         longParams.clear();
         uintParams.clear();
@@ -662,57 +665,56 @@ public final class ParameterStruct {
     }
 
     /**
-     * set the value of the $RESPONSE parameter
+     * adds a String value to the $RESPONSE Variable
      * 
-     * @param value - value to set the response param to
+     * @param value - value to add to the response Variable
      */
     public static void putResponseValue (String value) {
         strResponse.add(value);
     }
     
     /**
-     * set the value of the $RESPONSE parameter
+     * adds an array of values to the $RESPONSE Variable
      * 
-     * @param value - value to set the response param to
+     * @param value - value to add to the response Variable
      */
     public static void putResponseValue (ArrayList<String> value) {
         strResponse.addAll(value);
     }
     
     /**
-     * set the value of the $RESULT parameter
+     * set the value of the $RESULT Variable
      * 
-     * @param value - value to set the result param to
+     * @param value - value to set the result Variable to
      */
     public static void putResultValue (Long value) {
         intResult = value;
     }
 
     /**
-     * creates a new entry in the Integer params table and sets the initial value.
-     * Indicates if the param was already defined.
+     * creates a new entry in the Variable table and sets the initial value.
      * 
-     * @param name  - parameter name
+     * @param name  - Variable name
      * 
-     * @throws ParserException - if name already exists
+     * @throws ParserException - if Variable was already defined
      */
-    public static void allocateParameter (String name) throws ParserException {
-        String functionId = CLASS_NAME + ".allocateParameter: ";
+    public static void allocateVariable (String name) throws ParserException {
+        String functionId = CLASS_NAME + ".allocateVariable: ";
 
-        // first, verify parameter name to make sure it is valid format and
+        // first, verify Variable name to make sure it is valid format and
         //  not already used.
         boolean bIsDefined;
         try {
-            bIsDefined = isValidParamName(name);
+            bIsDefined = isValidVariableName(name);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
         if (bIsDefined) {
-            throw new ParserException(functionId + "Parameter " + name + " already defined");
+            throw new ParserException(functionId + "Variable " + name + " already defined");
         }
 
         String typeName = "String";
-        switch (getParamTypeFromName(name)) {
+        switch (getVariableTypeFromName(name)) {
             case ParamType.Integer:
                 typeName = "Integer";
                 longParams.put(name, 0L);
@@ -739,20 +741,20 @@ public final class ParameterStruct {
             default:
                 break;
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Allocated " + typeName + " parameter: " + name);
+        frame.outputInfoMsg(STATUS_PROGRAM, "   - Allocated " + typeName + " variable: " + name);
     }
 
     /**
-     * returns the value of a reference parameter along with its data type.
+     * returns the value of a reference Variable along with its data type.
      * 
-     * @param paramInfo  - parameter reference information
+     * @param paramInfo  - Variable reference information
      * 
-     * @return the parameter value
+     * @return the Variable value
      * 
-     * @throws ParserException - if parameter not found
+     * @throws ParserException - if Variable not found
      */
-    public static ParameterStruct getParameterEntry (ParamContents paramInfo) throws ParserException {
-        String functionId = CLASS_NAME + ".getParameterEntry: ";
+    public static ParameterStruct getVariableInfo (VariableInfo paramInfo) throws ParserException {
+        String functionId = CLASS_NAME + ".getVariableInfo: ";
 
         if (paramInfo == null || paramInfo.getName() == null || paramInfo.getType() == null) {
             return null;
@@ -809,11 +811,11 @@ public final class ParameterStruct {
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
-                } else if (paramInfo.getTrait() == ParamExtract.Trait.SIZE) {
+                } else if (paramInfo.getTrait() == VariableExtract.Trait.SIZE) {
                     paramValue.longParam = (long)paramValue.arrayParam.size();
                     pType = ParamType.Integer;
                     frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".SIZE ' as type Integer: " + paramValue.longParam);
-                } else if (paramInfo.getTrait() == ParamExtract.Trait.ISEMPTY) {
+                } else if (paramInfo.getTrait() == VariableExtract.Trait.ISEMPTY) {
                     paramValue.boolParam = paramValue.arrayParam.isEmpty();
                     pType = ParamType.Boolean;
                     frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".ISEMPTY ' as type Boolean: " + paramValue.boolParam);
@@ -843,11 +845,11 @@ public final class ParameterStruct {
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
-                } else if (paramInfo.getTrait() == ParamExtract.Trait.SIZE) {
+                } else if (paramInfo.getTrait() == VariableExtract.Trait.SIZE) {
                     paramValue.longParam = (long)paramValue.listParam.size();
                     pType = ParamType.Integer;
                     frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".SIZE ' as type Integer: " + paramValue.longParam);
-                } else if (paramInfo.getTrait() == ParamExtract.Trait.ISEMPTY) {
+                } else if (paramInfo.getTrait() == VariableExtract.Trait.ISEMPTY) {
                     paramValue.boolParam = paramValue.listParam.isEmpty();
                     pType = ParamType.Boolean;
                     frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".ISEMPTY ' as type Boolean: " + paramValue.boolParam);
@@ -880,11 +882,11 @@ public final class ParameterStruct {
                             } else {
                                 throw new ParserException(functionId + "Parameter " + name + " index" + ixRange + " exceeds array");
                             }
-                        } else if (paramInfo.getTrait() == ParamExtract.Trait.SIZE) {
+                        } else if (paramInfo.getTrait() == VariableExtract.Trait.SIZE) {
                             paramValue.longParam = (long)paramValue.strParam.length();
                             pType = ParamType.Integer;
                             frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".SIZE ' as type Integer: " + paramValue.longParam);
-                        } else if (paramInfo.getTrait() == ParamExtract.Trait.ISEMPTY) {
+                        } else if (paramInfo.getTrait() == VariableExtract.Trait.ISEMPTY) {
                             paramValue.boolParam = paramValue.strParam.isEmpty();
                             pType = ParamType.Boolean;
                             frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".ISEMPTY ' as type Boolean: " + paramValue.boolParam);
@@ -906,7 +908,7 @@ public final class ParameterStruct {
         }
 
         // save the parameter type and name
-        paramValue.paramRef.setParamName(name, pType);
+        paramValue.variableRef.setParamName(name, pType);
         paramValue.paramType   = pType;
         paramValue.paramTypeID = getParamTypeID (pType);
         paramValue.paramClass  = ParamClass.Discrete;
@@ -917,89 +919,89 @@ public final class ParameterStruct {
     }
 
     /**
-     * modifies the value of an existing entry in the String params table.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * modifies the value of an existing entry in the String Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name  - parameter name
-     * @param value - parameter value
+     * @param name  - Variable name
+     * @param value - Variable value
      * 
      * @throws ParserException
      */
-    public static void modifyStringParameter (String name, String value) throws ParserException {
-        String functionId = CLASS_NAME + ".modifyStringParameter: ";
+    public static void modifyStringVariable (String name, String value) throws ParserException {
+        String functionId = CLASS_NAME + ".modifyStringVariable: ";
 
         if (!strParams.containsKey(name)) {
-            throw new ParserException(functionId + "Parameter " + name + " not found");
+            throw new ParserException(functionId + "Variable " + name + " not found");
         }
         strParams.replace(name, value);
         frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified String param: " + name + " = " + value);
     }
 
     /**
-     * modifies the value of an existing entry in the Integer params table.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * modifies the value of an existing entry in the Integer Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name  - parameter name
-     * @param value - parameter value
+     * @param name  - Variable name
+     * @param value - Variable value
      * 
      * @throws ParserException
      */
-    public static void modifyIntegerParameter (String name, Long value) throws ParserException {
-        String functionId = CLASS_NAME + ".modifyIntegerParameter: ";
+    public static void modifyIntegerVariable (String name, Long value) throws ParserException {
+        String functionId = CLASS_NAME + ".modifyIntegerVariable: ";
 
         if (!longParams.containsKey(name)) {
-            throw new ParserException(functionId + "Parameter " + name + " not found");
+            throw new ParserException(functionId + "Variable " + name + " not found");
         }
         longParams.replace(name, value);
         frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Integer param: " + name + " = " + value);
     }
 
     /**
-     * modifies the value of an existing entry in the Unsigned params table.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * modifies the value of an existing entry in the Unsigned Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name  - parameter name
-     * @param value - parameter value
+     * @param name  - Variable name
+     * @param value - Variable value
      * 
      * @throws ParserException
      */
-    public static void modifyUnsignedParameter (String name, Long value) throws ParserException {
-        String functionId = CLASS_NAME + ".modifyUnsignedParameter: ";
+    public static void modifyUnsignedVariable (String name, Long value) throws ParserException {
+        String functionId = CLASS_NAME + ".modifyUnsignedVariable: ";
 
         if (!uintParams.containsKey(name)) {
-            throw new ParserException(functionId + "Parameter " + name + " not found");
+            throw new ParserException(functionId + "Variable " + name + " not found");
         }
         if (! isUnsignedInt(value)) {
-            throw new ParserException(functionId + "value for parameter " + name + " exceeds limits for Unsigned: " + value);
+            throw new ParserException(functionId + "value for Variable " + name + " exceeds limits for Unsigned: " + value);
         }
         uintParams.replace(name, value);
         frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Unsigned param: " + name + " = " + value);
     }
 
     /**
-     * modifies the value of an existing entry in the Boolean params table.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * modifies the value of an existing entry in the Boolean Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name  - parameter name
-     * @param value - parameter value
+     * @param name  - Variable name
+     * @param value - Variable value
      * 
      * @throws ParserException
      */
-    public static void modifyBooleanParameter (String name, Boolean value) throws ParserException {
-        String functionId = CLASS_NAME + ".modifyBooleanParameter: ";
+    public static void modifyBooleanVariable (String name, Boolean value) throws ParserException {
+        String functionId = CLASS_NAME + ".modifyBooleanVariable: ";
 
         if (!boolParams.containsKey(name)) {
-            throw new ParserException(functionId + "Parameter " + name + " not found");
+            throw new ParserException(functionId + "Variable " + name + " not found");
         }
         boolParams.replace(name, value);
         frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Boolean param: " + name + " = " + value);
     }
 
     /**
-     * get the number of elements in an existing Array.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * get the number of elements in an existing Array Variable.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name   - parameter name
+     * @param name   - Variable name
      * 
      * @return number of entries in array
      * 
@@ -1017,54 +1019,54 @@ public final class ParameterStruct {
         } else if (name.contentEquals("RESPONSE")) {
             return strResponse.size();
         }
-        throw new ParserException(functionId + "Array Parameter " + name + " not found");
+        throw new ParserException(functionId + "Array Variable " + name + " not found");
     }
     
     /**
-     * saves the array in a String Array parameter.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * saves the array in a String Array Variable.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name  - parameter name
-     * @param value - parameter value
+     * @param name  - Variable name
+     * @param value - Variable value
      * 
      * @throws ParserException
      */
-    public static void setStrArrayParameter (String name, ArrayList<String> value) throws ParserException {
-        String functionId = CLASS_NAME + ".setStrArrayParameter: ";
+    public static void setStrArrayVariable (String name, ArrayList<String> value) throws ParserException {
+        String functionId = CLASS_NAME + ".setStrArrayVariable: ";
 
         if (!listParams.containsKey(name)) {
-            throw new ParserException(functionId + "Parameter " + name + " not found");
+            throw new ParserException(functionId + "Variable " + name + " not found");
         }
         listParams.replace(name, value);
         frame.outputInfoMsg(STATUS_PROGRAM, "   - Saved StrArray param: " + name + " = " + value);
     }
 
     /**
-     * saves the array in a Integer Array parameter.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * saves the array in a Integer Array Variable.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name  - parameter name
-     * @param value - parameter value
+     * @param name  - Variable name
+     * @param value - Variable value
      * 
      * @throws ParserException
      */
-    public static void setIntArrayParameter (String name, ArrayList<Long> value) throws ParserException {
-        String functionId = CLASS_NAME + ".setIntArrayParameter: ";
+    public static void setIntArrayVariable (String name, ArrayList<Long> value) throws ParserException {
+        String functionId = CLASS_NAME + ".setIntArrayVariable: ";
 
         if (!arrayParams.containsKey(name)) {
-            throw new ParserException(functionId + "Parameter " + name + " not found");
+            throw new ParserException(functionId + "Variable " + name + " not found");
         }
         arrayParams.replace(name, value);
         frame.outputInfoMsg(STATUS_PROGRAM, "   - Saved IntArray param: " + name + " = " + value);
     }
 
     /**
-     * clears all entries of an existing Array.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * clears all entries of an existing Array Variable.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name  - parameter name
+     * @param name  - Variable name
      * 
-     * @return true if successful, false if the parameter was not found
+     * @return true if successful, false if the Variable was not found
      */
     public static boolean arrayRemoveAll (String name) {
         if (name.contentEquals("RESPONSE")) {
@@ -1091,14 +1093,14 @@ public final class ParameterStruct {
     }
 
     /**
-     * clears selected entries of an existing Array.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * clears selected entries of an existing Array Variable.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name   - parameter name
+     * @param name   - Variable name
      * @param iStart - index of starting entry in array to delete
      * @param iCount - number of entries in array to delete
      * 
-     * @return true if successful, false if the parameter was not found
+     * @return true if successful, false if the Variable was not found
      * 
      * @throws ParserException
      */
@@ -1106,7 +1108,7 @@ public final class ParameterStruct {
         String functionId = CLASS_NAME + ".arrayRemoveEntries: ";
 
         if (iCount < 1 || iStart < 0) {
-            throw new ParserException(functionId + "Array Parameter " + name + " index range exceeded: " + iStart + " to " + (iStart + iCount) + " is invalid");
+            throw new ParserException(functionId + "Array Variable " + name + " index range exceeded: " + iStart + " to " + (iStart + iCount) + " is invalid");
         }
         int size;
         String arrayContents;
@@ -1114,7 +1116,7 @@ public final class ParameterStruct {
             ArrayList<Long> entry = arrayParams.get(name);
             size = entry.size();
             if (iStart + iCount > size) {
-                throw new ParserException(functionId + "Array Parameter " + name + " index range exceeded: " + iStart + " to " + (iStart + iCount) + " (max " + entry.size() + ")");
+                throw new ParserException(functionId + "Array Variable " + name + " index range exceeded: " + iStart + " to " + (iStart + iCount) + " (max " + entry.size() + ")");
             }
             if (iCount == entry.size()) {
                 entry.clear();
@@ -1128,7 +1130,7 @@ public final class ParameterStruct {
             ArrayList<String> entry = listParams.get(name);
             size = entry.size();
             if (iStart + iCount > size) {
-                throw new ParserException(functionId + "Array Parameter " + name + " index range exceeded: " + iStart + " to " + (iStart + iCount) + " (max " + entry.size() + ")");
+                throw new ParserException(functionId + "Array Variable " + name + " index range exceeded: " + iStart + " to " + (iStart + iCount) + " (max " + entry.size() + ")");
             }
             if (iCount == entry.size()) {
                 entry.clear();
@@ -1147,14 +1149,14 @@ public final class ParameterStruct {
     }
 
     /**
-     * modifies the value of an existing entry in the Array or List params table.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * modifies the value of an existing entry in the Array or List Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name  - parameter name
+     * @param name  - Variable name
      * @param index - index of entry in list to change
-     * @param value - parameter value
+     * @param value - Variable value
      * 
-     * @return true if successful, false if the parameter was not found
+     * @return true if successful, false if the Variable was not found
      * 
      * @throws ParserException
      */
@@ -1166,7 +1168,7 @@ public final class ParameterStruct {
             if (arrayParams.containsKey(name)) {
                 ArrayList<Long> entry = arrayParams.get(name);
                 if (index >= entry.size()) {
-                    throw new ParserException(functionId + "Array Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+                    throw new ParserException(functionId + "Array Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
                 Long longVal = getLongOrUnsignedValue (value);
                 entry.set(index, longVal);
@@ -1175,7 +1177,7 @@ public final class ParameterStruct {
             else if (listParams.containsKey(name)) {
                 ArrayList<String> entry = listParams.get(name);
                 if (index >= entry.size()) {
-                    throw new ParserException(functionId + "List Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+                    throw new ParserException(functionId + "List Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
                 entry.set(index, value);
                 arrayContents = entry.toString();
@@ -1191,15 +1193,15 @@ public final class ParameterStruct {
     }
 
     /**
-     * inserts a value into an existing Array or List params table.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * inserts a value into an existing Array Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name  - parameter name
+     * @param name  - Variable name
      * @param index - index of where to insert the value
      *                (moves current index value and all following values back 1 entry)
-     * @param value - parameter value
+     * @param value - Variable value
      * 
-     * @return true if successful, false if the parameter was not found
+     * @return true if successful, false if the Variable was not found
      * 
      * @throws ParserException
      */
@@ -1212,7 +1214,7 @@ public final class ParameterStruct {
                 ArrayList<Long> entry = arrayParams.get(name);
                 Long longVal = getLongOrUnsignedValue (value);
                 if (index >= entry.size() || entry.isEmpty()) {
-                    throw new ParserException(functionId + "Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+                    throw new ParserException(functionId + "Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
                 // bump current entries back 1
                 entry.addLast(entry.getLast());
@@ -1225,7 +1227,7 @@ public final class ParameterStruct {
             else if (listParams.containsKey(name)) {
                 ArrayList<String> entry = listParams.get(name);
                 if (index >= entry.size() || entry.isEmpty()) {
-                    throw new ParserException(functionId + "Parameter " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
+                    throw new ParserException(functionId + "Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
                 // bump current entries back 1
                 entry.addLast(entry.getLast());
@@ -1246,13 +1248,13 @@ public final class ParameterStruct {
     }
 
     /**
-     * appends a value to the end of an existing Array or List params table.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * appends a value to the end of an existing Array Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param name  - parameter name
-     * @param value - parameter value
+     * @param name  - Variable name
+     * @param value - Variable value
      * 
-     * @return true if successful, false if the parameter was not found
+     * @return true if successful, false if the Variable was not found
      * 
      * @throws ParserException
      */
@@ -1277,7 +1279,7 @@ public final class ParameterStruct {
         } else {
             return false;
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Appended entry to param: " + name + " = " + value);
+        frame.outputInfoMsg(STATUS_PROGRAM, "   - Appended entry to Variable: " + name + " = " + value);
         frame.outputInfoMsg(STATUS_PROGRAM, "   - " + name + ": " + arrayContents);
         return true;
     }
@@ -1309,7 +1311,7 @@ public final class ParameterStruct {
      * 
      * @param loopId - the name-index ID for the currently active loop
      * 
-     * @return value of the loop parameter, null if param not found
+     * @return value of the loop Variable, null if not found
      */    
     public static Integer getLoopValue (LoopId loopId) {
         LoopStruct loopInfo = getLoopStruct (loopId);
@@ -1366,7 +1368,7 @@ public final class ParameterStruct {
      * 
      * @param command - the loop command to execute
      * @param index   - the current command index
-     * @param loopId  - the loop parameter currently running
+     * @param loopId  - the loop Variable currently running
      * 
      * @return the next command index to run
      * 
@@ -1409,13 +1411,13 @@ public final class ParameterStruct {
     }
 
     /**
-     * adds a new entry in the Loop parameters table.
+     * adds a new entry in the Loop Variables table.
      * This should only be called by 'CommandParser.compileProgram' when stepping
      * through the commands to verify and create the compiled list of commands.
      * 
-     * @param name     - loop parameter name
+     * @param name     - loop Variable name
      * @param loopId   - loop name-index combination to uniquely identify the loop param
-     * @param loopInfo - the loop parameter to add
+     * @param loopInfo - the loop Variable to add
      */
     public static void saveLoopParameter (String name, LoopId loopId, LoopStruct loopInfo) {
         String functionId = CLASS_NAME + ".saveLoopParameter: ";
@@ -1448,7 +1450,7 @@ public final class ParameterStruct {
     public static char classifyDataType (String strValue) {
         char dataType;
 
-        // first check if it is a parameter
+        // first check if it is a Variable
         if (strValue.startsWith("$")) {
             char pType = 'S';
             if (strValue.charAt(2) == '_') {
@@ -1517,49 +1519,49 @@ public final class ParameterStruct {
     }
     
     /**
-     * deletes the specified parameter.
-     * Indicates if the param was not found (does NOT create a new entry).
+     * deletes the specified Variable.
+     * Indicates if the Variable was not found (does NOT create a new entry).
      * 
-     * @param name  - parameter name
+     * @param name  - Variable name
      * 
-     * @return true if successful, false if the parameter was not found
+     * @return true if successful, false if the Variable was not found
      */
-    public static boolean parameterDelete (String name) {
+    public static boolean variableDelete (String name) {
         if (longParams.containsKey(name)) {
             longParams.remove(name);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted Integer parameter: " + name);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted Integer Variable: " + name);
         }
         if (uintParams.containsKey(name)) {
             uintParams.remove(name);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted Unsigned parameter: " + name);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted Unsigned Variable: " + name);
         }
         if (strParams.containsKey(name)) {
             strParams.remove(name);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted String parameter: " + name);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted String Variable: " + name);
         }
         if (boolParams.containsKey(name)) {
             boolParams.remove(name);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted Boolean parameter: " + name);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted Boolean Variable: " + name);
         }
         if (arrayParams.containsKey(name)) {
             arrayParams.remove(name);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted Array parameter: " + name);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted Array Variable: " + name);
         }
         if (listParams.containsKey(name)) {
             listParams.remove(name);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted List parameter: " + name);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted List Variable: " + name);
         }
         return false;
     }
 
     /**
-     * determines the type of parameter from the first 2 chars of the parameter name.
+     * determines the type of Variable from the first 2 chars of the Variable name.
      * 
-     * @param name - name of the parameter
+     * @param name - name of the Variable
      * 
-     * @return the corresponding parameter type
+     * @return the corresponding Variable type
      */    
-    public static ParamType getParamTypeFromName (String name) {
+    public static ParamType getVariableTypeFromName (String name) {
         if (name.charAt(0) == '$') {
             name = name.substring(1);
         }
@@ -1582,14 +1584,25 @@ public final class ParameterStruct {
     }
     
     /**
-     * determines if a parameter has been found with the specified name.
-     * (Does not check for loop parameters)
+     * checks if a Variable is an Integer type
      * 
-     * @param name - name of the parameter to search for
+     * @param name - the name to check
      * 
-     * @return type of parameter if found, null if not found
+     * @return  true if Integer Variable
      */
-    public static ParamType isParamDefined (String name) {
+    public static boolean isIntegerParam (String name) {
+        return name.startsWith("I_");
+    }
+    
+    /**
+     * determines if a Variable has been found with the specified name.
+     * (Does not check for loop Variables)
+     * 
+     * @param name - name of the Variable to search for
+     * 
+     * @return type of Variable if found, null if not found
+     */
+    public static ParamType isVariableDefined (String name) {
         if (longParams.containsKey(name)) {
             return ParamType.Integer;
         }
@@ -1612,32 +1625,32 @@ public final class ParameterStruct {
     }
 
     /**
-     * determines if a loop parameter has been found with the specified name.
+     * determines if a loop Variable has been found with the specified name.
      * 
-     * @param name - name of the loop parameter to search for
+     * @param name - name of the loop Variable to search for
      * 
-     * @return true if the loop parameter was found
+     * @return true if the loop Variable was found
      */
     public static boolean isLoopParamDefined (String name) {
         return loopNames.containsKey(name);
     }
 
     /**
-     * checks if a parameter name is valid.
+     * checks if a Variable name is valid.
      *   - name must begin with an alpha character
      *   - name must be only alphanumeric or '_' chars,
-     *   - cannot be a reserved param name (RESPONSE, RESULT)
+     *   - cannot be a reserved Variable name (RESPONSE, RESULT)
      *   - cannot be a command name or an operation name
-     *   - cannot be a Loop parameter name.
-     *   - checks if param is already defined
+     *   - cannot be a Loop Variable name.
+     *   - checks if Variable is already defined
      * 
      * @param name - the name to check
      * 
-     * @return  true if param is already defined, false if not
+     * @return  true if Variable is already defined, false if not
      * 
      * @throws ParserException - if not valid
      */
-    public static boolean isValidParamName (String name) throws ParserException {
+    public static boolean isValidVariableName (String name) throws ParserException {
         String functionId = CLASS_NAME + ".isValidParamName: ";
 
         try {
@@ -1645,8 +1658,8 @@ public final class ParameterStruct {
                 name = name.substring(1);
             }
 
-            // verify the formaat of the parameter name
-            verifyParamFormat(name);
+            // verify the formaat of the Variable name
+            verifyVariableFormat(name);
 
             // check if it is a reserved param name
             if (name.contentEquals("RESPONSE") ||
@@ -1660,23 +1673,23 @@ public final class ParameterStruct {
             }
 
             if (isLoopParamDefined(name)) {
-                throw new ParserException(functionId + "using Loop parameter name: " + name);
+                throw new ParserException(functionId + "using Loop Variable name: " + name);
             }
 
             // see if its already defined
-            return isParamDefined(name) != null;
+            return isVariableDefined(name) != null;
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId + name);
         }
     }
 
     /**
-     * checks if a Loop parameter name is valid.
+     * checks if a Loop Variable name is valid.
      * 
      * @param name - the name to check
      *               name must be only alphanumeric or '_' chars,
      *               cannot be a reserved name (RESPONSE, RESULT)
-     *               or a String or Integer parameter name.
+     *               or a String or Integer Variable name.
      * @param index - the command index for the FOR command
      * 
      * @throws ParserException - if not valid
@@ -1689,37 +1702,37 @@ public final class ParameterStruct {
                 name = name.substring(1);
             }
 
-            // verify the formaat of the parameter name
-            verifyParamFormat(name);
+            // verify the formaat of the Variable name
+            verifyVariableFormat(name);
 
             // make sure it is not a command name of a reserved param name
             if (name.contentEquals("RESPONSE") ||
                 name.contentEquals("RESULT")  ) {
-                throw new ParserException(functionId + "using Reserved parameter name: " + name);
+                throw new ParserException(functionId + "using Reserved Variable name: " + name);
             }
             if (CommandStruct.isValidCommand(name) != null) {
                 throw new ParserException(functionId + "using Reserved command name: " + name);
             }
 
-            // make sure its not the same as a reference parameter
-            ParamType type = isParamDefined(name);
+            // make sure its not the same as a reference Variable
+            ParamType type = isVariableDefined(name);
             if (type != null) {
-                throw new ParserException(": using " + type.toString() + " parameter name: " + name);
+                throw new ParserException(": using " + type.toString() + " Variable name: " + name);
             }
 
             // now check if this loop name is nested in a loop having same name
-            // get the list of loops using this parameter name (if any)
+            // get the list of loops using this Variable name (if any)
             ArrayList<LoopId> loopList = loopNames.get(name);
             if (loopList != null && ! loopList.isEmpty()) {
                 // we have one or more uses of the same name, check if this is nested in one
-                frame.outputInfoMsg(STATUS_PROGRAM, "   - checking previous uses of FOR Loop parameter " + name + " to see if we have a nesting problem");
+                frame.outputInfoMsg(STATUS_PROGRAM, "   - checking previous uses of FOR Loop Variable " + name + " to see if we have a nesting problem");
                 for (int ix = 0; ix < loopList.size(); ix++) {
                     LoopId loopEntry = loopList.get(ix);
                     LoopStruct loopInfo = getLoopStruct (loopEntry);
                     if (loopInfo == null || ! loopInfo.isLoopComplete()) {
                         throw new ParserException(functionId + ": Loop param " + name + " @ " + index + " is nested in same name at " + loopEntry.index);
                     } else {
-                        frame.outputInfoMsg(STATUS_PROGRAM, "   - FOR Loop parameter " + name + " @ " + loopEntry.index + " was complete");
+                        frame.outputInfoMsg(STATUS_PROGRAM, "   - FOR Loop Variable " + name + " @ " + loopEntry.index + " was complete");
                     }
                 }
             }
@@ -1728,39 +1741,28 @@ public final class ParameterStruct {
         }
     }
     
-    /**
-     * checks if a parameter is an Integer type
-     * 
-     * @param name - the name to check
-     * 
-     * @return  true if Integer parameter
-     */
-    public static boolean isIntegerParam (String name) {
-        return name.startsWith("I_");
-    }
-    
     //========================================================================
     // LOCAL METHODS
     //========================================================================
 
     /**
-     * checks if a parameter name is valid.
+     * checks if a Variable name is valid.
      *   name must be only alphanumeric or '_' chars and start with an alpha.
      * 
      * @param name - the name to check
      * 
-     * @return true if parameter name is syntactically valid
+     * @return true if Variable name is syntactically valid
      * 
      * @throws ParserException - if not valid
      */
-    private static boolean verifyParamFormat (String name) throws ParserException {
+    private static boolean verifyVariableFormat (String name) throws ParserException {
         String functionId = CLASS_NAME + ".verifyParamFormat: ";
         
         if (name == null) {
-            throw new ParserException(functionId + "parameter name is null");
+            throw new ParserException(functionId + "Variable name is null");
         }
         if (name.isBlank()) {
-            throw new ParserException(functionId + "parameter name is blank");
+            throw new ParserException(functionId + "Variable name is blank");
         }
         boolean bRighthand = false;
         if (name.startsWith("$")) {
@@ -1769,39 +1771,39 @@ public final class ParameterStruct {
         }
         if (! Character.isLetter(name.charAt(0))) {
             // 1st character must be a letter
-            throw new ParserException(functionId + "invalid initial character in parameter name: " + name);
+            throw new ParserException(functionId + "invalid initial character in Variable name: " + name);
         }
 
         // determine if we have a special param type that can take on appendages
-        ParamType type = getParamTypeFromName (name);
+        ParamType type = getVariableTypeFromName (name);
         
             // TODO: we need to do this for the '.' operator as well
             int indexStart = 0;
             int indexEnd = 0;
             for (int ix = 0; ix < name.length(); ix++) {
                 char curch = name.charAt(ix);
-                // valid char for parameter
+                // valid char for Variable
                 if ( (curch == '_') || Character.isLetterOrDigit(curch) ) {
                     if (ix > NAME_MAXLEN) {
-                        throw new ParserException(functionId + "parameter name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
+                        throw new ParserException(functionId + "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
                     }
                 } else {
-                    // this will terminate the parameter search
+                    // this will terminate the Variable search
                     if (curch == ' ' || curch == '=') {
                         break;
                     }
                     if (!bRighthand) {
-                        throw new ParserException(functionId + "Parameter assignment should not include '$': " + name);
+                        throw new ParserException(functionId + "Variable assignment should not include '$': " + name);
                     }
                     if (type != ParamType.String && type != ParamType.StringArray && type != ParamType.IntArray) {
-                        throw new ParserException(functionId + "Parameter extensions are only valid for String and Array types: " + name);
+                        throw new ParserException(functionId + "Variable extensions are only valid for String and Array types: " + name);
                     }
-                    // check for bracket index on Array, List and String parameters
+                    // check for bracket index on Array, List and String Variable
                     switch (curch) {
                         case '[':
                             int offset = name.indexOf(']');
                             if (offset <= 0 || offset >= name.length() - 1) {
-                                throw new ParserException(functionId + "missing end bracket in parameter name: " + name);
+                                throw new ParserException(functionId + "missing end bracket in Variable name: " + name);
                             }
                             try {
                                 indexStart = Utils.getIntValue(name.substring(ix+1)).intValue();
@@ -1814,15 +1816,15 @@ public final class ParameterStruct {
                             // TODO:
                             break;
                         default:
-                            throw new ParserException(functionId + "invalid character '" + curch + "' in parameter name: " + name);
+                            throw new ParserException(functionId + "invalid character '" + curch + "' in Variable name: " + name);
                     }
                 }
             }
             if (indexStart == 0 && name.length() > NAME_MAXLEN) {
-                throw new ParserException(functionId + "parameter name too long (max len " + NAME_MAXLEN + ") in name: " + name);
+                throw new ParserException(functionId + "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name);
             }
             if (indexStart > 0 && indexEnd == 0) {
-                throw new ParserException(functionId + "parameter name index missing ending bracket: " + name);
+                throw new ParserException(functionId + "Variable name index missing ending bracket: " + name);
             }
             
         return true;

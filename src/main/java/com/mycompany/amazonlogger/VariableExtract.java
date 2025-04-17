@@ -12,10 +12,10 @@ import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
  * @author dan
  */
 
-public class ParamExtract {
+public class VariableExtract {
     private static final String CLASS_NAME = "ParamExtract";
     
-    private String  name;           // parameter name (null if not found)
+    private String  name;           // Variable name (null if not found)
     private ParameterStruct.ParamType type; // type of parameter
     private String  equalSign;      // type of '=' sign found (null if none)
     private Integer index;          // associated index [x] for String, StrArray, IntArray params
@@ -33,19 +33,19 @@ public class ParamExtract {
     }
 
     /**
-     * extracts the parameter and any extensions from a command line.
+     * extracts the Variable and any extensions from a command line.
      * 
      * Assumes the 'field' passed to this begins with a parameter name.
      * It can be either a command calculation of the form:
-     *      ParamName = Calculation
+     *      VarName = Calculation
      * Or it can be within the Calculation of the Right-side of the '=':
-     *      $ParamName
+     *      $VarName
      * The 1st case will not have a '$' in front of the parameter name and should
      *   have an '=' sign in it. It cannot have any extensions to it (brackets or
      *   Traits).
-     * The 2nd form must be preceeded by a '$' character and must not have any '='
+     * The 2nd form must be preceded by a '$' character and must not have any '='
      *   character following the parameter name. It can have either brackets
-     *   enclosing a numeric or 2 numerics seperated by a dash or a '.' followed
+     *   enclosing a numeric or 2 numerics separated by a dash or a '.' followed
      *   by a Trait of the parameter if the parameter type supports either of these
      *   (Strings, StrArrays, and IntArrays only).
      * 
@@ -53,7 +53,7 @@ public class ParamExtract {
      * 
      * @throws ParserException 
      */    
-    ParamExtract (String field) throws ParserException {
+    VariableExtract (String field) throws ParserException {
         String functionId = CLASS_NAME + " (new): ";
         
         field = field.strip();
@@ -161,65 +161,65 @@ public class ParamExtract {
         int offRightB = field.indexOf(']');
         if (offTrait > 0) {
             if (! bRightSide) {
-                throw new ParserException(functionId + "Traits only allowed for Right-side parameter usage: " + field + evaluation);
+                throw new ParserException(functionId + "Traits only allowed for Right-side Variable usage: " + field + evaluation);
             }
             // we have a trait combined with the param name
             name = field.substring(0, offTrait);
-            type = ParameterStruct.getParamTypeFromName (name);
+            type = ParameterStruct.getVariableTypeFromName (name);
             if (field.length() > offTrait + 1) {
                 leftover = field.substring(offTrait + 1);
             }
             for (Trait entry : Trait.values()) {
                 if (entry.toString().contentEquals(leftover)) {
                     trait = entry;
-                    frame.outputInfoMsg(STATUS_PROGRAM, "Parameter trait found: " + name + "." + leftover);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "Variable trait found: " + name + "." + leftover);
                     break;
                 }
             }
             if (type != ParameterStruct.ParamType.String && (trait == Trait.LOWER || trait == Trait.UPPER)) {
-                throw new ParserException(functionId + "Invalid Trait for Array parameter: " + leftover);
+                throw new ParserException(functionId + "Invalid Trait for Array Variable: " + leftover);
             }
             if (trait == null) {
-                throw new ParserException(functionId + "Invalid Trait for parameter: " + leftover);
+                throw new ParserException(functionId + "Invalid Trait for Variable: " + leftover);
             }
         } else if (offLeftB > 0) {
             if (! bRightSide) {
-                throw new ParserException(functionId + "Brackets only allowed for Right-side parameter usage: " + field + evaluation);
+                throw new ParserException(functionId + "Brackets only allowed for Right-side Variable usage: " + field + evaluation);
             }
             // we have an index associated with the param
             name = field.substring(0, offLeftB);
-            type = ParameterStruct.getParamTypeFromName (name);
+            type = ParameterStruct.getVariableTypeFromName (name);
             if (field.length() > offRightB && offRightB > offLeftB) {
                 leftover = field.substring(offLeftB + 1, offRightB);
             } else {
-                throw new ParserException(functionId + "Invalid bracketing of parameter: " + name + " = " + leftover);
+                throw new ParserException(functionId + "Invalid bracketing of Variable: " + name + " = " + leftover);
             }
             // now see if we have a single entry or a range
             int offset = leftover.indexOf('-');
             if (offset > 0) {
                 index = Utils.getIntValue (leftover.substring(0, offset)).intValue();
                 indexmax = Utils.getIntValue (leftover.substring(offset+1)).intValue();
-                frame.outputInfoMsg(STATUS_PROGRAM, "Parameter index range found: " + name + "[" + index + "-" + indexmax + "]");
+                frame.outputInfoMsg(STATUS_PROGRAM, "Variable index range found: " + name + "[" + index + "-" + indexmax + "]");
             } else {
                 index = Utils.getIntValue (leftover).intValue();
                 indexmax = null;
-                frame.outputInfoMsg(STATUS_PROGRAM, "Parameter index entry found: " + name + "[" + index + "]");
+                frame.outputInfoMsg(STATUS_PROGRAM, "Variable index entry found: " + name + "[" + index + "]");
             }
         } else {
             // no additional entries, the param name must be by itself
             name = field;
-            type = ParameterStruct.getParamTypeFromName (name);
+            type = ParameterStruct.getVariableTypeFromName (name);
         }
         
-        // verify param name is valid
+        // verify Variable name is valid
         boolean bValid;
         try {
-            bValid = ParameterStruct.isValidParamName(name);
+            bValid = ParameterStruct.isValidVariableName(name);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
         if (! bValid) {
-            throw new ParserException(functionId + "parameter not found: " + name);
+            throw new ParserException(functionId + "Variable not found: " + name);
         }
     }
     

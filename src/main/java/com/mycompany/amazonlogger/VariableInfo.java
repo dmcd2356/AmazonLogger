@@ -4,22 +4,20 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.ParameterStruct.getParamTypeFromName;
-
 /**
  *
  * @author dan
  */
-public class ParamContents {
+public class VariableInfo {
     
-    // this defines characteristics for a referenced parameter
-    private String      name;           // name of parameter
-    private ParameterStruct.ParamType   type;           // parameter classification
+    // this defines characteristics for a referenced Variable
+    private String      name;           // name of Variable
+    private ParameterStruct.ParamType type; // data type classification
     private Integer     index;          // associated index [x] for String, StrArray, IntArray params
     private Integer     indexmax;       // associated ending index for String, StrArray, IntArray params
-    private ParamExtract.Trait trait;   // object after '.' demarcation
+    private VariableExtract.Trait trait;   // object after '.' demarcation
         
-    ParamContents () {
+    VariableInfo () {
         this.name = null;
         this.type = null;
         this.index = null;
@@ -27,15 +25,15 @@ public class ParamContents {
         this.trait = null;
     }
         
-    ParamContents (String name) {
+    VariableInfo (String name) {
         this.name = name;
-        this.type = getParamTypeFromName (name);
+        this.type = ParameterStruct.getVariableTypeFromName (name);
         this.index = null;
         this.indexmax = null;
         this.trait = null;
     }
 
-    ParamContents (ParamExtract paramInfo) {
+    VariableInfo (VariableExtract paramInfo) {
         this.name     = paramInfo.getName();
         this.type     = paramInfo.getType();
         this.index    = paramInfo.getIndex();
@@ -48,7 +46,7 @@ public class ParamContents {
         this.type = type;
     }
     
-    public void setParamTraits (ParamExtract data) {
+    public void setParamTraits (VariableExtract data) {
         this.index    = data.getIndex();
         this.indexmax = data.getIndexEnd();
         this.trait    = data.getTrait();
@@ -70,7 +68,7 @@ public class ParamContents {
         return this.indexmax;
     }
     
-    public ParamExtract.Trait getTrait() {
+    public VariableExtract.Trait getTrait() {
         return this.trait;
     }
 

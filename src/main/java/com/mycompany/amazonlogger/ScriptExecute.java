@@ -262,8 +262,8 @@ public class ScriptExecute {
                 ParameterStruct parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to assigned a value to
                 ParameterStruct parmEqu   = cmdStruct.params.get(1); // element 1 is the assignment type (could be: =, +=, -=, etc)
                 ParameterStruct parmValue = cmdStruct.params.get(2); // element 2 is the value being assigned to it
-                String parmName = parmRef.getParamRefName();
-                ParameterStruct.ParamType type = parmRef.getParamRefType();
+                String parmName = parmRef.getVariableRefName();
+                ParameterStruct.ParamType type = parmRef.getVariableRefType();
                 if (type == null || parmName == null) {
                     parmName = parmRef.getStringValue();
                     type = ParameterStruct.ParamType.String;
@@ -282,17 +282,17 @@ public class ScriptExecute {
                         if (type == ParameterStruct.ParamType.Unsigned) {
                             result &= 0xFFFFFFFF;
                         }
-                        ParameterStruct.modifyIntegerParameter(parmName, result);
+                        ParameterStruct.modifyIntegerVariable(parmName, result);
                         break;
                     case ParameterStruct.ParamType.Boolean:
                         // TODO: allow comparison on right-hand assignment of Boolean
-                        ParameterStruct.modifyBooleanParameter(parmName, parmValue.getBooleanValue());
+                        ParameterStruct.modifyBooleanVariable(parmName, parmValue.getBooleanValue());
                         break;
                     case ParameterStruct.ParamType.IntArray:
-                        ParameterStruct.setIntArrayParameter(parmName, parmValue.getIntArray());
+                        ParameterStruct.setIntArrayVariable(parmName, parmValue.getIntArray());
                         break;
                     case ParameterStruct.ParamType.StringArray:
-                        ParameterStruct.setStrArrayParameter(parmName, parmValue.getStrArray());
+                        ParameterStruct.setStrArrayVariable(parmName, parmValue.getStrArray());
                         break;
                     default:
                     case ParameterStruct.ParamType.String:
@@ -303,7 +303,7 @@ public class ScriptExecute {
                         for (int ix = 2; ix < cmdStruct.params.size(); ix++) {
                             concat += cmdStruct.params.get(ix).getStringValue();
                         }
-                        ParameterStruct.modifyStringParameter(parmName, concat);
+                        ParameterStruct.modifyStringVariable(parmName, concat);
                         break;
                 }
                 break;
@@ -315,7 +315,7 @@ public class ScriptExecute {
                 parmValue = cmdStruct.params.get(1); // element 1 is the value being inserted
                 boolean bSuccess = ParameterStruct.arrayInsertEntry (parmRef.getStringValue(), 0, parmValue.getStringValue());
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + parmRef.getParamRefType().toString() +
+                    throw new ParserException(exceptPreface + parmRef.getVariableRefType().toString() +
                                                 " parameter ref not found: " + parmRef.getStringValue());
                 }
                 break;
@@ -325,7 +325,7 @@ public class ScriptExecute {
                 parmValue = cmdStruct.params.get(1); // element 1 is the value being appended
                 bSuccess = ParameterStruct.arrayAppendEntry (parmRef.getStringValue(), parmValue.getStringValue());
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + parmRef.getParamRefType().toString() +
+                    throw new ParserException(exceptPreface + parmRef.getVariableRefType().toString() +
                                                 " parameter ref not found: " + parmRef.getStringValue());
                 }
                 break;
@@ -338,7 +338,7 @@ public class ScriptExecute {
                 int index = parmIndex.getIntegerValue().intValue();
                 bSuccess = ParameterStruct.arrayModifyEntry (parmRef.getStringValue(), index, parmValue.getStringValue());
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + parmRef.getParamRefType().toString() +
+                    throw new ParserException(exceptPreface + parmRef.getVariableRefType().toString() +
                                                 " parameter ref not found: " + parmRef.getStringValue());
                 }
                 break;
@@ -349,7 +349,7 @@ public class ScriptExecute {
                 index = parmIndex.getIntegerValue().intValue();
                 bSuccess = ParameterStruct.arrayRemoveEntries (parmRef.getStringValue(), index, 1);
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + parmRef.getParamRefType().toString() +
+                    throw new ParserException(exceptPreface + parmRef.getVariableRefType().toString() +
                                                 " parameter ref not found: " + parmRef.getStringValue());
                 }
                 break;
@@ -363,13 +363,13 @@ public class ScriptExecute {
                     iCount = parmIndex.getIntegerValue().intValue();
                     if (iCount > size) {
                         throw new ParserException(exceptPreface + "item count " + iCount +
-                                " exceeds size of " + parmRef.getParamRefType().toString());
+                                " exceeds size of " + parmRef.getVariableRefType().toString());
                     }
                 }
                 int iStart = size - iCount;
                 bSuccess = ParameterStruct.arrayRemoveEntries (parmRef.getStringValue(), iStart, iCount);
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + parmRef.getParamRefType().toString() +
+                    throw new ParserException(exceptPreface + parmRef.getVariableRefType().toString() +
                                                 " parameter ref not found: " + parmRef.getStringValue());
                 }
                 break;
@@ -384,12 +384,12 @@ public class ScriptExecute {
                     iCount = parmIndex.getIntegerValue().intValue();
                     if (iCount > size) {
                         throw new ParserException(exceptPreface + "item count " + iCount +
-                                " exceeds size of " + parmRef.getParamRefType().toString());
+                                " exceeds size of " + parmRef.getVariableRefType().toString());
                     }
                 }
                 bSuccess = ParameterStruct.arrayRemoveEntries (parmRef.getStringValue(), iStart, iCount);
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + parmRef.getParamRefType().toString() +
+                    throw new ParserException(exceptPreface + parmRef.getVariableRefType().toString() +
                                                 " parameter ref not found: " + parmRef.getStringValue());
                 }
                 break;

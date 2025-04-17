@@ -107,14 +107,14 @@ public class CmdOptions {
     }
 
     /**
-     * gets the list of parameter types for a given option command.
+     * gets the list of argument types for a given option command.
      * 
      * @param command - the option command
      * 
      * @return the string of arg types for the command
      *         (empty String if none, null if invalid command)
      */
-    public String getOptionParams(String command) {
+    public String getOptionArgs(String command) {
         OptionList optInfo = null;
         for (OptionList tblEntry : OptionTable) {
             if (tblEntry.optName.contentEquals(command)) {
@@ -190,13 +190,13 @@ public class CmdOptions {
             throw new ParserException(functionId + "Null or empty param list");
         }
 
-        String argTypes = getOptionParams(cmdOption.option);
+        String argTypes = getOptionArgs(cmdOption.option);
         if (argTypes == null) {
             throw new ParserException(functionId + "option is not valid: " + cmdOption.option);
         }
 
         // verify integrity of params
-        ScriptCompile.checkParamTypes (cmdOption, argTypes, -1);
+        ScriptCompile.checkArgTypes (cmdOption, argTypes, -1);
                 
         // now run the command line option command and save any response msg
         ArrayList<String> rsp = executeCmdOption (cmdOption);

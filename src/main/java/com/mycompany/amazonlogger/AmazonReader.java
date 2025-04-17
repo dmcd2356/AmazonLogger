@@ -6,7 +6,9 @@ package com.mycompany.amazonlogger;
 
 // Importing java input/output classes
 import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.io.IOException;
+import java.util.ArrayList;
 import org.apache.tika.exception.TikaException;
 import org.xml.sax.SAXException;
 
@@ -36,12 +38,13 @@ public class AmazonReader {
          
             // run the command line arguments
             try {
-                if (args[0].contentEquals("-f")) {
-                    ScriptCompile fileParser = new ScriptCompile();
+                if (args[0].contentEquals("-f") || args[0].contentEquals("-c")) {
                     if (args.length < 2) {
                         throw new ParserException(functionId + "missing filename argument for option: -f");
                     }
-                    fileParser.runFromFile (args[1]);
+                    boolean bRunExec = args[0].contentEquals("-c");
+                    String fname = args[1];
+                    runFromFile (fname, bRunExec);
                 } else {
                     CmdOptions cmdLine = new CmdOptions();
                     cmdLine.runCommandLine(args);
@@ -67,9 +70,49 @@ public class AmazonReader {
             frame.setDefaultStatus ();
         }
     }
+    
+    /**
+     * runs the program from command line input
+     * 
+     * @param fname - the name of the script file to run
+     * @param bRunExec - TRUE if execute script after compile, FALSE if compile only
+     * 
+     * @throws ParserException
+     * @throws IOException
+     * @throws SAXException
+     * @throws TikaException 
+     */
+    private static void runFromFile (String fname, boolean bRunExec) throws ParserException, IOException, SAXException, TikaException {
+        String functionId = CLASS_NAME + ".runCommandLine: ";
+        
+        frame.outputInfoMsg(STATUS_PROGRAM, "Running from script: " + fname);
+
+        // enable timestamp on log messages
+        frame.elapsedTimerEnable();
+
+        try {
+            // compile the program
+            frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM COMPILE");
+            ScriptCompile compiler = new ScriptCompile();
+            ArrayList<CommandStruct> cmdList = compiler.compileProgram(fname);
+
+            if (bRunExec) {
+                // execute the program by running each 'cmdList' entry
+                frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM EXECUTION");
+                ScriptExecute exec = new ScriptExecute();
+                int cmdIx = 0;
+                while (cmdIx >= 0 && cmdIx < cmdList.size()) {
+                    cmdIx = exec.executeProgramCommand (cmdIx, cmdList.get(cmdIx));
+                }
+            }
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
+        }
+        frame.elapsedTimerDisable();
+    }
 
 }
-    
+
 class ParserException extends Exception
 {
     // Parameterless Constructor
