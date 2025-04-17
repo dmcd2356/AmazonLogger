@@ -28,16 +28,17 @@ public class CmdOptions {
     // S = String, L = String array, U = Unsigned Int, I = Int, A = Int array, B = Boolean
     //   (lowercase if optional, but must be at end of list)
     private final OptionList [] OptionTable = {
-        new OptionList ("-h"        , ""),
-        new OptionList ("-d"        , "U"),
-        new OptionList ("-s"        , "S"),
-        new OptionList ("-l"        , "UB"),
-        new OptionList ("-t"        , "U"),
-        new OptionList ("-c"        , "S"),
-        new OptionList ("-u"        , ""),
-        new OptionList ("-p"        , "S"),
+        new OptionList ("-help"     , ""),
+        new OptionList ("-debug"    , "U"),
+        new OptionList ("-sfile"    , "S"),
+        new OptionList ("-load"     , "UB"),
+        new OptionList ("-tab"      , "U"),
+        new OptionList ("-cfile"    , "S"),
+        new OptionList ("-clip"     , "b"),
+        new OptionList ("-pfile"    , "S"),
         new OptionList ("-prun"     , ""),
-        new OptionList ("-o"        , "s"),
+        new OptionList ("-update"   , ""),
+        new OptionList ("-ofile"    , "s"),
         new OptionList ("-save"     , ""),
 
         new OptionList ("-date"     , "S"),
@@ -141,7 +142,7 @@ public class CmdOptions {
      */
     public void runCommandLine (String [] args) throws ParserException, IOException, SAXException, TikaException {
         // check for help message request
-        if (args[0].contentEquals("-h")) {
+        if (args[0].contentEquals("-help")) {
             helpMessage();
             return;
         }
@@ -195,14 +196,7 @@ public class CmdOptions {
         }
 
         // verify integrity of params
-        int paramCnt = argTypes.length();
-        if (cmdOption.params.isEmpty() && paramCnt > 0) {
-            throw new ParserException(functionId + "Null or empty param list");
-        }
-        if (paramCnt > cmdOption.params.size()) {
-            throw new ParserException(functionId + "Missing parameters in list: required "
-                    + paramCnt + ", only found " + cmdOption.params.size());
-        }
+        ScriptCompile.checkParamTypes (cmdOption, argTypes, -1);
                 
         // now run the command line option command and save any response msg
         ArrayList<String> rsp = executeCmdOption (cmdOption);
@@ -355,53 +349,46 @@ public class CmdOptions {
         String option = cmdLine.option;
         PdfReader pdfReader = null;
         ArrayList<ParameterStruct> params = cmdLine.params;
-        String noret = "<OK>";
 
         frame.outputInfoMsg(STATUS_DEBUG, "      Executing: " + cmdLine.showCommand());
 
         // the rest will be the parameters associated with the option (if any) plus any additional options
         try {
             switch (option) {
-                case "-d":
+                case "-debug":
                     frame.setMessageFlags(params.get(0).getUnsignedValue());
-                    response.add(noret);
                     break;
-                case "-s":
+                case "-sfile":
                     filetype = "Spreadsheet";
                     fname = params.get(0).getStringValue();
                     File ssheetFile = Utils.checkFilename (fname, ".ods", filetype, true);
                     Spreadsheet.selectSpreadsheet(ssheetFile);
-                    response.add(noret);
                     break;
-                case "-l":
+                case "-load":
                     Integer numTabs = params.get(0).getUnsignedValue();
                     boolean bCheckHeader = params.get(1).getBooleanValue();
                     if (numTabs <= 0) {
                         throw new ParserException(functionId + "Invalid number of tabs to load: " + numTabs);
                     }
                     Spreadsheet.loadSheets(numTabs, bCheckHeader);
-                    response.add(noret);
                     break;
-                case "-t":
+                case "-tab":
                     Integer tab = params.get(0).getUnsignedValue();
                     Spreadsheet.selectSpreadsheetTab (tab.toString());
-                    response.add(noret);
                     break;
-                case "-c":
+                case "-cfile":
                     filetype = "Clipboard";
                     fname = params.get(0).getStringValue();
                     File fClip = Utils.checkFilename (fname, ".txt", filetype, false);
                     frame.outputInfoMsg(STATUS_DEBUG, "  " + filetype + " file: " + fClip.getAbsolutePath());
                     AmazonParser amazonParser = new AmazonParser(fClip);
                     amazonParser.parseWebData();
-                    response.add(noret);
                     break;
-                case "-u":
+                case "-update":
                     frame.outputInfoMsg(STATUS_DEBUG, "  Updating spreadsheet from clipboards");
                     AmazonParser.updateSpreadsheet();
-                    response.add(noret);
                     break;
-                case "-p":
+                case "-pfile":
                     filetype = "PDF";
                     fname = params.get(0).getStringValue();
                     File pdfFile = Utils.checkFilename (fname, ".pdf", filetype, false);
@@ -415,9 +402,27 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid date conversion");
                     }
                     pdfReader.processData();
-                    response.add(noret);
                     break;
-                case "-o":
+                case "-clip":
+                    boolean bStrip = false;
+                    if (! params.isEmpty()) {
+                        bStrip = params.get(0).getBooleanValue();
+                    }
+                    
+                    // read from clipboard into response
+                    ClipboardReader clipReader = new ClipboardReader();
+                    String line;
+                    while ((line = clipReader.getLine()) != null) {
+                        if (bStrip) {
+                            line = line.strip();
+                            if (line.isEmpty()) {
+                                continue;
+                            }
+                        }
+                        response.add(line);
+                    }
+                    break;
+                case "-ofile":
                     if (params.isEmpty()) {
                         frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to stdout");
                         frame.setTestOutputFile(null);
@@ -427,12 +432,10 @@ public class CmdOptions {
                         frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to file: " + fname);
                         frame.setTestOutputFile(fname);
                     }
-                    response.add(noret);
                     break;
                 case "-save":
                     // save the spreadsheet and reload so another spreadsheet change can be made
                     Spreadsheet.saveSpreadsheetFile();
-                    response.add(noret);
                     break;
                 case "-date":
                     String strDate = params.get(0).getStringValue();
@@ -467,7 +470,6 @@ public class CmdOptions {
                     }
                     String strTab = props.getPropertiesItem(PropertiesFile.Property.SpreadsheetTab, "0");
                     Spreadsheet.selectSpreadsheetTab (strTab);
-                    response.add(noret);
                     break;
                 case "-maxcol":
                     Integer iCol = Spreadsheet.getSpreadsheetColSize ();
@@ -484,7 +486,6 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     Spreadsheet.setSpreadsheetSize (iCol, iRow);
-                    response.add(noret);
                     break;
                 case "-find":
                     String order = params.get(0).getStringValue();
@@ -508,7 +509,6 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", color = " + iColor);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColorOfTheMonth(iColor));
-                    response.add(noret);
                     break;
                 case "-RGB":
                     iCol = params.get(0).getUnsignedValue();
@@ -518,7 +518,6 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", RGB = " + iRGB);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("RGB", iRGB));
-                    response.add(noret);
                     break;
                 case "-HSB":
                     iCol = params.get(0).getUnsignedValue();
@@ -528,7 +527,6 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", HSB = " + iHSB);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("HSB", iHSB));
-                    response.add(noret);
                     break;
                 case "-cellget":
                     iCol = params.get(0).getUnsignedValue();
@@ -588,7 +586,6 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     Spreadsheet.putSpreadsheetRow(iCol, iRow, arrList);
-                    response.add(noret);
                     break;
                 case "-colput":
                     iCol    = params.get(0).getUnsignedValue();
@@ -598,7 +595,6 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     Spreadsheet.putSpreadsheetCol(iCol, iRow, arrList);
-                    response.add(noret);
                     break;
                 case "-rowcolor":
                     ArrayList<Long> arrLong;
@@ -609,7 +605,6 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     Spreadsheet.putSpreadsheetColorRow(iCol, iRow, arrLong);
-                    response.add(noret);
                     break;
                 case "-colcolor":
                     iCol    = params.get(0).getUnsignedValue();
@@ -619,7 +614,6 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
                     Spreadsheet.putSpreadsheetColorCol(iCol, iRow, arrLong);
-                    response.add(noret);
                     break;
                 default:
                     throw new ParserException(functionId + "Invalid option: " + option);
@@ -638,18 +632,21 @@ public class CmdOptions {
     }
 
     private static void helpMessage() {
-        System.out.println(" -h         = to print this message");
-        System.out.println(" -f <file>  = to execute commands from a script file (*.scr)");
-        System.out.println(" -s <file>  = the name of the spreadsheet file to modify (*.ods)");
-        System.out.println(" -l <tabs> <0|1> = the number of tabs to load from the spreadsheet");
-        System.out.println("              0 if don't check for header, 1 if normal header check");
-        System.out.println(" -t <tab>   = the name (or number) of the tab selection in the spreadsheet");
-        System.out.println(" -p <file>  = the name of the PDF file to execute (*.pdf)");
-        System.out.println(" -c <file>  = the name of the clipboard file to load (*.txt)");
-        System.out.println(" -u         = execute the update of the clipboards loaded");
-        System.out.println(" -save      = save current data to spreadsheet file and reload");
-        System.out.println(" -o <file>  = the name of the file to output results to (default: use stdout)");
-        System.out.println(" -d <flags> = the debug messages to enable when running");
+        System.out.println(" -f <file>      = to execute commands from a script file (*.scr)");
+        System.out.println(" -c <file>      = to run compiler on a script file (*.scr) for error checking");
+        System.out.println("");
+        System.out.println(" -ofile <file>  = the name of the file to output results to (default: use site.properties reference)");
+        System.out.println(" -pfile <file>  = the name of the PDF file to execute (*.pdf) and loads the contents into memory");
+        System.out.println(" -cfile <file>  = the name of the clipboard file to load (*.txt)");
+        System.out.println(" -sfile <file>  = the name of the spreadsheet file to modify (*.ods)");
+        System.out.println(" -load <tabs> <bool> = the number of tabs to load from the spreadsheet");
+        System.out.println("                  FALSE if don't check for header, TRUE if normal header check");
+        System.out.println(" -tab <tab>     = the name (or zero-ref number) of the tab selection in the spreadsheet");
+        System.out.println(" -clip <bool>   = loads the sys clipboard contents into memory (optional TRUE to strip whitespace)");
+        System.out.println(" -prun          = execute the PDF file loaded from the -pfile option");
+        System.out.println(" -update        = execute the update of the clipboards loaded");
+        System.out.println(" -save          = save current data to spreadsheet file and reload");
+        System.out.println(" -debug <flags> = the debug messages to enable when running");
         System.out.println("");
         System.out.println("     The debug flag values are hex bit values and defined as:");
         System.out.println("     x01 =   1 = STATUS_NORMAL");
@@ -663,35 +660,28 @@ public class CmdOptions {
         System.out.println();
         System.out.println("The following commands test special features:");
         System.out.println();
-        System.out.println(" -date  <date value>  = display the date converted to YYYY-MM-DD format (assume future)");
-        System.out.println(" -datep <date value>  = display the date converted to YYYY-MM-DD format (assume past)");
+        System.out.println(" -date  <date value>  = get the date converted to YYYY-MM-DD format (assume future)");
+        System.out.println(" -datep <date value>  = get the date converted to YYYY-MM-DD format (assume past)");
         System.out.println(" -default <0|1>       = load the last spreadsheet and tab selection");
         System.out.println("                        0 if don't check for header, 1 if normal header check");
-        System.out.println(" -maxcol              = display the number of columns in the spreadsheet");
-        System.out.println(" -maxrow              = display the number of rows    in the spreadsheet");
+        System.out.println(" -maxcol              = get the number of columns in the spreadsheet");
+        System.out.println(" -maxrow              = get the number of rows    in the spreadsheet");
         System.out.println(" -setsize <col> <row> = set the col and row size of the loaded spreadsheet");
-        System.out.println(" -find    <order #>   = display the spreadsheet 1st row containing order#");
-        System.out.println(" -class   <col> <row> = display the spreadsheet cell class type");
-        System.out.println(" -cellget <col> <row> = display the spreadsheet cell data");
-        System.out.println(" -cellclr <col> <row> = clear the spreadsheet cell data");
-        System.out.println(" -cellput <col> <row> <text> = write the spreadsheet cell data");
-        System.out.println("          (if more than 1 word, must wrap in quotes)");
-        System.out.println(" -color   <col> <row> <color> = set cell background to color of the month (0 to clear)");
-        System.out.println(" -RGB     <col> <row> <RGB> = set cell background to specified RGB hexadecimal color");
-        System.out.println(" -HSB     <col> <row> <HSB> = set cell background to specified HSB hexadecimal color");
+        System.out.println(" -find    <order #>   = get the spreadsheet 1st row containing order#");
+        System.out.println(" -class   <col> <row>          = get the spreadsheet cell class type");
+        System.out.println(" -color   <col> <row> <color>  = set cell background to color of the month (0 to clear)");
+        System.out.println(" -RGB     <col> <row> <RGB>    = set cell background to specified RGB hexadecimal color");
+        System.out.println(" -HSB     <col> <row> <HSB>    = set cell background to specified HSB hexadecimal color");
+        System.out.println(" -cellclr <col> <row>          = clear the spreadsheet cell data");
+        System.out.println(" -cellget <col> <row>          = get the spreadsheet cell data");
+        System.out.println(" -cellput <col> <row> <text>   = set the spreadsheet cell data");
+        System.out.println(" -rowget  <col> <row>          = get the spreadsheet cell data from a row");
+        System.out.println(" -rowput  <col> <row> <array>  = set the spreadsheet cell data for a row");
+        System.out.println(" -rowcolor <col> <row> <array> = set the spreadsheet background color for a row");
+        System.out.println(" -colget  <col> <row>          = get the spreadsheet cell data from a column");
+        System.out.println(" -colput  <col> <row> <array>  = set the spreadsheet cell data for a column");
+        System.out.println(" -colcolor <col> <row> <array> = set the spreadsheet background color for a column");
         System.out.println();
-        System.out.println(" The -s option is required, since it specifies the spreadsheet to work with.");
-        System.out.println("");
-        System.out.println(" The -p and the -c options are optional and specify the input files to parse.");
-        System.out.println("   Multiple Clipboard files can be specified to run back to back.");
-        System.out.println("   If neither is specified, it will simply open the Spreadsheet file and close it.");
-        System.out.println("");
-        System.out.println(" The -o option is optional. If not given, it will be output to the file specified");
-        System.out.println("   by the 'TestFileOut' entry in the site.properties file.");
-        System.out.println("   If the properties file doesn't exist or 'TestFileOut' is not defined in it or");
-        System.out.println("   the -o option omitted a <file> entry, all reporting will be output to stdout.");
-        System.out.println("   If outputting to a file and the file currently exists, it will be overwritten.");
-        System.out.println("");
         System.out.println(" The path used for the all files is the value of the 'TestPath' entry in the");
         System.out.println("   site.properties file. If the properties file doesn't exist or 'TestPath'");
         System.out.println("   is not defined in it, the current directory will be used as the path.");

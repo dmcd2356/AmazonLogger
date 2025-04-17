@@ -36,23 +36,17 @@ public class ScriptCompile {
     /**
      * runs the program from command line input
      * 
-     * @param args - the list of options to execute (-f to run commands from a file)
+     * @param fname - the name of the script file to run
      * 
      * @throws ParserException
      * @throws IOException
      * @throws SAXException
      * @throws TikaException 
      */
-    public void runFromFile (String[] args) throws ParserException, IOException, SAXException, TikaException {
+    public void runFromFile (String fname) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + ".runCommandLine: ";
         
-        frame.outputInfoMsg(STATUS_PROGRAM, "command line entered: " + String.join(" ", args));
-
-        // we will run commands from a file instead of the command line.
-        // get the file name and verify it exists
-        if (args.length < 2) {
-            throw new ParserException(functionId + "missing argument for option: " + args[0]);
-        }
+        frame.outputInfoMsg(STATUS_PROGRAM, "Running from script: " + fname);
 
         // enable timestamp on log messages
         frame.elapsedTimerEnable();
@@ -60,7 +54,7 @@ public class ScriptCompile {
         try {
             // compile the program
             frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM COMPILE");
-            ArrayList<CommandStruct> cmdList = compileProgram(args[1]);
+            ArrayList<CommandStruct> cmdList = compileProgram(fname);
 
             // execute the program by running each 'cmdList' entry
             frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM EXECUTION");
@@ -84,9 +78,12 @@ public class ScriptCompile {
      * 
      * @throws ParserException 
      */
-    private static void checkParamTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
+    public static void checkParamTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
         String functionId = CLASS_NAME + ".checkParamTypes: ";
-        String prefix = functionId + "line " + linenum + ", " + command + " - ";
+        String prefix = command + " - ";
+        if (linenum >= 0) {  // omit the line numberinfo if < 0
+            prefix = "line " + linenum + ", " + prefix;
+        }
         
         // determine the min and max number of parameters
         int min = 0;
@@ -101,14 +98,14 @@ public class ScriptCompile {
         
         // verify we have the correct number of parameters
         if (command.params.size() < min || command.params.size() > max) {
-            throw new ParserException(prefix + "Invalid number of parameters: " + command.params.size() + " (range " + min + " to " + max + ")");
+            throw new ParserException(functionId + prefix + "Invalid number of parameters: " + command.params.size() + " (valid = " + validTypes + ")");
         }
         
         // now verify the types
         for (int ix = 0; ix < command.params.size(); ix++) {
             char reqType = Character.toUpperCase(validTypes.charAt(ix));
             if (! command.params.get(ix).isValidForType (reqType)) {
-                throw new ParserException(prefix + "Invalid param[" + ix + "] type '" + reqType + "'");
+                throw new ParserException(functionId + prefix + "Invalid param[" + ix + "] type '" + reqType + "'");
             }
         }
     }

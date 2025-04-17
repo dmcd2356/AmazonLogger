@@ -38,7 +38,10 @@ public class AmazonReader {
             try {
                 if (args[0].contentEquals("-f")) {
                     ScriptCompile fileParser = new ScriptCompile();
-                    fileParser.runFromFile (args);
+                    if (args.length < 2) {
+                        throw new ParserException(functionId + "missing filename argument for option: -f");
+                    }
+                    fileParser.runFromFile (args[1]);
                 } else {
                     CmdOptions cmdLine = new CmdOptions();
                     cmdLine.runCommandLine(args);

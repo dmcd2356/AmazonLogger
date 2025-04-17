@@ -9,10 +9,7 @@ TODO:
     - allow setting Boolean param to the result of a Comparison
     - add command to search StrArray and IntArray for a value given a starting index (returns index or -1)
     - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
-    - read the PDF file into a StrArray that is accessible
-    - read the clipboard (file and actual clipbaord) into a StrArray that is accessible Clipboard.
     - cleanup error handling messages.
-    - add Runtime Error Policy Handling feature.
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with
     certain debug messages enabled. Then capturing the debug output and comparing them to expected
     results.
@@ -22,9 +19,11 @@ TESTING PHASE:
  * add the ability to use '+=' for a String param
  * add the ability to use an operation prior to the '=' in a Calculation
  * add functionality for the Array commands
- * add a command to output text to the console
+ * add command to output text to the console
  * add commands to open, read, write, and close a file
  * add command to read a row of data from the Spreadsheet into a StrArray
  * add command to read a column of data from the Spreadsheet into a StrArray
- * add a command to clear the contents of the RESPONSE array
+ * add command to clear the contents of the RESPONSE array
+ * add command to read the PDF file into a StrArray that is accessible
+ * add command to read the clipboard into a StrArray that is accessible Clipboard.
 
