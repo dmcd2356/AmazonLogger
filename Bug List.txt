@@ -6,7 +6,7 @@ TODO:
 - Fix the issue of removing the OCR capability in the Tika jar for reading the PDF file. This
     is causing the processing to slow down.
 - Add the following PROGRAM features:
-    - allow setting Boolean param to the result of a Comparison
+    - Fix Boolean Comparison of String param to discreet String - the discreet value includes the quotes.
     - add command to search StrArray and IntArray for a value given a starting index (returns index or -1)
     - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
     - cleanup error handling messages.
@@ -26,4 +26,5 @@ TESTING PHASE:
  * add command to clear the contents of the RESPONSE array
  * add command to read the PDF file into a StrArray that is accessible
  * add command to read the clipboard into a StrArray that is accessible Clipboard.
+ * allow setting Boolean param to the result of a Comparison
 

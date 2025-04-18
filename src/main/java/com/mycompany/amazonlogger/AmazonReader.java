@@ -42,7 +42,7 @@ public class AmazonReader {
                     if (args.length < 2) {
                         throw new ParserException(functionId + "missing filename argument for option: -f");
                     }
-                    boolean bRunExec = args[0].contentEquals("-c");
+                    boolean bRunExec = args[0].contentEquals("-f");
                     String fname = args[1];
                     runFromFile (fname, bRunExec);
                 } else {

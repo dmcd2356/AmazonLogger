@@ -265,30 +265,29 @@ public class ScriptCompile {
                     ParameterStruct.ParamType ptype = ParameterStruct.getVariableTypeFromName(parmString);
                     if (cmdStruct.params.size() > 3) {
                         switch (ptype) {
-                            case ParameterStruct.ParamType.Integer:
-                            case ParameterStruct.ParamType.Unsigned:
+                            case ParameterStruct.ParamType.Integer,
+                                 ParameterStruct.ParamType.Unsigned,
+                                 ParameterStruct.ParamType.Boolean -> {
                                 cmdStruct.params = packCalculation (parmString, ptype);
                                 ParameterStruct.showParamTypeList(cmdStruct.params);
-                                break;
-                            case ParameterStruct.ParamType.Boolean:
-                                // TODO: The form should be: ParamName = Calculation compSign Calculation
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " Boolean entries cannot perform complex comparisons yet!");
-                                //break;
-                            case ParameterStruct.ParamType.String:
+                            }
+                            case ParameterStruct.ParamType.String -> {
                                 // go through all the arg list and remove all the "+" entries
                                 // that way, all we have left is a list of all the Strings to add
                                 for (int ix = cmdStruct.params.size() - 2; ix >= 3; ix-=2) {
                                     String sign = cmdStruct.params.get(ix).getStringValue();
-                                    if (sign.contentEquals("+"))
+                                    if (sign.contentEquals("+")) {
                                         cmdStruct.params.remove(ix);
-                                    else
+                                    }
+                                    else {
                                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " Invalid String concatenation");
+                                    }
                                 }
-                                break;
-                            default:
+                            }
+                            default -> {
                                 // Strings are handled in the execution phase
                                 // Arrays are not allowed to have any operations, just simple assignments
-                                break;
+                            }
                         }
                     }
                     break;
@@ -875,7 +874,9 @@ public class ScriptCompile {
     private ArrayList<ParameterStruct> packCalculation (String line, ParameterStruct.ParamType ptype) throws ParserException {
         String functionId = CLASS_NAME + ".packCalculation: ";
 
-        if (ptype != ParameterStruct.ParamType.Unsigned && ptype != ParameterStruct.ParamType.Integer) {
+        if (ptype != ParameterStruct.ParamType.Unsigned &&
+            ptype != ParameterStruct.ParamType.Integer  &&
+            ptype != ParameterStruct.ParamType.Boolean) {
             throw new ParserException(functionId + "Assignment command not allowed for type: " + ptype);
         }
         
@@ -927,13 +928,16 @@ public class ScriptCompile {
         // bitwise ops are only allowed for Unsigned type
         if (ptype != ParameterStruct.ParamType.Unsigned) {
             if (newOp.equals("AND") || newOp.equals("OR") || newOp.equals("XOR")) {
-                throw new ParserException(functionId + "Bitwise assignments not allowed for type: " + ptype);
+                throw new ParserException(functionId + "Bitwise assignments not allowed for type: " + ptype + ": " + newOp);
             }
+        } else if (ptype == ParameterStruct.ParamType.Boolean && ! newOp.equals("=")) {
+            throw new ParserException(functionId + "No modifiers in equals allowed for type: " + ptype + ": " + newOp);
         }
         
         // this will pack the "=" sign
-        parm = new ParameterStruct("=", ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
-        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type S value: =");
+        ParameterStruct.ParamType newParam = ParameterStruct.ParamType.String;
+        parm = new ParameterStruct("=", ParameterStruct.ParamClass.Discrete, newParam);
+        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + newParam + " value: =");
         params.add(parm);
         
         // if there was an operation preceeding the "=" sign, let's sneek the operation in here
@@ -945,15 +949,97 @@ public class ScriptCompile {
             // (the parenthesis are included to assure that the newOp operation is performed last.
             line = "$" + paramName + " " + newOp + " (" + line + ")";
         }
+
+        // by default, the next parameter to add is a Calculation
+        ParameterStruct.ParamClass pclass = ParameterStruct.ParamClass.Calculation;
+
+        // check if Boolean type, which must have a comparison of 2 calculations
+        if (ptype == ParameterStruct.ParamType.Boolean) {
+            String compSign = "==";
+            int offset = line.indexOf(compSign);
+            if (offset <= 0) {
+                compSign = ">=";
+                offset = line.indexOf(compSign);
+            }
+            if (offset <= 0) {
+                compSign = "<=";
+                offset = line.indexOf(compSign);
+            }
+            if (offset <= 0) {
+                compSign = ">";
+                offset = line.indexOf(compSign);
+            }
+            if (offset <= 0) {
+                compSign = "<";
+                offset = line.indexOf(compSign);
+            }
+            if (offset <= 0) {
+                throw new ParserException(functionId + "Boolean missing a comparison statement: " + line);
+            }
+            String prefix = line.substring(0, offset).strip();
+            line = line.substring(offset + compSign.length()).strip();
+            
+            // first add the initial Calculation value, which will usually be a Variable or a Discreet value.
+            // Need to determine if the comp value is a single entry and is NOT a numeric (ie. String comparison).
+            // If both entries are either a discreet string or string variable, we will do a String comparison,
+            //  otherwise we will do an Integer comparison. This is because for String comparisons we only
+            //  allow the format: String1 compSign String2 , where the Strings are either a String Variable or
+            //  one or the other is a quoted string.
+            if (isStringEntry(prefix) && isStringEntry(line)) {
+                ptype = ParameterStruct.ParamType.String;
+                pclass = (prefix.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
+            } else {
+                ptype = ParameterStruct.ParamType.Integer;
+                pclass = ParameterStruct.ParamClass.Calculation;
+            }
+            parm = new ParameterStruct(prefix, pclass, ptype);
+            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + prefix);
+            params.add(parm);
+        
+            // now add the comparison sign
+            parm = new ParameterStruct(compSign, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
+            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + compSign);
+            params.add(parm);
+            
+            // now we can fall through to adding the other side of the comparison, which is another Calculation
+            if (isStringEntry(prefix) && isStringEntry(line)) {
+                pclass = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
+            }
+        }
         
         // remaining data is the Calculation, which may be a single value or a complex formula
-        parm = new ParameterStruct(line, ParameterStruct.ParamClass.Calculation, ptype);
-        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type C value: " + line);
+        parm = new ParameterStruct(line, pclass, ptype);
+        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
         params.add(parm);
         
         return params;
     }
     
+    /**
+     * determine if the line is a string variable or a discreet string.
+     * 
+     * @param line - the string containing 0 or more words
+     * 
+     * @return the next word in the line (empty string if no more words)
+     * 
+     * @throws ParserException
+     */
+    private static boolean isStringEntry (String line) throws ParserException {
+        String functionId = CLASS_NAME + ".isStringEntry: ";
+
+        if (line.isBlank()) {
+            throw new ParserException(functionId + "Empty String in Calculation");
+        }
+        if (line.charAt(0) == '\"' && line.charAt(line.length()-1) == '\"') {
+            return true;
+        }
+        int offset = line.indexOf(" ");
+        if (line.charAt(0) != '$' || offset > 0) {
+            return false;
+        }
+        return ParameterStruct.getVariableTypeFromName(line) == ParameterStruct.ParamType.String;
+    }
+
     /**
      * get the next word in a string of words.
      * 

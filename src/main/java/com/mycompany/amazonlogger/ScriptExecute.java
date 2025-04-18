@@ -14,6 +14,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Objects;
 import org.apache.tika.exception.TikaException;
 import org.xml.sax.SAXException;
 
@@ -272,7 +273,6 @@ public class ScriptExecute {
                 switch (type) {
                     case ParameterStruct.ParamType.Integer:
                     case ParameterStruct.ParamType.Unsigned:
-                        // TODO: use 'parmEqu' (the type of assignment) in the calculation
                         Long result;
                         if (parmValue.isCalculation()) {
                             result = parmValue.getCalculationValue(type);
@@ -285,9 +285,25 @@ public class ScriptExecute {
                         ParameterStruct.modifyIntegerVariable(parmName, result);
                         break;
                     case ParameterStruct.ParamType.Boolean:
-                        // TODO: allow comparison on right-hand assignment of Boolean
-                        ParameterStruct.modifyBooleanVariable(parmName, parmValue.getBooleanValue());
+                        switch (cmdStruct.params.size()) {
+                            case 3:
+                                // simple assignment: VariableName = Boolean
+                                ParameterStruct.modifyBooleanVariable(parmName, parmValue.getBooleanValue());
+                                break;
+                            case 5:
+                                // Boolean comparison: VariableName = Calculation1 CompSign Calculation2
+                                ParameterStruct parmComp   = cmdStruct.params.get(3);
+                                ParameterStruct parmValue2 = cmdStruct.params.get(4);
+                                Comparison comp = new Comparison (parmValue, parmValue2, parmComp.getStringValue());
+                                boolean bResult = comp.getStatus();
+                                ParameterStruct.modifyBooleanVariable(parmName, bResult);
+                                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Boolean Variable " + parmName + " = " + bResult);
+                                break;
+                            default:
+                                throw new ParserException(exceptPreface + " invalid Boolean comparison - too many values: " + cmdStruct.params.size());
+                        }
                         break;
+
                     case ParameterStruct.ParamType.IntArray:
                         ParameterStruct.setIntArrayVariable(parmName, parmValue.getIntArray());
                         break;
