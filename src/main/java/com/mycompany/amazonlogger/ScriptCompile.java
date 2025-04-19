@@ -978,21 +978,47 @@ public class ScriptCompile {
             }
             String prefix = line.substring(0, offset).strip();
             line = line.substring(offset + compSign.length()).strip();
-            
-            // first add the initial Calculation value, which will usually be a Variable or a Discreet value.
+
             // Need to determine if the comp value is a single entry and is NOT a numeric (ie. String comparison).
             // If both entries are either a discreet string or string variable, we will do a String comparison,
             //  otherwise we will do an Integer comparison. This is because for String comparisons we only
             //  allow the format: String1 compSign String2 , where the Strings are either a String Variable or
             //  one or the other is a quoted string.
-            if (isStringEntry(prefix) && isStringEntry(line)) {
-                ptype = ParameterStruct.ParamType.String;
-                pclass = (prefix.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
+            boolean bCalc = false;
+            boolean bQuote = false;
+            // if we have more than 1 entry on either side, it must be a numeric calculation
+            if (countArgs(prefix) > 1 || countArgs(line) > 1) {
+                bCalc = true;
             } else {
-                ptype = ParameterStruct.ParamType.Integer;
-                pclass = ParameterStruct.ParamClass.Calculation;
+                // or, if either entry is a quoted string, remove the quotes from it
+                bQuote = (prefix.charAt(0) == '\"' || line.charAt(0) == '\"');
+                prefix = extractQuotedString (prefix);
+                line   = extractQuotedString (line);
             }
-            parm = new ParameterStruct(prefix, pclass, ptype);
+            
+            if (! bCalc && ! bQuote) {
+                // if neither of the above, let's determine if the entries are numeric or not.
+                char ctype1 = ParameterStruct.classifyDataType(prefix);
+                char ctype2 = ParameterStruct.classifyDataType(line);
+                if ((ctype1 == 'I' || ctype1 == 'U') || (ctype2 == 'I' || ctype2 == 'U')) {
+                    bCalc = true;
+                }
+            }
+            
+            // now set the type of comparison we are doing: Integer or String.
+            ParameterStruct.ParamClass pclassPre;
+            if (bCalc) {
+                ptype = ParameterStruct.ParamType.Integer;
+                pclassPre = ParameterStruct.ParamClass.Calculation;
+                pclass    = ParameterStruct.ParamClass.Calculation;
+            } else {
+                ptype = ParameterStruct.ParamType.String;
+                pclassPre = (prefix.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
+                pclass    = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
+            }
+
+            // first add the initial Calculation value, which will usually be a Variable or a Discreet value.
+            parm = new ParameterStruct(prefix, pclassPre, ptype);
             frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + prefix);
             params.add(parm);
         
@@ -1000,11 +1026,11 @@ public class ScriptCompile {
             parm = new ParameterStruct(compSign, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
             frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + compSign);
             params.add(parm);
-            
-            // now we can fall through to adding the other side of the comparison, which is another Calculation
-            if (isStringEntry(prefix) && isStringEntry(line)) {
-                pclass = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
-            }
+//            
+//            // now we can fall through to adding the other side of the comparison, which is another Calculation
+//            if (isStringEntry(prefix) && isStringEntry(line)) {
+//                pclass = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
+//            }
         }
         
         // remaining data is the Calculation, which may be a single value or a complex formula
@@ -1016,28 +1042,57 @@ public class ScriptCompile {
     }
     
     /**
-     * determine if the line is a string variable or a discreet string.
+     * determine the number of arguments in the string.
      * 
      * @param line - the string containing 0 or more words
      * 
-     * @return the next word in the line (empty string if no more words)
+     * @return the number of arguments found
      * 
      * @throws ParserException
      */
-    private static boolean isStringEntry (String line) throws ParserException {
-        String functionId = CLASS_NAME + ".isStringEntry: ";
-
+    private static int countArgs (String line) throws ParserException {
+        line = line.strip();
         if (line.isBlank()) {
-            throw new ParserException(functionId + "Empty String in Calculation");
+            return 0;
         }
         if (line.charAt(0) == '\"' && line.charAt(line.length()-1) == '\"') {
-            return true;
+            return 1;
         }
-        int offset = line.indexOf(" ");
-        if (line.charAt(0) != '$' || offset > 0) {
-            return false;
+
+        int count = 1;
+        for (int ix = 0; ix < line.length(); ix++) {
+            if (line.charAt(ix) != ' ') {
+                int offset = line.indexOf(" ", ix);
+                if (offset < 0) {
+                    break;
+                }
+                ix = offset;
+                count++;
+            }
         }
-        return ParameterStruct.getVariableTypeFromName(line) == ParameterStruct.ParamType.String;
+        return count;
+    }
+
+    /**
+     * extracts the contents within a quoted string.
+     * 
+     * @param line - the string to extract the data from
+     * 
+     * @return the string value between the quotes (original string if it is not a quoted string)
+     * 
+     * @throws ParserException
+     */
+    private static String extractQuotedString (String line) throws ParserException {
+        String functionId = CLASS_NAME + ".extractQuotedString: ";
+
+        if (line == null || line.isBlank() || line.charAt(0) != '\"') {
+            return line;
+        }
+        int offset = line.indexOf('\"', 1);
+        if (offset < 0) {
+            throw new ParserException(functionId + "Missing ending quote for String");
+        }
+        return line.substring(1, offset);
     }
 
     /**

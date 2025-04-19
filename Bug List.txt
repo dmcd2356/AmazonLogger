@@ -6,6 +6,8 @@ TODO:
 - Fix the issue of removing the OCR capability in the Tika jar for reading the PDF file. This
     is causing the processing to slow down.
 - Add the following PROGRAM features:
+    - add subroutine calls (SUB, RETURN) and getting the return value $RETURN
+    - add loading other script files (LOAD. CALL)
     - Fix Boolean Comparison of String param to discreet String - the discreet value includes the quotes.
     - add command to search StrArray and IntArray for a value given a starting index (returns index or -1)
     - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
