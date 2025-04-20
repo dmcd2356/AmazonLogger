@@ -575,7 +575,7 @@ public class Utils {
      * @throws ParserException
      */
     public static boolean compareParameterValues (Long param1, Long param2, String compType) throws ParserException {
-        String functionId = CLASS_NAME + ".compareParameterValues: ";
+        String functionId = CLASS_NAME + ".compareParameterValues (I): ";
         
         boolean bExit = false;
         
@@ -590,10 +590,10 @@ public class Utils {
                 break;
             case "!=":  if (!Objects.equals(param1, param2)) bExit = true;
                 break;
-            default:
-            case "=":
             case "==":  if (Objects.equals(param1, param2)) bExit = true;
                 break;
+            default:
+                throw new ParserException(functionId + "Invalid comparison sign: " + compType);
         }
         frame.outputInfoMsg(STATUS_DEBUG, functionId + " " + param1 + " " + compType + " " + param2 + " " + bExit);
         return bExit;
@@ -611,7 +611,7 @@ public class Utils {
      * @throws ParserException
      */
     public static boolean compareParameterValues (Integer param1, Integer param2, String compType) throws ParserException {
-        String functionId = CLASS_NAME + ".compareParameterValues: ";
+        String functionId = CLASS_NAME + ".compareParameterValues (U): ";
         
         boolean bExit = false;
         
@@ -626,10 +626,10 @@ public class Utils {
                 break;
             case "!=":  if (!Objects.equals(param1, param2)) bExit = true;
                 break;
-            default:
-            case "=":
             case "==":  if (Objects.equals(param1, param2)) bExit = true;
                 break;
+            default:
+                throw new ParserException(functionId + "Invalid comparison sign: " + compType);
         }
         frame.outputInfoMsg(STATUS_DEBUG, functionId + " " + param1 + " " + compType + " " + param2 + " " + bExit);
         return bExit;
@@ -647,7 +647,7 @@ public class Utils {
      * @throws ParserException
      */
     public static boolean compareParameterValues (String param1, String param2, String compType) throws ParserException {
-        String functionId = CLASS_NAME + ".compareParameterValues: ";
+        String functionId = CLASS_NAME + ".compareParameterValues (S): ";
         
         boolean bExit = false;
         
@@ -662,10 +662,10 @@ public class Utils {
                 break;
             case "!=":  if (param1.compareTo(param2) != 0) bExit = true;
                 break;
-            default:
-            case "=":
             case "==":  if (param1.compareTo(param2) == 0) bExit = true;
                 break;
+            default:
+                throw new ParserException(functionId + "Invalid comparison sign: " + compType);
         }
         frame.outputInfoMsg(STATUS_DEBUG, functionId + " '" + param1 + "' " + compType + " '" + param2 + "' " + bExit);
         return bExit;

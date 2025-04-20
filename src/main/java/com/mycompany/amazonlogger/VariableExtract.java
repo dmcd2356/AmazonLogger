@@ -172,7 +172,7 @@ public class VariableExtract {
             for (Trait entry : Trait.values()) {
                 if (entry.toString().contentEquals(leftover)) {
                     trait = entry;
-                    frame.outputInfoMsg(STATUS_PROGRAM, "Variable trait found: " + name + "." + leftover);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "Variable trait found: ." + trait.toString() + " in " + name);
                     break;
                 }
             }

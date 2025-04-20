@@ -25,7 +25,7 @@ public class AmazonReader {
     // Main driver method
     public static void main(String[] args)
     {
-        String functionId = CLASS_NAME + "main: ";
+        String functionId = CLASS_NAME + ".main: ";
 
         // check for arguments passed (non-GUI interface for testing):
         if (args.length > 0) {

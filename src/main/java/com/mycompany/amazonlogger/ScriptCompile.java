@@ -247,8 +247,8 @@ public class ScriptCompile {
                     //  to do anything with this command.
                     // Multiple Variables can be defined on one line, with the names comma separated.
                     ParameterStruct list = cmdStruct.params.getFirst();
-                    for (int ix = 0; ix < list.getListSize(); ix++) {
-                        String pName = list.getListElement(ix);
+                    for (int ix = 0; ix < list.getStrArraySize(); ix++) {
+                        String pName = list.getStrArrayElement(ix);
                         try {
                             // allocate the Variable
                             ParameterStruct.allocateVariable(pName);
@@ -423,7 +423,8 @@ public class ScriptCompile {
                     
                 case CommandStruct.CommandTable.IF:
                     // verify number and type of arguments
-                    checkArgTypes(cmdStruct, "ISI", cmdIndex);
+                    cmdStruct.params = packComparison (parmString);
+                    ParameterStruct.showParamTypeList(cmdStruct.params);
 
                     // read the arguments passed
                     // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Variables)
@@ -460,6 +461,7 @@ public class ScriptCompile {
                     
                     // read the arguments passed
                     // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Variables)
+                    cmdStruct.params = packComparison (parmString);
                     ifName = cmdStruct.params.get(0).getStringValue();
                     
                     // save the current command index in the current if structure
@@ -858,11 +860,13 @@ public class ScriptCompile {
 
     /**
      * This takes a command line and extracts the calculation parameter list from it.
-     * This will be in the form:  ParamName = Calculation
-     *      (+=, -=, *=, ... also allowed in place of =)
-     * where: Calculation will be a string or one or more value/parameters with
+     * For Integers and Unsigneds this will be in the form:
+     *      VarName = Calculation     (+=, -=, *=, ... also allowed in place of =)
+     * For Booleans, it will be:
+     *      VarName = Calculation compSign Calculation  (compSign: { ==, !=, >=, <=, >, < }
+     * 
+     * where: Calculation will be a string or one or more values/variables with
      *        associated parenthesis and operations.
-     * Note that this method is only valid for Integer and Unsigned parameters.
      * 
      * @param line  - the string of parameters to separate and classify
      * @param ptype - the type of parameter being set
@@ -897,6 +901,9 @@ public class ScriptCompile {
         if (line.contentEquals(paramName)) {
             throw new ParserException(functionId + "no arguments following parameter name: " + line);
         }
+
+        frame.outputInfoMsg(STATUS_PROGRAM, "     * Repacking parameters for Calculation");
+        
         // the 1st argument of a SET command is the parameter name to assign the value to
         line = line.substring(paramName.length()).strip();
         parm = new ParameterStruct(paramName, ParameterStruct.ParamClass.Reference, ptype);
@@ -950,97 +957,158 @@ public class ScriptCompile {
             line = "$" + paramName + " " + newOp + " (" + line + ")";
         }
 
-        // by default, the next parameter to add is a Calculation
-        ParameterStruct.ParamClass pclass = ParameterStruct.ParamClass.Calculation;
-
         // check if Boolean type, which must have a comparison of 2 calculations
         if (ptype == ParameterStruct.ParamType.Boolean) {
-            String compSign = "==";
-            int offset = line.indexOf(compSign);
-            if (offset <= 0) {
-                compSign = ">=";
-                offset = line.indexOf(compSign);
-            }
-            if (offset <= 0) {
-                compSign = "<=";
-                offset = line.indexOf(compSign);
-            }
-            if (offset <= 0) {
-                compSign = ">";
-                offset = line.indexOf(compSign);
-            }
-            if (offset <= 0) {
-                compSign = "<";
-                offset = line.indexOf(compSign);
-            }
-            if (offset <= 0) {
-                throw new ParserException(functionId + "Boolean missing a comparison statement: " + line);
-            }
-            String prefix = line.substring(0, offset).strip();
-            line = line.substring(offset + compSign.length()).strip();
-
-            // Need to determine if the comp value is a single entry and is NOT a numeric (ie. String comparison).
-            // If both entries are either a discreet string or string variable, we will do a String comparison,
-            //  otherwise we will do an Integer comparison. This is because for String comparisons we only
-            //  allow the format: String1 compSign String2 , where the Strings are either a String Variable or
-            //  one or the other is a quoted string.
-            boolean bCalc = false;
-            boolean bQuote = false;
-            // if we have more than 1 entry on either side, it must be a numeric calculation
-            if (countArgs(prefix) > 1 || countArgs(line) > 1) {
-                bCalc = true;
-            } else {
-                // or, if either entry is a quoted string, remove the quotes from it
-                bQuote = (prefix.charAt(0) == '\"' || line.charAt(0) == '\"');
-                prefix = extractQuotedString (prefix);
-                line   = extractQuotedString (line);
-            }
-            
-            if (! bCalc && ! bQuote) {
-                // if neither of the above, let's determine if the entries are numeric or not.
-                char ctype1 = ParameterStruct.classifyDataType(prefix);
-                char ctype2 = ParameterStruct.classifyDataType(line);
-                if ((ctype1 == 'I' || ctype1 == 'U') || (ctype2 == 'I' || ctype2 == 'U')) {
-                    bCalc = true;
-                }
-            }
-            
-            // now set the type of comparison we are doing: Integer or String.
-            ParameterStruct.ParamClass pclassPre;
-            if (bCalc) {
-                ptype = ParameterStruct.ParamType.Integer;
-                pclassPre = ParameterStruct.ParamClass.Calculation;
-                pclass    = ParameterStruct.ParamClass.Calculation;
-            } else {
-                ptype = ParameterStruct.ParamType.String;
-                pclassPre = (prefix.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
-                pclass    = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
-            }
-
-            // first add the initial Calculation value, which will usually be a Variable or a Discreet value.
-            parm = new ParameterStruct(prefix, pclassPre, ptype);
-            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + prefix);
+            ArrayList<ParameterStruct> compParams = packComparison(line);
+            params.addAll(compParams);
+        } else {
+            // else, numeric type: remaining data is a single Calculation
+            parm = new ParameterStruct(line, ParameterStruct.ParamClass.Calculation, ptype);
+            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
             params.add(parm);
-        
-            // now add the comparison sign
-            parm = new ParameterStruct(compSign, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
-            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + compSign);
-            params.add(parm);
-//            
-//            // now we can fall through to adding the other side of the comparison, which is another Calculation
-//            if (isStringEntry(prefix) && isStringEntry(line)) {
-//                pclass = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
-//            }
         }
-        
-        // remaining data is the Calculation, which may be a single value or a complex formula
-        parm = new ParameterStruct(line, pclass, ptype);
-        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
-        params.add(parm);
         
         return params;
     }
     
+    /**
+     * This extracts a comparison parameter list from it.
+     * This is defines as the following format:
+     *      Calculation compSign Calculation
+     * 
+     * Where: compSign: { ==, !=, >=, <=, >, < }
+     * 
+     *        Calculation is a string or one or more values/variables with
+     *        associated parenthesis and operations.
+     * 
+     * @param line  - the string of parameters to separate and classify
+     * 
+     * @return the ArrayList of arguments for the command
+     * 
+     * @throws ParserException 
+     */
+    private ArrayList<ParameterStruct> packComparison (String line) throws ParserException {
+        String functionId = CLASS_NAME + ".packComparison: ";
+        
+        ArrayList<ParameterStruct> params = new ArrayList<>();
+        ParameterStruct parm;
+        ParameterStruct.ParamType ptype;
+        ParameterStruct.ParamClass pclass1;
+        ParameterStruct.ParamClass pclass2;
+        
+        frame.outputInfoMsg(STATUS_PROGRAM, "     * Repacking parameters for Comparison");
+        
+        // check for 'NOT' character
+        boolean bNot = false;
+        line = line.strip();
+        if (line.startsWith("!")) {
+            bNot = true;
+            line = line.substring(1).strip();
+        } else if (line.startsWith("NOT")) {
+            bNot = true;
+            line = line.substring(1).strip();
+        }
+
+        // search for required comparison sign
+        String compSign = "==";
+        int offset = line.indexOf(compSign);
+        if (offset <= 0) {
+            compSign = ">=";
+            offset = line.indexOf(compSign);
+        }
+        if (offset <= 0) {
+            compSign = "<=";
+            offset = line.indexOf(compSign);
+        }
+        if (offset <= 0) {
+            compSign = ">";
+            offset = line.indexOf(compSign);
+        }
+        if (offset <= 0) {
+            compSign = "<";
+            offset = line.indexOf(compSign);
+        }
+        if (offset <= 0) {
+            // this is a single boolean entry rather than a comparison
+            pclass1 = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
+            ptype = ParameterStruct.ParamType.Boolean;
+            parm = new ParameterStruct(line, pclass1, ptype);
+            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
+            params.add(parm);
+            
+            if (bNot) {
+                String value = "!";
+                pclass2 = ParameterStruct.ParamClass.Discrete;
+                ptype = ParameterStruct.ParamType.String;
+                parm = new ParameterStruct(value, pclass2, ptype);
+                frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + value);
+                params.add(parm);
+            }
+            return params;
+        }
+        if (bNot) {
+            throw new ParserException(functionId + "Can't use '!' modifier on comparison: ! " + compSign);
+        }
+
+        String prefix = line.substring(0, offset).strip();
+        line = line.substring(offset + compSign.length()).strip();
+
+        // Need to determine if the each comparison entry is a single word and
+        //   neither is a numeric. That would make this a String comparison.
+        // So if either entry is more than 1 word, we must assume a numeric comparison.
+        // Otherwise, if either comparison is in quotes, we must assume a String comparison.
+        // Otherwise, if either side is a numeric (value or Variable), assume numeric comparison.
+        // Otherwise, do String comparison.
+        boolean bCalc = false;
+        boolean bQuote = false;
+        // if we have more than 1 entry on either side, it must be a numeric calculation
+        if (countArgs(prefix) > 1 || countArgs(line) > 1) {
+            bCalc = true;
+        } else {
+            // or, if either entry is a quoted string, remove the quotes from it
+            bQuote = (prefix.charAt(0) == '\"' || line.charAt(0) == '\"');
+            prefix = extractQuotedString (prefix);
+            line   = extractQuotedString (line);
+        }
+            
+        if (! bCalc && ! bQuote) {
+            // if neither of the above, let's determine if the entries are numeric or not.
+            char ctype1 = ParameterStruct.classifyDataType(prefix);
+            char ctype2 = ParameterStruct.classifyDataType(line);
+            if ((ctype1 == 'I' || ctype1 == 'U') || (ctype2 == 'I' || ctype2 == 'U')) {
+                bCalc = true;
+            }
+        }
+            
+        // now set the type of comparison we are doing: Integer or String.
+        if (bCalc) {
+            ptype = ParameterStruct.ParamType.Integer;
+            pclass1 = ParameterStruct.ParamClass.Calculation;
+            pclass2 = ParameterStruct.ParamClass.Calculation;
+        } else {
+            ptype = ParameterStruct.ParamType.String;
+            pclass1 = (prefix.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
+            pclass2 = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
+        }
+
+        // first add the initial Calculation value, which will usually be a Variable or a Discreet value.
+        parm = new ParameterStruct(prefix, pclass1, ptype);
+        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + prefix);
+        params.add(parm);
+        
+            // now add the comparison sign
+        parm = new ParameterStruct(compSign, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
+        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + compSign);
+        params.add(parm);
+            
+        // remaining data is the Calculation, which may be a single value or a complex formula
+        parm = new ParameterStruct(line, pclass2, ptype);
+        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
+        params.add(parm);
+
+        return params;
+    }
+
     /**
      * determine the number of arguments in the string.
      * 

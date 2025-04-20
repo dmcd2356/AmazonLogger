@@ -18,19 +18,19 @@ public class VariableInfo {
     private VariableExtract.Trait trait;   // object after '.' demarcation
         
     VariableInfo () {
-        this.name = null;
-        this.type = null;
-        this.index = null;
+        this.name     = null;
+        this.type     = null;
+        this.index    = null;
         this.indexmax = null;
-        this.trait = null;
+        this.trait    = null;
     }
         
-    VariableInfo (String name) {
-        this.name = name;
-        this.type = ParameterStruct.getVariableTypeFromName (name);
-        this.index = null;
-        this.indexmax = null;
-        this.trait = null;
+    VariableInfo (VariableInfo info) {
+        this.name     = info.name;
+        this.type     = info.type;
+        this.index    = info.index;
+        this.indexmax = info.indexmax;
+        this.trait    = info.trait;
     }
 
     VariableInfo (VariableExtract paramInfo) {

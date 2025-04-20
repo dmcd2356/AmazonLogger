@@ -49,7 +49,7 @@ public class IFStruct {
 
     // Get and Put functions for ifList
     public static IFStruct getIfListEntry (int cmdIndex) throws ParserException {
-        String functionId = CLASS_NAME + ".getIfEntry: ";
+        String functionId = CLASS_NAME + ".getIfListEntry: ";
         
         for (int ix = 0; ix < ifList.size(); ix++) {
             if (ifList.get(ix).ixIf == cmdIndex) {
@@ -116,6 +116,13 @@ public class IFStruct {
      */
     void setConditionMet () {
         this.bCondMet = true;
+    }
+        
+    /**
+     * clears the flag to indicate the IF condition has not been met.
+     */
+    void clearConditionMet () {
+        this.bCondMet = false;
     }
         
     /**

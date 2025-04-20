@@ -14,65 +14,32 @@ import java.util.Objects;
  */
 public class Comparison {
 
-    private static final String CLASS_NAME = "Comparison";
-    
     private static boolean bStatus = false;
 
     Comparison (ParameterStruct value1, ParameterStruct value2, String compSign) throws ParserException {
-        String functionId = CLASS_NAME + " (new): ";
 
         // check if we are doing a String comparison
         if (value1.getParamType() == ParameterStruct.ParamType.String) {
             String strval1 = value1.getStringValue();
             String strval2 = value2.getStringValue();
-            int comp = strval1.compareTo(strval2);
-            switch (compSign) {
-                case "==":  bStatus = (comp == 0);
-                    break;
-                case ">=":  bStatus = (comp >= 0);
-                    break;
-                case "<=":  bStatus = (comp <= 0);
-                    break;
-                case ">":   bStatus = (comp > 0);
-                    break;
-                case "<":   bStatus = (comp < 0);
-                    break;
-                default:
-                    throw new ParserException(functionId + " invalid Boolean comparison - Calculation comp sign invalid: " + compSign);
-            }
+            bStatus = Utils.compareParameterValues (strval1, strval2, compSign);
             frame.outputInfoMsg(STATUS_PROGRAM, "    Compare: " + strval1 + " " + compSign + " " + strval2 + " = " + bStatus);
             return;
         }
         
         // otherwise, it is a numeric comparison
-        ParameterStruct.ParamType type = ParameterStruct.ParamType.Integer;
-
         Long calc1, calc2;
         if (value1.isCalculation()) {
-            calc1 = value1.getCalculationValue(type);
+            calc1 = value1.getCalculationValue(ParameterStruct.ParamType.Integer);
         } else {
             calc1 = value1.getIntegerValue();
         }
         if (value2.isCalculation()) {
-            calc2 = value2.getCalculationValue(type);
+            calc2 = value2.getCalculationValue(ParameterStruct.ParamType.Integer);
         } else {
             calc2 = value2.getIntegerValue();
         }
-
-        switch (compSign) {
-            case "==":  bStatus = Objects.equals(calc1, calc2);
-                break;
-            case ">=":  bStatus = (calc1 >= calc2);
-                break;
-            case "<=":  bStatus = (calc1 <= calc2);
-                break;
-            case ">":   bStatus = (calc1 > calc2);
-                break;
-            case "<":   bStatus = (calc1 < calc2);
-                break;
-            default:
-                throw new ParserException(functionId + " invalid Boolean comparison - Calculation comp sign invalid: " + compSign);
-        }
+        bStatus = Utils.compareParameterValues (calc1, calc2, compSign);
         frame.outputInfoMsg(STATUS_PROGRAM, "    Compare: " + calc1 + " " + compSign + " " + calc2 + " = " + bStatus);
     }
     

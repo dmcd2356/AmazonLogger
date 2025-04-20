@@ -1001,6 +1001,16 @@ public final class UIFrame extends JFrame implements ActionListener {
             return;
         }
 
+        // if this contains any Exceptions, remove the extraneous header portion of them.
+        if (errLevel == STATUS_ERROR) {
+            String header = "com.mycompany.amazonlogger.";
+            int offset = msg.lastIndexOf(header);
+            if (offset >= 0) {
+                msg = msg.substring(offset + header.length());
+            }
+            msg = "-> " + msg;
+        }
+        
         // affix prefix to message identifying the type of message
         msg = msgPrefix + msg;
         
@@ -1014,12 +1024,6 @@ public final class UIFrame extends JFrame implements ActionListener {
                 testFile.println(msg);
                 // errors and warnings will always go to console, even if reporting to file
                 if (errLevel == STATUS_ERROR) {
-                    // if this contains any Exceptions, remove the header portion of them.
-                    String header = "com.mycompany.amazonlogger.";
-                    int offset = msg.lastIndexOf(header);
-                    if (offset >= 0) {
-                        msg = msg.substring(offset + header.length());
-                    }
                     System.out.println(msg);
                 } else if (errLevel == STATUS_WARN) {
                     System.out.println(msg);

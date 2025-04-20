@@ -260,9 +260,13 @@ public class ScriptExecute {
                 // nothing to do
                 break;
             case SET:
-                ParameterStruct parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to assigned a value to
-                ParameterStruct parmEqu   = cmdStruct.params.get(1); // element 1 is the assignment type (could be: =, +=, -=, etc)
-                ParameterStruct parmValue = cmdStruct.params.get(2); // element 2 is the value being assigned to it
+                // the 1st 3 entries are always required: the param name, the equate sign and the value to set
+                //   and we ignore the equate sign at offset 1.
+                // for Boolean case, we have 1 or 2 additional entries that may be added
+                ParameterStruct parmRef = cmdStruct.params.get(0);
+                ParameterStruct parm1   = cmdStruct.params.get(2);
+                ParameterStruct parm2   = cmdStruct.params.size() > 3 ? cmdStruct.params.get(3) : null;
+                ParameterStruct parm3   = cmdStruct.params.size() > 4 ? cmdStruct.params.get(4) : null;
                 String parmName = parmRef.getVariableRefName();
                 ParameterStruct.ParamType type = parmRef.getVariableRefType();
                 if (type == null || parmName == null) {
@@ -274,10 +278,10 @@ public class ScriptExecute {
                     case ParameterStruct.ParamType.Integer:
                     case ParameterStruct.ParamType.Unsigned:
                         Long result;
-                        if (parmValue.isCalculation()) {
-                            result = parmValue.getCalculationValue(type);
+                        if (parm1.isCalculation()) {
+                            result = parm1.getCalculationValue(type);
                         } else {
-                            result = parmValue.getIntegerValue();
+                            result = parm1.getIntegerValue();
                         }
                         if (type == ParameterStruct.ParamType.Unsigned) {
                             result &= 0xFFFFFFFF;
@@ -285,30 +289,15 @@ public class ScriptExecute {
                         ParameterStruct.modifyIntegerVariable(parmName, result);
                         break;
                     case ParameterStruct.ParamType.Boolean:
-                        switch (cmdStruct.params.size()) {
-                            case 3:
-                                // simple assignment: VariableName = Boolean
-                                ParameterStruct.modifyBooleanVariable(parmName, parmValue.getBooleanValue());
-                                break;
-                            case 5:
-                                // Boolean comparison: VariableName = Calculation1 CompSign Calculation2
-                                ParameterStruct parmComp   = cmdStruct.params.get(3);
-                                ParameterStruct parmValue2 = cmdStruct.params.get(4);
-                                Comparison comp = new Comparison (parmValue, parmValue2, parmComp.getStringValue());
-                                boolean bResult = comp.getStatus();
-                                ParameterStruct.modifyBooleanVariable(parmName, bResult);
-                                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Boolean Variable " + parmName + " = " + bResult);
-                                break;
-                            default:
-                                throw new ParserException(exceptPreface + " invalid Boolean comparison - too many values: " + cmdStruct.params.size());
-                        }
+                        Boolean bResult = getComparison(parm1, parm2, parm3);
+                        frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Boolean Variable " + parmName + " = " + bResult);
                         break;
 
                     case ParameterStruct.ParamType.IntArray:
-                        ParameterStruct.setIntArrayVariable(parmName, parmValue.getIntArray());
+                        ParameterStruct.setIntArrayVariable(parmName, parm1.getIntArray());
                         break;
                     case ParameterStruct.ParamType.StringArray:
-                        ParameterStruct.setStrArrayVariable(parmName, parmValue.getStrArray());
+                        ParameterStruct.setStrArrayVariable(parmName, parm1.getStrArray());
                         break;
                     default:
                     case ParameterStruct.ParamType.String:
@@ -327,6 +316,7 @@ public class ScriptExecute {
             // TODO: these are the Array-only commands
             case INSERT:
                 // ParamName, Value (String or Integer)
+                ParameterStruct parmValue;
                 parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be inserted into
                 parmValue = cmdStruct.params.get(1); // element 1 is the value being inserted
                 boolean bSuccess = ParameterStruct.arrayInsertEntry (parmRef.getStringValue(), 0, parmValue.getStringValue());
@@ -372,7 +362,7 @@ public class ScriptExecute {
             case TRUNCATE:
                 // ParamName, Count (Integer - optional)
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
-                int size = ParameterStruct.getArraySize(parmRef.getStringValue());
+                int size = ParameterStruct.getIntArraySize(parmRef.getStringValue());
                 int iCount = 1;
                 if (cmdStruct.params.size() > 1) {
                     parmIndex = cmdStruct.params.get(1); // element 1 is the (optional) number of entries being removed
@@ -392,7 +382,7 @@ public class ScriptExecute {
             case POP:
                 // ParamName, Index (Integer - optional)
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
-                size = ParameterStruct.getArraySize(parmRef.getStringValue());
+                size = ParameterStruct.getIntArraySize(parmRef.getStringValue());
                 iCount = 1;
                 iStart = 0;
                 if (cmdStruct.params.size() > 1) {
@@ -417,28 +407,27 @@ public class ScriptExecute {
                 break;
                 
             case IF:
-                ParameterStruct parm1 = cmdStruct.params.get(0);
-                String comp           = cmdStruct.params.get(1).getStringValue();
-                ParameterStruct parm2 = cmdStruct.params.get(2);
-
+                // check status to see if true of false.
+                parm1 = cmdStruct.params.get(0);
+                parm2 = cmdStruct.params.size() > 1 ? cmdStruct.params.get(1) : null;
+                parm3 = cmdStruct.params.size() > 2 ? cmdStruct.params.get(2) : null;
+                Boolean bResult = getComparison(parm1, parm2, parm3);
+                
                 // add entry to the current loop stack
                 IFStruct.stackPush(cmdIndex);
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + " " + parm1.getStringValue() + " " + comp + " " + parm2.getStringValue());
+                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + " " +
+                        parm1.getStringValue() + " " + ((parm2 != null) ? parm2.getStringValue() : "") +
+                                                 " " + ((parm3 != null) ? parm3.getStringValue() : ""));
 
-                // check status to see if true of false.
-                boolean bBranch;
-                if ((parm1.getParamType() == ParameterStruct.ParamType.Integer || parm1.getParamType() == ParameterStruct.ParamType.Unsigned) &&
-                    (parm2.getParamType() == ParameterStruct.ParamType.Integer || parm2.getParamType() == ParameterStruct.ParamType.Unsigned)    ) {
-                    bBranch = Utils.compareParameterValues (parm1.getIntegerValue(), parm2.getIntegerValue(), comp);
-                } else {
-                    bBranch = Utils.compareParameterValues (parm1.getStringValue(), parm2.getStringValue(), comp);
-                }
                 IFStruct ifInfo = IFStruct.getIfListEntry(cmdIndex);
-                if (bBranch) {
+                if (! bResult) {
                     newIndex = ifInfo.getElseIndex(cmdIndex);
+                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION skipped");
                     frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "goto next IF case @ " + newIndex);
+                    ifInfo.clearConditionMet();     // starting new IF and condition was not met
                 } else {
-                    ifInfo.setConditionMet(); // we are running the condition, so ELSEs will be skipped
+                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION executed");
+                    ifInfo.setConditionMet();       // we are running the condition, so ELSEs will be skipped
                 }
                 break;
             case ELSE:
@@ -450,6 +439,7 @@ public class ScriptExecute {
                 ifInfo = IFStruct.getIfListEntry();
                 if (ifInfo.isConditionMet()) {
                     newIndex = ifInfo.getEndIndex();
+                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION already met");
                     frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "goto ENDIF @ " + newIndex);
                 } else {
                     frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
@@ -464,24 +454,26 @@ public class ScriptExecute {
                 ifInfo = IFStruct.getIfListEntry();
                 if (ifInfo.isConditionMet()) {
                     newIndex = ifInfo.getEndIndex();
+                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION already met");
                     frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "goto ENDIF @ " + newIndex);
                 } else {
-                    parm1 = cmdStruct.params.get(0);
-                    comp  = cmdStruct.params.get(1).getStringValue();
-                    parm2 = cmdStruct.params.get(2);
-                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "IF level " + IFStruct.getStackSize() + ": " + parm1.getStringValue() + " " + comp + " " + parm2.getStringValue());
-
                     // check status to see if true of false.
-                    if ((parm1.getParamType() == ParameterStruct.ParamType.Integer || parm1.getParamType() == ParameterStruct.ParamType.Unsigned) &&
-                        (parm2.getParamType() == ParameterStruct.ParamType.Integer || parm2.getParamType() == ParameterStruct.ParamType.Unsigned)    ) {
-                        bBranch = Utils.compareParameterValues (parm1.getIntegerValue(), parm2.getIntegerValue(), comp);
-                    } else {
-                        bBranch = Utils.compareParameterValues (parm1.getStringValue(), parm2.getStringValue(), comp);
-                    }
-                    if (bBranch) {
+                    parm1 = cmdStruct.params.get(0);
+                    parm2 = cmdStruct.params.size() > 1 ? cmdStruct.params.get(1) : null;
+                    parm3 = cmdStruct.params.size() > 2 ? cmdStruct.params.get(2) : null;
+                    bResult = getComparison(parm1, parm2, parm3);
+
+                    // add entry to the current loop stack
+                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + " " +
+                            parm1.getStringValue() + " " + ((parm2 != null) ? parm2.getStringValue() : "") +
+                                                     " " + ((parm3 != null) ? parm3.getStringValue() : ""));
+
+                    if (! bResult) {
                         newIndex = ifInfo.getElseIndex(cmdIndex);
+                        frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION skipped");
                         frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "goto next IF case @ " + newIndex);
                     } else {
+                        frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION executed");
                         ifInfo.setConditionMet(); // we are running the condition, so ELSEs will be skipped
                     }
                 }
@@ -490,6 +482,10 @@ public class ScriptExecute {
                 if (IFStruct.isIfStackEnpty()) {
                     throw new ParserException(exceptPreface + "Received when not in a IF structure");
                 }
+                // reset the condition met flag
+                ifInfo = IFStruct.getIfListEntry();
+                ifInfo.clearConditionMet();
+                
                 // save the current command index in the current if structure
                 IFStruct.stackPop();
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + ": " + cmdStruct.command + " on line " + cmdIndex);
@@ -567,4 +563,19 @@ public class ScriptExecute {
         return cmdIndex;
     }
 
+    private boolean getComparison (ParameterStruct parm1, ParameterStruct parm2, ParameterStruct parm3) throws ParserException {
+        Boolean bValue;
+        if (parm2 == null) {
+            // simple assignment: VariableName = Boolean
+            bValue = parm1.getBooleanValue();
+        } else if (parm3 == null) {
+            // simple NOTted assignment: VariableName = Boolean !
+            bValue = ! parm1.getBooleanValue();
+        } else {
+            // Boolean comparison: VariableName = Calculation1 CompSign Calculation2
+            Comparison comp = new Comparison (parm1, parm3, parm2.getStringValue());
+            bValue = comp.getStatus();
+        }
+        return bValue;
+    }
 }
