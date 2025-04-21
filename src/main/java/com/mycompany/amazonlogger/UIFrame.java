@@ -49,15 +49,15 @@ import org.xml.sax.SAXException;
 public final class UIFrame extends JFrame implements ActionListener {
 
     // type of text characteristics to print with 'outputInfoMsg'
-    public static final int STATUS_ERROR   = 0x1000;  // fatal errors
-    public static final int STATUS_WARN    = 0x0800;  // non-fatal warnings
     public static final int STATUS_NORMAL  = 0x0001;  // output written to spreadsheet
     public static final int STATUS_PARSER  = 0x0002;  // parser status
     public static final int STATUS_SSHEET  = 0x0004;  // spreadsheet status
     public static final int STATUS_INFO    = 0x0008;  // processing of data from web clip and from PDF file
     public static final int STATUS_PROPS   = 0x0010;  // properties interface messages
     public static final int STATUS_PROGRAM = 0x0020;  // program interface messages
-    public static final int STATUS_DEBUG   = 0x0080;  // low-level detailed messages
+    public static final int STATUS_DEBUG   = 0x0800;  // low-level detailed messages
+    public static final int STATUS_WARN    = 0x4000;  // non-fatal warnings
+    public static final int STATUS_ERROR   = 0x8000;  // fatal errors
     
     private static int     msgEnable;
     private PrintWriter    debugFile = null;
@@ -83,13 +83,13 @@ public final class UIFrame extends JFrame implements ActionListener {
     private final MsgControl [] MsgSelectTbl = {
         new MsgControl (STATUS_ERROR   , "[ERROR ] ", "B", TextColor.Red),
         new MsgControl (STATUS_WARN    , "[WARN  ] ", "B", TextColor.Orange),
-        new MsgControl (STATUS_NORMAL  , "[NORMAL] ", "N", TextColor.Black),
-        new MsgControl (STATUS_PARSER  , "[PARSER] ", "I", TextColor.Blue),
-        new MsgControl (STATUS_SSHEET  , "[SSHEET] ", "I", TextColor.Green),
-        new MsgControl (STATUS_INFO    , "[INFO  ] ", "N", TextColor.DkVio),
-        new MsgControl (STATUS_PROPS   , "[PROPS ] ", "I", TextColor.Gold),
-        new MsgControl (STATUS_PROGRAM , "[PROG  ] ", "N", TextColor.DkVio),
         new MsgControl (STATUS_DEBUG   , "[DEBUG ] ", "N", TextColor.Brown),
+        new MsgControl (STATUS_PROGRAM , "[PROG  ] ", "N", TextColor.DkVio),
+        new MsgControl (STATUS_PROPS   , "[PROPS ] ", "I", TextColor.Gold),
+        new MsgControl (STATUS_INFO    , "[INFO  ] ", "N", TextColor.DkVio),
+        new MsgControl (STATUS_SSHEET  , "[SSHEET] ", "I", TextColor.Green),
+        new MsgControl (STATUS_PARSER  , "[PARSER] ", "I", TextColor.Blue),
+        new MsgControl (STATUS_NORMAL  , "[NORMAL] ", "N", TextColor.Black),
     };
 
     private enum TextColor {

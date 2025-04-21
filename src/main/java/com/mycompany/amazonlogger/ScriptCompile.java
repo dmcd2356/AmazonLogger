@@ -108,6 +108,11 @@ public class ScriptCompile {
         while (!bExit && (line = fileReader.readLine()) != null) {
             lineNum++;
             line = line.strip();
+            // check for comment at end of lines
+            int comment = line.indexOf("##");
+            if (comment > 0) {
+                line = line.substring(0, comment).strip();
+            }
             if (line.isBlank() || line.charAt(0) == '#') {
                 continue;
             }
