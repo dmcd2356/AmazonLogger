@@ -38,6 +38,7 @@ public class CmdOptions {
         new OptionList ("-pfile"    , "S"),
         new OptionList ("-prun"     , ""),
         new OptionList ("-update"   , ""),
+        new OptionList ("-tpath"    , "s"),
         new OptionList ("-ofile"    , "s"),
         new OptionList ("-save"     , ""),
 
@@ -327,6 +328,29 @@ public class CmdOptions {
         frame.outputInfoMsg(STATUS_PROGRAM, commands.size() + " options found");
         return commands;
     }
+
+    /**
+     * extracts the absolute path from a filename.
+     * The absolute path (if included) must begin with either a '/' or a '~' (home dir).
+     * If not, it is assumed the filename either includes no path info or is relative
+     *   to the current path assignment.
+     * 
+     * @param fname - the user-entered filename (may or may not have path included)
+     * 
+     * @return the path portion of the filename
+     */
+    private String getPathFromFilename (String fname) {
+        if (fname.startsWith("/") || fname.startsWith("~")) {
+            int offset = fname.lastIndexOf('/');
+            if (offset == 0) {
+                return "/";
+            }
+            if (offset > 0) {
+                return fname.substring(0, offset);
+            }
+        }
+        return "";
+    }
     
     /**
      * executes the command line option specified
@@ -344,7 +368,7 @@ public class CmdOptions {
     private ArrayList<String> executeCmdOption (CommandStruct cmdLine) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + ".executeCmdOption: " + showLineNumberInfo(cmdLine.line);
         ArrayList<String> response = new ArrayList<>();
-        String filetype;
+        Utils.PathType pathtype;
         String fname;
         String option = cmdLine.option;
         PdfReader pdfReader = null;
@@ -359,9 +383,14 @@ public class CmdOptions {
                     frame.setMessageFlags(params.get(0).getUnsignedValue());
                     break;
                 case "-sfile":
-                    filetype = "Spreadsheet";
+                    pathtype = Utils.PathType.Spreadsheet;
                     fname = params.get(0).getStringValue();
-                    File ssheetFile = Utils.checkFilename (fname, ".ods", filetype, true);
+                    String absPath = getPathFromFilename (fname);
+                    if (! absPath.isEmpty() && fname.length() > absPath.length() + 1) {
+                        Utils.setDefaultPath(pathtype, absPath);
+                        fname = fname.substring(absPath.length() + 1);
+                    }
+                    File ssheetFile = Utils.checkFilename (fname, ".ods", pathtype, true);
                     Spreadsheet.selectSpreadsheet(ssheetFile);
                     break;
                 case "-load":
@@ -377,10 +406,11 @@ public class CmdOptions {
                     Spreadsheet.selectSpreadsheetTab (tab.toString());
                     break;
                 case "-cfile":
-                    filetype = "Clipboard";
+                    // clipbaord uses the Test path for its base dir
+                    pathtype = Utils.PathType.Test;
                     fname = params.get(0).getStringValue();
-                    File fClip = Utils.checkFilename (fname, ".txt", filetype, false);
-                    frame.outputInfoMsg(STATUS_DEBUG, "  " + filetype + " file: " + fClip.getAbsolutePath());
+                    File fClip = Utils.checkFilename (fname, ".txt", pathtype, false);
+                    frame.outputInfoMsg(STATUS_DEBUG, "  " + pathtype + " file: " + fClip.getAbsolutePath());
                     AmazonParser amazonParser = new AmazonParser(fClip);
                     amazonParser.parseWebData();
                     break;
@@ -389,10 +419,15 @@ public class CmdOptions {
                     AmazonParser.updateSpreadsheet();
                     break;
                 case "-pfile":
-                    filetype = "PDF";
+                    pathtype = Utils.PathType.PDF;
                     fname = params.get(0).getStringValue();
-                    File pdfFile = Utils.checkFilename (fname, ".pdf", filetype, false);
-                    frame.outputInfoMsg(STATUS_DEBUG, "  filetype + \" file: \" + pdfFile.getAbsolutePath()");
+                    absPath = getPathFromFilename (fname);
+                    if (! absPath.isEmpty() && fname.length() > absPath.length() + 1) {
+                        Utils.setDefaultPath(pathtype, absPath);
+                        fname = fname.substring(absPath.length() + 1);
+                    }
+                    File pdfFile = Utils.checkFilename (fname, ".pdf", pathtype, false);
+                    frame.outputInfoMsg(STATUS_DEBUG, "  " + pathtype + " file: " + pdfFile.getAbsolutePath());
                     pdfReader = new PdfReader();
                     pdfReader.readPdfContents(pdfFile);
                     response.addAll(pdfReader.getContents());
@@ -422,13 +457,24 @@ public class CmdOptions {
                         response.add(line);
                     }
                     break;
+                case "-tpath":
+                    String path;
+                    if (params.isEmpty()) {
+                        path = System.getProperty("user.dir");
+                        frame.outputInfoMsg(STATUS_DEBUG, "  set Test path to current running directory: " + path);
+                    } else {
+                        path = params.get(0).getStringValue();
+                        frame.outputInfoMsg(STATUS_DEBUG, "  set Test path to: " + path);
+                    }
+                    Utils.setDefaultPath(Utils.PathType.Test, path);
+                    frame.setTestOutputFile(path);
+                    break;
                 case "-ofile":
                     if (params.isEmpty()) {
                         frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to stdout");
                         frame.setTestOutputFile(null);
                     } else {
                         fname = params.get(0).getStringValue();
-                        fname = Utils.getTestPath() + "/" + fname;
                         frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to file: " + fname);
                         frame.setTestOutputFile(fname);
                     }

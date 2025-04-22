@@ -119,19 +119,68 @@ public class ScriptExecute {
                     System.out.println(text);
                 }
                 break;
-            case FEXISTS:
+            case DIRECTORY:
                 // arg 0: filename
                 String fname = cmdStruct.params.get(0).getStringValue();
-                fname = Utils.getTestPath() + "/" + fname;
+                if (fname.contentEquals(".")) {
+                    fname = "";
+                } else {
+                    fname = "/" + fname;
+                }
+                String filter = "";
+                if (cmdStruct.params.size() > 1) {
+                    filter  = cmdStruct.params.get(1).getStringValue();
+                }
+                fname = Utils.getDefaultPath (Utils.PathType.Test) + fname;
                 File file = new File(fname);
-                Long value = file.exists() ? 1L : 0L;
+                if (! file.isDirectory()) {
+                    throw new ParserException(exceptPreface + "Invalid directory selection: " + file.getAbsolutePath());
+                }
+                File[] list = file.listFiles();
+                for (File list1 : list) {
+                    if ((filter.isEmpty() || filter.contentEquals("-d")) && list1.isDirectory()) {
+                        ParameterStruct.putResponseValue(list1.getName());
+                    } else if ((filter.isEmpty() || filter.contentEquals("-f")) && list1.isFile()) {
+                        ParameterStruct.putResponseValue(list1.getName());
+                    }
+                }
+                break;
+
+                        
+            case FEXISTS:
+                // arg 0: filename
+                fname = cmdStruct.params.get(0).getStringValue();
+                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
+                file = new File(fname);
+
+                Long value;
+                String strCheck = "EXISTS";
+                if (cmdStruct.params.size() > 1) {
+                    strCheck = cmdStruct.params.get(1).getStringValue();
+                }
+                switch (strCheck) {
+                    case "WRITABLE":
+                        value = file.isFile() && file.canWrite() ? 1L : 0L;
+                        break;
+                    case "READABLE":
+                        value = file.isFile() && file.canRead() ? 1L : 0L;
+                        break;
+                    case "DIRECTORY":
+                        value = file.isDirectory() ? 1L : 0L;
+                        break;
+                    case "EXISTS":
+                        value = file.exists() ? 1L : 0L;
+                        break;
+                    default:
+                        throw new ParserException(exceptPreface + "Unknown file check argument: " + strCheck);
+                }
                 ParameterStruct.putResultValue(value);
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "File " + file + " exists = " + value);
                 break;
             case FDELETE:
                 // arg 0: filename
                 fname = cmdStruct.params.get(0).getStringValue();
-                fname = Utils.getTestPath() + "/" + fname;
+                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
                 file = new File(fname);
                 if (! file.isFile()) {
                     throw new ParserException(exceptPreface + "File not found: " + fname);
@@ -148,7 +197,7 @@ public class ScriptExecute {
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
-                fname = Utils.getTestPath() + "/" + fname;
+                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
                 file = new File(fname);
                 if (file.exists()) {
                     throw new ParserException(exceptPreface + "File already exists: " + fname);
@@ -164,7 +213,7 @@ public class ScriptExecute {
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
-                fname = Utils.getTestPath() + "/" + fname;
+                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
                 file = new File(fname);
                 if (file.exists()) {
                     throw new ParserException(exceptPreface + "File already exists: " + fname);
@@ -181,7 +230,7 @@ public class ScriptExecute {
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
-                fname = Utils.getTestPath() + "/" + fname;
+                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
                 file = new File(fname);
                 if (! file.isFile()) {
                     throw new ParserException(exceptPreface + "File not found: " + fname);
@@ -199,7 +248,7 @@ public class ScriptExecute {
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
-                fname = Utils.getTestPath() + "/" + fname;
+                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
                 file = new File(fname);
                 if (! file.isFile()) {
                     throw new ParserException(exceptPreface + "File not found: " + fname);

@@ -71,6 +71,18 @@ public class ScriptCompile {
             }
         }
     }
+
+    private void checkParamArgCount (CommandStruct cmdStruct, int min, int max, String lineInfo) throws ParserException {
+        String functionId = CLASS_NAME + ".checkParamArgCount: ";
+
+        int size = cmdStruct.params.size();
+        if (size < min) {
+            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: text");
+        }
+        if (size > max) {
+            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: text");
+        }
+    }
     
     /**
      * compiles the external script file (when -f option used) into a series of
@@ -95,7 +107,7 @@ public class ScriptCompile {
 
         // open the file to compile and extract the commands from it
         try {
-        File scriptFile = Utils.checkFilename (fname, ".scr", "Script", false);
+        File scriptFile = Utils.checkFilename (fname, ".scr", Utils.PathType.Test, false);
         FileReader fReader = new FileReader(scriptFile);
         BufferedReader fileReader = new BufferedReader(fReader);
 
@@ -176,54 +188,43 @@ public class ScriptCompile {
                     break;
                 case PRINT:
                     // verify 1 String argument: text message
-                    if (cmdStruct.params.size() != 1) {
-                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: text");
-                    }
+                    checkArgTypes(cmdStruct, "S", cmdIndex);
+                    break;
+                case DIRECTORY:
+                    // verify 1 String argument: directory & 1 optional String -d or -f
+                    checkArgTypes(cmdStruct, "Ss", cmdIndex);
                     break;
                 case FCREATER:
                     // verify 1 String argument: file name
-                    if (cmdStruct.params.size() != 1) {
-                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
-                    }
+                    checkArgTypes(cmdStruct, "S", cmdIndex);
                     break;
                 case FEXISTS:
-                    // verify 1 String argument: file name
-                    if (cmdStruct.params.size() != 1) {
-                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
-                    }
+                    // verify 1 String argument: file name & 1 optional argument String: READABLE / WRITABLE / DIRECTORY
+                    checkArgTypes(cmdStruct, "Ss", cmdIndex);
                     break;
                 case FDELETE:
                     // verify 1 String argument: file name
-                    if (cmdStruct.params.size() != 1) {
-                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
-                    }
+                    checkArgTypes(cmdStruct, "S", cmdIndex);
                     break;
                 case FCREATEW:
                     // verify 1 String argument: file name
-                    if (cmdStruct.params.size() != 1) {
-                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
-                    }
+                    checkArgTypes(cmdStruct, "S", cmdIndex);
                     break;
                 case FOPENR:
                     // verify 1 String argument: file name
-                    if (cmdStruct.params.size() != 1) {
-                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
-                    }
+                    checkArgTypes(cmdStruct, "S", cmdIndex);
                     break;
                 case FOPENW:
                     // verify 1 String argument: file name
-                    if (cmdStruct.params.size() != 1) {
-                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name");
-                    }
+                    checkArgTypes(cmdStruct, "S", cmdIndex);
                     break;
                 case FCLOSE:
                     // verify 1 String argument: file name
-                    if (cmdStruct.params.size() != 1) {
-                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: file name ");
-                    }
+                    checkArgTypes(cmdStruct, "S", cmdIndex);
                     break;
                 case FREAD:
                     // verify 1 optional number of lines to read
+                    checkArgTypes(cmdStruct, "u", cmdIndex);
                     if (cmdStruct.params.isEmpty()) {
                         // argument is missing, supply the default value
                         ParameterStruct lines = new ParameterStruct("1",
@@ -238,10 +239,8 @@ public class ScriptCompile {
                     }
                     break;
                 case FWRITE:
-                    // verify 2 arguments: file name and message to write
-                    if (cmdStruct.params.size() != 1) {
-                        throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: message");
-                    }
+                    // verify 1 argument: message to write
+                    checkArgTypes(cmdStruct, "S", cmdIndex);
                     break;
                 case CommandStruct.CommandTable.DEFINE:
                     // must be a List of Variable name entries

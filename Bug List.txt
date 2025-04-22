@@ -1,20 +1,23 @@
 TODO:
-- When updating Order Details, make sure on multi-item orders to match the descriptions with the
-    current entry item before copying the data.
-- After spreadsheet is loaded, show the last (most recent entry) in Dan and Connie tab to make it
-    easier to find the next page to load without having to look at the spreadsheet directly.
-- Fix the issue of removing the OCR capability in the Tika jar for reading the PDF file. This
-    is causing the processing to slow down.
 - Add the following PROGRAM features:
+    - add -hyper option command to place a hypertext link in the cell of a spreadsheet
+    - add DOUNTIL and DOWHILE commands (terminate in DONE)
     - add subroutine calls (SUB, RETURN) and getting the return value $RETURN
     - add loading other script files (LOAD. CALL)
-    - Fix Boolean Comparison of String param to discreet String - the discreet value includes the quotes.
     - add command to search StrArray and IntArray for a value given a starting index (returns index or -1)
     - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
     - cleanup error handling messages.
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with
     certain debug messages enabled. Then capturing the debug output and comparing them to expected
     results.
+- When updating Order Details, make sure on multi-item orders to match the descriptions with the
+    current entry item before copying the data.
+- After spreadsheet is loaded, show the last (most recent entry) in Dan and Connie tab to make it
+    easier to find the next page to load without having to look at the spreadsheet directly.
+
+BUGS:
+- Fix the issue of removing the OCR capability in the Tika jar for reading the PDF file. This
+    is causing the processing to slow down.
 
 TESTING PHASE:
  * modify RESPONSE to be a StrArray instead of a String to access each element
@@ -29,4 +32,7 @@ TESTING PHASE:
  * add command to read the PDF file into a StrArray that is accessible
  * add command to read the clipboard into a StrArray that is accessible Clipboard.
  * allow setting Boolean param to the result of a Comparison
+ * Fix Boolean Comparison of String param to discreet String - the discreet value includes the quotes.
+ * add WRITABLE, READABLE and DIRECTORY options to FEXISTS command for checking if file is readable or writable or is a directory
+ * add DIRECTORY command for retrieving a list of dirs or files
 

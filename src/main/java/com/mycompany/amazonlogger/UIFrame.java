@@ -59,10 +59,11 @@ public final class UIFrame extends JFrame implements ActionListener {
     public static final int STATUS_WARN    = 0x4000;  // non-fatal warnings
     public static final int STATUS_ERROR   = 0x8000;  // fatal errors
     
-    private static int     msgEnable;
     private PrintWriter    debugFile = null;
     private PrintWriter    testFile = null;
-    private final boolean  bUseGUI;
+    private static String  testFname = "";
+    private static int     msgEnable;
+    private static boolean bUseGUI = false;
     private static long    elapsedStart = 0;    // hold start of elapsed time for running from file
     private static boolean showElapsed = false; // indicates if elapsed time to be displayed in logs
 
@@ -796,22 +797,31 @@ public final class UIFrame extends JFrame implements ActionListener {
      * @param fname - name of the test file
      */
     public void setTestOutputFile (String fname) {
-        if (fname != null && !fname.isBlank()) {
+        String absPath = fname;
+        if (absPath != null && !absPath.isBlank()) {
+            if (absPath.charAt(0) != '/') {
+                absPath = Utils.getDefaultPath (Utils.PathType.Test) + "/" + absPath;
+            }
+            if (testFname.contentEquals(absPath)) {
+                String time = elapsedTimerGet();
+                this.testFile.println(time + "[DEBUG ] UIFrame.setTestOutputFile: No change in output file setting");
+                return;
+            }
+            testFname = absPath;
             try {
-                this.testFile = new PrintWriter(new FileWriter(fname, true));
+                this.testFile = new PrintWriter(new FileWriter(absPath, true));
                 this.testFile.println("=== " + getCurrentDateTime() + " ============================================================");
 
+                // update the properties file status if we were successful
+                props.setPropertiesItem(Property.TestFileOut, fname);
             } catch (IOException ex) {
-                System.out.println("UIFrame.setTestOutputFile: on creating file: " + fname + ", " + ex);
+                System.out.println("UIFrame.setTestOutputFile: on creating file: " + absPath + ", " + ex);
                 this.testFile = null;
-                fname = "";
             }
         } else {
             this.testFile = null;
-            fname = "";
+            props.setPropertiesItem(Property.TestFileOut, "");
         }
-        // update the properties file status
-        props.setPropertiesItem(Property.TestFileOut, fname);
     }
     
     /**

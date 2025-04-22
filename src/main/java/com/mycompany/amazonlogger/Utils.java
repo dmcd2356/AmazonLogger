@@ -19,6 +19,12 @@ import java.util.Objects;
 public class Utils {
     
     private static final String CLASS_NAME = "Utils";
+
+    public enum PathType {
+        PDF,
+        Spreadsheet,
+        Test,
+    }
     
     /*********************************************************************
     ** returns the unsigned integer value from a string of digits.
@@ -448,6 +454,9 @@ public class Utils {
         String validPath = null;
         String pathName = props.getPropertiesItem(tag, "");
         if (!pathName.isEmpty()) {
+            if (pathName.charAt(0) == '~') {
+                pathName = System.getProperty("user.home") + pathName.substring(1);
+            }
             File tempDir = new File(pathName);
             if (tempDir.exists() && tempDir.isDirectory()) {
                 validPath = pathName;
@@ -460,35 +469,23 @@ public class Utils {
     }
 
     /**
-     * gets the path used for accessing files for Test mode (from properties file)
-     * 
-     * @return the test path
-     */
-    public static String getTestPath () {
-        String pathname = getPathFromPropertiesFile (PropertiesFile.Property.TestPath);
-        if (pathname == null || pathname.isBlank()) {
-            pathname = System.getProperty("user.dir");
-        }
-        return pathname;
-    }
-
-    /**
      * gets the path used for accessing files from properties file
      * 
      * @param type - type of file
      * 
      * @return the test path
      */
-    public static String getDefaultPath (String type) {
+    public static String getDefaultPath (PathType type) {
         String pathname;
         switch (type) {
-            case "PDF":
+            case PDF:
                 pathname = getPathFromPropertiesFile (PropertiesFile.Property.PdfPath);
                 break;
-            case "Spreadsheet":
+            case Spreadsheet:
                 pathname = getPathFromPropertiesFile (PropertiesFile.Property.SpreadsheetPath);
                 break;
             default:
+            case Test:
                 pathname = getPathFromPropertiesFile (PropertiesFile.Property.TestPath);
                 break;
         }
@@ -496,6 +493,32 @@ public class Utils {
             pathname = System.getProperty("user.dir");
         }
         return pathname;
+    }
+
+    /**
+     * sets the default path used for accessing files from properties file
+     * 
+     * @param type     - type of file
+     * @param pathname - the path to assign as default to the specified file type
+     */
+    public static void setDefaultPath (PathType type, String pathname) {
+        // Java doesn't get the '~' char, so change it to the home dir
+        if (pathname.charAt(0) == '~') {
+            pathname = System.getProperty("user.home") + pathname.substring(1);
+        }
+        
+        switch (type) {
+            case PDF:
+                props.setPropertiesItem (PropertiesFile.Property.PdfPath, pathname);
+                break;
+            case Spreadsheet:
+                props.setPropertiesItem (PropertiesFile.Property.SpreadsheetPath, pathname);
+                break;
+            default:
+            case Test:
+                props.setPropertiesItem (PropertiesFile.Property.TestPath, pathname);
+                break;
+        }
     }
 
     /**
@@ -534,11 +557,12 @@ public class Utils {
      * 
      * @throws ParserException 
      */
-    public static File checkFilename (String fname, String type, String filetype, boolean bWritable) throws ParserException {
+    public static File checkFilename (String fname, String type, PathType filetype, boolean bWritable) throws ParserException {
         String functionId = CLASS_NAME + ".checkFilename: ";
         
-        if (filetype == null) {
-            filetype = "";
+        String strType = "";
+        if (filetype != null) {
+            strType = filetype.toString();
         }
         if (type != null && !type.isBlank() && !fname.endsWith(type)) {
             throw new ParserException(functionId + "Invalid " + filetype + " filename: " + fname);

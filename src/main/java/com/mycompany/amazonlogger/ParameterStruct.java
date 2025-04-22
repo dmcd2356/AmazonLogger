@@ -9,6 +9,7 @@ import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -842,6 +843,18 @@ public final class ParameterStruct {
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
+                } else if (paramInfo.getTrait() == VariableExtract.Trait.SORT) {
+//                    ArrayList<String> newList = new ArrayList<>();
+                    Collections.sort(paramValue.strArrayParam.subList(0, paramValue.strArrayParam.size()));
+//                    for (int ix = 0; ix < paramValue.strArrayParam.size(); ix++) {
+//                        newList.add(paramValue.strArrayParam.get(ix).toLowerCase());
+//                    }
+//                    paramValue.strArrayParam.clear();
+//                    paramValue.strArrayParam.addAll(newList);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".SORT ' as type StrArray");
+                } else if (paramInfo.getTrait() == VariableExtract.Trait.REVERSE) {
+                    Collections.reverse(paramValue.strArrayParam);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".REVERSE ' as type StrArray");
                 } else if (paramInfo.getTrait() == VariableExtract.Trait.SIZE) {
                     paramValue.longParam = (long)paramValue.strArrayParam.size();
                     pType = ParamType.Integer;
@@ -879,6 +892,12 @@ public final class ParameterStruct {
                             } else {
                                 throw new ParserException(functionId + "Parameter " + name + " index" + ixRange + " exceeds array");
                             }
+                        } else if (paramInfo.getTrait() == VariableExtract.Trait.UPPER) {
+                            paramValue.strParam = paramValue.strParam.toUpperCase();
+                            frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".UPPER ' as type String: " + paramValue.strParam);
+                        } else if (paramInfo.getTrait() == VariableExtract.Trait.LOWER) {
+                            paramValue.strParam = paramValue.strParam.toLowerCase();
+                            frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".LOWER ' as type String: " + paramValue.strParam);
                         } else if (paramInfo.getTrait() == VariableExtract.Trait.SIZE) {
                             paramValue.longParam = (long)paramValue.strParam.length();
                             pType = ParamType.Integer;

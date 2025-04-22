@@ -26,10 +26,12 @@ public class VariableExtract {
 
     // traits extensions to String, StrArray and IntArray types
     public enum Trait {
-        UPPER,              // String: convert all chars to uppercase
-        LOWER,              // String: convert all chars to lowercase
-        SIZE,               // number of chars for String, number of elements for Arrays
-        ISEMPTY,            // check if item is zero-length (not null)
+        UPPER,              // String:   convert all chars to uppercase
+        LOWER,              // String:   convert all chars to lowercase
+        SORT,               // StrArray: sort from A-Z
+        REVERSE,            // StrArray: sort from A-Z
+        SIZE,               // Any: number of chars for String, number of elements for Arrays
+        ISEMPTY,            // Any: check if item is zero-length (not null)
     }
 
     /**
@@ -176,11 +178,26 @@ public class VariableExtract {
                     break;
                 }
             }
-            if (type != ParameterStruct.ParamType.String && (trait == Trait.LOWER || trait == Trait.UPPER)) {
-                throw new ParserException(functionId + "Invalid Trait for Array Variable: " + leftover);
-            }
             if (trait == null) {
                 throw new ParserException(functionId + "Invalid Trait for Variable: " + leftover);
+            }
+            switch (trait) {
+                case LOWER:
+                case UPPER:
+                    // these are only valid for String types
+                    if (type != ParameterStruct.ParamType.String) {
+                        throw new ParserException(functionId + "Invalid Trait for " + type + " Variable: " + leftover);
+                    }
+                    break;
+                case SORT:
+                case REVERSE:
+                    // these are only valid for StrArray types
+                    if (type != ParameterStruct.ParamType.StringArray) {
+                        throw new ParserException(functionId + "Invalid Trait for " + type + " Variable: " + leftover);
+                    }
+                    break;
+                default:
+                    break;
             }
         } else if (offLeftB > 0) {
             if (! bRightSide) {

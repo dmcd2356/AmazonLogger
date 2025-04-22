@@ -24,7 +24,8 @@ public class CommandStruct {
         EXIT,       // this command is added automatically by the compiler
         RUN,        // this command is for running the command-line commands
         PRINT,      // outputs text to console
-        FEXISTS,    // text file access functions
+        DIRECTORY,  // text file access functions
+        FEXISTS,    //  "       "       "
         FDELETE,    //  "       "       "
         FCREATER,   //  "       "       "
         FCREATEW,   //  "       "       "
