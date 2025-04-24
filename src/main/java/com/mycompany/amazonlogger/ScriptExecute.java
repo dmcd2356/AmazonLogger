@@ -14,7 +14,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Objects;
 import org.apache.tika.exception.TikaException;
 import org.xml.sax.SAXException;
 
@@ -37,6 +36,7 @@ public class ScriptExecute {
     private BufferedReader fileReader = null;
     private PrintWriter    fileWriter = null;
     private String fileName;
+    private String fileDir = Utils.getDefaultPath (Utils.PathType.Test);
 
     ScriptExecute () {
         cmdOptionParser = new CmdOptions();
@@ -68,6 +68,84 @@ public class ScriptExecute {
             return "(line " + lineNum + ") ";
         }
         return "";
+    }
+
+    /**
+     * gets the file or directory specified by the given path.
+     * 
+     * A single '.' will represent the current directory and '~' indicates
+     *  the root directory for testing: the Test default directory.
+     *  If the path does not start with a '/' char, it is a relative path.
+     *  Absolute paths are not supported to prevent exceeding the confines
+     *  of the Test path.
+     * 
+     * @param path - the path of the dir or file
+     * 
+     * @return a file of the path specified
+     */
+    private File getFilePath (String path) throws ParserException {
+        String functionId = CLASS_NAME + ".getFilePath: ";
+
+        if (path.contentEquals(".")) {
+            // the '.' indicates the current directory
+            path = fileDir;
+        } else if (path.contains("..")) {
+            throw new ParserException(functionId + "Path using .. not supported: " + path);
+        } else if (path.startsWith("~")) {
+            // a leading '~' refers to the base Test path
+            if (path.length() > 1) {
+                path = Utils.getDefaultPath (Utils.PathType.Test) + path.substring(1);
+            } else {
+                path = Utils.getDefaultPath (Utils.PathType.Test);
+            }
+        } else if (! path.startsWith("/")) {
+            // if missing the leading '/' char, it is a path relative to current dir
+            path = fileDir + "/" + path;
+        } else {
+            throw new ParserException(functionId + "Absolute path not supported: " + path);
+        }
+        File file = new File(path);
+        return (file);
+    }
+    
+    /**
+     * gets the file or directory specified by the given path.
+     * 
+     * A single '.' will represent the current directory and '~' indicates
+     *  the root directory for testing: the Test default directory.
+     *  If the path does not start with a '/' char, it is a relative path.
+     *  Absolute paths are not supported to prevent exceeding the confines
+     *  of the Test path.
+     * 
+     * @param path - the path of the dir or file
+     * 
+     * @return a file of the path specified
+     */
+    private void setFilePath (String path) throws ParserException {
+        String functionId = CLASS_NAME + ".setFilePath: ";
+
+        if (path.contentEquals(".")) {
+            // the '.' indicates the current directory, so no change needed
+        } else if (path.contains("..")) {
+            throw new ParserException(functionId + "Path using .. not supported: " + path);
+        } else if (path.startsWith("~")) {
+            // a leading '~' refers to the base Test path
+            if (path.length() > 1) {
+                fileDir = Utils.getDefaultPath (Utils.PathType.Test) + path.substring(1);
+            } else {
+                fileDir = Utils.getDefaultPath (Utils.PathType.Test);
+            }
+        } else if (! path.startsWith("/")) {
+            // if missing the leading '/' char, it is a path relative to current dir
+            fileDir = fileDir + "/" + path;
+        } else {
+            throw new ParserException(functionId + "Absolute path not supported: " + path);
+        }
+        File file = new File(fileDir);
+        if (! file.exists() || ! file.isDirectory()) {
+            throw new ParserException(functionId + "Invalid directory selection: " + fileDir);
+        }
+        frame.outputInfoMsg(STATUS_PROGRAM, "    File path changed to: " + fileDir);
     }
     
     /**
@@ -120,19 +198,13 @@ public class ScriptExecute {
                 }
                 break;
             case DIRECTORY:
-                // arg 0: filename
+                // arg 0: directory path, optional arg 1: filter selection (-f or -d)
                 String fname = cmdStruct.params.get(0).getStringValue();
-                if (fname.contentEquals(".")) {
-                    fname = "";
-                } else {
-                    fname = "/" + fname;
-                }
                 String filter = "";
                 if (cmdStruct.params.size() > 1) {
                     filter  = cmdStruct.params.get(1).getStringValue();
                 }
-                fname = Utils.getDefaultPath (Utils.PathType.Test) + fname;
-                File file = new File(fname);
+                File file = getFilePath(fname);
                 if (! file.isDirectory()) {
                     throw new ParserException(exceptPreface + "Invalid directory selection: " + file.getAbsolutePath());
                 }
@@ -145,13 +217,15 @@ public class ScriptExecute {
                     }
                 }
                 break;
-
-                        
+            case CD:
+                // arg 0: directory path
+                fname = cmdStruct.params.get(0).getStringValue();
+                setFilePath (fname);
+                break;
             case FEXISTS:
                 // arg 0: filename
                 fname = cmdStruct.params.get(0).getStringValue();
-                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
-                file = new File(fname);
+                file = getFilePath(fname);
 
                 Long value;
                 String strCheck = "EXISTS";
@@ -180,8 +254,7 @@ public class ScriptExecute {
             case FDELETE:
                 // arg 0: filename
                 fname = cmdStruct.params.get(0).getStringValue();
-                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
-                file = new File(fname);
+                file = getFilePath(fname);
                 if (! file.isFile()) {
                     throw new ParserException(exceptPreface + "File not found: " + fname);
                 }
@@ -197,8 +270,7 @@ public class ScriptExecute {
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
-                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
-                file = new File(fname);
+                file = getFilePath(fname);
                 if (file.exists()) {
                     throw new ParserException(exceptPreface + "File already exists: " + fname);
                 }
@@ -213,8 +285,7 @@ public class ScriptExecute {
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
-                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
-                file = new File(fname);
+                file = getFilePath(fname);
                 if (file.exists()) {
                     throw new ParserException(exceptPreface + "File already exists: " + fname);
                 }
@@ -230,8 +301,7 @@ public class ScriptExecute {
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
-                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
-                file = new File(fname);
+                file = getFilePath(fname);
                 if (! file.isFile()) {
                     throw new ParserException(exceptPreface + "File not found: " + fname);
                 }
@@ -248,8 +318,7 @@ public class ScriptExecute {
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
-                fname = Utils.getDefaultPath (Utils.PathType.Test) + "/" + fname;
-                file = new File(fname);
+                file = getFilePath(fname);
                 if (! file.isFile()) {
                     throw new ParserException(exceptPreface + "File not found: " + fname);
                 }
@@ -325,17 +394,22 @@ public class ScriptExecute {
                 // make sure we are converting to the type of the reference parameter
                 switch (type) {
                     case ParameterStruct.ParamType.Integer:
-                    case ParameterStruct.ParamType.Unsigned:
                         Long result;
                         if (parm1.isCalculation()) {
                             result = parm1.getCalculationValue(type);
                         } else {
                             result = parm1.getIntegerValue();
                         }
-                        if (type == ParameterStruct.ParamType.Unsigned) {
-                            result &= 0xFFFFFFFF;
-                        }
                         ParameterStruct.modifyIntegerVariable(parmName, result);
+                        break;
+                    case ParameterStruct.ParamType.Unsigned:
+                        if (parm1.isCalculation()) {
+                            result = parm1.getCalculationValue(type);
+                        } else {
+                            result = parm1.getIntegerValue();
+                        }
+                        result &= 0xFFFFFFFF;
+                        ParameterStruct.modifyUnsignedVariable(parmName, result);
                         break;
                     case ParameterStruct.ParamType.Boolean:
                         Boolean bResult = getComparison(parm1, parm2, parm3);
@@ -348,7 +422,6 @@ public class ScriptExecute {
                     case ParameterStruct.ParamType.StringArray:
                         ParameterStruct.setStrArrayVariable(parmName, parm1.getStrArray());
                         break;
-                    default:
                     case ParameterStruct.ParamType.String:
                         // The entries should be a list of 1 or more Strings to concatenate into 1
                         // (any parameter references should have been converted to their appropriate value
@@ -359,6 +432,9 @@ public class ScriptExecute {
                         }
                         ParameterStruct.modifyStringVariable(parmName, concat);
                         break;
+                    default:
+                        throw new ParserException(exceptPreface + parmRef.getVariableRefType().toString() +
+                                                " Invalid data type: " + type);
                 }
                 break;
 

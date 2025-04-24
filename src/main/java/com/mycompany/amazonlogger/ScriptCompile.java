@@ -194,6 +194,10 @@ public class ScriptCompile {
                     // verify 1 String argument: directory & 1 optional String -d or -f
                     checkArgTypes(cmdStruct, "Ss", cmdIndex);
                     break;
+                case CD:
+                    // verify 1 String argument: directory
+                    checkArgTypes(cmdStruct, "S", cmdIndex);
+                    break;
                 case FCREATER:
                     // verify 1 String argument: file name
                     checkArgTypes(cmdStruct, "S", cmdIndex);
@@ -309,21 +313,25 @@ public class ScriptCompile {
                     if (param1.getParamType() != ParameterStruct.ParamType.String) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
                     }
-                    ptype = ParameterStruct.isVariableDefined(param1.getStringValue());
-                    ParameterStruct.ParamType argtype = param2.getParamType();
+                    ParameterStruct.ParamType argtype;
+                    String varName;
+                    varName = param1.getStringValue();
+                    argtype = param2.getParamType();
+                    ptype = ParameterStruct.getVariableTypeFromName (varName);
                     switch (ptype) {
-                        case ParameterStruct.ParamType.IntArray -> {
+                        case IntArray:
                             if (argtype != ParameterStruct.ParamType.Integer &&
                                 argtype != ParameterStruct.ParamType.Unsigned) {
                                 throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
                             }
-                    }
-                        case ParameterStruct.ParamType.StringArray -> {
+                            break;
+                        case StringArray:
                             if (argtype != ParameterStruct.ParamType.String) {
                                 throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
                             }
-                    }
-                        default -> throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
+                            break;
+                        default:
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
                     }
                     break;
 
@@ -344,7 +352,7 @@ public class ScriptCompile {
                         param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
                     }
-                    ptype = ParameterStruct.isVariableDefined(param1.getStringValue());
+                    ptype = ParameterStruct.getVariableTypeFromName(param1.getStringValue());
                     argtype = param3.getParamType();
                     switch (ptype) {
                         case ParameterStruct.ParamType.IntArray -> {
@@ -377,7 +385,7 @@ public class ScriptCompile {
                         param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
                     }
-                    ptype = ParameterStruct.isVariableDefined(param1.getStringValue());
+                    ptype = ParameterStruct.getVariableTypeFromName(param1.getStringValue());
                     if (ptype != ParameterStruct.ParamType.IntArray &&
                         ptype != ParameterStruct.ParamType.StringArray) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
@@ -395,7 +403,7 @@ public class ScriptCompile {
                     if (param1.getParamType() != ParameterStruct.ParamType.String) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
                     }
-                    ptype = ParameterStruct.isVariableDefined(param1.getStringValue());
+                    ptype = ParameterStruct.getVariableTypeFromName(param1.getStringValue());
                     if (ptype != ParameterStruct.ParamType.IntArray &&
                         ptype != ParameterStruct.ParamType.StringArray) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
@@ -419,7 +427,7 @@ public class ScriptCompile {
                     if (param1.getParamType() != ParameterStruct.ParamType.String) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
                     }
-                    ptype = ParameterStruct.isVariableDefined(param1.getStringValue());
+                    ptype = ParameterStruct.getVariableTypeFromName(param1.getStringValue());
                     if (ptype == null && ! param1.getStringValue().contentEquals("RESPONSE")) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
                     }

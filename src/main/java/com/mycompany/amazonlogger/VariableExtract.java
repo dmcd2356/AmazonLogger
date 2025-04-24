@@ -13,7 +13,7 @@ import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
  */
 
 public class VariableExtract {
-    private static final String CLASS_NAME = "ParamExtract";
+    private static final String CLASS_NAME = "VariableExtract";
     
     private String  name;           // Variable name (null if not found)
     private ParameterStruct.ParamType type; // type of parameter
@@ -32,6 +32,12 @@ public class VariableExtract {
         REVERSE,            // StrArray: sort from A-Z
         SIZE,               // Any: number of chars for String, number of elements for Arrays
         ISEMPTY,            // Any: check if item is zero-length (not null)
+        DOW,                // Unsigned (DATE only): for day of week
+        DOM,                // Unsigned (DATE only): for day of month
+        DOY,                // Unsigned (DATE only): for day of year
+        MOY,                // Unsigned (DATE only): for month of year
+        DAY,                // String   (DATE only): for Day of week
+        MONTH,              // String   (DATE only): for Month
     }
 
     /**
@@ -174,26 +180,44 @@ public class VariableExtract {
             for (Trait entry : Trait.values()) {
                 if (entry.toString().contentEquals(leftover)) {
                     trait = entry;
-                    frame.outputInfoMsg(STATUS_PROGRAM, "Variable trait found: ." + trait.toString() + " in " + name);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "Variable trait found: ." + trait + " in " + name);
                     break;
                 }
             }
             if (trait == null) {
-                throw new ParserException(functionId + "Invalid Trait for Variable: " + leftover);
+                throw new ParserException(functionId + "Invalid Trait for Variable: " + name);
             }
             switch (trait) {
+                case DOW:
+                case DOM:
+                case DOY:
+                case MOY:
+                    // these are only valid for Integer types and only for $DATE
+                    type = ParameterStruct.ParamType.Unsigned;
+                    if ( ! name.contentEquals("$DATE") ) {
+                        throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
+                    }
+                    break;
+                case DAY:
+                case MONTH:
+                    type = ParameterStruct.ParamType.String;
+                    // these are only valid for String types and only for $DATE
+                    if ( ! name.contentEquals("$DATE") ) {
+                        throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
+                    }
+                    break;
                 case LOWER:
                 case UPPER:
                     // these are only valid for String types
                     if (type != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + "Invalid Trait for " + type + " Variable: " + leftover);
+                        throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
                     }
                     break;
                 case SORT:
                 case REVERSE:
                     // these are only valid for StrArray types
                     if (type != ParameterStruct.ParamType.StringArray) {
-                        throw new ParserException(functionId + "Invalid Trait for " + type + " Variable: " + leftover);
+                        throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
                     }
                     break;
                 default:

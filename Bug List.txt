@@ -1,3 +1,5 @@
+KNOWN BUGS:
+
 TODO:
 - Add the following PROGRAM features:
     - add -hyper option command to place a hypertext link in the cell of a spreadsheet
@@ -14,10 +16,7 @@ TODO:
     current entry item before copying the data.
 - After spreadsheet is loaded, show the last (most recent entry) in Dan and Connie tab to make it
     easier to find the next page to load without having to look at the spreadsheet directly.
-
-BUGS:
-- Fix the issue of removing the OCR capability in the Tika jar for reading the PDF file. This
-    is causing the processing to slow down.
+- Add ability to do OCR of scanned text documents and be able to read the text.
 
 TESTING PHASE:
  * modify RESPONSE to be a StrArray instead of a String to access each element
@@ -35,4 +34,8 @@ TESTING PHASE:
  * Fix Boolean Comparison of String param to discreet String - the discreet value includes the quotes.
  * add WRITABLE, READABLE and DIRECTORY options to FEXISTS command for checking if file is readable or writable or is a directory
  * add DIRECTORY command for retrieving a list of dirs or files
+ * add reserved response variables of $RANDOM, $TIME, $DATE
+ * add .DAY and .MONTH String traits for $DATE and .DOW, .DOM, .DOY and .MOY Unsigned traits for $DATE
+ * allow setting the RANDOM variable that sets the range of random values
+ * add CD command to change directory within the Testpath base
 

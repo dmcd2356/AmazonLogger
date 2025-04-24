@@ -7,11 +7,18 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 
 /**
  * This class defines the structure of the parameters stored for the commands.
@@ -40,7 +47,8 @@ public final class ParameterStruct {
     
     // reserved static Variables
     private static ArrayList<String>  strResponse = new ArrayList<>();    // responses from RUN commands
-    private static Long               intResult = 0L;      // result of last CALC command
+    private static Long               intResult = 0L;       // result of last CALC command
+    private static long         maxRandom = 1000000000;     // for random values 0 - 999999999
     // user-defined static Variables
     private static final HashMap<String, String>  strParams  = new HashMap<>();
     private static final HashMap<String, Long>    longParams = new HashMap<>();
@@ -76,6 +84,14 @@ public final class ParameterStruct {
         StringArray,    // 'L' type
     }
 
+    public enum ReservedVars {
+        RESPONSE,
+        RESULT,
+        RANDOM,
+        DATE,
+        TIME,
+    }
+    
     public ParameterStruct() {
         strParam = null;
         longParam = null;
@@ -752,179 +768,293 @@ public final class ParameterStruct {
         
         // create a new parameter with all null entries
         ParameterStruct paramValue = new ParameterStruct();
+        paramValue.variableRef = new VariableInfo (paramInfo);
 
         String name = paramInfo.getName();
         if (name.charAt(0) == '$') {
             name = name.substring(1);
         }
-        ParamType pType = paramInfo.getType();
-        ParamType findType = isVariableDefined(name);
-        if (findType == null) {
-            frame.outputInfoMsg(STATUS_PROGRAM, "    - Variable Ref '" + name + "' as type " + pType + " was not found in any Variable database");
-        }
-        if (pType == null || findType != pType) {
-            frame.outputInfoMsg(STATUS_PROGRAM, "    - Incorrect Variable Ref type for '" + name + "' as type " + pType + " is actually " + findType);
-            pType = findType;
-        }
-        
-        switch (pType) {
-            case ParamType.Integer:
-                paramValue.longParam = longParams.get(name);
-                if (paramValue.longParam == null) {
-                    throw new ParserException(functionId + "Parameter " + name + " not found");
-                }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.longParam);
+        // first, check for reserved variables
+        ParamType pType = null;
+        switch (name) {
+            case "RESPONSE":
+                paramValue.strArrayParam = strResponse;
+                pType = ParamType.StringArray;
                 break;
-            case ParamType.Unsigned:
-                paramValue.longParam = uintParams.get(name);
-                if (paramValue.longParam == null) {
-                    throw new ParserException(functionId + "Parameter " + name + " not found");
-                }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.longParam);
+            case "RESULT":
+                paramValue.longParam = intResult;
+                pType = isUnsignedInt(paramValue.longParam) ? ParamType.Unsigned : ParamType.Integer;
                 break;
-            case ParamType.Boolean:
-                paramValue.boolParam = boolParams.get(name);
-                if (paramValue.boolParam == null) {
-                    throw new ParserException(functionId + "Parameter " + name + " not found");
-                }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.boolParam);
+            case "RANDOM":
+                Random rand = new Random();
+                paramValue.longParam = rand.nextLong(maxRandom);
+                pType = ParamType.Integer;
                 break;
-            case ParamType.IntArray:
-                paramValue.intArrayParam = intArrayParams.get(name);
-                if (paramValue.intArrayParam == null) {
-                    throw new ParserException(functionId + "Parameter " + name + " not found");
-                }
-                String arrayValue = paramValue.intArrayParam.toString();
-                if (arrayValue.length() > 100) {
-                    arrayValue = arrayValue.substring(0,100) + "...";
-                }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
-                // check for extensions to reference param
-                if (paramInfo.getIndexStart() != null) {
-                    int iStart = paramInfo.getIndexStart();
-                    if (iStart < paramValue.intArrayParam.size()) {
-                        paramValue.longParam = paramValue.intArrayParam.get(iStart);
-                        pType = ParamType.Integer;
-                        frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "index[" + iStart + "] ' as type Integer: " + paramValue.longParam);
-                    } else {
-                        throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
+            case "TIME":
+                LocalTime currentTime = LocalTime.now();
+                paramValue.strParam = currentTime.toString().substring(0,12);
+                pType = ParamType.String;
+                break;
+            case "DATE":
+                LocalDate currentDate = LocalDate.now();
+                if (paramInfo.getTrait() == null) {
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ENGLISH);
+                    paramValue.strParam = currentDate.format(formatter);
+                    pType = ParamType.String;
+                } else {
+                    // these traits are only valid for DATE
+                    switch (paramInfo.getTrait()) {
+                        default:
+                        case VariableExtract.Trait.DOW:
+                            DayOfWeek dow = currentDate.getDayOfWeek();
+                            paramValue.longParam = (long) dow.getValue();
+                            pType = ParamType.Unsigned;
+                            break;
+                        case VariableExtract.Trait.DOM:
+                            int ivalue = currentDate.getDayOfMonth();
+                            paramValue.longParam = (long) ivalue;
+                            pType = ParamType.Unsigned;
+                            break;
+                        case VariableExtract.Trait.DOY:
+                            ivalue = currentDate.getDayOfYear();
+                            paramValue.longParam = (long) ivalue;
+                            pType = ParamType.Unsigned;
+                            break;
+                        case VariableExtract.Trait.MOY:
+                            ivalue = currentDate.getMonthValue();
+                            paramValue.longParam = (long) ivalue;
+                            pType = ParamType.Unsigned;
+                            break;
+                        case VariableExtract.Trait.DAY:
+                            paramValue.strParam = currentDate.getDayOfWeek().toString();
+                            pType = ParamType.String;
+                            break;
+                        case VariableExtract.Trait.MONTH:
+                            paramValue.strParam = currentDate.getMonth().toString();
+                            pType = ParamType.String;
+                            break;
                     }
-                } else if (paramInfo.getTrait() == VariableExtract.Trait.SIZE) {
-                    paramValue.longParam = (long)paramValue.intArrayParam.size();
-                    pType = ParamType.Integer;
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".SIZE ' as type Integer: " + paramValue.longParam);
-                } else if (paramInfo.getTrait() == VariableExtract.Trait.ISEMPTY) {
-                    paramValue.boolParam = paramValue.intArrayParam.isEmpty();
-                    pType = ParamType.Boolean;
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".ISEMPTY ' as type Boolean: " + paramValue.boolParam);
                 }
                 break;
-            case ParamType.StringArray:
-                if (name.contentEquals("RESPONSE")) {
-                    paramValue.strArrayParam = strResponse;
-                } else  {
+            default:
+                break;
+        }
+
+        // otherwise, let's check for standard (and loop) variables for name match
+        if (pType == null) {
+            pType = paramInfo.getType();
+            ParamType findType = isVariableDefined(name);
+            if (findType == null) {
+                frame.outputInfoMsg(STATUS_WARN, "    - Variable Ref '" + name + "' as type " + pType + " was not found in any Variable database");
+            }
+            if (pType == null || findType != pType) {
+                frame.outputInfoMsg(STATUS_PROGRAM, "    - Incorrect Variable Ref type for '" + name + "' as type " + pType + " is actually " + findType);
+                pType = findType;
+            }
+
+            switch (pType) {
+                case ParamType.Integer:
+                    // first check the standard parameters
+                    paramValue.longParam = longParams.get(name);
+                    if (paramValue.longParam == null) {
+                        // if not, check if it is in loop parameters
+                        if (loopNames.containsKey(name)) {
+                            LoopStruct loopInfo = new LoopStruct();
+                            paramValue.longParam = loopInfo.getCurrentLoopValue(name).longValue();
+                            pType = isUnsignedInt(paramValue.longParam) ? ParamType.Unsigned : ParamType.Integer;
+                        } else {
+                            throw new ParserException(functionId + "Parameter " + name + " not found");
+                        }
+                    }
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.longParam);
+                    break;
+                case ParamType.Unsigned:
+                    paramValue.longParam = uintParams.get(name);
+                    if (paramValue.longParam == null) {
+                        // if not, check if it is in loop parameters
+                        if (loopNames.containsKey(name)) {
+                            LoopStruct loopInfo = new LoopStruct();
+                            paramValue.longParam = loopInfo.getCurrentLoopValue(name).longValue();
+                            pType = isUnsignedInt(paramValue.longParam) ? ParamType.Unsigned : ParamType.Integer;
+                        } else {
+                            throw new ParserException(functionId + "Parameter " + name + " not found");
+                        }
+                    }
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.longParam);
+                    break;
+                case ParamType.Boolean:
+                    paramValue.boolParam = boolParams.get(name);
+                    if (paramValue.boolParam == null) {
+                        throw new ParserException(functionId + "Parameter " + name + " not found");
+                    }
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.boolParam);
+                    break;
+                case ParamType.IntArray:
+                    paramValue.intArrayParam = intArrayParams.get(name);
+                    if (paramValue.intArrayParam == null) {
+                        throw new ParserException(functionId + "Parameter " + name + " not found");
+                    }
+                    String arrayValue = paramValue.intArrayParam.toString();
+                    if (arrayValue.length() > 100) {
+                        arrayValue = arrayValue.substring(0,20) + "...";
+                    }
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
+                    break;
+                case ParamType.StringArray:
                     paramValue.strArrayParam = strArrayParams.get(name);
                     if (paramValue.strArrayParam == null) {
                         throw new ParserException(functionId + "Parameter " + name + " not found");
                     }
-                }
-                arrayValue = paramValue.strArrayParam.toString();
-                if (arrayValue.length() > 100) {
-                    arrayValue = arrayValue.substring(0,100) + "...";
-                }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
-                // check for extensions to reference param
-                if (paramInfo.getIndexStart() != null) {
-                    int iStart = paramInfo.getIndexStart();
-                    if (iStart < paramValue.strArrayParam.size()) {
-                        paramValue.strParam = paramValue.strArrayParam.get(iStart);
-                        pType = ParamType.String;
-                        frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "index[" + iStart + "] ' as type String: " + paramValue.strParam);
-                    } else {
-                        throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
+                    arrayValue = paramValue.strArrayParam.toString();
+                    if (arrayValue.length() > 100) {
+                        arrayValue = arrayValue.substring(0,20) + "...";
                     }
-                } else if (paramInfo.getTrait() == VariableExtract.Trait.SORT) {
-//                    ArrayList<String> newList = new ArrayList<>();
-                    Collections.sort(paramValue.strArrayParam.subList(0, paramValue.strArrayParam.size()));
-//                    for (int ix = 0; ix < paramValue.strArrayParam.size(); ix++) {
-//                        newList.add(paramValue.strArrayParam.get(ix).toLowerCase());
-//                    }
-//                    paramValue.strArrayParam.clear();
-//                    paramValue.strArrayParam.addAll(newList);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".SORT ' as type StrArray");
-                } else if (paramInfo.getTrait() == VariableExtract.Trait.REVERSE) {
-                    Collections.reverse(paramValue.strArrayParam);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".REVERSE ' as type StrArray");
-                } else if (paramInfo.getTrait() == VariableExtract.Trait.SIZE) {
-                    paramValue.longParam = (long)paramValue.strArrayParam.size();
-                    pType = ParamType.Integer;
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".SIZE ' as type Integer: " + paramValue.longParam);
-                } else if (paramInfo.getTrait() == VariableExtract.Trait.ISEMPTY) {
-                    paramValue.boolParam = paramValue.strArrayParam.isEmpty();
-                    pType = ParamType.Boolean;
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".ISEMPTY ' as type Boolean: " + paramValue.boolParam);
-                }
-                break;
-            default:
-                if (name.contentEquals("RESULT")) {
-                    paramValue.longParam = intResult;
-                    if (isUnsignedInt(paramValue.longParam)) {
-                        pType = ParamType.Unsigned;
-                    } else {
-                        pType = ParamType.Integer;
-                    }
-                } else {
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
+                    break;
+                default:
+                case ParamType.String:
                     paramValue.strParam = strParams.get(name);
                     if (paramValue.strParam != null) {
                         pType = ParamType.String;
-                        // check for extensions to reference param
-                        if (paramInfo.getIndexStart() != null) {
-                            int iStart = paramInfo.getIndexStart();
-                            int iEnd = iStart + 1;
-                            String ixRange = "[" + iStart + "]";
-                            if(paramInfo.getIndexEnd() != null) {
-                                iEnd = paramInfo.getIndexEnd();
-                                ixRange = "[" + iStart + "-" + iEnd + "]";
-                            }
-                            if (iEnd <= paramValue.strArrayParam.size()) {
-                                paramValue.strParam = paramValue.strParam.substring(iStart, iEnd);
-                                frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "index" + ixRange + " ' as type String: " + paramValue.strParam);
-                            } else {
-                                throw new ParserException(functionId + "Parameter " + name + " index" + ixRange + " exceeds array");
-                            }
-                        } else if (paramInfo.getTrait() == VariableExtract.Trait.UPPER) {
-                            paramValue.strParam = paramValue.strParam.toUpperCase();
-                            frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".UPPER ' as type String: " + paramValue.strParam);
-                        } else if (paramInfo.getTrait() == VariableExtract.Trait.LOWER) {
-                            paramValue.strParam = paramValue.strParam.toLowerCase();
-                            frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".LOWER ' as type String: " + paramValue.strParam);
-                        } else if (paramInfo.getTrait() == VariableExtract.Trait.SIZE) {
-                            paramValue.longParam = (long)paramValue.strParam.length();
-                            pType = ParamType.Integer;
-                            frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".SIZE ' as type Integer: " + paramValue.longParam);
-                        } else if (paramInfo.getTrait() == VariableExtract.Trait.ISEMPTY) {
-                            paramValue.boolParam = paramValue.strParam.isEmpty();
-                            pType = ParamType.Boolean;
-                            frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + ".ISEMPTY ' as type Boolean: " + paramValue.boolParam);
-                        }
-                    } else if (loopNames.containsKey(name)) {
-                        LoopStruct loopInfo = new LoopStruct();
-                        paramValue.longParam = loopInfo.getCurrentLoopValue(name).longValue();
-                        if (isUnsignedInt(paramValue.longParam)) {
-                            pType = ParamType.Unsigned;
-                        } else {
-                            pType = ParamType.Integer;
-                        }
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " not found");
                     }
-                }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.strParam);
-                break;
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.strParam);
+                    break;
+            }
         }
 
+        // now check for brackets being applied (this will change the type for Arrays)
+        if (paramInfo.getIndexStart() != null) {
+            int iStart = paramInfo.getIndexStart();
+            switch (pType) {
+                case ParamType.IntArray:
+                    if (iStart < paramValue.intArrayParam.size()) {
+                        paramValue.longParam = paramValue.intArrayParam.get(iStart);
+                        paramValue.strParam = paramValue.longParam.toString();
+                        pType = ParamType.Integer;
+                        frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "[" + iStart + "] as type " + pType + ": " + paramValue.longParam);
+                    } else {
+                        throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
+                    }
+                    break;
+                case ParamType.StringArray:
+                    if (iStart < paramValue.strArrayParam.size()) {
+                        paramValue.strParam = paramValue.strArrayParam.get(iStart);
+                        pType = ParamType.String;
+                        frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "[" + iStart + "] as type " + pType + ": " + paramValue.strParam);
+                    } else {
+                        throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
+                    }
+                    break;
+                case ParamType.String:
+                    int iEnd = iStart + 1;
+                    String ixRange = "[" + iStart + "]";
+                    if(paramInfo.getIndexEnd() != null) {
+                        iEnd = paramInfo.getIndexEnd();
+                        ixRange = "[" + iStart + "-" + iEnd + "]";
+                    }
+                    if (iEnd <= paramValue.strArrayParam.size()) {
+                        paramValue.strParam = paramValue.strParam.substring(iStart, iEnd);
+                        frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "index" + ixRange + " as type " + pType + ": " + paramValue.strParam);
+                    } else {
+                        throw new ParserException(functionId + "Parameter " + name + " index" + ixRange + " exceeds array");
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        
+        // now check for traits being applied (this can also change the data type returned)
+        VariableExtract.Trait trait = paramInfo.getTrait();
+        if (trait != null) {
+            switch (pType) {
+                case ParamType.IntArray:
+                    switch (trait) {
+                        case SIZE:
+                            paramValue.longParam = (long)paramValue.intArrayParam.size();
+                            paramValue.strParam = paramValue.longParam.toString();
+                            pType = ParamType.Integer;
+                            break;
+                        case ISEMPTY:
+                            paramValue.boolParam = paramValue.intArrayParam.isEmpty();
+                            paramValue.strParam = paramValue.boolParam.toString();
+                            pType = ParamType.Boolean;
+                            break;
+                        default:
+                            throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);
+                    }
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "." + trait.toString() + " as type " + pType + ": " + paramValue.strParam);
+                    break;
+                case ParamType.StringArray:
+                    String strValue = "";
+                    switch (trait) {
+                        case SORT:
+                            Collections.sort(paramValue.strArrayParam.subList(0, paramValue.strArrayParam.size()));
+                            strValue = paramValue.strArrayParam.toString();
+                            if (strValue.length() > 20) strValue = strValue.substring(0, 20) + "...";
+                            break;
+                        case REVERSE:
+                            Collections.reverse(paramValue.strArrayParam);
+                            strValue = paramValue.strArrayParam.toString();
+                            if (strValue.length() > 20) strValue = strValue.substring(0, 20) + "...";
+                            break;
+                        case SIZE:
+                            paramValue.longParam = (long)paramValue.strArrayParam.size();
+                            strValue = paramValue.longParam.toString();
+                            pType = ParamType.Integer;
+                            break;
+                        case ISEMPTY:
+                            paramValue.boolParam = paramValue.strArrayParam.isEmpty();
+                            strValue = paramValue.boolParam.toString();
+                            pType = ParamType.Boolean;
+                            break;
+                        default:
+                            throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);
+                    }
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "." + trait.toString() + " as type " + pType + ": " + strValue);
+                    break;
+                case ParamType.String:
+                    strValue = "";
+                    switch (trait) {
+                        case UPPER:
+                            paramValue.strParam = paramValue.strParam.toUpperCase();
+                            strValue = paramValue.strParam;
+                            break;
+                        case LOWER:
+                            paramValue.strParam = paramValue.strParam.toLowerCase();
+                            strValue = paramValue.strParam;
+                            break;
+                        case SIZE:
+                            paramValue.longParam = (long)paramValue.strParam.length();
+                            strValue = paramValue.longParam.toString();
+                            pType = ParamType.Integer;
+                            break;
+                        case ISEMPTY:
+                            paramValue.boolParam = paramValue.strParam.isEmpty();
+                            strValue = paramValue.boolParam.toString();
+                            pType = ParamType.Boolean;
+                            break;
+                        case VariableExtract.Trait.DOW:
+                        case VariableExtract.Trait.DOM:
+                        case VariableExtract.Trait.DOY:
+                        case VariableExtract.Trait.MOY:
+                        case VariableExtract.Trait.DAY:
+                        case VariableExtract.Trait.MONTH:
+                            // nothing to do for these - they were handled in the DATE section
+                            break;
+                        default:
+                            throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType.toString());
+                    }
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "." + trait.toString() + " as type Boolean: " + strValue);
+                    break;
+                default:
+                    break;
+            }
+        }
+        
         // save the parameter type and name
-        paramValue.variableRef = new VariableInfo (paramInfo);
         paramValue.paramType   = pType;
         paramValue.paramTypeID = getParamTypeID (pType);
         paramValue.paramClass  = ParamClass.Discrete;
@@ -946,11 +1076,12 @@ public final class ParameterStruct {
     public static void modifyStringVariable (String name, String value) throws ParserException {
         String functionId = CLASS_NAME + ".modifyStringVariable: ";
 
-        if (!strParams.containsKey(name)) {
+        if (strParams.containsKey(name)) {
+            strParams.replace(name, value);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified String param: " + name + " = " + value);
+        } else {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
-        strParams.replace(name, value);
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified String param: " + name + " = " + value);
     }
 
     /**
@@ -965,11 +1096,12 @@ public final class ParameterStruct {
     public static void modifyIntegerVariable (String name, Long value) throws ParserException {
         String functionId = CLASS_NAME + ".modifyIntegerVariable: ";
 
-        if (!longParams.containsKey(name)) {
+        if (longParams.containsKey(name)) {
+            longParams.replace(name, value);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Integer param: " + name + " = " + value);
+        } else {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
-        longParams.replace(name, value);
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Integer param: " + name + " = " + value);
     }
 
     /**
@@ -984,14 +1116,17 @@ public final class ParameterStruct {
     public static void modifyUnsignedVariable (String name, Long value) throws ParserException {
         String functionId = CLASS_NAME + ".modifyUnsignedVariable: ";
 
-        if (!uintParams.containsKey(name)) {
-            throw new ParserException(functionId + "Variable " + name + " not found");
-        }
         if (! isUnsignedInt(value)) {
             throw new ParserException(functionId + "value for Variable " + name + " exceeds limits for Unsigned: " + value);
         }
-        uintParams.replace(name, value);
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Unsigned param: " + name + " = " + value);
+        if (name.contentEquals("RANDOM")) {
+            maxRandom = value;  // this will set the max range for random value (0 to maxRandom - 1)
+        } else if (uintParams.containsKey(name)) {
+            uintParams.replace(name, value);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Unsigned param: " + name + " = " + value);
+        } else {
+            throw new ParserException(functionId + "Variable " + name + " not found");
+        }
     }
 
     /**
@@ -1006,11 +1141,12 @@ public final class ParameterStruct {
     public static void modifyBooleanVariable (String name, Boolean value) throws ParserException {
         String functionId = CLASS_NAME + ".modifyBooleanVariable: ";
 
-        if (!boolParams.containsKey(name)) {
+        if (boolParams.containsKey(name)) {
+            boolParams.replace(name, value);
+            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Boolean param: " + name + " = " + value);
+        } else {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
-        boolParams.replace(name, value);
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Boolean param: " + name + " = " + value);
     }
 
     /**
@@ -1026,14 +1162,14 @@ public final class ParameterStruct {
     public static int getIntArraySize (String name) throws ParserException {
         String functionId = CLASS_NAME + ".getArraySize: ";
 
-        if (intArrayParams.containsKey(name)) {
+        if (name.contentEquals("RESPONSE")) {
+            return strResponse.size();
+        } else if (intArrayParams.containsKey(name)) {
             ArrayList<Long> entry = intArrayParams.get(name);
             return entry.size();
         } else if (strArrayParams.containsKey(name)) {
             ArrayList<String> entry = strArrayParams.get(name);
             return entry.size();
-        } else if (name.contentEquals("RESPONSE")) {
-            return strResponse.size();
         }
         throw new ParserException(functionId + "Array Variable " + name + " not found");
     }
@@ -1594,6 +1730,12 @@ public final class ParameterStruct {
             return ParamType.StringArray;
         } else if (name.contentEquals("RESULT")) {
             return ParamType.Integer;
+        } else if (name.contentEquals("RANDOM")) {
+            return ParamType.Unsigned;
+        } else if (name.contentEquals("DATE")) {
+            return ParamType.String;  // can also be Unsigned
+        } else if (name.contentEquals("TIME")) {
+            return ParamType.String;
         }
         // default
         return ParamType.String;
@@ -1618,7 +1760,7 @@ public final class ParameterStruct {
      * 
      * @return type of Variable if found, null if not found
      */
-    public static ParamType isVariableDefined (String name) {
+    private static ParamType isVariableDefined (String name) {
         if (longParams.containsKey(name)) {
             return ParamType.Integer;
         }
@@ -1637,12 +1779,6 @@ public final class ParameterStruct {
         if (strArrayParams.containsKey(name)) {
             return ParamType.StringArray;
         }
-        if (name.contentEquals("RESPONSE")) {
-            return ParamType.StringArray;
-        }
-        if (name.contentEquals("RESULT")) {
-            return ParamType.Integer;
-        }
         return null;
     }
 
@@ -1658,10 +1794,27 @@ public final class ParameterStruct {
     }
 
     /**
+     * indicates if the name is reserved and can't be used for a variable.
+     * 
+     * @param name - the name to check
+     * 
+     * @return true if it is a reserved name
+     */
+    private static boolean isReservedName (String name) {
+        for (ReservedVars entry : ReservedVars.values()) {
+            if (entry.toString().contentEquals(name)) {
+                frame.outputInfoMsg(STATUS_PROGRAM, "    Reserved name found: " + name);
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
      * checks if a Variable name is valid.
      *   - name must begin with an alpha character
      *   - name must be only alphanumeric or '_' chars,
-     *   - cannot be a reserved Variable name (RESPONSE, RESULT)
+     *   - cannot be a reserved Variable name (RESPONSE, RESULT, ...)
      *   - cannot be a command name or an operation name
      *   - cannot be a Loop Variable name.
      *   - checks if Variable is already defined
@@ -1684,12 +1837,11 @@ public final class ParameterStruct {
             verifyVariableFormat(name);
 
             // check if it is a reserved param name
-            if (name.contentEquals("RESPONSE") ||
-                name.contentEquals("RESULT")  ) {
+            if (isReservedName(name)) {
                 return true;
             }
 
-            // make sure it is not a command namee
+            // make sure it is not a command name
             if (CommandStruct.isValidCommand(name) != null) {
                 throw new ParserException(functionId + "using Reserved command name: " + name);
             }
@@ -1727,11 +1879,12 @@ public final class ParameterStruct {
             // verify the formaat of the Variable name
             verifyVariableFormat(name);
 
-            // make sure it is not a command name of a reserved param name
-            if (name.contentEquals("RESPONSE") ||
-                name.contentEquals("RESULT")  ) {
+            // check if it is a reserved param name
+            if (isReservedName(name)) {
                 throw new ParserException(functionId + "using Reserved Variable name: " + name);
             }
+
+            // make sure it is not a command name
             if (CommandStruct.isValidCommand(name) != null) {
                 throw new ParserException(functionId + "using Reserved command name: " + name);
             }
