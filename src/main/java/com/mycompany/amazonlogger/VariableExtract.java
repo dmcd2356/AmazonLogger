@@ -30,6 +30,7 @@ public class VariableExtract {
         LOWER,              // String:   convert all chars to lowercase
         SORT,               // StrArray: sort from A-Z
         REVERSE,            // StrArray: sort from A-Z
+        FILTER,             // StrArray or IntArray: filtered contents
         SIZE,               // Any: number of chars for String, number of elements for Arrays
         ISEMPTY,            // Any: check if item is zero-length (not null)
         DOW,                // Unsigned (DATE only): for day of week
@@ -220,7 +221,22 @@ public class VariableExtract {
                         throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
                     }
                     break;
+                case FILTER:
+                    // these are only valid for StrArray and IntArray types
+                    if (type != ParameterStruct.ParamType.StringArray &&
+                        type != ParameterStruct.ParamType.IntArray)      {
+                        throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
+                    }
+                    break;
                 default:
+                case SIZE:
+                case ISEMPTY:
+                    // these are allowed for Strings and Arrays
+                    if (type != ParameterStruct.ParamType.StringArray &&
+                        type != ParameterStruct.ParamType.IntArray    &&
+                        type != ParameterStruct.ParamType.String)        {
+                        throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
+                    }
                     break;
             }
         } else if (offLeftB > 0) {

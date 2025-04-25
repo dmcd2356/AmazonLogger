@@ -2,6 +2,7 @@ KNOWN BUGS:
 
 TODO:
 - Add the following PROGRAM features:
+    - fix setting RESULT instead of RESPONSE for several cases
     - add -hyper option command to place a hypertext link in the cell of a spreadsheet
     - add DOUNTIL and DOWHILE commands (terminate in DONE)
     - add subroutine calls (SUB, RETURN) and getting the return value $RETURN
@@ -38,4 +39,5 @@ TESTING PHASE:
  * add .DAY and .MONTH String traits for $DATE and .DOW, .DOM, .DOY and .MOY Unsigned traits for $DATE
  * allow setting the RANDOM variable that sets the range of random values
  * add CD command to change directory within the Testpath base
+ * add FILTER command and Trait to filter arrays.
 

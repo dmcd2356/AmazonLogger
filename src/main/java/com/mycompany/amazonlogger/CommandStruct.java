@@ -53,6 +53,8 @@ public class CommandStruct {
         TRUNCATE,   //  "       "       "
         POP,        //  "       "       "
         CLEAR,      //  "       "       "
+        FILTER,     //  "       "       "
+        RESET,      // (not a command, but used as argument for FILTER)
     };
 
     /**

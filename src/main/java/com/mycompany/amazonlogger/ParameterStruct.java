@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 
 /**
@@ -47,8 +48,9 @@ public final class ParameterStruct {
     
     // reserved static Variables
     private static ArrayList<String>  strResponse = new ArrayList<>();    // responses from RUN commands
-    private static Long               intResult = 0L;       // result of last CALC command
-    private static long         maxRandom = 1000000000;     // for random values 0 - 999999999
+    private static boolean            bStatus = false;          // true/false status indications
+    private static long               maxRandom = 1000000000;   // for random values 0 - 999999999
+
     // user-defined static Variables
     private static final HashMap<String, String>  strParams  = new HashMap<>();
     private static final HashMap<String, Long>    longParams = new HashMap<>();
@@ -56,6 +58,9 @@ public final class ParameterStruct {
     private static final HashMap<String, Boolean> boolParams = new HashMap<>();
     private static final HashMap<String, ArrayList<Long>>    intArrayParams = new HashMap<>();
     private static final HashMap<String, ArrayList<String>>  strArrayParams = new HashMap<>();
+
+    // array filter info
+    private static ArrayList<Boolean> ixFilter = null;
     
     // for loops, the loopParams will find the loop parameter for the loop at the
     // specified command index. In order to determine if we have a nested loop
@@ -86,7 +91,7 @@ public final class ParameterStruct {
 
     public enum ReservedVars {
         RESPONSE,
-        RESULT,
+        STATUS,
         RANDOM,
         DATE,
         TIME,
@@ -582,13 +587,25 @@ public final class ParameterStruct {
                 }
                 break;
             case ParamType.IntArray:
-                strParam = intArrayParam.getFirst().toString();
-                longParam = intArrayParam.getFirst();
-                boolParam = !intArrayParam.isEmpty(); // set to true if array has an entry
+                if (intArrayParam.isEmpty()) {
+                    strParam = "";
+                    longParam = 0L;
+                    boolParam = true;
+                } else {
+                    strParam = intArrayParam.getFirst().toString();
+                    longParam = intArrayParam.getFirst();
+                    boolParam = false;
+                }
                 frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case ParamType.StringArray:  // String List type
-                strParam = strArrayParam.getFirst();
+                if (strArrayParam.isEmpty()) {
+                    strParam = "";
+                    boolParam = true;
+                } else {
+                    strParam = strArrayParam.getFirst();
+                    boolParam = false;
+                }
                 frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             default:
@@ -667,7 +684,7 @@ public final class ParameterStruct {
         loopParams.clear();
         loopNames.clear();
         strResponse.clear();
-        intResult = 0L;
+        bStatus = false;
     }
 
     /**
@@ -689,12 +706,12 @@ public final class ParameterStruct {
     }
     
     /**
-     * set the value of the $RESULT Variable
+     * set the value of the $STATUS Variable
      * 
      * @param value - value to set the result Variable to
      */
-    public static void putResultValue (Long value) {
-        intResult = value;
+    public static void putStatusValue (boolean value) {
+        bStatus = value;
     }
 
     /**
@@ -781,9 +798,9 @@ public final class ParameterStruct {
                 paramValue.strArrayParam = strResponse;
                 pType = ParamType.StringArray;
                 break;
-            case "RESULT":
-                paramValue.longParam = intResult;
-                pType = isUnsignedInt(paramValue.longParam) ? ParamType.Unsigned : ParamType.Integer;
+            case "STATUS":
+                paramValue.boolParam = bStatus;
+                pType = ParamType.Boolean;
                 break;
             case "RANDOM":
                 Random rand = new Random();
@@ -971,9 +988,10 @@ public final class ParameterStruct {
         if (trait != null) {
             switch (pType) {
                 case ParamType.IntArray:
+                    int psize = paramValue.intArrayParam.size();
                     switch (trait) {
                         case SIZE:
-                            paramValue.longParam = (long)paramValue.intArrayParam.size();
+                            paramValue.longParam = (long)psize;
                             paramValue.strParam = paramValue.longParam.toString();
                             pType = ParamType.Integer;
                             break;
@@ -982,16 +1000,31 @@ public final class ParameterStruct {
                             paramValue.strParam = paramValue.boolParam.toString();
                             pType = ParamType.Boolean;
                             break;
+                        case FILTER:
+                            if (ixFilter == null) {
+                                throw new ParserException(functionId + trait.toString() + " has not been initialized yet");
+                            }
+                            if (ixFilter.size() != psize) {
+                                throw new ParserException(functionId + trait.toString() + " has size " + ixFilter.size() + ", but array is size " + psize);
+                            }
+                            // remove the selected entries
+                            for (int ix = psize - 1; ix >= 0; ix--) {
+                                if (!ixFilter.get(ix)) {
+                                    paramValue.intArrayParam.remove(ix);
+                                }
+                            }
+                            break;
                         default:
                             throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);
                     }
                     frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "." + trait.toString() + " as type " + pType + ": " + paramValue.strParam);
                     break;
                 case ParamType.StringArray:
+                    psize = paramValue.strArrayParam.size();
                     String strValue = "";
                     switch (trait) {
                         case SORT:
-                            Collections.sort(paramValue.strArrayParam.subList(0, paramValue.strArrayParam.size()));
+                            Collections.sort(paramValue.strArrayParam.subList(0, psize));
                             strValue = paramValue.strArrayParam.toString();
                             if (strValue.length() > 20) strValue = strValue.substring(0, 20) + "...";
                             break;
@@ -1001,7 +1034,7 @@ public final class ParameterStruct {
                             if (strValue.length() > 20) strValue = strValue.substring(0, 20) + "...";
                             break;
                         case SIZE:
-                            paramValue.longParam = (long)paramValue.strArrayParam.size();
+                            paramValue.longParam = (long)psize;
                             strValue = paramValue.longParam.toString();
                             pType = ParamType.Integer;
                             break;
@@ -1009,6 +1042,20 @@ public final class ParameterStruct {
                             paramValue.boolParam = paramValue.strArrayParam.isEmpty();
                             strValue = paramValue.boolParam.toString();
                             pType = ParamType.Boolean;
+                            break;
+                        case FILTER:
+                            if (ixFilter == null) {
+                                throw new ParserException(functionId + trait.toString() + " has not been initialized yet");
+                            }
+                            if (ixFilter.size() != psize) {
+                                throw new ParserException(functionId + trait.toString() + " has size " + ixFilter.size() + ", but array is size " + psize);
+                            }
+                            // remove the selected entries
+                            for (int ix = psize - 1; ix >= 0; ix--) {
+                                if (!ixFilter.get(ix)) {
+                                    paramValue.strArrayParam.remove(ix);
+                                }
+                            }
                             break;
                         default:
                             throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);
@@ -1437,6 +1484,120 @@ public final class ParameterStruct {
     }
 
     /**
+     * resets the array filter.
+     */
+    public static void arrayFilterReset () {
+        ixFilter = null;
+    }
+    
+    /**
+     * sets the filter entries based on the matching conditions in the StringArray.
+     * 
+     * @param varName   - name of the variable to check
+     * @param strFilter - the filter match criteria
+     * @param opts      - '!' to invert the logic and LEFT or RIGHT for searching only ends
+     * 
+     * @throws ParserException
+     * 
+     */
+    public static void arrayFilterString (String varName, String strFilter, String opts) throws ParserException {
+        String functionId = CLASS_NAME + ".arrayFilterString: ";
+
+        if (! strArrayParams.containsKey(varName)) {
+            throw new ParserException(functionId + "Array parameter not found: " + varName);
+        }
+        ArrayList<String> var = strArrayParams.get(varName);
+
+        // if this is 1st filter being performed, init entries to all true
+        if (ixFilter == null) {
+            ixFilter = new ArrayList<>();
+            for (String var1 : var) {
+                ixFilter.add(true);
+            }
+        } else if (var.size() != ixFilter.size()) {
+            throw new ParserException(functionId + "Filter Array size mismatch: " + varName + " = " + var.size() + ", filter = " + ixFilter.size());
+        }
+
+        // check for leading or trailing filter checks
+        boolean bInvert = false;
+        if (opts.charAt(0) == '!') {
+            bInvert = true;
+            opts = opts.substring(1);
+        }
+        
+        // now we only mark the entries that do not match the criteria, so that filters
+        // can be stacked upon each other.
+        for (int ix = 0; ix < var.size(); ix++) {
+            String entry = var.get(ix);
+
+            // search for matching chars anywhere in string
+            boolean bMatch = entry.contains(strFilter);
+            if (bMatch) {
+                // the pattern was found somewhere in the string.
+                //  If we are matching LEFT or RIGHT only, we need to check
+                //  if these cases matched.
+                int endix = entry.length() - strFilter.length();
+                int offset = entry.lastIndexOf(strFilter);
+                switch (opts) {
+                    case "LEFT" -> {
+                        if (offset != 0) {      // the match did not occur at the start
+                            bMatch = false;
+                        }
+                    }
+                    case "RIGHT" -> {
+                        if (offset != endix) {  // the match did not occur at the end
+                            bMatch = false;
+                        }
+                    }
+                    default -> {}
+                }
+            }
+
+            // now we should eliminate the entry if we are not inverting and we did not have a math,
+            // or if we are inverting and we did have a match.
+            if (bMatch == bInvert) {
+                ixFilter.set(ix, false);
+            }
+        }
+    }
+    
+    /**
+     * sets the filter entries based on the matching conditions in the IntArray.
+     * 
+     * @param varName   - name of the variable to check
+     * @param compSign  - the comparison sign
+     * @param value     - value to compare the entries to
+     * 
+     * @throws ParserException
+     * 
+     */
+    public static void arrayFilterInt (String varName, String compSign, Long value) throws ParserException {
+        String functionId = CLASS_NAME + ".arrayFilterInt: ";
+
+        if (! intArrayParams.containsKey(varName)) {
+            throw new ParserException(functionId + "Array parameter not found: " + varName);
+        }
+        ArrayList<Long> var = intArrayParams.get(varName);
+        for (int ix = 0; ix < var.size(); ix++) {
+            Long entry = var.get(ix);
+            boolean bMatch = false;
+            switch (compSign) {
+                default:
+                case "==": bMatch = (Objects.equals(entry, value));   break;
+                case "!=": bMatch = (!Objects.equals(entry, value));  break;
+                case ">=": bMatch = (entry >= value);   break;
+                case "<=": bMatch = (entry <= value);   break;
+                case ">":  bMatch = (entry > value);    break;
+                case "<":  bMatch = (entry < value);    break;
+            }
+            
+            if (!bMatch) {
+                ixFilter.set(ix, false);
+            }
+        }
+    }
+    
+    /**
      * gets the LoopStruct entry corresponding to the LoopId value.
      * 
      * @param loopId - the loop name-index combo that uniquely defines a LoopStruct entry
@@ -1728,7 +1889,7 @@ public final class ParameterStruct {
             }
         } else if (name.contentEquals("RESPONSE")) {
             return ParamType.StringArray;
-        } else if (name.contentEquals("RESULT")) {
+        } else if (name.contentEquals("STATUS")) {
             return ParamType.Integer;
         } else if (name.contentEquals("RANDOM")) {
             return ParamType.Unsigned;
@@ -1814,7 +1975,7 @@ public final class ParameterStruct {
      * checks if a Variable name is valid.
      *   - name must begin with an alpha character
      *   - name must be only alphanumeric or '_' chars,
-     *   - cannot be a reserved Variable name (RESPONSE, RESULT, ...)
+     *   - cannot be a reserved Variable name (RESPONSE, STATUS, ...)
      *   - cannot be a command name or an operation name
      *   - cannot be a Loop Variable name.
      *   - checks if Variable is already defined
@@ -1862,7 +2023,7 @@ public final class ParameterStruct {
      * 
      * @param name - the name to check
      *               name must be only alphanumeric or '_' chars,
-     *               cannot be a reserved name (RESPONSE, RESULT)
+     *               cannot be a reserved name (RESPONSE, STATUS, ...)
      *               or a String or Integer Variable name.
      * @param index - the command index for the FOR command
      * 

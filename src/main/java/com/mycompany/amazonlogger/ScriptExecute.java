@@ -227,28 +227,28 @@ public class ScriptExecute {
                 fname = cmdStruct.params.get(0).getStringValue();
                 file = getFilePath(fname);
 
-                Long value;
+                boolean value;
                 String strCheck = "EXISTS";
                 if (cmdStruct.params.size() > 1) {
                     strCheck = cmdStruct.params.get(1).getStringValue();
                 }
                 switch (strCheck) {
                     case "WRITABLE":
-                        value = file.isFile() && file.canWrite() ? 1L : 0L;
+                        value = file.isFile() && file.canWrite();
                         break;
                     case "READABLE":
-                        value = file.isFile() && file.canRead() ? 1L : 0L;
+                        value = file.isFile() && file.canRead();
                         break;
                     case "DIRECTORY":
-                        value = file.isDirectory() ? 1L : 0L;
+                        value = file.isDirectory();
                         break;
                     case "EXISTS":
-                        value = file.exists() ? 1L : 0L;
+                        value = file.exists();
                         break;
                     default:
                         throw new ParserException(exceptPreface + "Unknown file check argument: " + strCheck);
                 }
-                ParameterStruct.putResultValue(value);
+                ParameterStruct.putStatusValue(value);
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "File " + file + " exists = " + value);
                 break;
             case FDELETE:
@@ -531,6 +531,33 @@ public class ScriptExecute {
                 ParameterStruct.arrayRemoveAll(parmName);
                 break;
                 
+            case FILTER:
+                // ParamName or RESET, 1 (optional) the filter string
+                parmRef = cmdStruct.params.get(0); // element 0 is the param ref or RESET
+                parmName = parmRef.getStringValue();
+                if (parmName.contentEquals("RESET")) {
+                    ParameterStruct.arrayFilterReset();
+                } else {
+                    ParameterStruct.ParamType ptype = ParameterStruct.getVariableTypeFromName(parmName);
+                    switch (ptype) {
+                        case StringArray:
+                            filter = cmdStruct.params.get(1).getStringValue();
+                            String opts = "NONE";
+                            if (cmdStruct.params.size() == 3) {
+                                opts = cmdStruct.params.get(2).getStringValue();
+                            }
+                            ParameterStruct.arrayFilterString(parmName, filter, opts);
+                            break;
+                        case IntArray:
+                            String compSign = cmdStruct.params.get(1).getStringValue();
+                            Long iValue = cmdStruct.params.get(2).getIntegerValue();
+                            ParameterStruct.arrayFilterInt(parmName, compSign, iValue);
+                            break;
+                        default:
+                            throw new ParserException(exceptPreface + "Invalid data type for FILTER: " + ptype);
+                    }
+                }
+                break;
             case IF:
                 // check status to see if true of false.
                 parm1 = cmdStruct.params.get(0);
