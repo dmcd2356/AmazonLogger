@@ -222,7 +222,7 @@ public class CmdOptions {
         // now run the command line option command and save any response msg
         ArrayList<String> rsp = executeCmdOption (cmdOption);
         if (rsp != null) {
-            Variables.putResponseValue(rsp);
+            VarArray.putResponseValue(rsp);
         }
     }
     

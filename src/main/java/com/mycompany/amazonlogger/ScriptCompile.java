@@ -113,7 +113,6 @@ public class ScriptCompile {
 
         // clear out the static Variable values
         Variables.initVariables();
-        LoopParam.initVariables();
 
         // read the program and compile into ArrayList 'cmdList'
         int lineNum = 0;
