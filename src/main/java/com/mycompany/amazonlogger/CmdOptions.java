@@ -128,7 +128,27 @@ public class CmdOptions {
         
         return optInfo.argTypes;
     }
-    
+
+    /**
+     * gets the Integer value of a parameter and verifies it qualifies as an Unsigned.
+     * 
+     * @param parm  - the argument list
+     * @param index - the index of the argument to get
+     * 
+     * @return unsigned value
+     * 
+     * @throws ParserException if not valud Unsigned value
+     */
+    public Integer getUnsignedValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
+        String functionId = CLASS_NAME + ".getUnsignedValue: ";
+
+        Long value = parm.get(index).getIntegerValue();
+        if (! ParameterStruct.isUnsignedInt(value)) {
+            throw new ParserException(functionId + "Parameter value exceeds bounds for Unsigned: " + value);
+        }
+        return value.intValue();
+    }
+        
     /**
      * run a command option from the the command line (NOT from the program file).
      * This will format the array of strings into 1 or more commands to execute
@@ -202,7 +222,7 @@ public class CmdOptions {
         // now run the command line option command and save any response msg
         ArrayList<String> rsp = executeCmdOption (cmdOption);
         if (rsp != null) {
-            ParameterStruct.putResponseValue(rsp);
+            Variables.putResponseValue(rsp);
         }
     }
     
@@ -380,7 +400,7 @@ public class CmdOptions {
         try {
             switch (option) {
                 case "-debug":
-                    frame.setMessageFlags(params.get(0).getUnsignedValue());
+                    frame.setMessageFlags(getUnsignedValue(params, 0));
                     break;
                 case "-sfile":
                     pathtype = Utils.PathType.Spreadsheet;
@@ -394,7 +414,7 @@ public class CmdOptions {
                     Spreadsheet.selectSpreadsheet(ssheetFile);
                     break;
                 case "-load":
-                    Integer numTabs = params.get(0).getUnsignedValue();
+                    Integer numTabs = getUnsignedValue(params, 0);
                     boolean bCheckHeader = params.get(1).getBooleanValue();
                     if (numTabs <= 0) {
                         throw new ParserException(functionId + "Invalid number of tabs to load: " + numTabs);
@@ -402,7 +422,7 @@ public class CmdOptions {
                     Spreadsheet.loadSheets(numTabs, bCheckHeader);
                     break;
                 case "-tab":
-                    Integer tab = params.get(0).getUnsignedValue();
+                    Integer tab = getUnsignedValue(params, 0);
                     Spreadsheet.selectSpreadsheetTab (tab.toString());
                     break;
                 case "-cfile":
@@ -502,7 +522,7 @@ public class CmdOptions {
                     response.add(convDate);
                     break;
                 case "-default":
-                    numTabs = params.get(0).getUnsignedValue();
+                    numTabs = getUnsignedValue(params, 0);
                     bCheckHeader = params.get(1).getBooleanValue();
                     if (numTabs <= 0) {
                         throw new ParserException(functionId + "Invalid number of tabs to load: " + numTabs);
@@ -526,8 +546,8 @@ public class CmdOptions {
                     response.add("" + iRow);
                     break;
                 case "-setsize":
-                    iCol = params.get(0).getUnsignedValue();
-                    iRow = params.get(1).getUnsignedValue();
+                    iCol = getUnsignedValue(params, 0);
+                    iRow = getUnsignedValue(params, 1);
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
@@ -539,8 +559,8 @@ public class CmdOptions {
                     response.add("" + iRow);
                     break;
                 case "-class":
-                    iCol = params.get(0).getUnsignedValue();
-                    iRow = params.get(1).getUnsignedValue();
+                    iCol = getUnsignedValue(params, 0);
+                    iRow = getUnsignedValue(params, 1);
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
@@ -548,35 +568,38 @@ public class CmdOptions {
                     response.add("" + strValue);
                     break;
                 case "-color":
-                    iCol = params.get(0).getUnsignedValue();
-                    iRow = params.get(1).getUnsignedValue();
-                    Integer iColor = params.get(2).getUnsignedValue();
+                    Integer iColor;
+                    iCol   = getUnsignedValue(params, 0);
+                    iRow   = getUnsignedValue(params, 1);
+                    iColor = getUnsignedValue(params, 2);
                     if (iCol == null || iRow == null || iColor == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", color = " + iColor);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColorOfTheMonth(iColor));
                     break;
                 case "-RGB":
-                    iCol = params.get(0).getUnsignedValue();
-                    iRow = params.get(1).getUnsignedValue();
-                    Integer iRGB = params.get(2).getUnsignedValue();
+                    Integer iRGB;
+                    iCol = getUnsignedValue(params, 0);
+                    iRow = getUnsignedValue(params, 1);
+                    iRGB = getUnsignedValue(params, 2);
                     if (iCol == null || iRow == null || iRGB == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", RGB = " + iRGB);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("RGB", iRGB));
                     break;
                 case "-HSB":
-                    iCol = params.get(0).getUnsignedValue();
-                    iRow = params.get(1).getUnsignedValue();
-                    Integer iHSB = params.get(2).getUnsignedValue();
+                    Integer iHSB;
+                    iCol = getUnsignedValue(params, 0);
+                    iRow = getUnsignedValue(params, 1);
+                    iHSB = getUnsignedValue(params, 2);
                     if (iCol == null || iRow == null || iHSB == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", HSB = " + iHSB);
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("HSB", iHSB));
                     break;
                 case "-cellget":
-                    iCol = params.get(0).getUnsignedValue();
-                    iRow = params.get(1).getUnsignedValue();
+                    iCol = getUnsignedValue(params, 0);
+                    iRow = getUnsignedValue(params, 1);
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
@@ -584,8 +607,8 @@ public class CmdOptions {
                     response.add(cellValue);
                     break;
                 case "-cellclr":
-                    iCol = params.get(0).getUnsignedValue();
-                    iRow = params.get(1).getUnsignedValue();
+                    iCol = getUnsignedValue(params, 0);
+                    iRow = getUnsignedValue(params, 1);
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
                     }
@@ -593,8 +616,8 @@ public class CmdOptions {
                     response.add(cellValue);
                     break;
                 case "-cellput":
-                    iCol = params.get(0).getUnsignedValue();
-                    iRow = params.get(1).getUnsignedValue();
+                    iCol = getUnsignedValue(params, 0);
+                    iRow = getUnsignedValue(params, 1);
                     String strText = params.get(2).getStringValue();
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
@@ -604,9 +627,9 @@ public class CmdOptions {
                     break;
                 case "-rowget":
                     Integer iCount;
-                    iCol   = params.get(0).getUnsignedValue();
-                    iRow   = params.get(1).getUnsignedValue();
-                    iCount = params.get(2).getUnsignedValue();
+                    iCol   = getUnsignedValue(params, 0);
+                    iRow   = getUnsignedValue(params, 1);
+                    iCount = getUnsignedValue(params, 2);
                     if (iCol == null || iRow == null || iCount == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", count = " + iCount);
                     }
@@ -614,9 +637,9 @@ public class CmdOptions {
                     response.addAll(arrValue);
                     break;
                 case "-colget":
-                    iCol   = params.get(0).getUnsignedValue();
-                    iRow   = params.get(1).getUnsignedValue();
-                    iCount = params.get(2).getUnsignedValue();
+                    iCol   = getUnsignedValue(params, 0);
+                    iRow   = getUnsignedValue(params, 1);
+                    iCount = getUnsignedValue(params, 2);
                     if (iCol == null || iRow == null || iCount == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", count = " + iCount);
                     }
@@ -625,8 +648,8 @@ public class CmdOptions {
                     break;
                 case "-rowput":
                     ArrayList<String> arrList;
-                    iCol    = params.get(0).getUnsignedValue();
-                    iRow    = params.get(1).getUnsignedValue();
+                    iCol    = getUnsignedValue(params, 0);
+                    iRow    = getUnsignedValue(params, 1);
                     arrList = params.get(2).getStrArray();
                     if (iCol == null || iRow == null || arrList == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
@@ -634,8 +657,8 @@ public class CmdOptions {
                     Spreadsheet.putSpreadsheetRow(iCol, iRow, arrList);
                     break;
                 case "-colput":
-                    iCol    = params.get(0).getUnsignedValue();
-                    iRow    = params.get(1).getUnsignedValue();
+                    iCol    = getUnsignedValue(params, 0);
+                    iRow    = getUnsignedValue(params, 1);
                     arrList = params.get(2).getStrArray();
                     if (iCol == null || iRow == null || arrList == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
@@ -644,8 +667,8 @@ public class CmdOptions {
                     break;
                 case "-rowcolor":
                     ArrayList<Long> arrLong;
-                    iCol    = params.get(0).getUnsignedValue();
-                    iRow    = params.get(1).getUnsignedValue();
+                    iCol    = getUnsignedValue(params, 0);
+                    iRow    = getUnsignedValue(params, 1);
                     arrLong  = params.get(2).getIntArray();
                     if (iCol == null || iRow == null || arrLong == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
@@ -653,8 +676,8 @@ public class CmdOptions {
                     Spreadsheet.putSpreadsheetColorRow(iCol, iRow, arrLong);
                     break;
                 case "-colcolor":
-                    iCol    = params.get(0).getUnsignedValue();
-                    iRow    = params.get(1).getUnsignedValue();
+                    iCol    = getUnsignedValue(params, 0);
+                    iRow    = getUnsignedValue(params, 1);
                     arrLong  = params.get(2).getIntArray();
                     if (iCol == null || iRow == null || arrLong == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);

@@ -174,7 +174,7 @@ public class VariableExtract {
             }
             // we have a trait combined with the param name
             name = field.substring(0, offTrait);
-            type = ParameterStruct.getVariableTypeFromName (name);
+            type = Variables.getVariableTypeFromName (name);
             if (field.length() > offTrait + 1) {
                 leftover = field.substring(offTrait + 1);
             }
@@ -245,7 +245,7 @@ public class VariableExtract {
             }
             // we have an index associated with the param
             name = field.substring(0, offLeftB);
-            type = ParameterStruct.getVariableTypeFromName (name);
+            type = Variables.getVariableTypeFromName (name);
             if (field.length() > offRightB && offRightB > offLeftB) {
                 leftover = field.substring(offLeftB + 1, offRightB);
             } else {
@@ -265,7 +265,7 @@ public class VariableExtract {
         } else {
             // no additional entries, the param name must be by itself
             name = field;
-            type = ParameterStruct.getVariableTypeFromName (name);
+            type = Variables.getVariableTypeFromName (name);
         }
         
         // verify Variable name is valid

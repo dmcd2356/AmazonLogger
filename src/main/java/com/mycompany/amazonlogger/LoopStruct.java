@@ -234,7 +234,7 @@ public class LoopStruct {
             for (int ix = 0; ix < loopStack.size(); ix++) {
                 LoopId loopId = loopStack.get(ix);
                 if (loopId.name.contentEquals(name)) {
-                    return ParameterStruct.getLoopValue(loopId);
+                    return LoopParam.getLoopValue(loopId);
                 }
             }
         }

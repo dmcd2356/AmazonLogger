@@ -2,12 +2,10 @@ KNOWN BUGS:
 
 TODO:
 - Add the following PROGRAM features:
-    - fix setting RESULT instead of RESPONSE for several cases
     - add -hyper option command to place a hypertext link in the cell of a spreadsheet
     - add DOUNTIL and DOWHILE commands (terminate in DONE)
     - add subroutine calls (SUB, RETURN) and getting the return value $RETURN
     - add loading other script files (LOAD. CALL)
-    - add command to search StrArray and IntArray for a value given a starting index (returns index or -1)
     - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
     - cleanup error handling messages.
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with

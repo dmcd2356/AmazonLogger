@@ -112,7 +112,8 @@ public class ScriptCompile {
         BufferedReader fileReader = new BufferedReader(fReader);
 
         // clear out the static Variable values
-        ParameterStruct.initVariables();
+        Variables.initVariables();
+        LoopParam.initVariables();
 
         // read the program and compile into ArrayList 'cmdList'
         int lineNum = 0;
@@ -259,7 +260,7 @@ public class ScriptCompile {
                         String pName = list.getStrArrayElement(ix);
                         try {
                             // allocate the Variable
-                            ParameterStruct.allocateVariable(pName);
+                            Variables.allocateVariable(pName);
                         } catch (ParserException exMsg) {
                             throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
                         }
@@ -270,7 +271,7 @@ public class ScriptCompile {
                     //  is a numeric parameter and it is more than a simple assignment to
                     //  a discrete value or a single parameter reference, let's pepack.
                     // The arguments are: ParamName = Calculation
-                    ParameterStruct.ParamType ptype = ParameterStruct.getVariableTypeFromName(parmString);
+                    ParameterStruct.ParamType ptype = Variables.getVariableTypeFromName(parmString);
                     if (cmdStruct.params.size() > 3) {
                         switch (ptype) {
                             case ParameterStruct.ParamType.Integer,
@@ -317,7 +318,7 @@ public class ScriptCompile {
                     String varName;
                     varName = param1.getStringValue();
                     argtype = param2.getParamType();
-                    ptype = ParameterStruct.getVariableTypeFromName (varName);
+                    ptype = Variables.getVariableTypeFromName (varName);
                     switch (ptype) {
                         case IntArray:
                             if (argtype != ParameterStruct.ParamType.Integer &&
@@ -352,7 +353,7 @@ public class ScriptCompile {
                         param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
                     }
-                    ptype = ParameterStruct.getVariableTypeFromName(param1.getStringValue());
+                    ptype = Variables.getVariableTypeFromName(param1.getStringValue());
                     argtype = param3.getParamType();
                     switch (ptype) {
                         case ParameterStruct.ParamType.IntArray -> {
@@ -385,7 +386,7 @@ public class ScriptCompile {
                         param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
                     }
-                    ptype = ParameterStruct.getVariableTypeFromName(param1.getStringValue());
+                    ptype = Variables.getVariableTypeFromName(param1.getStringValue());
                     if (ptype != ParameterStruct.ParamType.IntArray &&
                         ptype != ParameterStruct.ParamType.StringArray) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
@@ -403,7 +404,7 @@ public class ScriptCompile {
                     if (param1.getParamType() != ParameterStruct.ParamType.String) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
                     }
-                    ptype = ParameterStruct.getVariableTypeFromName(param1.getStringValue());
+                    ptype = Variables.getVariableTypeFromName(param1.getStringValue());
                     if (ptype != ParameterStruct.ParamType.IntArray &&
                         ptype != ParameterStruct.ParamType.StringArray) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
@@ -427,7 +428,7 @@ public class ScriptCompile {
                     if (param1.getParamType() != ParameterStruct.ParamType.String) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
                     }
-                    ptype = ParameterStruct.getVariableTypeFromName(param1.getStringValue());
+                    ptype = Variables.getVariableTypeFromName(param1.getStringValue());
                     if (ptype == null && ! param1.getStringValue().contentEquals("RESPONSE")) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
                     }
@@ -445,7 +446,7 @@ public class ScriptCompile {
                     }
                     // if entry was RESET, no more checking to do
                     if (! param1.getStringValue().contentEquals("RESET")) {
-                        ptype = ParameterStruct.getVariableTypeFromName(param1.getStringValue());
+                        ptype = Variables.getVariableTypeFromName(param1.getStringValue());
                         if (ptype == null) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + " variable: " + param1.getStringValue());
                         }
@@ -598,7 +599,7 @@ public class ScriptCompile {
                     } catch (ParserException exMsg) {
                         throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
                     }
-                    ParameterStruct.saveLoopParameter (loopName, loopId, loopInfo);
+                    LoopParam.saveLoopParameter (loopName, loopId, loopInfo);
                     
                     // add entry to the current loop stack
                     LoopStruct.pushStack(loopId);
@@ -611,7 +612,7 @@ public class ScriptCompile {
                     }
                     // verify the IF loop level hasn't been exceeded
                     LoopId curLoop = LoopStruct.peekStack();
-                    ParameterStruct.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
+                    LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
                     break;
                 case CommandStruct.CommandTable.CONTINUE:
                     // make sure we are in a FOR ... NEXT loop
@@ -620,7 +621,7 @@ public class ScriptCompile {
                     }
                     // verify the IF loop level hasn't been exceeded
                     curLoop = LoopStruct.peekStack();
-                    ParameterStruct.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
+                    LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
                     break;
                 case CommandStruct.CommandTable.NEXT:
                     // make sure we are in a FOR ... NEXT loop
@@ -629,7 +630,7 @@ public class ScriptCompile {
                     }
                     // verify the IF loop level hasn't been exceeded
                     curLoop = LoopStruct.peekStack();
-                    ParameterStruct.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
+                    LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
                     break;
                 case CommandStruct.CommandTable.ENDFOR:
                     // make sure we are in a FOR ... NEXT loop
@@ -638,7 +639,7 @@ public class ScriptCompile {
                     }
                     // store line location in labelsMap
                     curLoop = LoopStruct.peekStack();
-                    ParameterStruct.setLoopEndIndex(cmdList.size(), curLoop);
+                    LoopParam.setLoopEndIndex(cmdList.size(), curLoop);
 
                     // remove entry from loop stack
                     LoopStruct.popStack();
@@ -841,7 +842,7 @@ public class ScriptCompile {
                         throw new ParserException(functionId + "no arguments following Variable name: " + nextArg);
                     }
                     // check if this is a String parameter ( we may have extra stuff to do here)
-                    if (ParameterStruct.getVariableTypeFromName(nextArg) == ParameterStruct.ParamType.String) {
+                    if (Variables.getVariableTypeFromName(nextArg) == ParameterStruct.ParamType.String) {
                         paramName = "$" + nextArg;
                     }
                 } else if (ix == 1 && paramName != null && nextArg.contentEquals("+=")) {
@@ -933,7 +934,7 @@ public class ScriptCompile {
             ParameterStruct.ParamClass pClass = ParameterStruct.ParamClass.Discrete;
             if (nextArg.startsWith("$") || (bParamAssign && params.isEmpty())) {
                 pClass = ParameterStruct.ParamClass.Reference;
-                paramType = ParameterStruct.getVariableTypeFromName(nextArg);
+                paramType = Variables.getVariableTypeFromName(nextArg);
             }
             
             arg = new ParameterStruct(nextArg, pClass, paramType);
