@@ -64,26 +64,15 @@ public class ScriptCompile {
         }
         
         // now verify the types
-        for (int ix = 0; ix < command.params.size(); ix++) {
-            char reqType = Character.toUpperCase(validTypes.charAt(ix));
-            if (! command.params.get(ix).isValidForType (reqType)) {
-                throw new ParserException(functionId + prefix + "Invalid arg[" + ix + "] type '" + reqType + "'");
+        try {
+            for (int ix = 0; ix < command.params.size(); ix++) {
+                ParameterStruct.verifyArgEntryCompile (command.params, ix, validTypes.charAt(ix));
             }
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
         }
     }
 
-    private void checkParamArgCount (CommandStruct cmdStruct, int min, int max, String lineInfo) throws ParserException {
-        String functionId = CLASS_NAME + ".checkParamArgCount: ";
-
-        int size = cmdStruct.params.size();
-        if (size < min) {
-            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: text");
-        }
-        if (size > max) {
-            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing argument: text");
-        }
-    }
-    
     /**
      * compiles the external script file (when -f option used) into a series of
      * CommandStruct entities to execute.
@@ -187,8 +176,7 @@ public class ScriptCompile {
                     bExit = true;
                     break;
                 case PRINT:
-                    // verify 1 String argument: text message
-                    checkArgTypes(cmdStruct, "S", cmdIndex);
+                    // we print anything, so no checking
                     break;
                 case DIRECTORY:
                     // verify 1 String argument: directory & 1 optional String -d or -f
@@ -277,20 +265,9 @@ public class ScriptCompile {
                                  ParameterStruct.ParamType.Unsigned,
                                  ParameterStruct.ParamType.Boolean -> {
                                 cmdStruct.params = packCalculation (parmString, ptype);
-                                ParameterStruct.showParamTypeList(cmdStruct.params);
                             }
                             case ParameterStruct.ParamType.String -> {
-                                // go through all the arg list and remove all the "+" entries
-                                // that way, all we have left is a list of all the Strings to add
-                                for (int ix = cmdStruct.params.size() - 2; ix >= 3; ix-=2) {
-                                    String sign = cmdStruct.params.get(ix).getStringValue();
-                                    if (sign.contentEquals("+")) {
-                                        cmdStruct.params.remove(ix);
-                                    }
-                                    else {
-                                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " Invalid String concatenation");
-                                    }
-                                }
+                                cmdStruct.params = packStringConcat (cmdStruct.params, 2);
                             }
                             default -> {
                                 // Strings are handled in the execution phase
@@ -304,34 +281,41 @@ public class ScriptCompile {
                 case CommandStruct.CommandTable.INSERT:
                 case CommandStruct.CommandTable.APPEND:
                     // ARGS: ParamName, Value (String or Integer)
-                    // verify there are the correct number and type of arguments
-                    if (cmdStruct.params.size() != 2) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 arguments : " + parmString);
+                    ParameterStruct.ParamType argtype;
+                    String varName;
+                    if (cmdStruct.params.size() < 2) {
+                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing arguments: " + parmString);
                     }
                     ParameterStruct param1 = cmdStruct.params.get(0);
                     ParameterStruct param2 = cmdStruct.params.get(1);
-                    if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
-                    }
-                    ParameterStruct.ParamType argtype;
-                    String varName;
                     varName = param1.getStringValue();
                     argtype = param2.getParamType();
-                    ptype = Variables.getVariableTypeFromName (varName);
+                    ptype = Variables.getVariableTypeFromName(varName);
                     switch (ptype) {
-                        case IntArray:
-                            if (argtype != ParameterStruct.ParamType.Integer &&
-                                argtype != ParameterStruct.ParamType.Unsigned) {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
+                        case IntArray -> {
+                            if (cmdStruct.params.size() > 2) {
+                                cmdStruct.params = packCalculation (parmString, ptype);
+                            } else {
+                                if (argtype != ParameterStruct.ParamType.Integer &&
+                                    argtype != ParameterStruct.ParamType.Unsigned) {
+                                    throw new ParserException(functionId + lineInfo + cmdStruct.command +
+                                            " command has mismatched data type for reference Variable: " + parmString);
+                                }
                             }
-                            break;
-                        case StringArray:
-                            if (argtype != ParameterStruct.ParamType.String) {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
+                        }
+                        case StringArray -> {
+                            if (cmdStruct.params.size() > 2) {
+                                cmdStruct.params = packStringConcat (cmdStruct.params, 1);
+                            } else {
+                                if (argtype != ParameterStruct.ParamType.String) {
+                                    throw new ParserException(functionId + lineInfo + cmdStruct.command +
+                                            " command has mismatched data type for reference Variable: " + parmString);
+                                }
                             }
-                            break;
-                        default:
+                        }
+                        default -> {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
+                        }
                     }
                     break;
 
@@ -834,13 +818,13 @@ public class ScriptCompile {
             // must be the parameter name. verify it is valid.
             if (bParamAssign) {
                 if (ix == 0) {
-                    if (! ParameterStruct.isValidVariableName(nextArg)) {
+                    if (! Variables.isValidVariableName(Variables.VarCheck.SET, nextArg)) {
                         throw new ParserException(functionId + "Variable name not found: " + nextArg);
                     }
                     if (line.isEmpty()) {
                         throw new ParserException(functionId + "no arguments following Variable name: " + nextArg);
                     }
-                    // check if this is a String parameter ( we may have extra stuff to do here)
+                    // check if this is a String parameter (we may have extra stuff to do here)
                     if (Variables.getVariableTypeFromName(nextArg) == ParameterStruct.ParamType.String) {
                         paramName = "$" + nextArg;
                     }
@@ -948,11 +932,47 @@ public class ScriptCompile {
     }
 
     /**
+     * Converts a packed list of arguments into a simple list of String entries.
+     * This takes an already packed list of arguments of the string concatenation
+     *  and converts it into a simple list of string entries to be combined.
+     *  We start at the end of the already packed string list so we can eliminate
+     *  entries without screwing up the indexing.
+     * Since the list is assumed to be: { value + value + value ... + value },
+     *  we simply start at the last + entry and work to the first, verifying
+     *  it is a + sign and eliminating it.
+     * 
+     * @param params - the list of string arguments having '+' signs separating the values
+     * @param offset - the number of arguments in the list that preceed the string arguments
+     *                 (such as the name of the param being assigned and the = sign)
+     * 
+     * @return a list of the strings without the + entries
+     */
+    private ArrayList<ParameterStruct> packStringConcat (ArrayList<ParameterStruct> params, int offset) throws ParserException {
+        String functionId = CLASS_NAME + ".packStringConcat: ";
+
+        // start at the end of the list with the last + entry and work backwards.
+        // The last  + will be the 2nd to the last entry at params.size() - 2.
+        // The first + will be the 2nd entry
+        for (int ix = params.size() - 2; ix > 0 + offset; ix-=2) {
+            String sign = params.get(ix).getStringValue();
+            if (sign.contentEquals("+")) {
+                params.remove(ix);
+            }
+            else {
+                throw new ParserException(functionId + "Invalid String concatenation");
+            }
+        }
+        return params;
+    }
+    
+    /**
      * This takes a command line and extracts the calculation parameter list from it.
      * For Integers and Unsigneds this will be in the form:
      *      VarName = Calculation     (+=, -=, *=, ... also allowed in place of =)
      * For Booleans, it will be:
-     *      VarName = Calculation compSign Calculation  (compSign: { ==, !=, >=, <=, >, < }
+     *      VarName = Calculation compSign Calculation  (compSign: ==, !=, >=, ...}
+     * For IntArrays and StringArrays it will be:
+     *      Command VarName Calculation
      * 
      * where: Calculation will be a string or one or more values/variables with
      *        associated parenthesis and operations.
@@ -967,9 +987,7 @@ public class ScriptCompile {
     private ArrayList<ParameterStruct> packCalculation (String line, ParameterStruct.ParamType ptype) throws ParserException {
         String functionId = CLASS_NAME + ".packCalculation: ";
 
-        if (ptype != ParameterStruct.ParamType.Unsigned &&
-            ptype != ParameterStruct.ParamType.Integer  &&
-            ptype != ParameterStruct.ParamType.Boolean) {
+        if (ptype == ParameterStruct.ParamType.String) {
             throw new ParserException(functionId + "Assignment command not allowed for type: " + ptype);
         }
         
@@ -980,7 +998,7 @@ public class ScriptCompile {
         String paramName = getParamName (line);
         boolean bValid;
         try {
-            bValid = ParameterStruct.isValidVariableName(paramName);
+            bValid = Variables.isValidVariableName(Variables.VarCheck.SET, paramName);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
@@ -999,51 +1017,59 @@ public class ScriptCompile {
         frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + paramName);
         params.add(parm);
 
-        // next entry should be the equality sign
-        String nextArg = getNextWord (line);
-        line = line.substring(nextArg.length()).strip();
-        String newOp = "";
-        switch (nextArg) {
-            case "=":
-                break;
-            case "+=":
-            case "-=":
-            case "*=":
-            case "/=":
-            case "%=":
-            case "AND=":
-            case "OR=":
-            case "XOR=":
-                int opLen = nextArg.length() - 1;
-                newOp = nextArg.substring(0, opLen);
+        // next entry should be the equality sign (except for Arrays)
+        switch (ptype) {
+            case Integer:
+            case Unsigned:
+            case Boolean:
+                String nextArg = getNextWord (line);
+                line = line.substring(nextArg.length()).strip();
+                String newOp = "";
+                switch (nextArg) {
+                    case "=":
+                        break;
+                    case "+=":
+                    case "-=":
+                    case "*=":
+                    case "/=":
+                    case "%=":
+                    case "AND=":
+                    case "OR=":
+                    case "XOR=":
+                        int opLen = nextArg.length() - 1;
+                        newOp = nextArg.substring(0, opLen);
+                        break;
+                    default:
+                        throw new ParserException(functionId + "invalid equality sign: " + nextArg);
+                }
+
+                // bitwise ops are only allowed for Unsigned type
+                if (ptype != ParameterStruct.ParamType.Unsigned) {
+                    if (newOp.equals("AND") || newOp.equals("OR") || newOp.equals("XOR")) {
+                        throw new ParserException(functionId + "Bitwise assignments not allowed for type: " + ptype + ": " + newOp);
+                    }
+                } else if (ptype == ParameterStruct.ParamType.Boolean && ! newOp.equals("=")) {
+                    throw new ParserException(functionId + "No modifiers in equals allowed for type: " + ptype + ": " + newOp);
+                }
+
+                // this will pack the "=" sign
+                ParameterStruct.ParamType newParam = ParameterStruct.ParamType.String;
+                parm = new ParameterStruct("=", ParameterStruct.ParamClass.Discrete, newParam);
+                frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + newParam + " value: =");
+                params.add(parm);
+
+                // if there was an operation preceeding the "=" sign, let's sneek the operation in here
+                //  by adding it to the rest of the line
+                if (!newOp.isEmpty()) {
+                    // first we add the parameter name that has the $ attached, so it becomes a reference value,
+                    // followed by the operation to perform, followed by the opening parenthesis and then
+                    // the remainder of the calculation, then we end it with the closing parenthesis.
+                    // (the parenthesis are included to assure that the newOp operation is performed last.
+                    line = "$" + paramName + " " + newOp + " (" + line + ")";
+                }
                 break;
             default:
-                throw new ParserException(functionId + "invalid equality sign: " + nextArg);
-        }
-        
-        // bitwise ops are only allowed for Unsigned type
-        if (ptype != ParameterStruct.ParamType.Unsigned) {
-            if (newOp.equals("AND") || newOp.equals("OR") || newOp.equals("XOR")) {
-                throw new ParserException(functionId + "Bitwise assignments not allowed for type: " + ptype + ": " + newOp);
-            }
-        } else if (ptype == ParameterStruct.ParamType.Boolean && ! newOp.equals("=")) {
-            throw new ParserException(functionId + "No modifiers in equals allowed for type: " + ptype + ": " + newOp);
-        }
-        
-        // this will pack the "=" sign
-        ParameterStruct.ParamType newParam = ParameterStruct.ParamType.String;
-        parm = new ParameterStruct("=", ParameterStruct.ParamClass.Discrete, newParam);
-        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + newParam + " value: =");
-        params.add(parm);
-        
-        // if there was an operation preceeding the "=" sign, let's sneek the operation in here
-        //  by adding it to the rest of the line
-        if (!newOp.isEmpty()) {
-            // first we add the parameter name that has the $ attached, so it becomes a reference value,
-            // followed by the operation to perform, followed by the opening parenthesis and then
-            // the remainder of the calculation, then we end it with the closing parenthesis.
-            // (the parenthesis are included to assure that the newOp operation is performed last.
-            line = "$" + paramName + " " + newOp + " (" + line + ")";
+                break;
         }
 
         // check if Boolean type, which must have a comparison of 2 calculations
@@ -1057,6 +1083,7 @@ public class ScriptCompile {
             params.add(parm);
         }
         
+        ParameterStruct.showParamTypeList(params);
         return params;
     }
     

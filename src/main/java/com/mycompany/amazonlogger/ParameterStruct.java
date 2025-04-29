@@ -22,8 +22,6 @@ public final class ParameterStruct {
 
     private static final String CLASS_NAME = "ParameterStruct";
     
-    static final int NAME_MAXLEN = 20;  // the max # chars in a param name
-
     private String              strParam;       // value for the String  param type
     private Long                longParam;      // value for the Integer and Unsigned param types
     private Boolean             boolParam;      // value for the Boolean param type
@@ -41,7 +39,7 @@ public final class ParameterStruct {
         Reference,      // a Variable reference
         Calculation,    // a Calculation formula
     }
-    
+
     public enum ParamType {
         Integer,        // 'I' type
         Unsigned,       // 'U' type
@@ -300,7 +298,7 @@ public final class ParameterStruct {
      * @return true if the parameter is a Variable Reference
      */
     public boolean isVariableRef () {
-        return paramClass == ParamClass.Reference && (variableRef != null) && (variableRef.getName() != null);
+        return (variableRef != null) && (variableRef.getName() != null);
     }
        
     /**
@@ -350,66 +348,6 @@ public final class ParameterStruct {
         return '?';
     }
     
-    /**
-     * determines if the parameter is valid for the specified requested type.
-     * This is used during the Compile phase, so we don't know what the actual
-     *   values are at runtime for Variable references. So we need to base
-     *   it on the types of parameters that can be converted.
-     * 
-     * @param typeID - the type of parameter desired
-     * 
-     * @return true if the parameter is valid for that type
-     */
-    public boolean isValidForType (char typeID) {
-        boolean bParmRef = false;
-        ParamType pType = paramType;
-        if (variableRef != null && variableRef.getName() != null && !variableRef.getName().isEmpty()) {
-            pType = variableRef.getType();
-            bParmRef = true;
-        }
-        switch (typeID) {
-            case 'I':
-                if (pType == ParamType.Integer ||
-                    pType == ParamType.Unsigned   ) {
-                    return true;
-                }
-                break;
-            case 'U':
-                if (pType == ParamType.Unsigned) {
-                    return true;
-                } else if (pType == ParamType.Integer && bParmRef) {
-                    // only allow Integer type param ref, since it may be in range
-                    return true;
-                }
-                break;
-            case 'B':
-                if (pType == ParamType.Boolean) {
-                    return true;
-                }
-                break;
-            case 'A':
-                // Int Array allows single entries for array types
-                if (pType == ParamType.IntArray ||
-                    pType == ParamType.Integer  ||
-                    pType == ParamType.Unsigned   ) {
-                    return true;
-                }
-                break;
-            case 'S':
-                // anything is good for String except an Array
-                if (pType != ParamType.StringArray &&
-                    pType != ParamType.IntArray) {
-                    return true;
-                }
-            case 'L':
-                // anything works here
-                return true;
-            default:
-                break;
-        }
-        return false;
-    }
-
     /**
      * returns the Calculation data value
      * 
@@ -486,9 +424,17 @@ public final class ParameterStruct {
                     }
                     case ParamType.IntArray -> {
                         strValue = intArrayParam.toString();
+                        if (strValue.length() > 100) {
+                            int offset = strValue.length() - 25;
+                            strValue = strValue.substring(0, 60) + " ... " + strValue.substring(offset);
+                        }
                     }
                     case ParamType.StringArray -> {
                         strValue = strArrayParam.toString();
+                        if (strValue.length() > 100) {
+                            int offset = strValue.length() - 25;
+                            strValue = strValue.substring(0, 60) + " ... " + strValue.substring(offset);
+                        }
                     }
                     default -> {
                         strValue = "'" + strParam + "'";
@@ -592,99 +538,221 @@ public final class ParameterStruct {
     }
     
     /**
-     * checks if a Variable name is valid.
-     *   - name must begin with an alpha character
-     *   - name must be only alphanumeric or '_' chars,
-     *   - cannot be a reserved Variable name (RESPONSE, STATUS, ...)
-     *   - cannot be a command name or an operation name
-     *   - cannot be a Loop Variable name.
-     *   - checks if Variable is already defined
+     * gets the Integer value of a parameter and verifies it qualifies as an Unsigned.
      * 
-     * @param name - the name to check
+     * This is to be used during Compile stage only!
      * 
-     * @return  true if Variable is already defined, false if not
+     * @param parm  - the argument list
+     * @param index - the index of the argument to get
+     * @param type  - the expected type of argument ('I', 'U', etc)
      * 
-     * @throws ParserException - if not valid
+     * @throws ParserException if not valid Unsigned value
+     *
      */
-    public static boolean isValidVariableName (String name) throws ParserException {
-        String functionId = CLASS_NAME + ".isValidParamName: ";
+    public static void verifyArgEntryCompile (ArrayList<ParameterStruct> parm, int index, char type) throws ParserException {
+        String functionId = CLASS_NAME + ".verifyArgEntry: ";
 
-        try {
-            if (name.startsWith("$")) {
-                name = name.substring(1);
+        // verify index does not exceed bounds
+        if (parm.size() <= index) {
+            throw new ParserException(functionId + "Parameter index " + index + " exceeds list size of " + parm.size());
+        }
+        
+        // these types can be lowercase if entry is optional
+        type = Character.toUpperCase(type);
+        ParameterStruct.ParamType expType = CmdOptions.getParameterType(type);
+        
+        // verify type is correct and entry is not null
+        ParameterStruct.ParamType ptype = parm.get(index).getParamType();
+        boolean bVariable = parm.get(index).isVariableRef();
+        if (bVariable) {
+            // if it's a variable, we can't really say what the data type is at this
+            // point, since it could be a String that has an Integer value.
+            return;
+//            ptype = parm.get(index).getVariableRefType();
+        }
+        boolean bValid = ptype == expType;
+        if (! bValid) {
+            // check for other alternate types that are allowed and if entry is not null
+            switch (expType) {
+                case Integer:
+                    if (ptype == ParameterStruct.ParamType.Unsigned)
+                        bValid = true;
+                    break;
+                case Unsigned:
+                    if (ptype == ParameterStruct.ParamType.Integer)
+                        bValid = true;
+                    break;
+                case Boolean:
+                    break;
+                case String:
+                    break;
+                case IntArray:
+                    switch (ptype) {
+                        case Integer:
+                        case Unsigned:
+                            bValid = true;
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                case StringArray:
+                    switch (ptype) {
+                        case String:
+                        case IntArray:
+                            bValid = true;
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                default:
+                    break;
             }
-
-            // verify the formaat of the Variable name
-            verifyVariableFormat(name);
-
-            // check if it is a reserved param name
-            if (Variables.isReservedName(name)) {
-                return true;
-            }
-
-            // make sure it is not a command name
-            if (CommandStruct.isValidCommand(name) != null) {
-                throw new ParserException(functionId + "using Reserved command name: " + name);
-            }
-
-            if (LoopParam.isLoopParamDefined(name)) {
-                throw new ParserException(functionId + "using Loop Variable name: " + name);
-            }
-
-            // see if its already defined
-            return Variables.isVariableDefined(name) != null;
-        } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId + name);
+        }
+        if (! bValid) {
+            throw new ParserException(functionId + "Param[" + index + "] expected type " + expType + ", was type: " + ptype);
         }
     }
-
+    
     /**
-     * checks if a Loop Variable name is valid.
+     * gets the Integer value of a parameter and verifies it qualifies as an Unsigned.
      * 
-     * @param name - the name to check
-     *               name must be only alphanumeric or '_' chars,
-     *               cannot be a reserved name (RESPONSE, STATUS, ...)
-     *               or a String or Integer Variable name.
-     * @param index - the command index for the FOR command
+     * This is to be used during Execution stage only!
      * 
-     * @throws ParserException - if not valid
+     * @param parm  - the argument list
+     * @param index - the index of the argument to get
+     * @param type  - the expected type of argument ('I', 'U', etc)
+     * 
+     * @return unsigned value
+     * 
+     * @throws ParserException if not valid Unsigned value
+     *
      */
-    public static void isValidLoopName (String name, int index) throws ParserException {
-        String functionId = CLASS_NAME + ".isValidLoopName: ";
+    public static ParameterStruct verifyArgEntry (ArrayList<ParameterStruct> parm, int index, char type) throws ParserException {
+        String functionId = CLASS_NAME + ".verifyArgEntry: ";
 
-        try {
-            if (name.startsWith("$")) {
-                name = name.substring(1);
-            }
-
-            // verify the formaat of the Variable name
-            verifyVariableFormat(name);
-
-            // check if it is a reserved param name
-            if (Variables.isReservedName(name)) {
-                throw new ParserException(functionId + "using Reserved Variable name: " + name);
-            }
-
-            // make sure it is not a command name
-            if (CommandStruct.isValidCommand(name) != null) {
-                throw new ParserException(functionId + "using Reserved command name: " + name);
-            }
-
-            // make sure its not the same as a reference Variable
-            ParamType type = Variables.isVariableDefined(name);
-            if (type != null) {
-                throw new ParserException(": using " + type.toString() + " Variable name: " + name);
-            }
-
-            // now check if this loop name is nested in a loop having same name
-            // get the list of loops using this Variable name (if any)
-            Integer loopIx = LoopParam.checkLoopNesting(name);
-            if (loopIx != null) {
-                throw new ParserException(functionId + ": Loop param " + name + " @ " + index + " is nested in same name at " + loopIx);
-            }
-        } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+        // verify index does not exceed bounds
+        if (parm.size() <= index) {
+            throw new ParserException(functionId + "Parameter index " + index + " exceeds list size of " + parm.size());
         }
+        
+        // these types can be lowercase if entry is optional
+        type = Character.toUpperCase(type);
+        ParameterStruct.ParamType expType = CmdOptions.getParameterType(type);
+        
+        // verify type is correct and entry is not null
+        ParameterStruct.ParamType ptype = parm.get(index).getParamType();
+        boolean bVariable = parm.get(index).isVariableRef();
+        if (bVariable) {
+            ptype = parm.get(index).getVariableRefType();
+        }
+        boolean bValid = ptype == expType;
+        if (! bValid) {
+            frame.outputInfoMsg(STATUS_DEBUG, "Param[" + index + "] type " + ptype + " when expected: " + expType);
+        }
+
+        // check for other alternate types that are allowed and if entry is not null
+        String value;
+        switch (expType) {
+            case Integer:
+//                if (ptype == ParameterStruct.ParamType.Unsigned)
+//                    bValid = true;
+                Long iValue = parm.get(index).getIntegerValue();
+                if (iValue == null) {
+                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                }
+                value = iValue.toString();
+                bValid = true;
+                break;
+            case Unsigned:
+//                if (ptype == ParameterStruct.ParamType.Integer)
+//                    bValid = true;
+                iValue = parm.get(index).getIntegerValue();
+                if (iValue == null) {
+                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                }
+                // make sure bounds aren't exceeded for unsigned
+                if (! ParameterStruct.isUnsignedInt(iValue)) {
+                    throw new ParserException(functionId + "Parameter value exceeds bounds for Unsigned: " + iValue);
+                }
+                value = iValue.toString();
+                bValid = true;
+                break;
+            case Boolean:
+                Boolean bValue = parm.get(index).getBooleanValue();
+                if (bValue == null) {
+                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                }
+                value = bValue.toString();
+                bValid = true;
+                break;
+            case String:
+                value = parm.get(index).getStringValue();
+                if (value == null) {
+                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                }
+                bValid = true;
+                break;
+            case IntArray:
+                ArrayList<Long> iArray = parm.get(index).getIntArray();
+                switch (ptype) {
+                    case Integer:
+                    case Unsigned:
+                        Long entry = parm.get(index).getIntegerValue();
+                        iArray = new ArrayList<>();
+                        iArray.add(entry);
+                        parm.get(index).setIntArray(iArray);
+                        frame.outputInfoMsg(STATUS_DEBUG, "Param[" + index + "] type " + ptype + ": converted from " + expType);
+                        break;
+                    default:
+                        break;
+                }
+                if (iArray == null) {
+                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                }
+                value = "(size " + iArray.size() + ")";
+                bValid = true;
+                break;
+            case StringArray:
+                // we will allow IntArray as well and just copy the data into the StrArray as strings
+                ArrayList<String> sArray = parm.get(index).getStrArray();
+                iArray = parm.get(index).getIntArray();
+                switch (ptype) {
+                    case String:
+                        String entry = parm.get(index).getStringValue();
+                        sArray = new ArrayList<>();
+                        sArray.add(entry);
+                        parm.get(index).setStrArray(sArray);
+                        frame.outputInfoMsg(STATUS_DEBUG, "Param[" + index + "] type " + ptype + ": converted from " + expType);
+                        break;
+                    case IntArray:
+                        if (iArray != null) {
+                            sArray = new ArrayList<>();
+                            for (int ix = 0; ix < iArray.size(); ix++) {
+                                sArray.add(iArray.get(ix).toString());
+                            }
+                            parm.get(index).setStrArray(sArray);
+                            frame.outputInfoMsg(STATUS_DEBUG, "Param[" + index + "] type " + ptype + ": converted from " + expType);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                if (sArray == null) {
+                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                }
+                value = "(size " + sArray.size() + ")";
+                bValid = true;
+                break;
+            default:
+                throw new ParserException(functionId + "Param[" + index + "] has invalid type: " + expType);
+        }
+        if (! bValid) {
+            throw new ParserException(functionId + "Param[" + index + "] expected type " + expType + ", was type: " + ptype);
+        }
+        frame.outputInfoMsg(STATUS_DEBUG, "Param[" + index + "] type " + ptype + ": " + value);
+        return parm.get(index);
     }
     
     /**
@@ -765,91 +833,6 @@ public final class ParameterStruct {
             default:
                 break;
         }
-    }
-    
-    /**
-     * checks if a Variable name is valid.
-     *   name must be only alphanumeric or '_' chars and start with an alpha.
-     * 
-     * @param name - the name to check
-     * 
-     * @return true if Variable name is syntactically valid
-     * 
-     * @throws ParserException - if not valid
-     */
-    private static boolean verifyVariableFormat (String name) throws ParserException {
-        String functionId = CLASS_NAME + ".verifyParamFormat: ";
-        
-        if (name == null) {
-            throw new ParserException(functionId + "Variable name is null");
-        }
-        if (name.isBlank()) {
-            throw new ParserException(functionId + "Variable name is blank");
-        }
-        boolean bRighthand = false;
-        if (name.startsWith("$")) {
-            name = name.substring(1);
-            bRighthand = true;
-        }
-        if (! Character.isLetter(name.charAt(0))) {
-            // 1st character must be a letter
-            throw new ParserException(functionId + "invalid initial character in Variable name: " + name);
-        }
-
-        // determine if we have a special param type that can take on appendages
-        ParamType type = Variables.getVariableTypeFromName (name);
-        
-            // TODO: we need to do this for the '.' operator as well
-            int indexStart = 0;
-            int indexEnd = 0;
-            for (int ix = 0; ix < name.length(); ix++) {
-                char curch = name.charAt(ix);
-                // valid char for Variable
-                if ( (curch == '_') || Character.isLetterOrDigit(curch) ) {
-                    if (ix > NAME_MAXLEN) {
-                        throw new ParserException(functionId + "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
-                    }
-                } else {
-                    // this will terminate the Variable search
-                    if (curch == ' ' || curch == '=') {
-                        break;
-                    }
-                    if (!bRighthand) {
-                        throw new ParserException(functionId + "Variable assignment should not include '$': " + name);
-                    }
-                    if (type != ParamType.String && type != ParamType.StringArray && type != ParamType.IntArray) {
-                        throw new ParserException(functionId + "Variable extensions are only valid for String and Array types: " + name);
-                    }
-                    // check for bracket index on Array, List and String Variable
-                    switch (curch) {
-                        case '[':
-                            int offset = name.indexOf(']');
-                            if (offset <= 0 || offset >= name.length() - 1) {
-                                throw new ParserException(functionId + "missing end bracket in Variable name: " + name);
-                            }
-                            try {
-                                indexStart = Utils.getIntValue(name.substring(ix+1)).intValue();
-                            } catch (ParserException exMsg) {
-                                throw new ParserException(functionId + "invalid numeric in brackets");
-                            }
-                            // TODO: evaluate indexEnd
-                            break;
-                        case '.':
-                            // TODO:
-                            break;
-                        default:
-                            throw new ParserException(functionId + "invalid character '" + curch + "' in Variable name: " + name);
-                    }
-                }
-            }
-            if (indexStart == 0 && name.length() > NAME_MAXLEN) {
-                throw new ParserException(functionId + "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name);
-            }
-            if (indexStart > 0 && indexEnd == 0) {
-                throw new ParserException(functionId + "Variable name index missing ending bracket: " + name);
-            }
-            
-        return true;
     }
     
 }

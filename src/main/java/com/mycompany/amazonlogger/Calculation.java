@@ -55,8 +55,9 @@ public class Calculation {
 
         if (null == formula || null == resultType) {
             throw new ParserException (functionId + "Calculation type is null");
-        } else if (resultType != ParameterStruct.ParamType.Integer &&
-                   resultType != ParameterStruct.ParamType.Unsigned) {
+        } else if (resultType != ParameterStruct.ParamType.Integer  &&
+                   resultType != ParameterStruct.ParamType.Unsigned &&
+                   resultType != ParameterStruct.ParamType.IntArray) {
             throw new ParserException (functionId + "Calculation not permitted for type: " + resultType.toString());
         }
         

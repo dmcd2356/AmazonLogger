@@ -18,8 +18,8 @@ public class VariableExtract {
     private String  name;           // Variable name (null if not found)
     private ParameterStruct.ParamType type; // type of parameter
     private String  equalSign;      // type of '=' sign found (null if none)
-    private Integer index;          // associated index [x] for String, StrArray, IntArray params
-    private Integer indexmax;       // associated ending index for String, StrArray, IntArray params
+    private BracketIx index;        // associated index [x] for String, StrArray, IntArray params
+    private BracketIx indexmax;     // associated ending index for String, StrArray, IntArray params
     private Trait   trait;          // object after '.' demarcation
     private String  evaluation;     // evaluation on Right-side of '=' to set parameter to
     private boolean bRightSide;     // true if parameter is a reference and must be on right side of '='
@@ -53,10 +53,18 @@ public class VariableExtract {
      *   have an '=' sign in it. It cannot have any extensions to it (brackets or
      *   Traits).
      * The 2nd form must be preceded by a '$' character and must not have any '='
-     *   character following the parameter name. It can have either brackets
-     *   enclosing a numeric or 2 numerics separated by a dash or a '.' followed
-     *   by a Trait of the parameter if the parameter type supports either of these
-     *   (Strings, StrArrays, and IntArrays only).
+     *   character following the parameter name. It can have 1 of 2 types of extensions:
+     *   - Brackets: enclosing a numeric or 2 numerics separated by a dash or a '.'.
+     *       The numeric value can be a discreet number (non-negative) or can be
+     *       either an Integer or Unsigned reference variable (no Calculation).
+     *   - Trait: a characteristic of the parameter instead of the actual parameter,
+     *       Traits are only supported by Strings, StrArrays, and IntArrays and
+     *       the $DATA reserved variable.
+     * 
+     * NOTE: this is only called during the Compilation phase, so parameters
+     *       cannot be converted to their values yet. That should be done during
+     *       the execution phase by Variables.getVariableInfo. This will reach into
+     *       VariableInfo.getIndexStart() and End() to get the current value.
      * 
      * @param field - the command line input containing the parameter name to extract
      * 
@@ -199,6 +207,7 @@ public class VariableExtract {
                         throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
                     }
                     break;
+
                 case DAY:
                 case MONTH:
                     type = ParameterStruct.ParamType.String;
@@ -207,6 +216,7 @@ public class VariableExtract {
                         throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
                     }
                     break;
+
                 case LOWER:
                 case UPPER:
                     // these are only valid for String types
@@ -214,6 +224,7 @@ public class VariableExtract {
                         throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
                     }
                     break;
+
                 case SORT:
                 case REVERSE:
                     // these are only valid for StrArray types
@@ -221,15 +232,26 @@ public class VariableExtract {
                         throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
                     }
                     break;
+
                 case FILTER:
                     // these are only valid for StrArray and IntArray types
                     if (type != ParameterStruct.ParamType.StringArray &&
                         type != ParameterStruct.ParamType.IntArray)      {
                         throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
                     }
+                    type = ParameterStruct.ParamType.String;
                     break;
-                default:
+                    
                 case SIZE:
+                    // these are allowed for Strings and Arrays
+                    if (type != ParameterStruct.ParamType.StringArray &&
+                        type != ParameterStruct.ParamType.IntArray    &&
+                        type != ParameterStruct.ParamType.String)        {
+                        throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
+                    }
+                    type = ParameterStruct.ParamType.Unsigned;
+                    break;
+
                 case ISEMPTY:
                     // these are allowed for Strings and Arrays
                     if (type != ParameterStruct.ParamType.StringArray &&
@@ -237,7 +259,10 @@ public class VariableExtract {
                         type != ParameterStruct.ParamType.String)        {
                         throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
                     }
+                    type = ParameterStruct.ParamType.Boolean;
                     break;
+                default:
+                    throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
             }
         } else if (offLeftB > 0) {
             if (! bRightSide) {
@@ -254,11 +279,11 @@ public class VariableExtract {
             // now see if we have a single entry or a range
             int offset = leftover.indexOf('-');
             if (offset > 0) {
-                index = Utils.getIntValue (leftover.substring(0, offset)).intValue();
-                indexmax = Utils.getIntValue (leftover.substring(offset+1)).intValue();
+                index    = packIndexValue (leftover.substring(0, offset));
+                indexmax = packIndexValue (leftover.substring(offset+1));
                 frame.outputInfoMsg(STATUS_PROGRAM, "Variable index range found: " + name + "[" + index + "-" + indexmax + "]");
             } else {
-                index = Utils.getIntValue (leftover).intValue();
+                index = packIndexValue(leftover);
                 indexmax = null;
                 frame.outputInfoMsg(STATUS_PROGRAM, "Variable index entry found: " + name + "[" + index + "]");
             }
@@ -271,13 +296,41 @@ public class VariableExtract {
         // verify Variable name is valid
         boolean bValid;
         try {
-            bValid = ParameterStruct.isValidVariableName(name);
+            bValid = Variables.isValidVariableName(Variables.VarCheck.REFERENCE, name);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
         if (! bValid) {
             throw new ParserException(functionId + "Variable not found: " + name);
         }
+    }
+
+    private BracketIx packIndexValue (String entry) throws ParserException {
+        String functionId = CLASS_NAME + ".getExtensions: ";
+        
+        BracketIx index = new BracketIx();
+        if (entry.charAt(0) == '$') {
+            // must be a parameter, check if it exists
+            entry = entry.substring(1);
+            ParameterStruct.ParamType type = Variables.isVariableDefined(entry);
+            if (type != null) {
+                switch (type) {
+                    case Integer:
+                    case Unsigned:
+                        index.setVariable(entry);
+                        break;
+                    default:
+                        throw new ParserException(functionId + "Index variable not a Integer type: " + entry + " (type is " + type + ")");
+                }
+            } else if (LoopParam.isLoopParamDefined(entry)) {
+                index.setVariable(entry);
+            } else {
+                throw new ParserException(functionId + "Index variable not found: " + entry);
+            }
+        } else {
+            index.setValue(Utils.getIntValue(entry).intValue());
+        }
+        return index;
     }
     
     public String getName () {
@@ -295,12 +348,34 @@ public class VariableExtract {
     public String getEquality () {
         return equalSign;
     }
-    
-    public Integer getIndex () {
+
+    /**
+     * returns the current numeric value of the selected index for a Variable.
+     * It is called at execution time, so this is where we can find the current
+     *  numeric value for a variable that is used as an index. Only Unsigned
+     *  numeric values are allowed here, so a negative value will cause an
+     *  exception.
+     * 
+     * @return the current numeric value for the index entry
+     * 
+     * @throws ParserException 
+     */
+    public BracketIx getIndex () throws ParserException {
         return index;
     }
     
-    public Integer getIndexEnd () {
+    /**
+     * returns the current numeric value of the selected ending index for a Variable.
+     * It is called at execution time, so this is where we can find the current
+     *  numeric value for a variable that is used as an index. Only Unsigned
+     *  numeric values are allowed here, so a negative value will cause an
+     *  exception.
+     * 
+     * @return the current numeric value for the index entry
+     * 
+     * @throws ParserException 
+     */
+    public BracketIx getIndexEnd () throws ParserException {
         return indexmax;
     }
     

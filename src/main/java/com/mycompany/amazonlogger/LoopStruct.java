@@ -28,18 +28,7 @@ public class LoopStruct {
     // loop stack for keeping track of current nesting of loops as program runs
     private static final Stack<LoopId> loopStack = new Stack<>();
 
-    LoopStruct () {
-        this.name     = null;
-        this.value    = null;
-        this.valStart = null;
-        this.valEnd   = null;
-        this.valStep  = null;
-        this.comparator = null;
-        this.ixBegin  = null;
-        this .ixEnd   = null;
-        this.ifLevel  = null;
-    }
-    
+
     /**
      * Initializes the loop structure.
      * This is called when the the FOR command is first parsed during compile.
@@ -68,7 +57,7 @@ public class LoopStruct {
             default -> throw new ParserException(functionId + "FOR param @ " + index + ": Invalid comparison chars: " + comp);
         }
         try {
-            ParameterStruct.isValidLoopName(name, index);
+            isValidLoopName(name, index);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId + " [FOR param @ " + index + "]");
         }
@@ -219,7 +208,8 @@ public class LoopStruct {
      * @return the name/index loop id value to use
      */    
     public static LoopId peekStack () {
-        return loopStack.firstElement();
+//        return loopStack.firstElement();
+        return loopStack.peek();
     }
     
     /**
@@ -229,7 +219,7 @@ public class LoopStruct {
      * 
      * @return the current value of the loop parameter (null if parameter not currently active)
      */
-    public Integer getCurrentLoopValue (String name) {
+    public static Integer getCurrentLoopValue (String name) {
         if (!loopStack.empty()) {
             for (int ix = 0; ix < loopStack.size(); ix++) {
                 LoopId loopId = loopStack.get(ix);
@@ -239,6 +229,55 @@ public class LoopStruct {
             }
         }
         return null;
+    }
+    
+    /**
+     * checks if a Loop Variable name is valid.
+     * 
+     * @param name - the name to check
+     *               name must be only alphanumeric or '_' chars,
+     *               cannot be a reserved name (RESPONSE, STATUS, ...)
+     *               or a String or Integer Variable name.
+     * @param index - the command index for the FOR command
+     * 
+     * @throws ParserException - if not valid
+     */
+    public static void isValidLoopName (String name, int index) throws ParserException {
+        String functionId = CLASS_NAME + ".isValidLoopName: ";
+
+        try {
+            if (name.startsWith("$")) {
+                name = name.substring(1);
+            }
+
+            // verify the formaat of the Variable name
+            Variables.verifyVariableFormat(name);
+
+            // check if it is a reserved param name
+            if (Variables.isReservedName(name)) {
+                throw new ParserException(functionId + "using Reserved Variable name: " + name);
+            }
+
+            // make sure it is not a command name
+            if (CommandStruct.isValidCommand(name) != null) {
+                throw new ParserException(functionId + "using Reserved command name: " + name);
+            }
+
+            // make sure its not the same as a reference Variable
+            ParameterStruct.ParamType type = Variables.isVariableDefined(name);
+            if (type != null) {
+                throw new ParserException(": using " + type.toString() + " Variable name: " + name);
+            }
+
+            // now check if this loop name is nested in a loop having same name
+            // get the list of loops using this Variable name (if any)
+            Integer loopIx = LoopParam.checkLoopNesting(name);
+            if (loopIx != null) {
+                throw new ParserException(functionId + ": Loop param " + name + " @ " + index + " is nested in same name at " + loopIx);
+            }
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
+        }
     }
     
 }

@@ -81,7 +81,7 @@ public class CmdOptions {
      * 
      * @return the corresponding ParameterType value
      */
-    private ParameterStruct.ParamType getParameterType (char dataType) {
+    public static ParameterStruct.ParamType getParameterType (char dataType) {
         switch(dataType) {
             case 'I':   return ParameterStruct.ParamType.Integer;
             case 'U':   return ParameterStruct.ParamType.Unsigned;
@@ -130,23 +130,18 @@ public class CmdOptions {
     }
 
     /**
-     * gets the Integer value of a parameter and verifies it qualifies as an Unsigned.
+     * gets the value of a parameter and verifies it is valid.
      * 
      * @param parm  - the argument list
      * @param index - the index of the argument to get
      * 
      * @return unsigned value
      * 
-     * @throws ParserException if not valud Unsigned value
+     * @throws ParserException if not value Unsigned value
      */
     public Integer getUnsignedValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
-        String functionId = CLASS_NAME + ".getUnsignedValue: ";
-
-        Long value = parm.get(index).getIntegerValue();
-        if (! ParameterStruct.isUnsignedInt(value)) {
-            throw new ParserException(functionId + "Parameter value exceeds bounds for Unsigned: " + value);
-        }
-        return value.intValue();
+        ParameterStruct param = ParameterStruct.verifyArgEntry (parm, index, 'U');
+        return param.getIntegerValue().intValue();
     }
         
     /**
@@ -211,14 +206,6 @@ public class CmdOptions {
             throw new ParserException(functionId + "Null or empty param list");
         }
 
-        String argTypes = getOptionArgs(cmdOption.option);
-        if (argTypes == null) {
-            throw new ParserException(functionId + "option is not valid: " + cmdOption.option);
-        }
-
-        // verify integrity of params
-        ScriptCompile.checkArgTypes (cmdOption, argTypes, -1);
-                
         // now run the command line option command and save any response msg
         ArrayList<String> rsp = executeCmdOption (cmdOption);
         if (rsp != null) {
@@ -396,6 +383,14 @@ public class CmdOptions {
 
         frame.outputInfoMsg(STATUS_DEBUG, "      Executing: " + cmdLine.showCommand());
 
+        String argTypes = getOptionArgs(cmdLine.option);
+        if (argTypes == null) {
+            throw new ParserException(functionId + "option is not valid: " + cmdLine.option);
+        }
+
+        // verify integrity of params
+        ScriptExecute.checkArgTypes (cmdLine, argTypes, -1);
+                
         // the rest will be the parameters associated with the option (if any) plus any additional options
         try {
             switch (option) {
@@ -651,8 +646,11 @@ public class CmdOptions {
                     iCol    = getUnsignedValue(params, 0);
                     iRow    = getUnsignedValue(params, 1);
                     arrList = params.get(2).getStrArray();
-                    if (iCol == null || iRow == null || arrList == null) {
+                    if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    if (arrList == null) {
+                        throw new ParserException(functionId + "Invalid array value: strArray is null");
                     }
                     Spreadsheet.putSpreadsheetRow(iCol, iRow, arrList);
                     break;
@@ -660,8 +658,11 @@ public class CmdOptions {
                     iCol    = getUnsignedValue(params, 0);
                     iRow    = getUnsignedValue(params, 1);
                     arrList = params.get(2).getStrArray();
-                    if (iCol == null || iRow == null || arrList == null) {
+                    if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    if (arrList == null) {
+                        throw new ParserException(functionId + "Invalid array value: strArray is null");
                     }
                     Spreadsheet.putSpreadsheetCol(iCol, iRow, arrList);
                     break;
@@ -670,8 +671,11 @@ public class CmdOptions {
                     iCol    = getUnsignedValue(params, 0);
                     iRow    = getUnsignedValue(params, 1);
                     arrLong  = params.get(2).getIntArray();
-                    if (iCol == null || iRow == null || arrLong == null) {
+                    if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    if (arrLong == null) {
+                        throw new ParserException(functionId + "Invalid array value: intArray is null");
                     }
                     Spreadsheet.putSpreadsheetColorRow(iCol, iRow, arrLong);
                     break;
@@ -681,6 +685,9 @@ public class CmdOptions {
                     arrLong  = params.get(2).getIntArray();
                     if (iCol == null || iRow == null || arrLong == null) {
                         throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                    }
+                    if (arrLong == null) {
+                        throw new ParserException(functionId + "Invalid array value: intArray is null");
                     }
                     Spreadsheet.putSpreadsheetColorCol(iCol, iRow, arrLong);
                     break;

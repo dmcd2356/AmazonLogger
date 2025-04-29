@@ -53,7 +53,7 @@ public class LoopParam {
         } catch (ParserException ex) {
             boolean bValid;
             try {
-                bValid = ParameterStruct.isValidVariableName(name);
+                bValid = Variables.isValidVariableName(Variables.VarCheck.REFERENCE, name);
             } catch (ParserException exMsg) {
                 throw new ParserException(exMsg + "\n  -> " + functionId);
             }
@@ -72,17 +72,16 @@ public class LoopParam {
     public Integer getIntValue () throws ParserException {
         String functionId = CLASS_NAME + ".getIntValue: ";
        
-//        if (this.paramName != null) {
-//            // it is a Variable, get the current value
-//            ParameterStruct parStc = new ParameterStruct();
-//            parStc = parStc.getParameterEntry (this.paramName);
-//            this.value = parStc.getIntegerValue();
-//            if (this.value == null) {
-//                throw new ParserException(functionId + "reference Variable " + this.paramName + " is not an Integer: " + parStc.getStringValue());
-//            }
-//        }
+        if (paramName != null) {
+            // it is a Variable, get the current value
+            Long numValue = Variables.getNumericValue(paramName);
+            if (numValue == null) {
+                throw new ParserException(functionId + "reference Variable " + paramName + " is not an Integer: " + paramName);
+            }
+            value = numValue.intValue();
+        }
 
-        return this.value;
+        return value;
     }
 
     /**
@@ -96,8 +95,7 @@ public class LoopParam {
         if (! loopNames.containsKey(name)) {
             return null;
         }
-        LoopStruct loopInfo = new LoopStruct();
-        return loopInfo.getCurrentLoopValue(name).longValue();
+        return LoopStruct.getCurrentLoopValue(name).longValue();
     }
 
     /**
@@ -265,7 +263,12 @@ public class LoopParam {
             loopList = new ArrayList<>();
             loopNames.put(name, loopList);
         } else {
+            // get name from list. if not in list, create new entry
             loopList = loopNames.get(name);
+            if (loopList == null) {
+                loopList = new ArrayList<>();
+                loopNames.put(name, loopList);
+            }
         }
         loopList.add(loopId);
         frame.outputInfoMsg(STATUS_DEBUG, functionId + "Number of loops with name " + name + ": " + loopList.size());
