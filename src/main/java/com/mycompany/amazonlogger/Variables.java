@@ -6,7 +6,7 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -23,7 +23,7 @@ import java.util.Random;
  */
 public class Variables {
     
-    private static final String CLASS_NAME = "Variables";
+    private static final String CLASS_NAME = Variables.class.getSimpleName();
     
     static final int NAME_MAXLEN = 20;  // the max # chars in a param name
 
@@ -81,7 +81,7 @@ public class Variables {
      * @throws ParserException - if Variable was already defined
      */
     public static void allocateVariable (String name) throws ParserException {
-        String functionId = CLASS_NAME + ".allocateVariable: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // first, verify Variable name to make sure it is valid format and
         //  not already used.
@@ -116,7 +116,7 @@ public class Variables {
             default:
                 break;
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Allocated " + type.toString() + " variable: " + name);
+        frame.outputInfoMsg(STATUS_VARS, "   - Allocated " + type.toString() + " variable: " + name);
     }
 
     /**
@@ -129,7 +129,7 @@ public class Variables {
      * @throws ParserException - if Variable not found
      */
     public static ParameterStruct getVariableInfo (VariableInfo paramInfo) throws ParserException {
-        String functionId = CLASS_NAME + ".getVariableInfo: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (paramInfo == null || paramInfo.getName() == null || paramInfo.getType() == null) {
             return null;
@@ -221,7 +221,7 @@ public class Variables {
                 }
             }
             if (pType == null || findType != pType) {
-                frame.outputInfoMsg(STATUS_PROGRAM, "    - Incorrect Variable Ref type for '" + name + "' as type " + pType + " is actually " + findType);
+                frame.outputInfoMsg(STATUS_VARS, "    - Incorrect Variable Ref type for '" + name + "' as type " + pType + " is actually " + findType);
                 pType = findType;
             }
 
@@ -240,7 +240,7 @@ public class Variables {
                             throw new ParserException(functionId + "Parameter " + name + " not found");
                         }
                     }
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
+                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
                     break;
                 case Unsigned:
                     paramValue.setIntegerValue(uintParams.get(name));
@@ -255,14 +255,14 @@ public class Variables {
                             throw new ParserException(functionId + "Parameter " + name + " not found");
                         }
                     }
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
+                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
                     break;
                 case Boolean:
                     paramValue.setBooleanValue(boolParams.get(name));
                     if (paramValue.getBooleanValue() == null) {
                         throw new ParserException(functionId + "Parameter " + name + " not found");
                     }
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.getBooleanValue());
+                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.getBooleanValue());
                     break;
                 case IntArray:
                     paramValue.setIntArray(VarArray.getIntArray(name));
@@ -273,7 +273,7 @@ public class Variables {
                     if (arrayValue.length() > 100) {
                         arrayValue = arrayValue.substring(0,20) + "...";
                     }
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
+                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
                     break;
                 case StringArray:
                     paramValue.setStrArray(VarArray.getStrArray(name));
@@ -284,7 +284,7 @@ public class Variables {
                     if (arrayValue.length() > 100) {
                         arrayValue = arrayValue.substring(0,20) + "...";
                     }
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
+                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
                     break;
                 default:
                 case String:
@@ -294,7 +294,7 @@ public class Variables {
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " not found");
                     }
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.getStringValue());
+                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.getStringValue());
                     break;
             }
         }
@@ -308,7 +308,7 @@ public class Variables {
                         paramValue.setIntegerValue(paramValue.getIntArrayElement(iStart));
                         paramValue.setStringValue(paramValue.getIntegerValue().toString());
                         pType = ParameterStruct.ParamType.Integer;
-                        frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getIntegerValue());
+                        frame.outputInfoMsg(STATUS_VARS, "    " + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getIntegerValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
@@ -317,7 +317,7 @@ public class Variables {
                     if (iStart < paramValue.getStrArraySize()) {
                         paramValue.setStringValue(paramValue.getStrArrayElement(iStart));
                         pType = ParameterStruct.ParamType.String;
-                        frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getStringValue());
+                        frame.outputInfoMsg(STATUS_VARS, "    " + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getStringValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
@@ -331,7 +331,7 @@ public class Variables {
                     }
                     if (iEnd <= paramValue.getStrArraySize()) {
                         paramValue.setStringValue(paramValue.getStringValue().substring(iStart, iEnd));
-                        frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "index" + ixRange + " as type " + pType + ": " + paramValue.getStringValue());
+                        frame.outputInfoMsg(STATUS_VARS, "    " + name + "index" + ixRange + " as type " + pType + ": " + paramValue.getStringValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index" + ixRange + " exceeds array");
                     }
@@ -375,7 +375,7 @@ public class Variables {
                         default:
                             throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);
                     }
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "." + trait.toString() + " as type " + pType + ": " + paramValue.getStringValue());
+                    frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type " + pType + ": " + paramValue.getStringValue());
                     break;
                 case ParameterStruct.ParamType.StringArray:
                     psize = paramValue.getStrArraySize();
@@ -418,7 +418,7 @@ public class Variables {
                         default:
                             throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);
                     }
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "." + trait.toString() + " as type " + pType + ": " + strValue);
+                    frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type " + pType + ": " + strValue);
                     break;
                 case ParameterStruct.ParamType.String:
                     strValue = "";
@@ -452,7 +452,7 @@ public class Variables {
                         default:
                             throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType.toString());
                     }
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    " + name + "." + trait.toString() + " as type Boolean: " + strValue);
+                    frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type Boolean: " + strValue);
                     break;
                 default:
                     break;
@@ -477,11 +477,11 @@ public class Variables {
      * @throws ParserException
      */
     public static void modifyStringVariable (String name, String value) throws ParserException {
-        String functionId = CLASS_NAME + ".modifyStringVariable: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (strParams.containsKey(name)) {
             strParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified String param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_VARS, "   - Modified String param: " + name + " = " + value);
         } else {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
@@ -497,11 +497,11 @@ public class Variables {
      * @throws ParserException
      */
     public static void modifyIntegerVariable (String name, Long value) throws ParserException {
-        String functionId = CLASS_NAME + ".modifyIntegerVariable: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (longParams.containsKey(name)) {
             longParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Integer param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_VARS, "   - Modified Integer param: " + name + " = " + value);
         } else {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
@@ -517,7 +517,7 @@ public class Variables {
      * @throws ParserException
      */
     public static void modifyUnsignedVariable (String name, Long value) throws ParserException {
-        String functionId = CLASS_NAME + ".modifyUnsignedVariable: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (! ParameterStruct.isUnsignedInt(value)) {
             throw new ParserException(functionId + "value for Variable " + name + " exceeds limits for Unsigned: " + value);
@@ -526,7 +526,7 @@ public class Variables {
             maxRandom = value;  // this will set the max range for random value (0 to maxRandom - 1)
         } else if (uintParams.containsKey(name)) {
             uintParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Unsigned param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_VARS, "   - Modified Unsigned param: " + name + " = " + value);
         } else {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
@@ -542,11 +542,11 @@ public class Variables {
      * @throws ParserException
      */
     public static void modifyBooleanVariable (String name, Boolean value) throws ParserException {
-        String functionId = CLASS_NAME + ".modifyBooleanVariable: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (boolParams.containsKey(name)) {
             boolParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified Boolean param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_VARS, "   - Modified Boolean param: " + name + " = " + value);
         } else {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
@@ -563,27 +563,27 @@ public class Variables {
     public static boolean variableDelete (String name) {
         if (longParams.containsKey(name)) {
             longParams.remove(name);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted Integer Variable: " + name);
+            frame.outputInfoMsg(STATUS_VARS, "   - Deleted Integer Variable: " + name);
         }
         if (uintParams.containsKey(name)) {
             uintParams.remove(name);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted Unsigned Variable: " + name);
+            frame.outputInfoMsg(STATUS_VARS, "   - Deleted Unsigned Variable: " + name);
         }
         if (strParams.containsKey(name)) {
             strParams.remove(name);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted String Variable: " + name);
+            frame.outputInfoMsg(STATUS_VARS, "   - Deleted String Variable: " + name);
         }
         if (boolParams.containsKey(name)) {
             boolParams.remove(name);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted Boolean Variable: " + name);
+            frame.outputInfoMsg(STATUS_VARS, "   - Deleted Boolean Variable: " + name);
         }
         if (VarArray.isIntArray(name)) {
             VarArray.removeArrayEntry(name, ParameterStruct.ParamType.IntArray);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted IntArray Variable: " + name);
+            frame.outputInfoMsg(STATUS_VARS, "   - Deleted IntArray Variable: " + name);
         }
         if (VarArray.isStrArray(name)) {
             VarArray.removeArrayEntry(name, ParameterStruct.ParamType.StringArray);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted StrArray Variable: " + name);
+            frame.outputInfoMsg(STATUS_VARS, "   - Deleted StrArray Variable: " + name);
         }
         return false;
     }
@@ -644,7 +644,7 @@ public class Variables {
     public static boolean isReservedName (String name) {
         for (ReservedVars entry : ReservedVars.values()) {
             if (entry.toString().contentEquals(name)) {
-                frame.outputInfoMsg(STATUS_PROGRAM, "    Reserved name found: " + name);
+                frame.outputInfoMsg(STATUS_VARS, "    Reserved name found: " + name);
                 return true;
             }
         }
@@ -718,7 +718,7 @@ public class Variables {
      * @throws ParserException - if not valid
      */
     public static boolean isValidVariableName (VarCheck use, String name) throws ParserException {
-        String functionId = CLASS_NAME + ".isValidVariableName: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         try {
             if (name.startsWith("$")) {
@@ -784,7 +784,7 @@ public class Variables {
      * @throws ParserException - if not valid
      */
     public static boolean verifyVariableFormat (String name) throws ParserException {
-        String functionId = CLASS_NAME + ".verifyParamFormat: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (name == null) {
             frame.outputInfoMsg(STATUS_DEBUG, "Variable name is null");

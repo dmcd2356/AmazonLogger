@@ -6,7 +6,6 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -20,7 +19,7 @@ import java.util.Arrays;
  */
 public final class ParameterStruct {
 
-    private static final String CLASS_NAME = "ParameterStruct";
+    private static final String CLASS_NAME = ParameterStruct.class.getSimpleName();
     
     private String              strParam;       // value for the String  param type
     private Long                longParam;      // value for the Integer and Unsigned param types
@@ -358,7 +357,7 @@ public final class ParameterStruct {
      * @throws com.mycompany.amazonlogger.ParserException
      */
     public Long getCalculationValue (ParamType type) throws ParserException {
-        String functionId = CLASS_NAME + ".getCalculationValue: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (calcParam == null) {
             throw new ParserException(functionId + "Calculation value is null");
@@ -456,7 +455,7 @@ public final class ParameterStruct {
         for (int ix = 0; ix < params.size(); ix++) {
             paramTypes += params.get(ix).paramTypeID;
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, "     dataTypes: " + paramTypes);
+        frame.outputInfoMsg(STATUS_DEBUG, "     dataTypes: " + paramTypes);
     }
     
     /**
@@ -510,7 +509,7 @@ public final class ParameterStruct {
      * @throws ParserException 
      */
     public static Long getLongOrUnsignedValue (String strValue) throws ParserException {
-        String functionId = CLASS_NAME + ".getLongOrUnsignedValue: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         Long longVal;
         try {
@@ -550,7 +549,7 @@ public final class ParameterStruct {
      *
      */
     public static void verifyArgEntryCompile (ArrayList<ParameterStruct> parm, int index, char type) throws ParserException {
-        String functionId = CLASS_NAME + ".verifyArgEntry: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // verify index does not exceed bounds
         if (parm.size() <= index) {
@@ -630,7 +629,7 @@ public final class ParameterStruct {
      *
      */
     public static ParameterStruct verifyArgEntry (ArrayList<ParameterStruct> parm, int index, char type) throws ParserException {
-        String functionId = CLASS_NAME + ".verifyArgEntry: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // verify index does not exceed bounds
         if (parm.size() <= index) {

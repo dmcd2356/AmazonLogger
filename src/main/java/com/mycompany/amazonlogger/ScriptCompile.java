@@ -5,8 +5,8 @@
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -20,8 +20,8 @@ import java.util.Arrays;
  */
 public class ScriptCompile {
     
-    private static final String CLASS_NAME = "ScriptCompile";
-    
+    private static final String CLASS_NAME = ScriptCompile.class.getSimpleName();
+
     // this handles the command line options via the RUN command
     private final CmdOptions cmdOptionParser;
      
@@ -41,7 +41,7 @@ public class ScriptCompile {
      * @throws ParserException 
      */
     public static void checkArgTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
-        String functionId = CLASS_NAME + ".checkArgTypes: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         String prefix = command + " - ";
         if (linenum >= 0) {  // omit the line numberinfo if < 0
             prefix = "line " + linenum + ", " + prefix;
@@ -85,9 +85,9 @@ public class ScriptCompile {
      * @throws IOException 
      */
     public ArrayList<CommandStruct> compileProgram (String fname) throws ParserException, IOException {
-        String functionId = CLASS_NAME + ".compileProgram: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName();
 
-        frame.outputInfoMsg(STATUS_PROGRAM, "Compiling file: " + fname);
+        frame.outputInfoMsg(STATUS_COMPILE, "Compiling file: " + fname);
         ArrayList<CommandStruct> cmdList = new ArrayList<>();
         String line = "";
         int cmdIndex = 0;
@@ -164,7 +164,7 @@ public class ScriptCompile {
             ArrayList<String> listParms;
             
             // extract the arguments to pass to the command
-            frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
+            frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
             boolean bParamAssign = (CommandStruct.CommandTable.SET == command);
             cmdStruct.params = packParameters (parmString, bParamAssign);
             ParameterStruct.showParamTypeList(cmdStruct.params);
@@ -221,7 +221,7 @@ public class ScriptCompile {
                         // argument is missing, supply the default value
                         ParameterStruct lines = new ParameterStruct("1",
                                                 ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.Unsigned);
-                        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + cmdStruct.params.size() + "]: type Unsigned value: 1");
+                        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + cmdStruct.params.size() + "]: type Unsigned value: 1");
                         cmdStruct.params.add(lines);
                     } else {
                         Long count = cmdStruct.params.get(0).getIntegerValue();
@@ -516,7 +516,7 @@ public class ScriptCompile {
                     ifInfo = new IFStruct (cmdIndex, LoopStruct.getStackSize());
                     IFStruct.ifListPush(ifInfo);
                     IFStruct.stackPush(cmdIndex);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - new IF level " + IFStruct.getStackSize() + " Variable " + ifName);
+                    frame.outputInfoMsg(STATUS_COMPILE, "   - new IF level " + IFStruct.getStackSize() + " Variable " + ifName);
                     break;
                 case CommandStruct.CommandTable.ELSE:
                     if (IFStruct.isIfListEnpty()) {
@@ -525,7 +525,7 @@ public class ScriptCompile {
                     // save the current command index in the current if structure
                     ifInfo = IFStruct.getIfListEntry();
                     ifInfo.setElseIndex(cmdIndex, false, LoopStruct.getStackSize());
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
+                    frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
                     break;
                 case CommandStruct.CommandTable.ELSEIF:
                     if (IFStruct.isIfStackEnpty()) {
@@ -540,7 +540,7 @@ public class ScriptCompile {
                     // save the current command index in the current if structure
                     ifInfo = IFStruct.getIfListEntry();
                     ifInfo.setElseIndex(cmdIndex, true, LoopStruct.getStackSize());
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " Variable " + ifName);
+                    frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " Variable " + ifName);
                     break;
                 case CommandStruct.CommandTable.ENDIF:
                     if (IFStruct.isIfStackEnpty()) {
@@ -550,7 +550,7 @@ public class ScriptCompile {
                     ifInfo = IFStruct.getIfListEntry();
                     ifInfo.setEndIfIndex(cmdIndex, LoopStruct.getStackSize());
                     IFStruct.stackPop();
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
+                    frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
                     break;
                 case CommandStruct.CommandTable.FOR:
                     // read the arguments passed
@@ -561,7 +561,7 @@ public class ScriptCompile {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing parameters");
                     } else if (listParms.size() < 5) {
                         listParms.add("1"); // use 1 as a default value
-                        frame.outputInfoMsg(STATUS_PROGRAM, "    (using default step size of 1)");
+                        frame.outputInfoMsg(STATUS_COMPILE, "    (using default step size of 1)");
                     }
 
                     // get the parameters and format them for use
@@ -586,7 +586,7 @@ public class ScriptCompile {
                     
                     // add entry to the current loop stack
                     LoopStruct.pushStack(loopId);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - new FOR Loop level " + LoopStruct.getStackSize() + " Variable " + loopName + " index @ " + cmdIndex);
+                    frame.outputInfoMsg(STATUS_COMPILE, "   - new FOR Loop level " + LoopStruct.getStackSize() + " Variable " + loopName + " index @ " + cmdIndex);
                     break;
                 case CommandStruct.CommandTable.BREAK:
                     // make sure we are in a FOR ... NEXT loop
@@ -663,73 +663,13 @@ public class ScriptCompile {
         
         // the last line will be the one to end the program flow
         cmdList.add(new CommandStruct(CommandStruct.CommandTable.EXIT, lineNum));
-        frame.outputInfoMsg(STATUS_PROGRAM, "PROGIX [" + cmdIndex + "]: EXIT  (appended)");
+        frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "]: EXIT  (appended)");
         return cmdList;
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + line);
         }
     }
 
-    /**
-     * extracts the number of chars read from a command line that match the type of 
-     * parameter we are looking for.
-     * 
-     * @param type - the type of parameter to look for
-     * @param line - the command line that starts with the next entry to parse
-     * 
-     * @return the number of chars found in the string that match the param type
-     * 
-     * @throws ParserException 
-     */
-    private int getValidStringLen (char type, String line) throws ParserException {
-        String functionId = CLASS_NAME + ".getValidStringLen: ";
-
-        boolean bParam = false;
-        for (int ix = 0; ix < line.length(); ix++) {
-            char curChar = line.charAt(ix);
-            frame.outputInfoMsg(STATUS_DEBUG, functionId + "char type " + type + ": char '" + curChar + "'");
-            switch (type) {
-                case 'S':
-                    // String or Parameter
-                    if (ix == 0 && curChar == '$') {
-                        bParam = true;
-                        continue;
-                    }
-                    if (Character.isLetterOrDigit(curChar) || curChar == '_') {
-                        continue;
-                    }
-                    return ix;
-                case 'I':
-                    // Integer or Parameter
-                    if (ix == 0 && curChar == '$') {
-                        bParam = true;
-                        continue;
-                    }
-                    if (Character.isDigit(curChar)) {
-                        continue;
-                    }
-                    if (bParam) {
-                        if (Character.isLetterOrDigit(curChar) || curChar == '_') {
-                            continue;
-                        }
-                    }
-                    return ix;
-                case 'C':
-                    // Comparison sign
-                    if (curChar == '=' || curChar == '!' || curChar == '>' || curChar == '<') {
-                        continue;
-                    }
-                    return ix;
-                default:
-                    if (curChar == type) {
-                        return ix + 1;
-                    }
-                    throw new ParserException (functionId + "Invalid char for type " + type + ": " + curChar);
-            }
-        }
-        return line.length();
-    }
-    
     /**
      * extracts the specified list of parameter types from the string passed.
      * The 'parmArr' value should be the String containing the param list for the command
@@ -752,11 +692,11 @@ public class ScriptCompile {
      * @throws ParserException 
      */
     private ArrayList<String> extractUserParams (String strType, String parmArr) throws ParserException {
-        String functionId = CLASS_NAME + ".extractUserParams: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         ArrayList<String> parmList = new ArrayList<>();
         for (int parmIx = 0; parmIx < strType.length() && !parmArr.isBlank(); parmIx++) {
-            frame.outputInfoMsg(STATUS_DEBUG, functionId + parmArr);
+            frame.outputInfoMsg(STATUS_COMPILE, functionId + parmArr);
 
             // get the next entry type to read
             char curType = strType.charAt(parmIx);
@@ -771,17 +711,17 @@ public class ScriptCompile {
             // get the parameter we are searching for and remove it from the input list
             String param = parmArr.substring(0, offset);
             parmArr = parmArr.substring(offset);
-            frame.outputInfoMsg(STATUS_DEBUG, "    offset = " + offset);
+            frame.outputInfoMsg(STATUS_COMPILE, "    offset = " + offset);
 
             switch (curType) {
                 case 'S':
                 case 'I':
                 case 'C':
-                    frame.outputInfoMsg(STATUS_DEBUG, "    extracted arg[" + parmList.size() + "]: '" + param + "'");
+                    frame.outputInfoMsg(STATUS_COMPILE, "    extracted arg[" + parmList.size() + "]: '" + param + "'");
                     parmList.add(param);
                     break;
                 default:
-                    frame.outputInfoMsg(STATUS_DEBUG, "    extracted character: '" + curType + "'");
+                    frame.outputInfoMsg(STATUS_COMPILE, "    extracted character: '" + curType + "'");
                     break;
             }
         }
@@ -801,7 +741,7 @@ public class ScriptCompile {
      * @throws ParserException 
      */
     private ArrayList<ParameterStruct> packParameters (String line, boolean bParamAssign) throws ParserException {
-        String functionId = CLASS_NAME + ".packParameters: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         ArrayList<ParameterStruct> params = new ArrayList<>();
         ParameterStruct arg;
@@ -834,14 +774,14 @@ public class ScriptCompile {
                     line = line.strip();
                     nextArg = "=";
                     arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
+                    frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
                     params.add(arg);
                     arg = new ParameterStruct (paramName, ParameterStruct.ParamClass.Reference, ParameterStruct.ParamType.String);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + paramName);
+                    frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + paramName);
                     params.add(arg);
                     nextArg = "+";
                     arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
+                    frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
                     params.add(arg);
                     continue;
                 }
@@ -868,7 +808,7 @@ public class ScriptCompile {
                     
                     // place them in the proper list structure
                     arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.StringArray);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: [ " + nextArg + " ]");
+                    frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: [ " + nextArg + " ]");
                     params.add(arg);
                     continue;
                 }
@@ -921,7 +861,7 @@ public class ScriptCompile {
             }
             
             arg = new ParameterStruct(nextArg, pClass, paramType);
-            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
+            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
             params.add(arg);
         }
         } catch (ParserException exMsg) {
@@ -948,7 +888,7 @@ public class ScriptCompile {
      * @return a list of the strings without the + entries
      */
     private ArrayList<ParameterStruct> packStringConcat (ArrayList<ParameterStruct> params, int offset) throws ParserException {
-        String functionId = CLASS_NAME + ".packStringConcat: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // start at the end of the list with the last + entry and work backwards.
         // The last  + will be the 2nd to the last entry at params.size() - 2.
@@ -985,7 +925,7 @@ public class ScriptCompile {
      * @throws ParserException 
      */
     private ArrayList<ParameterStruct> packCalculation (String line, ParameterStruct.ParamType ptype) throws ParserException {
-        String functionId = CLASS_NAME + ".packCalculation: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (ptype == ParameterStruct.ParamType.String) {
             throw new ParserException(functionId + "Assignment command not allowed for type: " + ptype);
@@ -1009,12 +949,12 @@ public class ScriptCompile {
             throw new ParserException(functionId + "no arguments following parameter name: " + line);
         }
 
-        frame.outputInfoMsg(STATUS_PROGRAM, "     * Repacking parameters for Calculation");
+        frame.outputInfoMsg(STATUS_COMPILE, "     * Repacking parameters for Calculation");
         
         // the 1st argument of a SET command is the parameter name to assign the value to
         line = line.substring(paramName.length()).strip();
         parm = new ParameterStruct(paramName, ParameterStruct.ParamClass.Reference, ptype);
-        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + paramName);
+        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + paramName);
         params.add(parm);
 
         // next entry should be the equality sign (except for Arrays)
@@ -1055,7 +995,7 @@ public class ScriptCompile {
                 // this will pack the "=" sign
                 ParameterStruct.ParamType newParam = ParameterStruct.ParamType.String;
                 parm = new ParameterStruct("=", ParameterStruct.ParamClass.Discrete, newParam);
-                frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + newParam + " value: =");
+                frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + newParam + " value: =");
                 params.add(parm);
 
                 // if there was an operation preceeding the "=" sign, let's sneek the operation in here
@@ -1079,7 +1019,7 @@ public class ScriptCompile {
         } else {
             // else, numeric type: remaining data is a single Calculation
             parm = new ParameterStruct(line, ParameterStruct.ParamClass.Calculation, ptype);
-            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
+            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
             params.add(parm);
         }
         
@@ -1104,7 +1044,7 @@ public class ScriptCompile {
      * @throws ParserException 
      */
     private ArrayList<ParameterStruct> packComparison (String line) throws ParserException {
-        String functionId = CLASS_NAME + ".packComparison: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         ArrayList<ParameterStruct> params = new ArrayList<>();
         ParameterStruct parm;
@@ -1112,7 +1052,7 @@ public class ScriptCompile {
         ParameterStruct.ParamClass pclass1;
         ParameterStruct.ParamClass pclass2;
         
-        frame.outputInfoMsg(STATUS_PROGRAM, "     * Repacking parameters for Comparison");
+        frame.outputInfoMsg(STATUS_COMPILE, "     * Repacking parameters for Comparison");
         
         // check for 'NOT' character
         boolean bNot = false;
@@ -1149,7 +1089,7 @@ public class ScriptCompile {
             pclass1 = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
             ptype = ParameterStruct.ParamType.Boolean;
             parm = new ParameterStruct(line, pclass1, ptype);
-            frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
+            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
             params.add(parm);
             
             if (bNot) {
@@ -1157,7 +1097,7 @@ public class ScriptCompile {
                 pclass2 = ParameterStruct.ParamClass.Discrete;
                 ptype = ParameterStruct.ParamType.String;
                 parm = new ParameterStruct(value, pclass2, ptype);
-                frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + value);
+                frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + value);
                 params.add(parm);
             }
             return params;
@@ -1209,17 +1149,17 @@ public class ScriptCompile {
 
         // first add the initial Calculation value, which will usually be a Variable or a Discreet value.
         parm = new ParameterStruct(prefix, pclass1, ptype);
-        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + prefix);
+        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + prefix);
         params.add(parm);
         
             // now add the comparison sign
         parm = new ParameterStruct(compSign, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
-        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + compSign);
+        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + compSign);
         params.add(parm);
             
         // remaining data is the Calculation, which may be a single value or a complex formula
         parm = new ParameterStruct(line, pclass2, ptype);
-        frame.outputInfoMsg(STATUS_PROGRAM, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
+        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
         params.add(parm);
 
         return params;
@@ -1267,7 +1207,7 @@ public class ScriptCompile {
      * @throws ParserException
      */
     private static String extractQuotedString (String line) throws ParserException {
-        String functionId = CLASS_NAME + ".extractQuotedString: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (line == null || line.isBlank() || line.charAt(0) != '\"') {
             return line;
@@ -1316,4 +1256,65 @@ public class ScriptCompile {
         }
         return line;
     }
+    
+    /**
+     * extracts the number of chars read from a command line that match the type of 
+     * parameter we are looking for.
+     * 
+     * @param type - the type of parameter to look for
+     * @param line - the command line that starts with the next entry to parse
+     * 
+     * @return the number of chars found in the string that match the param type
+     * 
+     * @throws ParserException 
+     */
+    private int getValidStringLen (char type, String line) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        boolean bParam = false;
+        for (int ix = 0; ix < line.length(); ix++) {
+            char curChar = line.charAt(ix);
+            frame.outputInfoMsg(STATUS_DEBUG, functionId + "char type " + type + ": char '" + curChar + "'");
+            switch (type) {
+                case 'S':
+                    // String or Parameter
+                    if (ix == 0 && curChar == '$') {
+                        bParam = true;
+                        continue;
+                    }
+                    if (Character.isLetterOrDigit(curChar) || curChar == '_') {
+                        continue;
+                    }
+                    return ix;
+                case 'I':
+                    // Integer or Parameter
+                    if (ix == 0 && curChar == '$') {
+                        bParam = true;
+                        continue;
+                    }
+                    if (Character.isDigit(curChar)) {
+                        continue;
+                    }
+                    if (bParam) {
+                        if (Character.isLetterOrDigit(curChar) || curChar == '_') {
+                            continue;
+                        }
+                    }
+                    return ix;
+                case 'C':
+                    // Comparison sign
+                    if (curChar == '=' || curChar == '!' || curChar == '>' || curChar == '<') {
+                        continue;
+                    }
+                    return ix;
+                default:
+                    if (curChar == type) {
+                        return ix + 1;
+                    }
+                    throw new ParserException (functionId + "Invalid char for type " + type + ": " + curChar);
+            }
+        }
+        return line.length();
+    }
+    
 }

@@ -6,7 +6,7 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.ParameterStruct.getLongOrUnsignedValue;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Objects;
@@ -17,7 +17,7 @@ import java.util.Objects;
  */
 public class VarArray {
 
-    private static final String CLASS_NAME = "VarArray";
+    private static final String CLASS_NAME = VarArray.class.getSimpleName();
     
     // array Variables
     private static final HashMap<String, ArrayList<Long>>    intArrayParams = new HashMap<>();
@@ -136,8 +136,8 @@ public class VarArray {
      * 
      * @throws ParserException
      */
-    public static int getIntArraySize (String name) throws ParserException {
-        String functionId = CLASS_NAME + ".getArraySize: ";
+    public static int getArraySize (String name) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
@@ -164,7 +164,7 @@ public class VarArray {
      * @throws ParserException
      */
     public static void setStrArrayVariable (String name, ArrayList<String> value) throws ParserException {
-        String functionId = CLASS_NAME + ".setStrArrayVariable: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
@@ -173,7 +173,7 @@ public class VarArray {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
         strArrayParams.replace(name, value);
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Saved StrArray param: " + name + " = " + value);
+        frame.outputInfoMsg(STATUS_VARS, "   - Saved StrArray param: " + name + " = " + value);
     }
 
     /**
@@ -186,7 +186,7 @@ public class VarArray {
      * @throws ParserException
      */
     public static void setIntArrayVariable (String name, ArrayList<Long> value) throws ParserException {
-        String functionId = CLASS_NAME + ".setIntArrayVariable: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
@@ -195,7 +195,7 @@ public class VarArray {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
         intArrayParams.replace(name, value);
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Saved IntArray param: " + name + " = " + value);
+        frame.outputInfoMsg(STATUS_VARS, "   - Saved IntArray param: " + name + " = " + value);
     }
 
     /**
@@ -209,7 +209,7 @@ public class VarArray {
      * @throws ParserException
      */
     public static boolean arrayRemoveAll (String name) throws ParserException {
-        String functionId = CLASS_NAME + ".arrayRemoveAll: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
@@ -217,21 +217,21 @@ public class VarArray {
         if (name.contentEquals("RESPONSE")) {
             int size = strResponse.size();
             strResponse.clear();
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted " + size + " entries in Array param: " + name);
+            frame.outputInfoMsg(STATUS_VARS, "   - Deleted " + size + " entries in Array param: " + name);
             return true;
         }
         else if (intArrayParams.containsKey(name)) {
             ArrayList<Long> entry = intArrayParams.get(name);
             int size = entry.size();
             entry.clear();
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted " + size + " entries in Array param: " + name);
+            frame.outputInfoMsg(STATUS_VARS, "   - Deleted " + size + " entries in Array param: " + name);
             return true;
         }
         else if (strArrayParams.containsKey(name)) {
             ArrayList<String> entry = strArrayParams.get(name);
             int size = entry.size();
             entry.clear();
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Deleted " + size + " entries in List param: " + name);
+            frame.outputInfoMsg(STATUS_VARS, "   - Deleted " + size + " entries in List param: " + name);
             return true;
         }
         return false;
@@ -250,7 +250,7 @@ public class VarArray {
      * @throws ParserException
      */
     public static boolean arrayRemoveEntries (String name, int iStart, int iCount) throws ParserException {
-        String functionId = CLASS_NAME + ".arrayRemoveEntries: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
@@ -291,8 +291,8 @@ public class VarArray {
         } else {
             return false;
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Removed " + iCount + " entries from Array param " + name + ": (new size = "+ size  + ")");
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - " + name + ": " + arrayContents);
+        frame.outputInfoMsg(STATUS_VARS, "   - Removed " + iCount + " entries from Array param " + name + ": (new size = "+ size  + ")");
+        frame.outputInfoMsg(STATUS_VARS, "   - " + name + ": " + arrayContents);
         return true;
     }
 
@@ -309,7 +309,7 @@ public class VarArray {
      * @throws ParserException
      */
     public static boolean arrayModifyEntry (String name, int index, String value) throws ParserException {
-        String functionId = CLASS_NAME + ".arrayModifyEntry: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
@@ -335,8 +335,8 @@ public class VarArray {
             } else {
                 return false;
             }
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Modified List param: " + name + " = " + value);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - " + name + ": " + arrayContents);
+            frame.outputInfoMsg(STATUS_VARS, "   - Modified List param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_VARS, "   - " + name + ": " + arrayContents);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
@@ -357,7 +357,7 @@ public class VarArray {
      * @throws ParserException
      */
     public static boolean arrayInsertEntry (String name, int index, String value) throws ParserException {
-        String functionId = CLASS_NAME + ".arrayInsertEntry: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
@@ -393,8 +393,8 @@ public class VarArray {
             } else {
                 return false;
             }
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - Inserted entry[" + index + "] in param: " + name + " = " + value);
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - " + name + ": " + arrayContents);
+            frame.outputInfoMsg(STATUS_VARS, "   - Inserted entry[" + index + "] in param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_VARS, "   - " + name + ": " + arrayContents);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
@@ -413,7 +413,7 @@ public class VarArray {
      * @throws ParserException
      */
     public static boolean arrayAppendEntry (String name, String value) throws ParserException {
-        String functionId = CLASS_NAME + ".arrayAppendEntry: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
@@ -440,8 +440,8 @@ public class VarArray {
             int offset = value.length() - 25;
             value = value.substring(0, 60) + " ... " + value.substring(offset);
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - Appended entry to Variable: " + name + " = " + value);
-        frame.outputInfoMsg(STATUS_PROGRAM, "   - " + name + ": " + arrayContents);
+        frame.outputInfoMsg(STATUS_VARS, "   - Appended entry to Variable: " + name + " = " + value);
+        frame.outputInfoMsg(STATUS_VARS, "   - " + name + ": " + arrayContents);
         return true;
     }
 
@@ -463,7 +463,7 @@ public class VarArray {
      * 
      */
     public static void arrayFilterString (String varName, String strFilter, String opts) throws ParserException {
-        String functionId = CLASS_NAME + ".arrayFilterString: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (varName == null || varName.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
@@ -537,7 +537,7 @@ public class VarArray {
      * 
      */
     public static void arrayFilterInt (String varName, String compSign, Long value) throws ParserException {
-        String functionId = CLASS_NAME + ".arrayFilterInt: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (varName == null || varName.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");

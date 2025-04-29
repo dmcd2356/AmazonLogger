@@ -10,6 +10,8 @@ package com.mycompany.amazonlogger;
  */
 public class BracketIx {
     
+    private static final String CLASS_NAME = BracketIx.class.getSimpleName();
+
     private Integer value;              // if index was a discreet value
     private String  var;                // if index was a variable
         

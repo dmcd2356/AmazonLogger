@@ -17,7 +17,7 @@ import java.util.ArrayList;
  */
 public class AmazonParser {
     
-    private static final String CLASS_NAME = "AmazonParser";
+    private static final String CLASS_NAME = AmazonParser.class.getSimpleName();
     
     private ClipboardReader clipReader = null;
     private static String strSheetSel = null;
@@ -44,7 +44,7 @@ public class AmazonParser {
      * @throws IOException
      */
     public void parseWebData () throws ParserException, IOException {
-        String functionId = CLASS_NAME + ".parseWebData: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         String line;
         Keyword.KeyTyp eKeyId;
@@ -163,7 +163,7 @@ public class AmazonParser {
      * @throws com.mycompany.amazonlogger.ParserException
      */
     public static void updateSpreadsheet () throws ParserException, IOException {
-        String functionId = CLASS_NAME + ".updateSpreadsheet: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (strSheetSel == null) {
             throw new ParserException(functionId + "spreadsheet sheet selection not made");
@@ -348,7 +348,7 @@ public class AmazonParser {
      * @return 
      */
     private ArrayList<AmazonOrder> addOrdersToList (ArrayList<AmazonOrder> oldList, ArrayList<AmazonOrder> newList) throws ParserException {
-        String functionId = CLASS_NAME + ".addOrdersToList: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         ArrayList<AmazonOrder> finalList, appendList;
         

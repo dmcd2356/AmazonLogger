@@ -15,6 +15,8 @@ import java.util.Locale;
  */
 public class DateFormat {
     
+    private static final String CLASS_NAME = DateFormat.class.getSimpleName();
+
     public static final String DATE_SEP = "-";  // the separator char used in dates
 
     /*********************************************************************
@@ -176,6 +178,8 @@ public class DateFormat {
     *  @throws ParserException - if invalid date format
     */
     public static Integer cvtSSDateToInteger (String strDate, boolean bInclYear) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
         Integer iDate = null;
         
         if (strDate == null || strDate.isBlank() || strDate.length() < 5)
@@ -189,17 +193,21 @@ public class DateFormat {
         // determine format of date:
         // is it MM-DD-YYYY, MM-DD, MM/DD/YYYY or MM/DD/YYYY style?
         if (strDate.charAt(2) == '-' || strDate.charAt(2) == '/') {
-            Integer iMonth = Utils.getIntFromString (strDate, 0, 2);
-            Integer iDay   = Utils.getIntFromString (strDate, 3, 2);
-            Integer iYear  = null;
-            if (strDate.length() >= 10)
-                iYear  = Utils.getIntFromString (strDate, 6, 4);
-            if (iMonth == null || iDay == null) {
-                return null;
-            }
-            iDate = (100 * iMonth) + iDay;
-            if (bInclYear && iYear != null) {
-                    iDate = (10000 * iYear) + iDate;
+            try {
+                Integer iMonth = Utils.getIntFromString (strDate, 0, 2);
+                Integer iDay   = Utils.getIntFromString (strDate, 3, 2);
+                Integer iYear  = null;
+                if (strDate.length() >= 10)
+                    iYear  = Utils.getIntFromString (strDate, 6, 4);
+                if (iMonth == null || iDay == null) {
+                    return null;
+                }
+                iDate = (100 * iMonth) + iDay;
+                if (bInclYear && iYear != null) {
+                        iDate = (10000 * iYear) + iDate;
+                }
+            } catch (ParserException exMsg) {
+                throw new ParserException(exMsg + "\n  -> " + functionId);
             }
         }
         return iDate;

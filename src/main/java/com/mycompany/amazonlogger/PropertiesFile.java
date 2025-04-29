@@ -36,6 +36,9 @@ import java.util.Properties;
  * @author dmcd2356
  */
 public class PropertiesFile {
+
+    private static final String CLASS_NAME = PropertiesFile.class.getSimpleName();
+
     // the location of the properties file for this application
     final static private String PROPERTIES_PATH = ".amazonreader/";
     final static private String PROPERTIES_FILE = "site.properties";

@@ -5,7 +5,7 @@
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
 import java.util.ArrayList;
 import java.util.Stack;
 
@@ -15,7 +15,7 @@ import java.util.Stack;
  */
 public class IFStruct {
     
-    private static final String CLASS_NAME = "IFStruct";
+    private static final String CLASS_NAME = IFStruct.class.getSimpleName();
     
     Integer ixIf;       // command index for IF statement
     ArrayList<Integer> ixElse;  // command index for ELSE & ELSEIF statement(s)
@@ -44,12 +44,12 @@ public class IFStruct {
 
         String cmdId = "line " + index + " IF ";
         String nestLevel = " (nest level " + loopLevel + ")";
-        frame.outputInfoMsg(STATUS_PROGRAM, "    " + cmdId + " @ " + this.ixIf + nestLevel);
+        frame.outputInfoMsg(STATUS_COMPILE, "    " + cmdId + " @ " + this.ixIf + nestLevel);
     }
 
     // Get and Put functions for ifList
     public static IFStruct getIfListEntry (int cmdIndex) throws ParserException {
-        String functionId = CLASS_NAME + ".getIfListEntry: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         for (int ix = 0; ix < ifList.size(); ix++) {
             if (ifList.get(ix).ixIf == cmdIndex) {
@@ -135,7 +135,7 @@ public class IFStruct {
      * @throws ParserException
      */
     int getElseIndex (int index) throws ParserException {
-        String functionId = CLASS_NAME + ".getElseIndex: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (this.ixElse != null && !this.ixElse.isEmpty()) {
             // return the location of the next ELSE or ELSEIF statement
@@ -172,7 +172,7 @@ public class IFStruct {
      * @throws ParserException 
      */
     void setElseIndex (int index, boolean bElseIf, int loopLevel) throws ParserException {
-        String functionId = CLASS_NAME + ".setElseIndex: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         String command = (bElseIf) ? "ELSEIF" : "ELSE";
         String cmdId = "line " + index + " " + command + " ";
@@ -189,7 +189,7 @@ public class IFStruct {
             throw new ParserException(functionId + cmdId + "cmd outside of loop level " + this.loopLevel + nestLevel);
         }
         this.ixElse.add(index);
-        frame.outputInfoMsg(STATUS_PROGRAM, "    " + cmdId + "    entry " + this.ixElse.size() + " for IF @ " + this.ixIf + nestLevel);
+        frame.outputInfoMsg(STATUS_COMPILE, "    " + cmdId + "    entry " + this.ixElse.size() + " for IF @ " + this.ixIf + nestLevel);
     }
         
     /**
@@ -201,7 +201,7 @@ public class IFStruct {
      * @throws ParserException 
      */
     void setEndIfIndex (int index, int loopLevel) throws ParserException {
-        String functionId = CLASS_NAME + ".setEndIfIndex: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         String cmdId = "line " + index + " ENDIF ";
         String nestLevel = " (nest level " + loopLevel + ")";
@@ -213,7 +213,7 @@ public class IFStruct {
             throw new ParserException(functionId + cmdId + "cmd outside of loop level " + this.loopLevel + nestLevel);
         }
         this.ixEndIf = index;
-        frame.outputInfoMsg(STATUS_PROGRAM, "    " + cmdId + "    for IF @ " + this.ixIf + nestLevel);
+        frame.outputInfoMsg(STATUS_COMPILE, "    " + cmdId + "    for IF @ " + this.ixIf + nestLevel);
     }
 
 }

@@ -5,6 +5,7 @@
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.util.ArrayList;
 
@@ -14,7 +15,7 @@ import java.util.ArrayList;
  */
 public class Calculation {
 
-    private static final String CLASS_NAME = "Calculation";
+    private static final String CLASS_NAME = Calculation.class.getSimpleName();
     
     
     public enum EntryType {
@@ -192,7 +193,7 @@ public class Calculation {
      * @throws ParserException
      */    
     public Long compute (ParameterStruct.ParamType type) throws ParserException {
-        String functionId = CLASS_NAME + ".compute: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // should repeat this process until only 1 entry remains, and it
         //  should be a Value, which is the final calculation result.
@@ -256,6 +257,7 @@ public class Calculation {
         if (type == ParameterStruct.ParamType.Unsigned) {
             result &= 0xFFFFFFFF; // truncate result to 32 bits if unsigned
         }
+        frame.outputInfoMsg(STATUS_PROGRAM, "      Calc Result: " + result);
         return result;
     }
 
@@ -269,7 +271,7 @@ public class Calculation {
      * @return the computed value of the block
      */    
     private Long computeBracket (int startix, int endix) throws ParserException {
-        String functionId = CLASS_NAME + ".computeBracket: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (endix >= calcList.size()) {
             throw new ParserException (functionId + "invalid index for parenthesis: " + endix + ", array size is " + calcList.size());
@@ -296,7 +298,7 @@ public class Calculation {
                     Long opValue = entry.getValue();
                     if (entry.isInverted()) {
                         Long newValue = ~opValue & 0xFFFFFFFF;
-                        frame.outputInfoMsg(STATUS_PROGRAM, "      Calc: ! " + opValue + " = " + newValue);
+                        frame.outputInfoMsg(STATUS_DEBUG, "      Calc: ! " + opValue + " = " + newValue);
                         opValue = newValue;
                     }
                     bracket.add(opValue);
@@ -358,7 +360,7 @@ public class Calculation {
      * 
      */    
     private void computeOperationType (ArrayList<Long> bracket, ArrayList<EntryType> ops, ArrayList<EntryType> filter) throws ParserException {
-        String functionId = CLASS_NAME + ".computeOperationType: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // first determine if any of the allowed operations is in the formula
         int count = 0;
@@ -369,7 +371,7 @@ public class Calculation {
                 }
             }
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, "    Calc ops for " + filter.toString() + ": " + count);
+        frame.outputInfoMsg(STATUS_DEBUG, "    Calc ops for " + filter.toString() + ": " + count);
         if (count == 0) {
             return;
         }
@@ -462,7 +464,7 @@ public class Calculation {
                 // if an entry was found, replace the 1st operand with the result
                 // and remove the second operand and the operator.
                 if (value != null) {
-                    frame.outputInfoMsg(STATUS_PROGRAM, "      Calc: " + op1 + " " + strOp + " " + op2 + " = " + value);
+                    frame.outputInfoMsg(STATUS_DEBUG, "      Calc: " + op1 + " " + strOp + " " + op2 + " = " + value);
                     bracket.set(ix, value);
                     bracket.remove(ix+1);
                     ops.remove(ix);
@@ -479,7 +481,7 @@ public class Calculation {
      * @throws ParserException 
      */    
     private void verify () throws ParserException {
-        String functionId = CLASS_NAME + ".verify: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // first, verify parenthesis match
         int left = 0;
@@ -543,7 +545,7 @@ public class Calculation {
      * @throws ParserException 
      */
     private EntryType classifyEntry (String formula, ParameterStruct.ParamType ptype) throws ParserException {
-        String functionId = CLASS_NAME + ".classifyEntry: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         EntryType type;
         int strlen = formula.length();

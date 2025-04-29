@@ -18,7 +18,7 @@ import java.util.Objects;
  */
 public class Utils {
     
-    private static final String CLASS_NAME = "Utils";
+    private static final String CLASS_NAME = Utils.class.getSimpleName();
 
     public enum PathType {
         PDF,
@@ -33,16 +33,23 @@ public class Utils {
     *  @param offset - the string offset in which to begin extracting
     *  @param maxlen - the max expected string length (0 if read until non-digit)
     * 
-    *  @return the corresponding integer value (null if invalid format)
+    *  @return the corresponding integer value
+    * 
+    * @throws ParserException if invalid format of input
     */
-    public static Integer getIntFromString (String str, int offset, int maxlen) {
+    public static Integer getIntFromString (String str, int offset, int maxlen) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
         Integer value;
         
-        if (str == null || offset >= str.length()) {
-            return null;
+        if (str == null) {
+            throw new ParserException(functionId + "Input string was null");
+        }
+        if (offset >= str.length()) {
+            throw new ParserException(functionId + "Index offset " + offset + " exceeds string length of " + str.length());
         }
         if (maxlen > 0 && str.length() < offset + maxlen) {
-            return null;
+            throw new ParserException(functionId + "Index offset " + offset + " + expected length of " + maxlen + " exceeds string length of " + str.length());
         }
         // limit # digits read by specified amount. if unspecified, run until non-digit
         int limit = offset + maxlen;
@@ -56,7 +63,7 @@ public class Utils {
             } else if (maxlen == 0) {
                 return value;
             } else {
-                return null;
+                throw new ParserException(functionId + "Invalid numeric in string: " + str.substring(offset));
             }
         }
         return value;
@@ -137,11 +144,11 @@ public class Utils {
     *  @throws ParserException - if invalid char found
     */
     public static int getAmountValue (String str) throws ParserException {
-        String functionId = CLASS_NAME + ".getAmountValue: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         // check for empty string
         if (str == null) {
-            throw new ParserException(functionId + "null string");
+            throw new ParserException(functionId + "Input string was null");
         }
         // skip any leading and trailing space characters
         int ix;
@@ -198,9 +205,12 @@ public class Utils {
     *  @throws ParserException
     */
     public static String getNextWord (String line, int minlen, int maxlen) throws ParserException {
-        String functionId = CLASS_NAME + ".getNextWord: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         int offset;
+        if (line == null) {
+            throw new ParserException(functionId + "Input string was null");
+        }
         for (offset = 0; offset < line.length() && line.charAt(offset) == ' '; offset++) { }
         line = line.substring(offset);
         if (line.length() == 0) {
@@ -262,10 +272,16 @@ public class Utils {
     *  @param rgbHSB - the RGB or HSB value
     * 
     *  @return the Color selection
+    * 
+    *  @throws ParserException
     */
-    public static Color getColor (String type, int rgbHSB) {
+    public static Color getColor (String type, int rgbHSB) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         Color myColor = Color.white;
         
+        if (type == null) {
+            throw new ParserException(functionId + "Input string was null");
+        }
         if (rgbHSB > 0xFFFFFF) rgbHSB = 0xFFFFFF;
         if (rgbHSB < 0)        rgbHSB = 0;
 
@@ -295,8 +311,11 @@ public class Utils {
      * @throws ParserException 
      */    
     public static Boolean getBooleanValue (String strValue) throws ParserException {
-        String functionId = CLASS_NAME + ".getBooleanValue: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
+        if (strValue == null) {
+            throw new ParserException(functionId + "Input string was null");
+        }
         if (strValue.contentEquals("0") || strValue.compareToIgnoreCase("FALSE") == 0) {
             return false;
         }
@@ -316,10 +335,10 @@ public class Utils {
      * @throws ParserException 
      */
     public static Long getIntValue (String strValue) throws ParserException {
-        String functionId = CLASS_NAME + ".getIntValue: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (strValue == null) {
-            throw new ParserException(functionId + "null entry");
+            throw new ParserException(functionId + "Input string was null");
         }
         if (strValue.isEmpty()) {
             throw new ParserException(functionId + "Zero length input");
@@ -343,10 +362,10 @@ public class Utils {
      * @throws ParserException 
      */
     public static Integer getHexValue (String strValue) throws ParserException {
-        String functionId = CLASS_NAME + ".getHexValue: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (strValue == null) {
-            throw new ParserException(functionId + "null entry");
+            throw new ParserException(functionId + "Input string was null");
         }
         if (strValue.isEmpty()) {
             throw new ParserException(functionId + "Zero length input");
@@ -375,8 +394,15 @@ public class Utils {
      * @param intValue - value to convert
      * 
      * @return the corresponding hex value
+     * 
+     * @throws ParserException
      */
-    public static String toHexWordValue (Integer intValue) {
+    public static String toHexWordValue (Integer intValue) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (intValue == null) {
+            throw new ParserException(functionId + "Input string was null");
+        }
         if (intValue < 0x100) {
             return String.format("0x%02X", intValue);
         }
@@ -400,6 +426,8 @@ public class Utils {
         if (file == null)
             return "";
         String filePath = file.getAbsolutePath();
+        if (filePath == null)
+            return "";
         int offset = filePath.lastIndexOf('/');
         if (offset > 0) {
             filePath = filePath.substring(0, offset);
@@ -418,6 +446,8 @@ public class Utils {
         if (file == null)
             return "";
         String fileName = file.getName();
+        if (fileName == null)
+            return "";
         int offset = fileName.lastIndexOf('.');
         if (offset > 0)
             fileName = fileName.substring(0, offset);
@@ -435,6 +465,8 @@ public class Utils {
         if (file == null)
             return "";
         String fileName = file.getName();
+        if (fileName == null)
+            return "";
         int offset = fileName.lastIndexOf('.');
         if (offset <= 0)
             return "";
@@ -449,11 +481,11 @@ public class Utils {
      * @return the path specified
      */
     public static String getPathFromPropertiesFile (PropertiesFile.Property tag) {
-        String functionId = CLASS_NAME + ".getPathFromPropertiesFile: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         String validPath = null;
         String pathName = props.getPropertiesItem(tag, "");
-        if (!pathName.isEmpty()) {
+        if (pathName != null && !pathName.isEmpty()) {
             if (pathName.charAt(0) == '~') {
                 pathName = System.getProperty("user.home") + pathName.substring(1);
             }
@@ -500,8 +532,15 @@ public class Utils {
      * 
      * @param type     - type of file
      * @param pathname - the path to assign as default to the specified file type
+     * 
+     * @throws ParserException
      */
-    public static void setDefaultPath (PathType type, String pathname) {
+    public static void setDefaultPath (PathType type, String pathname) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (pathname == null) {
+            throw new ParserException(functionId + "Input path name was null");
+        }
         // Java doesn't get the '~' char, so change it to the home dir
         if (pathname.charAt(0) == '~') {
             pathname = System.getProperty("user.home") + pathname.substring(1);
@@ -531,10 +570,10 @@ public class Utils {
      * @throws ParserException 
      */
     public static File checkDir (String dirname) throws ParserException {
-        String functionId = CLASS_NAME + ".checkDir: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (dirname == null || dirname.isBlank()) {
-            throw new ParserException(functionId + "Path name is blank");
+            throw new ParserException(functionId + "Input path name was null");
         }
         
         File myPath = new File(dirname);
@@ -558,12 +597,8 @@ public class Utils {
      * @throws ParserException 
      */
     public static File checkFilename (String fname, String type, PathType filetype, boolean bWritable) throws ParserException {
-        String functionId = CLASS_NAME + ".checkFilename: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        String strType = "";
-        if (filetype != null) {
-            strType = filetype.toString();
-        }
         if (type != null && !type.isBlank() && !fname.endsWith(type)) {
             throw new ParserException(functionId + "Invalid " + filetype + " filename: " + fname);
         }
@@ -599,9 +634,13 @@ public class Utils {
      * @throws ParserException
      */
     public static boolean compareParameterValues (Long param1, Long param2, String compType) throws ParserException {
-        String functionId = CLASS_NAME + ".compareParameterValues (I): ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + " (I): ";
         
         boolean bExit = false;
+        
+        if (param1 == null || param2 == null || compType == null) {
+            throw new ParserException(functionId + "Input param was null");
+        }
         
         switch (compType) {
             case "<":   if (param1 < param2) bExit = true;
@@ -635,9 +674,13 @@ public class Utils {
      * @throws ParserException
      */
     public static boolean compareParameterValues (Integer param1, Integer param2, String compType) throws ParserException {
-        String functionId = CLASS_NAME + ".compareParameterValues (U): ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + " (U): ";
         
         boolean bExit = false;
+        
+        if (param1 == null || param2 == null || compType == null) {
+            throw new ParserException(functionId + "Input param was null");
+        }
         
         switch (compType) {
             case "<":   if (param1 < param2) bExit = true;
@@ -671,9 +714,13 @@ public class Utils {
      * @throws ParserException
      */
     public static boolean compareParameterValues (String param1, String param2, String compType) throws ParserException {
-        String functionId = CLASS_NAME + ".compareParameterValues (S): ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + " (S): ";
         
         boolean bExit = false;
+        
+        if (param1 == null || param2 == null || compType == null) {
+            throw new ParserException(functionId + "Input param was null");
+        }
         
         switch (compType) {
             case "<":   if (param1.compareTo(param2) < 0) bExit = true;
@@ -694,5 +741,28 @@ public class Utils {
         frame.outputInfoMsg(STATUS_DEBUG, functionId + " '" + param1 + "' " + compType + " '" + param2 + "' " + bExit);
         return bExit;
     }
-    
+
+    /**
+     * gets the name of the current method.
+     * 
+     * @return name of the current method
+     */
+    public static String getCurrentMethodName() {
+        return StackWalker.getInstance()
+                          .walk(s -> s.skip(1).findFirst())
+                          .get()
+                          .getMethodName();
+    }
+
+    /**
+     * gets the name of the calling method.
+     * 
+     * @return name of the calling method
+     */
+    public static String getCallerMethodName() {
+        return StackWalker.getInstance()
+                          .walk(s -> s.skip(2).findFirst())
+                          .get()
+                          .getMethodName();
+    }
 }

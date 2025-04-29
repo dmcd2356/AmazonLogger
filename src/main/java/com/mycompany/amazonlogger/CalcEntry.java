@@ -9,6 +9,9 @@ package com.mycompany.amazonlogger;
  * @author dan
  */
 public class CalcEntry {
+
+        private static final String CLASS_NAME = CalcEntry.class.getSimpleName();
+
         private Calculation.EntryType type; // classification of the entry
         private Long    value;              // calc value (if value given)
         private String  paramName;          // parameter name (if parameter)

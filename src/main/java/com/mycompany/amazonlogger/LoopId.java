@@ -10,6 +10,8 @@ package com.mycompany.amazonlogger;
  */
 public class LoopId {
     
+    private static final String CLASS_NAME = LoopId.class.getSimpleName();
+
     // the key for loops uses both the name and the command index of the FOR statement.
     //  this way, loop names can be reused as long as they aren't nested within each other.
     String  name;       // name of the loop

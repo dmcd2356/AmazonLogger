@@ -13,7 +13,7 @@ import java.util.Stack;
  */
 public class LoopStruct {
 
-    private static final String CLASS_NAME = "LoopStruct";
+    private static final String CLASS_NAME = LoopStruct.class.getSimpleName();
     
     private final String    name;       // parameter name for the loop
     private       Integer   value;      // current parameter value
@@ -243,7 +243,7 @@ public class LoopStruct {
      * @throws ParserException - if not valid
      */
     public static void isValidLoopName (String name, int index) throws ParserException {
-        String functionId = CLASS_NAME + ".isValidLoopName: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         try {
             if (name.startsWith("$")) {

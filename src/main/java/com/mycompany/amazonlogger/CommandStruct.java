@@ -12,7 +12,7 @@ import java.util.ArrayList;
  */
 public class CommandStruct {
     
-    private static final String CLASS_NAME = "CommandStruct";
+    private static final String CLASS_NAME = CommandStruct.class.getSimpleName();
     
     // defines the structure for file commands
     public int          line;       // source code line number for the command
@@ -81,7 +81,7 @@ public class CommandStruct {
      * @throws ParserException
      */
     CommandStruct(String cmd, int linenum) throws ParserException {
-        String functionId = CLASS_NAME + " (new option): ";
+        String functionId = CLASS_NAME + " (new): ";
 
         if (!cmd.startsWith("-")) {
             throw new ParserException(functionId + "Invalid command option " + cmd + " on line " + linenum);

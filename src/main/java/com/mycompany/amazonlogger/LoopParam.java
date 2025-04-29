@@ -7,6 +7,7 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.Map;
  */
 public class LoopParam {
     
-    private static final String CLASS_NAME = "LoopParam";
+    private static final String CLASS_NAME = LoopParam.class.getSimpleName();
     
     Integer value;          // the current value of the loop parameter
     String  paramName;      // the name of the reference Variable (null if no ref param)
@@ -70,7 +71,7 @@ public class LoopParam {
     }
         
     public Integer getIntValue () throws ParserException {
-        String functionId = CLASS_NAME + ".getIntValue: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
        
         if (paramName != null) {
             // it is a Variable, get the current value
@@ -164,7 +165,7 @@ public class LoopParam {
      * @throws ParserException 
      */    
     public static void checkLoopIfLevel (CommandStruct.CommandTable command, int level, LoopId loopId) throws ParserException {
-        String functionId = CLASS_NAME + ".setLoopEnd: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         LoopStruct loopInfo = getLoopStruct (loopId);
         if (loopInfo == null) {
@@ -184,7 +185,7 @@ public class LoopParam {
      * @throws ParserException 
      */    
     public static void setLoopEndIndex (int index, LoopId loopId) throws ParserException {
-        String functionId = CLASS_NAME + ".setLoopEnd: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         LoopStruct loopInfo = getLoopStruct (loopId);
         if (loopInfo == null) {
@@ -208,7 +209,7 @@ public class LoopParam {
      * @throws ParserException
      */
     public static int getLoopNextIndex (CommandStruct.CommandTable command, int index, LoopId loopId) throws ParserException {
-        String functionId = CLASS_NAME + ".getLoopNextIndex: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         int nextIndex = index;
         
@@ -239,7 +240,7 @@ public class LoopParam {
                 break;
         }
         
-        frame.outputInfoMsg(STATUS_PROGRAM, command.toString() + " command " + action + " at index: " + nextIndex);
+        frame.outputInfoMsg(STATUS_VARS, command.toString() + " command " + action + " at index: " + nextIndex);
         return nextIndex;
     }
 
@@ -253,7 +254,7 @@ public class LoopParam {
      * @param loopInfo - the loop Variable to add
      */
     public static void saveLoopParameter (String name, LoopId loopId, LoopStruct loopInfo) {
-        String functionId = CLASS_NAME + ".saveLoopParameter: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         // create a new loop ID (name + command index) for the entry and add it
         // to the list of IDs for the loop parameter name
@@ -289,7 +290,7 @@ public class LoopParam {
         ArrayList<LoopId> loopList = loopNames.get(name);
         if (loopList != null && ! loopList.isEmpty()) {
             // we have one or more uses of the same name, check if this is nested in one
-            frame.outputInfoMsg(STATUS_PROGRAM, "   - checking previous uses of FOR Loop Variable " + name + " to see if we have a nesting problem");
+            frame.outputInfoMsg(STATUS_VARS, "   - checking previous uses of FOR Loop Variable " + name + " to see if we have a nesting problem");
             for (int ix = 0; ix < loopList.size(); ix++) {
                 LoopId loopEntry = loopList.get(ix);
                 LoopStruct loopInfo = LoopParam.getLoopStruct (loopEntry);
@@ -297,7 +298,7 @@ public class LoopParam {
                     // nesting error
                     return loopEntry.index;
                 } else {
-                    frame.outputInfoMsg(STATUS_PROGRAM, "   - FOR Loop Variable " + name + " @ " + loopEntry.index + " was complete");
+                    frame.outputInfoMsg(STATUS_VARS, "   - FOR Loop Variable " + name + " @ " + loopEntry.index + " was complete");
                 }
             }
         }

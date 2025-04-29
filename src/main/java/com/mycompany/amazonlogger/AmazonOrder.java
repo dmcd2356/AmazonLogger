@@ -12,6 +12,8 @@ import java.util.ArrayList;
  * @author dan
  */
 public class AmazonOrder {
+
+    private static final String CLASS_NAME = AmazonOrder.class.getSimpleName();
     
     private String      order_num;      // the Amazon order number
     private LocalDate   trans_date;     // the date of the transaction

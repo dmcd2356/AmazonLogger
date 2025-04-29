@@ -6,7 +6,7 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.io.File;
 import java.io.IOException;
@@ -22,7 +22,7 @@ import org.xml.sax.SAXException;
  */
 public class CmdOptions {
     
-    private static final String CLASS_NAME = "CmdOptions";
+    private static final String CLASS_NAME = CmdOptions.class.getSimpleName();
     
     // List of all the command line options and the argument types each takes
     // S = String, L = String array, U = Unsigned Int, I = Int, A = Int array, B = Boolean
@@ -200,7 +200,7 @@ public class CmdOptions {
      * @throws TikaException 
      */
     public void runCmdOption (CommandStruct cmdOption) throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + ".runCmdOption: " + showLineNumberInfo(cmdOption.line);
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": " + showLineNumberInfo(cmdOption.line);
         
         if (cmdOption.params == null) {
             throw new ParserException(functionId + "Null or empty param list");
@@ -229,14 +229,14 @@ public class CmdOptions {
      * @throws ParserException 
      */
     public ArrayList<CommandStruct> formatCmdOptions (ArrayList<String> argList, int lineNum) throws ParserException {
-        String functionId = CLASS_NAME + ".formatCmdOptions: " + showLineNumberInfo(lineNum);
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": " + showLineNumberInfo(lineNum);
 
         if (argList == null || argList.isEmpty()) {
             throw new ParserException(functionId + showLineNumberInfo(lineNum) + "Null command line");
         }
 
         ArrayList<CommandStruct> commands = new ArrayList<>(); // array of command lines extracted
-        frame.outputInfoMsg(STATUS_PROGRAM, showLineNumberInfo(lineNum) + "  splitting command option: " + String.join(" ", argList));
+        frame.outputInfoMsg(STATUS_COMPILE, showLineNumberInfo(lineNum) + "  splitting command option: " + String.join(" ", argList));
         
         // 1st entry is option, which may have additional args. let's see how many
         String cmdArg = argList.removeFirst();
@@ -253,9 +253,9 @@ public class CmdOptions {
             throw new ParserException(functionId + "option is not valid: " + cmdArg);
         }
         if (optInfo.argTypes.isEmpty()) {
-            frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (no args)");
+            frame.outputInfoMsg(STATUS_COMPILE, "  option cmd: " + cmdArg + " (no args)");
         } else {
-            frame.outputInfoMsg(STATUS_PROGRAM, "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
+            frame.outputInfoMsg(STATUS_COMPILE, "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
         }
         int minArgs = 0;
         int maxArgs = (optInfo.argTypes == null || optInfo.argTypes.isEmpty()) ? 0 : optInfo.argTypes.length();
@@ -301,9 +301,9 @@ public class CmdOptions {
                     }
                 }
                 if (optInfo.argTypes.isEmpty()) {
-                    frame.outputInfoMsg(STATUS_PROGRAM, showLineNumberInfo(lineNum) + "  option cmd: " + cmdArg + " (no args)");
+                    frame.outputInfoMsg(STATUS_COMPILE, showLineNumberInfo(lineNum) + "  option cmd: " + cmdArg + " (no args)");
                 } else {
-                    frame.outputInfoMsg(STATUS_PROGRAM, showLineNumberInfo(lineNum) + "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
+                    frame.outputInfoMsg(STATUS_COMPILE, showLineNumberInfo(lineNum) + "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
                 }
             } else {
                 // assume it is a parameter - verify the option takes another parameter
@@ -332,7 +332,7 @@ public class CmdOptions {
             
         // add the remaining entry to the list of commands
         commands.add(newCommand);
-        frame.outputInfoMsg(STATUS_PROGRAM, commands.size() + " options found");
+        frame.outputInfoMsg(STATUS_COMPILE, commands.size() + " options found");
         return commands;
     }
 
@@ -373,7 +373,7 @@ public class CmdOptions {
      * @throws TikaException 
      */
     private ArrayList<String> executeCmdOption (CommandStruct cmdLine) throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + ".executeCmdOption: " + showLineNumberInfo(cmdLine.line);
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": " + showLineNumberInfo(cmdLine.line);
         ArrayList<String> response = new ArrayList<>();
         Utils.PathType pathtype;
         String fname;
@@ -381,7 +381,7 @@ public class CmdOptions {
         PdfReader pdfReader = null;
         ArrayList<ParameterStruct> params = cmdLine.params;
 
-        frame.outputInfoMsg(STATUS_DEBUG, "      Executing: " + cmdLine.showCommand());
+        frame.outputInfoMsg(STATUS_PROGRAM, "      Executing: " + cmdLine.showCommand());
 
         String argTypes = getOptionArgs(cmdLine.option);
         if (argTypes == null) {
@@ -425,12 +425,12 @@ public class CmdOptions {
                     pathtype = Utils.PathType.Test;
                     fname = params.get(0).getStringValue();
                     File fClip = Utils.checkFilename (fname, ".txt", pathtype, false);
-                    frame.outputInfoMsg(STATUS_DEBUG, "  " + pathtype + " file: " + fClip.getAbsolutePath());
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  " + pathtype + " file: " + fClip.getAbsolutePath());
                     AmazonParser amazonParser = new AmazonParser(fClip);
                     amazonParser.parseWebData();
                     break;
                 case "-update":
-                    frame.outputInfoMsg(STATUS_DEBUG, "  Updating spreadsheet from clipboards");
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  Updating spreadsheet from clipboards");
                     AmazonParser.updateSpreadsheet();
                     break;
                 case "-pfile":
@@ -442,7 +442,7 @@ public class CmdOptions {
                         fname = fname.substring(absPath.length() + 1);
                     }
                     File pdfFile = Utils.checkFilename (fname, ".pdf", pathtype, false);
-                    frame.outputInfoMsg(STATUS_DEBUG, "  " + pathtype + " file: " + pdfFile.getAbsolutePath());
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  " + pathtype + " file: " + pdfFile.getAbsolutePath());
                     pdfReader = new PdfReader();
                     pdfReader.readPdfContents(pdfFile);
                     response.addAll(pdfReader.getContents());
@@ -476,21 +476,21 @@ public class CmdOptions {
                     String path;
                     if (params.isEmpty()) {
                         path = System.getProperty("user.dir");
-                        frame.outputInfoMsg(STATUS_DEBUG, "  set Test path to current running directory: " + path);
+                        frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to current running directory: " + path);
                     } else {
                         path = params.get(0).getStringValue();
-                        frame.outputInfoMsg(STATUS_DEBUG, "  set Test path to: " + path);
+                        frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to: " + path);
                     }
                     Utils.setDefaultPath(Utils.PathType.Test, path);
                     frame.setTestOutputFile(path);
                     break;
                 case "-ofile":
                     if (params.isEmpty()) {
-                        frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to stdout");
+                        frame.outputInfoMsg(STATUS_PROGRAM, "  Output messages to stdout");
                         frame.setTestOutputFile(null);
                     } else {
                         fname = params.get(0).getStringValue();
-                        frame.outputInfoMsg(STATUS_DEBUG, "  Output messages to file: " + fname);
+                        frame.outputInfoMsg(STATUS_PROGRAM, "  Output messages to file: " + fname);
                         frame.setTestOutputFile(fname);
                     }
                     break;
@@ -731,8 +731,10 @@ public class CmdOptions {
         System.out.println("     x08  =    8 = STATUS_INFO");
         System.out.println("     x10  =   16 = STATUS_PROPS");
         System.out.println("     x20  =   32 = STATUS_PROGRAM");
+        System.out.println("     x40  =   64 = STATUS_COMPILE");
+        System.out.println("     x80  =  126 = STATUS_VARS");
         System.out.println("     x800 = 2048 = STATUS_DEBUG");
-        System.out.println("     e.g. -d xFFF will enable all msgs");
+        System.out.println("     e.g. -d xFFFF will enable all msgs");
         System.out.println();
         System.out.println("The following commands test special features:");
         System.out.println();

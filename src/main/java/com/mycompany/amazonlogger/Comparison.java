@@ -6,13 +6,14 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
-import java.util.Objects;
 
 /**
  *
  * @author dan
  */
 public class Comparison {
+
+    private static final String CLASS_NAME = Comparison.class.getSimpleName();
 
     private static boolean bStatus = false;
 

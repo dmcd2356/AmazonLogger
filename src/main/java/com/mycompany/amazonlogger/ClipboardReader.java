@@ -21,6 +21,8 @@ import java.util.StringTokenizer;
  */
 public class ClipboardReader {
     
+    private static final String CLASS_NAME = ClipboardReader.class.getSimpleName();
+
     private static StringTokenizer clipReader = null;
     private static BufferedReader  fileReader = null;
     

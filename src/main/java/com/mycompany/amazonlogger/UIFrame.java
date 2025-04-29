@@ -48,6 +48,8 @@ import org.xml.sax.SAXException;
  */
 public final class UIFrame extends JFrame implements ActionListener {
 
+    private static final String CLASS_NAME = UIFrame.class.getSimpleName();
+
     // type of text characteristics to print with 'outputInfoMsg'
     public static final int STATUS_NORMAL  = 0x0001;  // output written to spreadsheet
     public static final int STATUS_PARSER  = 0x0002;  // parser status
@@ -55,6 +57,8 @@ public final class UIFrame extends JFrame implements ActionListener {
     public static final int STATUS_INFO    = 0x0008;  // processing of data from web clip and from PDF file
     public static final int STATUS_PROPS   = 0x0010;  // properties interface messages
     public static final int STATUS_PROGRAM = 0x0020;  // program interface messages
+    public static final int STATUS_COMPILE = 0x0040;  // compiler messages
+    public static final int STATUS_VARS    = 0x0080;  // compiler messages
     public static final int STATUS_DEBUG   = 0x0800;  // low-level detailed messages
     public static final int STATUS_WARN    = 0x4000;  // non-fatal warnings
     public static final int STATUS_ERROR   = 0x8000;  // fatal errors
@@ -85,6 +89,8 @@ public final class UIFrame extends JFrame implements ActionListener {
         new MsgControl (STATUS_ERROR   , "[ERROR ] ", "B", TextColor.Red),
         new MsgControl (STATUS_WARN    , "[WARN  ] ", "B", TextColor.Orange),
         new MsgControl (STATUS_DEBUG   , "[DEBUG ] ", "N", TextColor.Brown),
+        new MsgControl (STATUS_VARS    , "[VARS  ] ", "N", TextColor.DkVio),
+        new MsgControl (STATUS_COMPILE , "[COMPIL] ", "N", TextColor.DkVio),
         new MsgControl (STATUS_PROGRAM , "[PROG  ] ", "N", TextColor.DkVio),
         new MsgControl (STATUS_PROPS   , "[PROPS ] ", "I", TextColor.Gold),
         new MsgControl (STATUS_INFO    , "[INFO  ] ", "N", TextColor.DkVio),
@@ -882,8 +888,12 @@ public final class UIFrame extends JFrame implements ActionListener {
      * @param msgType - the message to enable/disable
      */
     private void setPropsMsgEnable (int intValue) {
-        String strFlags = Utils.toHexWordValue (intValue);
-        props.setPropertiesItem(Property.MsgEnable, strFlags);
+        try {
+            String strFlags = Utils.toHexWordValue (intValue);
+            props.setPropertiesItem(Property.MsgEnable, strFlags);
+        } catch (ParserException exMsg) {
+            // ignore the error
+        }
     }
     
     /**
@@ -894,8 +904,9 @@ public final class UIFrame extends JFrame implements ActionListener {
     private void setBitMsgEnableProps (int msgType) {
         int flags = getPropsMsgEnable();
         flags &= ~msgType;
-        if (getCboxMessage(msgType))
+        if (getCboxMessage(msgType)) {
             flags |= msgType;
+        }
         setPropsMsgEnable (flags);
     }
 
@@ -943,7 +954,7 @@ public final class UIFrame extends JFrame implements ActionListener {
     /**
      * sets all debug message flags at one time - ONLY FOR COMMAND LINE USE (NON-GUI)!!!
      * 
-     * @param debugFlags 
+     * @param debugFlags
      */
     public void setMessageFlags (int debugFlags) {
         // save the debug settings

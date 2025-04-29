@@ -29,6 +29,8 @@ import org.xml.sax.SAXException;
  */
 public class PdfReader {
     
+    private static final String CLASS_NAME = PdfReader.class.getSimpleName();
+
     private static File pdfFile = null;
     private static final ArrayList<String> contents = new ArrayList<>();  // the contents of the pdf file read
 

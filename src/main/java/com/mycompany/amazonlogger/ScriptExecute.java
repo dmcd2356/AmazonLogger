@@ -23,7 +23,7 @@ import org.xml.sax.SAXException;
  */
 public class ScriptExecute {
     
-    private static final String CLASS_NAME = "ScriptExecute";
+    private static final String CLASS_NAME = ScriptExecute.class.getSimpleName();
     
     // this handles the command line options via the RUN command
     private final CmdOptions cmdOptionParser;
@@ -84,7 +84,7 @@ public class ScriptExecute {
      * @return a file of the path specified
      */
     private File getFilePath (String path) throws ParserException {
-        String functionId = CLASS_NAME + ".getFilePath: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (path.contentEquals(".")) {
             // the '.' indicates the current directory
@@ -122,7 +122,7 @@ public class ScriptExecute {
      * @return a file of the path specified
      */
     private void setFilePath (String path) throws ParserException {
-        String functionId = CLASS_NAME + ".setFilePath: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (path.contentEquals(".")) {
             // the '.' indicates the current directory, so no change needed
@@ -158,7 +158,7 @@ public class ScriptExecute {
      * @throws ParserException 
      */
     public static void checkArgTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
-        String functionId = CLASS_NAME + ".checkArgTypes: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         String prefix = command + " - ";
         if (linenum >= 0) {  // omit the line numberinfo if < 0
             prefix = "line " + linenum + ", " + prefix;
@@ -191,7 +191,7 @@ public class ScriptExecute {
     }
 
     private String getArrayAssignment (ParameterStruct parmRef) throws ParserException {
-        String functionId = CLASS_NAME + ".getArrayAssignment: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         String name =  parmRef.getVariableRefName();
         if (name == null) {
@@ -213,7 +213,7 @@ public class ScriptExecute {
      * @throws ParserException 
      */
     private Long getIntegerArg (ParameterStruct parmValue) throws ParserException {
-        String functionId = CLASS_NAME + ".getIntegerArg: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         Long result;
         if (parmValue.isCalculation()) {
@@ -238,7 +238,7 @@ public class ScriptExecute {
      * @throws ParserException 
      */
     private String getStringArg (ArrayList<ParameterStruct> parmList, int offset) throws ParserException {
-        String functionId = CLASS_NAME + ".getStringArg: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         String strValue = "";
         for (int ix = offset; ix < parmList.size(); ix++) {
@@ -261,7 +261,7 @@ public class ScriptExecute {
      * @throws TikaException 
      */
     public int executeProgramCommand (int cmdIndex, CommandStruct cmdStruct) throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + ".executeProgramCommand: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         String linePreface = "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + showLineNumberInfo(cmdStruct.line);
         String exceptPreface = functionId + linePreface;
         String debugPreface = "    ";
@@ -615,7 +615,7 @@ public class ScriptExecute {
                 // ParamName, Count (Integer - optional)
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
                 parmName = getArrayAssignment(parmRef);
-                int size = VarArray.getIntArraySize(parmName);
+                int size = VarArray.getArraySize(parmName);
                 int iCount = 1;
                 if (cmdStruct.params.size() > 1) {
                     parmIndex = cmdStruct.params.get(1); // element 1 is the (optional) number of entries being removed
@@ -634,7 +634,7 @@ public class ScriptExecute {
                 // ParamName, Index (Integer - optional)
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
                 parmName = getArrayAssignment(parmRef);
-                size = VarArray.getIntArraySize(parmRef.getStringValue());
+                size = VarArray.getArraySize(parmRef.getStringValue());
                 iCount = 1;
                 iStart = 0;
                 if (cmdStruct.params.size() > 1) {

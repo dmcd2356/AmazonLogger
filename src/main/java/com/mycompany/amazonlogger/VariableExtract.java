@@ -5,7 +5,7 @@
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
 
 /**
  *
@@ -13,7 +13,8 @@ import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
  */
 
 public class VariableExtract {
-    private static final String CLASS_NAME = "VariableExtract";
+
+    private static final String CLASS_NAME = VariableExtract.class.getSimpleName();
     
     private String  name;           // Variable name (null if not found)
     private ParameterStruct.ParamType type; // type of parameter
@@ -168,7 +169,7 @@ public class VariableExtract {
      * @throws ParserException 
      */
     private void getExtensions () throws ParserException {
-        String functionId = CLASS_NAME + ".getExtensions: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         // check for bracketed index or trait extensions
         String field = name;
@@ -189,7 +190,7 @@ public class VariableExtract {
             for (Trait entry : Trait.values()) {
                 if (entry.toString().contentEquals(leftover)) {
                     trait = entry;
-                    frame.outputInfoMsg(STATUS_PROGRAM, "Variable trait found: ." + trait + " in " + name);
+                    frame.outputInfoMsg(STATUS_VARS, "Variable trait found: ." + trait + " in " + name);
                     break;
                 }
             }
@@ -281,11 +282,11 @@ public class VariableExtract {
             if (offset > 0) {
                 index    = packIndexValue (leftover.substring(0, offset));
                 indexmax = packIndexValue (leftover.substring(offset+1));
-                frame.outputInfoMsg(STATUS_PROGRAM, "Variable index range found: " + name + "[" + index + "-" + indexmax + "]");
+                frame.outputInfoMsg(STATUS_VARS, "Variable index range found: " + name + "[" + index + "-" + indexmax + "]");
             } else {
                 index = packIndexValue(leftover);
                 indexmax = null;
-                frame.outputInfoMsg(STATUS_PROGRAM, "Variable index entry found: " + name + "[" + index + "]");
+                frame.outputInfoMsg(STATUS_VARS, "Variable index entry found: " + name + "[" + index + "]");
             }
         } else {
             // no additional entries, the param name must be by itself
@@ -306,7 +307,7 @@ public class VariableExtract {
     }
 
     private BracketIx packIndexValue (String entry) throws ParserException {
-        String functionId = CLASS_NAME + ".getExtensions: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         BracketIx index = new BracketIx();
         if (entry.charAt(0) == '$') {

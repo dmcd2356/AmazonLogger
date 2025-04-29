@@ -10,7 +10,7 @@ package com.mycompany.amazonlogger;
  */
 public class VariableInfo {
     
-    private static final String CLASS_NAME = "VariableInfo";
+    private static final String CLASS_NAME = VariableInfo.class.getSimpleName();
     
     // this defines characteristics for a referenced Variable
     private String      name;               // name of Variable
@@ -75,7 +75,7 @@ public class VariableInfo {
     }
 
     private Integer getIxValue (BracketIx entry) throws ParserException {
-        String functionId = CLASS_NAME + ".getIxValue: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
        
         if (entry != null) {
             if (entry.getValue() != null)

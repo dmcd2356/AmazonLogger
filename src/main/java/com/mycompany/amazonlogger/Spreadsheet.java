@@ -37,7 +37,7 @@ import org.jopendocument.dom.spreadsheet.SpreadSheet;
  */
 public class Spreadsheet {
 
-    private static final String CLASS_NAME = "Spreadsheet";
+    private static final String CLASS_NAME = Spreadsheet.class.getSimpleName();
     
     private static final String SKIP_AMOUNT = "-";          // the value to use for Total amount if entry is omitted
     private static final String RETURN_DATE = "RETURN";     // the date value to use for Delivered if item was returned
@@ -83,7 +83,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     private static Integer getColumn (Column colName) throws ParserException {
-        String functionId = CLASS_NAME + ".getColumn: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (hmSheetColumns.isEmpty()) {
             throw new ParserException(functionId + "Error in locating column header information");
@@ -121,7 +121,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     private static void setupColumns (boolean bHeader, Sheet sheetHeader) throws ParserException {
-        String functionId = CLASS_NAME + ".setupColumns: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         hmSheetColumns.clear();
         if (sheetHeader == null) {
@@ -218,7 +218,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     private static String getStringValue (Column colEnum, int row) throws ParserException {
-        String functionId = CLASS_NAME + ".getStringValue: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         String strValue = "";
         if (row >= sheetSel.getRowCount()) {
@@ -259,7 +259,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     private static Double getDoubleValue (Column colEnum, int row) throws ParserException {
-        String functionId = CLASS_NAME + ".getDoubleValue: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         Double dValue = null;
         if (row >= sheetSel.getRowCount()) {
@@ -311,7 +311,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     private static Integer getIntegerValue (Column colEnum, int row, int iDecShift) throws ParserException {
-        String functionId = CLASS_NAME + ".getIntegerValue: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         Integer iValue = 0;
         Integer col = getColumn(colEnum);
@@ -407,7 +407,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static String getDateOrdered (int row) throws ParserException {
-        String functionId = CLASS_NAME + ".getDateOrdered: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (row >= sheetSel.getRowCount()) {
             throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
@@ -494,7 +494,7 @@ public class Spreadsheet {
      * @return +1 if successful, 0 if optional and value not present, -1 if error
      */
     private static int setSpreadsheetString (int row, String strOrdNum, boolean bOverwrite, boolean bIsRequired, Column colEnum, String strVal) throws ParserException {
-        String functionId = CLASS_NAME + ".setSpreadsheetString: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // value not defined, just exit
         if (strVal == null)
@@ -541,7 +541,7 @@ public class Spreadsheet {
      * @return +1 if successful, 0 if optional and value not present, -1 if error
      */
     private static int setSpreadsheetInteger (int row, String strOrdNum, boolean bOverwrite, boolean bIsRequired, Column colEnum, Integer iVal) throws ParserException {
-        String functionId = CLASS_NAME + ".setSpreadsheetInteger: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // value not defined, just exit
         if (iVal == null)
@@ -588,7 +588,7 @@ public class Spreadsheet {
      * @return +1 if successful, 0 if optional and value not present, -1 if error
      */
     private static int setSpreadsheetCost (int row, String strOrdNum, boolean bOverwrite, boolean bIsRequired, Column colEnum, Integer iVal) throws ParserException {
-        String functionId = CLASS_NAME + ".setSpreadsheetCost: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // value not defined, just exit
         if (iVal == null)
@@ -639,7 +639,7 @@ public class Spreadsheet {
      * @return +1 if successful, 0 if optional and value not present, -1 if error
      */
     private static int setSpreadsheetDate (int row, String strOrdNum, boolean bOverwrite, boolean bIsRequired, Column colEnum, LocalDate date) throws ParserException {
-        String functionId = CLASS_NAME + ".setSpreadsheetDate: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // value not defined, just exit
         if (date == null)
@@ -685,7 +685,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static int setSpreadsheetOrderInfo (int startRow, AmazonOrder order, boolean bOverwrite) throws ParserException {
-        String functionId = CLASS_NAME + ".setSpreadsheetOrderInfo: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // check for input errors
         if (startRow < 0 || order == null || order.item == null || order.item.isEmpty()) {
@@ -816,7 +816,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static void highlightOrderInfo (int row, boolean bPayment, boolean bRemaining, Color colorOfMonth) throws ParserException {
-        String functionId = CLASS_NAME + ".highlightOrderInfo: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (row >= sheetSel.getRowCount()) {
             throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
@@ -886,7 +886,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static int getItemCount (String strOrderNum) throws ParserException {
-        String functionId = CLASS_NAME + ".getItemCount: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (sheetSel == null) {
             throw new ParserException(functionId + "selected sheet is null");
@@ -917,7 +917,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static int findItemNumber (String strOrderNum) throws ParserException {
-        String functionId = CLASS_NAME + ".findItemNumber: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (sheetSel == null) {
             throw new ParserException(functionId + "selected sheet is null");
@@ -949,7 +949,7 @@ public class Spreadsheet {
      * @throws ParserException 
      */
     public static boolean findCreditCardEntry (String sheetName, String strPdfName) throws IOException, ParserException {
-        String functionId = CLASS_NAME + ".findCreditCardEntry: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // load the spreadsheet sheets into memory for each account
         selectSpreadsheetTab (sheetName);
@@ -975,7 +975,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static void selectSpreadsheetTab (String name) throws ParserException {
-        String functionId = CLASS_NAME + ".selectSpreadsheetTab: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null) {
             throw new ParserException(functionId + "spreadsheet tab selection is null");
@@ -1016,7 +1016,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static String getSpreadsheetCell (int col, int row) throws ParserException {
-        String functionId = CLASS_NAME + ".getSpreadsheetCell: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (sheetSel == null) {
             throw new ParserException(functionId + "selected sheet is null");
@@ -1053,7 +1053,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static String getSpreadsheetCellClass (int col, int row) throws ParserException {
-        String functionId = CLASS_NAME + ".getSpreadsheetCellClass: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (sheetSel == null) {
             throw new ParserException(functionId + "selected sheet is null");
@@ -1086,7 +1086,7 @@ public class Spreadsheet {
      * @throws IOException
      */
     public static String putSpreadsheetCell (int col, int row, String strVal) throws ParserException, IOException {
-        String functionId = CLASS_NAME + ".putSpreadsheetCell: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (sheetSel == null) {
             throw new ParserException(functionId + "selected sheet is null");
@@ -1130,7 +1130,7 @@ public class Spreadsheet {
      * @throws IOException
      */
     public static void putSpreadsheetRow (int col, int row, ArrayList<String> listVal) throws ParserException, IOException {
-        String functionId = CLASS_NAME + ".putSpreadsheetRow: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (listVal == null || listVal.isEmpty()) {
             throw new ParserException(functionId + "selected sheet is null");
@@ -1151,7 +1151,7 @@ public class Spreadsheet {
      * @throws IOException
      */
     public static void putSpreadsheetCol (int col, int row, ArrayList<String> listVal) throws ParserException, IOException {
-        String functionId = CLASS_NAME + ".putSpreadsheetCol: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (listVal == null || listVal.isEmpty()) {
             throw new ParserException(functionId + "selected sheet is null");
@@ -1172,7 +1172,7 @@ public class Spreadsheet {
      * @throws IOException
      */
     public static void putSpreadsheetColorRow (int col, int row, ArrayList<Long> listVal) throws ParserException, IOException {
-        String functionId = CLASS_NAME + ".putSpreadsheetColorRow: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (listVal == null || listVal.isEmpty()) {
             throw new ParserException(functionId + "selected sheet is null");
@@ -1195,7 +1195,7 @@ public class Spreadsheet {
      * @throws IOException
      */
     public static void putSpreadsheetColorCol (int col, int row, ArrayList<Long> listVal) throws ParserException, IOException {
-        String functionId = CLASS_NAME + ".putSpreadsheetColorCol: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (listVal == null || listVal.isEmpty()) {
             throw new ParserException(functionId + "selected sheet is null");
@@ -1258,7 +1258,7 @@ public class Spreadsheet {
      * @throws IOException
      */
     public static void setSpreadsheetCellColor (int col, int row, Color color) throws ParserException, IOException {
-        String functionId = CLASS_NAME + ".setSpreadsheetCellColor: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (sheetSel == null) {
             throw new ParserException(functionId + "selected sheet is null");
@@ -1297,7 +1297,7 @@ public class Spreadsheet {
      * @throws ParserException 
      */    
     public static int getSpreadsheetColSize () throws ParserException {
-        String functionId = CLASS_NAME + ".getSpreadsheetColSize: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (sheetSel == null) {
             throw new ParserException(functionId + "no sheet selected");
@@ -1313,7 +1313,7 @@ public class Spreadsheet {
      * @throws ParserException 
      */    
     public static int getSpreadsheetRowSize () throws ParserException {
-        String functionId = CLASS_NAME + ".getSpreadsheetRowSize: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (sheetSel == null) {
             throw new ParserException(functionId + "no sheet selected");
@@ -1332,7 +1332,7 @@ public class Spreadsheet {
      * @throws IOException
      */    
     public static void setSpreadsheetSize (int col, int row) throws ParserException, IOException {
-        String functionId = CLASS_NAME + ".setSpreadsheetSize: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (sheetSel == null) {
             throw new ParserException(functionId + "no sheet selected");
@@ -1351,7 +1351,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static void selectSpreadsheet(File ssFile) throws ParserException {
-        String functionId = CLASS_NAME + ".selectSpreadsheet: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (ssFile != null) {
             SpreadsheetFile = ssFile;
@@ -1413,7 +1413,7 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static void loadSheets(int numSheets, boolean bCheckHeader) throws ParserException {
-        String functionId = CLASS_NAME + ".loadSheets: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // load the first 2 tabs of the spreadsheet into memory
         sheetArray.clear();
@@ -1445,10 +1445,13 @@ public class Spreadsheet {
             if (oYear == null) {
                 throw new ParserException(functionId + "Invalid spreadsheet format - header missing year");
             } else {
-                iYear = Utils.getIntFromString (oYear.toString(), 0, 4);
-                if (iYear == null) {
-                    throw new ParserException(functionId + "Invalid spreadsheet format - header years invalid: " + oYear.toString() + ", " + oYear.toString());
-                } else if (iYear < 2020 || iYear > 2040) {
+                try {
+                    iYear = Utils.getIntFromString (oYear.toString(), 0, 4);
+                } catch (ParserException exMsg) {
+                    throw new ParserException(exMsg + "\n  -> " + functionId + "Invalid spreadsheet format - header years invalid: "
+                            + oYear.toString() + ", " + oYear.toString());
+                }
+                if (iYear < 2020 || iYear > 2040) {
                     throw new ParserException(functionId + "Invalid spreadsheet format - header year out of range: " + iYear);
                 }
             }

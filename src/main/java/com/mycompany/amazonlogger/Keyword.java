@@ -12,6 +12,8 @@ import static com.mycompany.amazonlogger.AmazonReader.frame;
  */
 public class Keyword {
     
+    private static final String CLASS_NAME = Keyword.class.getSimpleName();
+
     public enum KeyTyp { NONE, HELLO_D, HELLO_C, ORDER_PLACED, DETAILS, INVOICE, 
                          TOTAL_COST, ORDER_NUMBER, REFUNDED, DELIVERED, ARRIVING, NOW_ARRIVING,
                          VENDOR_RATING, DESCRIPTION, DESCRIPTION_2, COMPLETE, GROSS_COST,

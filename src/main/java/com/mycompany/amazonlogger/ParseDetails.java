@@ -17,6 +17,8 @@ import java.time.LocalDate;
  */
 public class ParseDetails {
     
+    private static final String CLASS_NAME = ParseDetails.class.getSimpleName();
+
     public ParseDetails() {
     }
     

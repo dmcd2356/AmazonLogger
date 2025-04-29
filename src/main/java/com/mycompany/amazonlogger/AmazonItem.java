@@ -12,6 +12,8 @@ import java.time.LocalDate;
  */
 public class AmazonItem {
     
+    private static final String CLASS_NAME = AmazonItem.class.getSimpleName();
+
     // this class is the information extracted from the Amazon web page for filling in
     // the spreadsheet columns 0 - 5 that relate to the ordering of items.
     private String      description;    // the item description for the purchase

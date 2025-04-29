@@ -5,6 +5,7 @@
 package com.mycompany.amazonlogger;
 
 // Importing java input/output classes
+import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.io.IOException;
@@ -14,7 +15,7 @@ import org.xml.sax.SAXException;
 
 public class AmazonReader {
 
-    private static final String CLASS_NAME = "AmazonReader";
+    private static final String CLASS_NAME = AmazonReader.class.getSimpleName();
     
     // GLOBALS
     public  static UIFrame frame;
@@ -23,9 +24,8 @@ public class AmazonReader {
 
 
     // Main driver method
-    public static void main(String[] args)
-    {
-        String functionId = CLASS_NAME + ".main: ";
+    public static void main(String[] args) {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // check for arguments passed (non-GUI interface for testing):
         if (args.length > 0) {
@@ -83,16 +83,16 @@ public class AmazonReader {
      * @throws TikaException 
      */
     private static void runFromFile (String fname, boolean bRunExec) throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + ".runCommandLine: ";
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        frame.outputInfoMsg(STATUS_PROGRAM, "Running from script: " + fname);
+        frame.outputInfoMsg(STATUS_COMPILE, "Running from script: " + fname);
 
         // enable timestamp on log messages
         frame.elapsedTimerEnable();
 
         try {
             // compile the program
-            frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM COMPILE");
+            frame.outputInfoMsg(STATUS_COMPILE, "BEGINING PROGRAM COMPILE");
             ScriptCompile compiler = new ScriptCompile();
             ArrayList<CommandStruct> cmdList = compiler.compileProgram(fname);
 
