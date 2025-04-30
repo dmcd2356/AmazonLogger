@@ -253,19 +253,14 @@ public class LoopStruct {
             // verify the formaat of the Variable name
             Variables.verifyVariableFormat(name);
 
-            // check if it is a reserved param name
-            if (Variables.isReservedName(name)) {
-                throw new ParserException(functionId + "using Reserved Variable name: " + name);
-            }
-
-            // make sure it is not a command name
+            // make sure it is not the name of a command
             if (CommandStruct.isValidCommand(name) != null) {
                 throw new ParserException(functionId + "using Reserved command name: " + name);
             }
 
-            // make sure its not the same as a reference Variable
-            ParameterStruct.ParamType type = Variables.isVariableDefined(name);
-            if (type != null) {
+            // make sure its not the name of a defined or reserved Variable
+            Variables.VarClass type = Variables.getVariableClass(name);
+            if (type != Variables.VarClass.UNKNOWN && type != Variables.VarClass.LOOP) {
                 throw new ParserException(": using " + type.toString() + " Variable name: " + name);
             }
 

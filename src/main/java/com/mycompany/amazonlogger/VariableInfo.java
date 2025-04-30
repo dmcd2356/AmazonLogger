@@ -18,7 +18,10 @@ public class VariableInfo {
     private BracketIx   index;              // associated index [x] for String, StrArray, IntArray params
     private BracketIx   indexmax;           // associated ending index for String, StrArray, IntArray params
     private VariableExtract.Trait trait;    // object after '.' demarcation
-        
+
+    /**
+     * this is only called by ParameterStruct() to init the variableRef entry.
+     */
     VariableInfo () {
         this.name     = null;
         this.type     = null;
@@ -27,6 +30,11 @@ public class VariableInfo {
         this.trait    = null;
     }
         
+    /**
+     * This is called by Variables.getVariableInfo() during the execution stage.
+     * 
+     * @param info 
+     */
     VariableInfo (VariableInfo info) {
         this.name     = info.name;
         this.type     = info.type;
@@ -35,6 +43,13 @@ public class VariableInfo {
         this.trait    = info.trait;
     }
 
+    /**
+     * this is called by ParameterStruct() during Compile stage only.
+     * 
+     * @param paramInfo - the info extracted from the parameter name
+     * 
+     * @throws ParserException 
+     */
     VariableInfo (VariableExtract paramInfo) throws ParserException {
         this.name     = paramInfo.getName();
         this.type     = paramInfo.getType();
@@ -48,11 +63,11 @@ public class VariableInfo {
         this.type = type;
     }
     
-    public void setParamTraits (VariableExtract data) throws ParserException {
-        this.index    = data.getIndex();
-        this.indexmax = data.getIndexEnd();
-        this.trait    = data.getTrait();
-    }
+//    public void setParamTraits (VariableExtract data) throws ParserException {
+//        this.index    = data.getIndex();
+//        this.indexmax = data.getIndexEnd();
+//        this.trait    = data.getTrait();
+//    }
     
     public String getName() {
         return this.name;
@@ -81,7 +96,7 @@ public class VariableInfo {
             if (entry.getValue() != null)
                 return entry.getValue();
             if (entry.getVariable() != null) {
-                Long numValue = Variables.getNumericValue(entry.getVariable());
+                Long numValue = Variables.getNumericValue(entry.getVariable(), false);
                 if (numValue == null) {
                     throw new ParserException(functionId + "reference Variable " + entry.getVariable() + " not found");
                 }

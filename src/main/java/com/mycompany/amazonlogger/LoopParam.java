@@ -75,7 +75,7 @@ public class LoopParam {
        
         if (paramName != null) {
             // it is a Variable, get the current value
-            Long numValue = Variables.getNumericValue(paramName);
+            Long numValue = Variables.getNumericValue(paramName, true);
             if (numValue == null) {
                 throw new ParserException(functionId + "reference Variable " + paramName + " is not an Integer: " + paramName);
             }

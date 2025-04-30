@@ -177,7 +177,38 @@ public class VariableExtract {
         int offTrait  = field.indexOf('.');
         int offLeftB  = field.indexOf('[');
         int offRightB = field.indexOf(']');
-        if (offTrait > 0) {
+        if (offRightB < offLeftB && offLeftB > 0) {
+            throw new ParserException(functionId + "Invalid brackets for Variable: " + name);
+        }
+        if (offTrait > 0 && offLeftB > 0) {
+            int nameEnd = (offTrait < offLeftB) ? offTrait : offLeftB;
+            name = field.substring(0, nameEnd);
+        } else if (offTrait > 0) {
+            name = field.substring(0, offTrait);
+        } else if (offLeftB > 0) {
+            name = field.substring(0, offLeftB);
+        }
+
+        if (offLeftB > 0) {
+            if (! bRightSide) {
+                throw new ParserException(functionId + "Brackets only allowed for Right-side Variable usage: " + field + evaluation);
+            }
+            // we have an index associated with the param
+            type = Variables.getVariableTypeFromName (name);
+            leftover = field.substring(offLeftB + 1, offRightB);
+
+            // now see if we have a single entry or a range
+            int offset = leftover.indexOf('-');
+            if (offset > 0) {
+                index    = packIndexValue (leftover.substring(0, offset));
+                indexmax = packIndexValue (leftover.substring(offset+1));
+                frame.outputInfoMsg(STATUS_VARS, "Variable index range found: " + name + "[" + index + "-" + indexmax + "]");
+            } else {
+                index = packIndexValue(leftover);
+                indexmax = null;
+                frame.outputInfoMsg(STATUS_VARS, "Variable index entry found: " + name + "[" + index + "]");
+            }
+        } else if (offTrait > 0) {
             if (! bRightSide) {
                 throw new ParserException(functionId + "Traits only allowed for Right-side Variable usage: " + field + evaluation);
             }
@@ -265,29 +296,6 @@ public class VariableExtract {
                 default:
                     throw new ParserException(functionId + "Invalid Trait " + trait + " for " + type + " Variable " + name + ": " + trait);
             }
-        } else if (offLeftB > 0) {
-            if (! bRightSide) {
-                throw new ParserException(functionId + "Brackets only allowed for Right-side Variable usage: " + field + evaluation);
-            }
-            // we have an index associated with the param
-            name = field.substring(0, offLeftB);
-            type = Variables.getVariableTypeFromName (name);
-            if (field.length() > offRightB && offRightB > offLeftB) {
-                leftover = field.substring(offLeftB + 1, offRightB);
-            } else {
-                throw new ParserException(functionId + "Invalid bracketing of Variable: " + name + " = " + leftover);
-            }
-            // now see if we have a single entry or a range
-            int offset = leftover.indexOf('-');
-            if (offset > 0) {
-                index    = packIndexValue (leftover.substring(0, offset));
-                indexmax = packIndexValue (leftover.substring(offset+1));
-                frame.outputInfoMsg(STATUS_VARS, "Variable index range found: " + name + "[" + index + "-" + indexmax + "]");
-            } else {
-                index = packIndexValue(leftover);
-                indexmax = null;
-                frame.outputInfoMsg(STATUS_VARS, "Variable index entry found: " + name + "[" + index + "]");
-            }
         } else {
             // no additional entries, the param name must be by itself
             name = field;
@@ -309,29 +317,21 @@ public class VariableExtract {
     private BracketIx packIndexValue (String entry) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        BracketIx index = new BracketIx();
+        BracketIx bIndex = new BracketIx();
         if (entry.charAt(0) == '$') {
             // must be a parameter, check if it exists
+            // if it does, we don't care what type it is -that's a run-time thing
             entry = entry.substring(1);
-            ParameterStruct.ParamType type = Variables.isVariableDefined(entry);
-            if (type != null) {
-                switch (type) {
-                    case Integer:
-                    case Unsigned:
-                        index.setVariable(entry);
-                        break;
-                    default:
-                        throw new ParserException(functionId + "Index variable not a Integer type: " + entry + " (type is " + type + ")");
-                }
-            } else if (LoopParam.isLoopParamDefined(entry)) {
-                index.setVariable(entry);
+            Variables.VarClass cls = Variables.getVariableClass(entry);
+            if (cls != Variables.VarClass.UNKNOWN) {
+                bIndex.setVariable(entry);
             } else {
                 throw new ParserException(functionId + "Index variable not found: " + entry);
             }
         } else {
-            index.setValue(Utils.getIntValue(entry).intValue());
+            bIndex.setValue(Utils.getIntValue(entry).intValue());
         }
-        return index;
+        return bIndex;
     }
     
     public String getName () {

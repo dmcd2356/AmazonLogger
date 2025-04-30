@@ -46,6 +46,11 @@ public class Calculation {
     /**
      * Extracts the pertinent parts of a formula into an array of CalcEntry objects.
      * 
+     * This is only used in the Compilation phase, so we are creating the parameter
+     *   entry and verifying the type is valid, but if it is a Variable reference,
+     *   don't replace the Variable with its value.
+     *   That can only be done during execution phase.
+     * 
      * @param formula    - the string containing the calculation formula to extract
      * @param resultType - the data type of the result
      * 
@@ -115,6 +120,7 @@ public class Calculation {
 
     /**
      * copies a saved calculation array to this class to be executed.
+     * 
      * This is used when executing a saved calculation without changing
      *  the saved value, since running the compute() method will modify
      *  the calculation contents.
@@ -536,6 +542,8 @@ public class Calculation {
 
     /**
      * classifies the type of entry contained in the argument String passed.
+     * This is only called in the Compilation phase, so we don't have assigned
+     * values for variables yet.
      * 
      * @param formula - the value to identify the type of
      * @param ptype   - data type of the calculation result
@@ -630,7 +638,8 @@ public class Calculation {
                         }
                         break;
                     case '[':
-                        if (Character.isDigit(nextch) || nextch == ']') {
+                        if (Character.isLetterOrDigit(nextch) ||
+                            nextch == '_' || nextch == '$' || nextch == ']') {
                             entry += formula.charAt(ix);
                         } else {
                             bExit = true;

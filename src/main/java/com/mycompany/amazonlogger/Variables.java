@@ -7,11 +7,11 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -45,6 +45,16 @@ public class Variables {
         TIME,
     }
     
+    public enum VarClass {
+        UNKNOWN,            // not a valid variable
+        STRING,             // a String   variable
+        NUMERIC,            // a Numeric  variable (Integer or Unsigned)
+        BOOLEAN,            // a Boolean  variable
+        ARRAY,              // an Array   variable (String or Integer)
+        LOOP,               // a Loop     variable
+        RESERVED,           // a Reserved variable
+    }
+
     public enum VarCheck {
         DEFINE,         // defining a Variable or loop parameter
         SET,            // setting a standard Variable value (left side of =)
@@ -120,7 +130,102 @@ public class Variables {
     }
 
     /**
+     * gets the next random value
+     * 
+     * @return the next random value
+     */
+    private static Long getRandomValue () {
+        Random rand = new Random();
+        return rand.nextLong(maxRandom);
+    }
+    
+    /**
+     * gets the date value as a String
+     * 
+     * @param trait - the trait of the DATE variable (null if use the raw date format)
+     * 
+     * @return the selected date format
+     */
+    private static String getDateStringValue (VariableExtract.Trait trait) {
+        String response;
+        LocalDate currentDate = LocalDate.now();
+        if (trait == null) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ENGLISH);
+            response = currentDate.format(formatter);
+        } else {
+            // these traits are only valid for DATE
+            switch (trait) {
+                default:
+                case DOW:
+                    DayOfWeek dow = currentDate.getDayOfWeek();
+                    response = "" + dow.getValue();
+                    break;
+                case DOM:
+                    int ivalue = currentDate.getDayOfMonth();
+                    response = "" +  ivalue;
+                    break;
+                case DOY:
+                    ivalue = currentDate.getDayOfYear();
+                    response = "" + ivalue;
+                    break;
+                case MOY:
+                    ivalue = currentDate.getMonthValue();
+                    response = "" + ivalue;
+                    break;
+                case DAY:
+                    response = currentDate.getDayOfWeek().toString();
+                    break;
+                case MONTH:
+                    response = currentDate.getMonth().toString();
+                    break;
+            }
+        }
+        return response;
+    }
+    
+    /**
+     * gets the date value as an Integer
+     * 
+     * @param trait - the trait of the DATE variable
+     * 
+     * @return the selected date format (null if not an Integer type)
+     */
+    private static Integer getDateIntValue (VariableExtract.Trait trait) throws ParserException {
+        Integer response = null;
+        if (trait != null) {
+            // these traits are only valid for DATE
+            LocalDate currentDate = LocalDate.now();
+            switch (trait) {
+                default:
+                case VariableExtract.Trait.DOW:
+                    DayOfWeek dow = currentDate.getDayOfWeek();
+                    response = dow.getValue();
+                    break;
+                case VariableExtract.Trait.DOM:
+                    response = currentDate.getDayOfMonth();
+                    break;
+                case VariableExtract.Trait.DOY:
+                    response = currentDate.getDayOfYear();
+                    break;
+                case VariableExtract.Trait.MOY:
+                    response = currentDate.getMonthValue();
+                    break;
+                case VariableExtract.Trait.DAY:
+                case VariableExtract.Trait.MONTH:
+                    // invalid for Integer
+                    break;
+            }
+        }
+        return response;
+    }
+    
+    /**
      * returns the value of a reference Variable along with its data type.
+     * 
+     * This is only performed during the Execution stage when evaluating the value
+     *  of the reference variables just prior to executing each command.
+     * It is only at this point where we can do the run-time evaluation, just
+     *  prior to executing the command.
      * 
      * @param paramInfo  - Variable reference information
      * 
@@ -143,160 +248,98 @@ public class Variables {
         if (name.charAt(0) == '$') {
             name = name.substring(1);
         }
-        // first, check for reserved variables
-        ParameterStruct.ParamType pType = null;
-        switch (name) {
-            case "RESPONSE":
-                paramValue.setStrArray(VarArray.getResponseValue());
-                pType = ParameterStruct.ParamType.StringArray;
-                break;
-            case "STATUS":
-                paramValue.setBooleanValue(bStatus);
-                pType = ParameterStruct.ParamType.Boolean;
-                break;
-            case "RANDOM":
-                Random rand = new Random();
-                paramValue.setIntegerValue(rand.nextLong(maxRandom));
-                pType = ParameterStruct.ParamType.Integer;
-                break;
-            case "TIME":
-                LocalTime currentTime = LocalTime.now();
-                paramValue.setStringValue(currentTime.toString().substring(0,12));
-                pType = ParameterStruct.ParamType.String;
-                break;
-            case "DATE":
-                LocalDate currentDate = LocalDate.now();
-                if (paramInfo.getTrait() == null) {
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ENGLISH);
-                    paramValue.setStringValue(currentDate.format(formatter));
-                    pType = ParameterStruct.ParamType.String;
-                } else {
-                    // these traits are only valid for DATE
-                    switch (paramInfo.getTrait()) {
-                        default:
-                        case VariableExtract.Trait.DOW:
-                            DayOfWeek dow = currentDate.getDayOfWeek();
-                            paramValue.setIntegerValue((long) dow.getValue());
-                            pType = ParameterStruct.ParamType.Unsigned;
-                            break;
-                        case VariableExtract.Trait.DOM:
-                            int ivalue = currentDate.getDayOfMonth();
-                            paramValue.setIntegerValue((long) ivalue);
-                            pType = ParameterStruct.ParamType.Unsigned;
-                            break;
-                        case VariableExtract.Trait.DOY:
-                            ivalue = currentDate.getDayOfYear();
-                            paramValue.setIntegerValue((long) ivalue);
-                            pType = ParameterStruct.ParamType.Unsigned;
-                            break;
-                        case VariableExtract.Trait.MOY:
-                            ivalue = currentDate.getMonthValue();
-                            paramValue.setIntegerValue((long) ivalue);
-                            pType = ParameterStruct.ParamType.Unsigned;
-                            break;
-                        case VariableExtract.Trait.DAY:
-                            paramValue.setStringValue(currentDate.getDayOfWeek().toString());
-                            pType = ParameterStruct.ParamType.String;
-                            break;
-                        case VariableExtract.Trait.MONTH:
-                            paramValue.setStringValue(currentDate.getMonth().toString());
-                            pType = ParameterStruct.ParamType.String;
-                            break;
-                    }
-                }
-                break;
-            default:
-                break;
-        }
-
-        // otherwise, let's check for standard (and loop) variables for name match
-        if (pType == null) {
-            pType = paramInfo.getType();
-            ParameterStruct.ParamType findType = isVariableDefined(name);
-            if (findType == null) {
-                if (LoopParam.isLoopParamDefined(name)) {
-                    findType = ParameterStruct.ParamType.Integer;
-                } else {
-                    frame.outputInfoMsg(STATUS_WARN, "    - Variable Ref '" + name + "' as type " + pType + " was not found in any Variable database");
-                }
-            }
-            if (pType == null || findType != pType) {
-                frame.outputInfoMsg(STATUS_VARS, "    - Incorrect Variable Ref type for '" + name + "' as type " + pType + " is actually " + findType);
-                pType = findType;
-            }
-
-            switch (pType) {
-                case Integer:
-                    // first check the standard parameters
-                    paramValue.setIntegerValue(longParams.get(name));
-                    Long varValue = paramValue.getIntegerValue();
-                    if (varValue == null) {
-                        // if not, check if it is in loop parameters
-                        varValue = LoopParam.getLoopCurValue(name);
-                        if (varValue != null) {
-                            paramValue.setIntegerValue(varValue);
-                            pType = ParameterStruct.isUnsignedInt(varValue) ? ParameterStruct.ParamType.Unsigned : ParameterStruct.ParamType.Integer;
-                        } else {
-                            throw new ParserException(functionId + "Parameter " + name + " not found");
-                        }
-                    }
-                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
-                    break;
-                case Unsigned:
-                    paramValue.setIntegerValue(uintParams.get(name));
-                    varValue = paramValue.getIntegerValue();
-                    if (varValue == null) {
-                        // if not, check if it is in loop parameters
-                        Long loopVal = LoopParam.getLoopCurValue(name);
-                        if (loopVal != null) {
-                            paramValue.setIntegerValue(loopVal);
-                            pType = ParameterStruct.isUnsignedInt(varValue) ? ParameterStruct.ParamType.Unsigned : ParameterStruct.ParamType.Integer;
-                        } else {
-                            throw new ParserException(functionId + "Parameter " + name + " not found");
-                        }
-                    }
-                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
-                    break;
-                case Boolean:
-                    paramValue.setBooleanValue(boolParams.get(name));
-                    if (paramValue.getBooleanValue() == null) {
-                        throw new ParserException(functionId + "Parameter " + name + " not found");
-                    }
-                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.getBooleanValue());
-                    break;
-                case IntArray:
-                    paramValue.setIntArray(VarArray.getIntArray(name));
-                    if (paramValue.getIntArray() == null) {
-                        throw new ParserException(functionId + "Parameter " + name + " not found");
-                    }
-                    String arrayValue = paramValue.getIntArray().toString();
-                    if (arrayValue.length() > 100) {
-                        arrayValue = arrayValue.substring(0,20) + "...";
-                    }
-                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
-                    break;
-                case StringArray:
-                    paramValue.setStrArray(VarArray.getStrArray(name));
-                    if (paramValue.getStrArray() == null) {
-                        throw new ParserException(functionId + "Parameter " + name + " not found");
-                    }
-                    arrayValue = paramValue.getStrArray().toString();
-                    if (arrayValue.length() > 100) {
-                        arrayValue = arrayValue.substring(0,20) + "...";
-                    }
-                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
-                    break;
-                default:
-                case String:
-                    paramValue.setStringValue(strParams.get(name));
-                    if (paramValue.getStringValue() != null) {
+        
+        ParameterStruct.ParamType pType = paramInfo.getType();
+        ParameterStruct.ParamType findType;
+        Long varValue;
+        switch (getVariableClass (name)) {
+            // check the reserved params list
+            case RESERVED:
+                switch (name) {
+                    case "RESPONSE":
+                        paramValue.setStrArray(VarArray.getResponseValue());
+                        pType = ParameterStruct.ParamType.StringArray;
+                        break;
+                    case "STATUS":
+                        paramValue.setBooleanValue(bStatus);
+                        pType = ParameterStruct.ParamType.Boolean;
+                        break;
+                    case "RANDOM":
+                        paramValue.setIntegerValue(getRandomValue());
+                        pType = ParameterStruct.ParamType.Integer;
+                        break;
+                    case "TIME":
+                        LocalTime currentTime = LocalTime.now();
+                        paramValue.setStringValue(currentTime.toString().substring(0,12));
                         pType = ParameterStruct.ParamType.String;
-                    } else {
-                        throw new ParserException(functionId + "Parameter " + name + " not found");
+                        break;
+                    case "DATE":
+                        Integer iDate = getDateIntValue (paramInfo.getTrait());
+                        if (iDate != null) {
+                            paramValue.setIntegerValue((long) iDate);
+                            pType = ParameterStruct.ParamType.Unsigned;
+                        } else {
+                            String strDate = getDateStringValue (paramInfo.getTrait());
+                            paramValue.setStringValue(strDate);
+                            pType = ParameterStruct.ParamType.String;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            // next check for loop variables for name match
+            case LOOP:
+                varValue = LoopParam.getLoopCurValue(name);
+                pType = ParameterStruct.ParamType.Integer;
+                paramValue.setIntegerValue(varValue);
+                frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
+                break;
+            // otherwise, let's check for standard variables for name match
+            case NUMERIC:
+                if (longParams.containsKey(name)) {
+                    varValue = longParams.get(name);
+                    pType = ParameterStruct.ParamType.Integer;
+                } else {
+                    varValue = uintParams.get(name);
+                    pType = ParameterStruct.ParamType.Unsigned;
+                }
+                paramValue.setIntegerValue(varValue);
+                frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
+                break;
+            case BOOLEAN:
+                paramValue.setBooleanValue(boolParams.get(name));
+                pType = ParameterStruct.ParamType.Boolean;
+                frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.getBooleanValue());
+                break;
+            case STRING:
+                paramValue.setStringValue(strParams.get(name));
+                pType = ParameterStruct.ParamType.String;
+                frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.getStringValue());
+                break;
+            case ARRAY:
+                String arrayValue;
+                ArrayList<Long> intList = VarArray.getIntArray(name);
+                if (intList != null) {
+                    paramValue.setIntArray(intList);
+                    arrayValue = intList.toString();
+                    if (arrayValue.length() > 100) {
+                        int length = arrayValue.length();
+                        arrayValue = arrayValue.substring(0,60) + "..." + arrayValue.substring(length-30);
                     }
-                    frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.getStringValue());
-                    break;
-            }
+                } else {
+                    ArrayList<String> strList = VarArray.getStrArray(name);
+                    paramValue.setStrArray(strList);
+                    arrayValue = strList.toString();
+                    if (arrayValue.length() > 100) {
+                        int length = arrayValue.length();
+                        arrayValue = arrayValue.substring(0,60) + "..." + arrayValue.substring(length-30);
+                    }
+                }
+                frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
+                break;
+            case UNKNOWN:
+                throw new ParserException(functionId + "    - Variable Ref '" + name + "' was not found in any Variable database");
         }
 
         // now check for brackets being applied (this will change the type for Arrays)
@@ -622,18 +665,7 @@ public class Variables {
         // default
         return ParameterStruct.ParamType.String;
     }
-    
-    /**
-     * checks if a Variable is an Integer type
-     * 
-     * @param name - the name to check
-     * 
-     * @return  true if Integer Variable
-     */
-    public static boolean isIntegerParam (String name) {
-        return name.startsWith("I_");
-    }
-    
+
     /**
      * indicates if the name is reserved and can't be used for a variable.
      * 
@@ -652,54 +684,133 @@ public class Variables {
     }
     
     /**
-     * determines if a Variable has been found with the specified name.
-     * (Does not check for loop Variables)
+     * this returns the type of variable found.
      * 
-     * @param name - name of the Variable to search for
+     * @param name - name of the variable
      * 
-     * @return type of Variable if found, null if not found
+     * @return type of variable (UNKNOWN if not found)
      */
-    public static Long getNumericValue (String name) {
-        if (name.charAt(0) == '$') {
-            name = name.substring(1);
+    public static VarClass getVariableClass (String name) {
+        if (name == null || name.isEmpty()) {
+            return VarClass.UNKNOWN;
         }
-        if (longParams.containsKey(name)) {
-            return longParams.get(name);
+        // if name contains brackets or a Trait, eliminate that portion of the name for comparing type
+        int offset = name.indexOf('.');
+        if (offset > 0) name = name.substring(0, offset);
+        else {
+            offset = name.indexOf('[');
+            if (offset > 0) name = name.substring(0, offset);
         }
-        if (uintParams.containsKey(name)) {
-            return uintParams.get(name);
-        }
-        return (long) LoopStruct.getCurrentLoopValue(name);
+        // classify the type
+        if (isReservedName (name))           return VarClass.RESERVED;
+        if (longParams.containsKey(name)) return VarClass.NUMERIC;
+        if (uintParams.containsKey(name)) return VarClass.NUMERIC;
+        if (strParams.containsKey(name))  return VarClass.STRING;
+        if (boolParams.containsKey(name)) return VarClass.BOOLEAN;
+        if (VarArray.isIntArray(name))       return VarClass.ARRAY;
+        if (VarArray.isStrArray(name))       return VarClass.ARRAY;
+        if (LoopStruct.getCurrentLoopValue(name) != null)   return VarClass.LOOP;
+        return VarClass.UNKNOWN;
     }
     
     /**
      * determines if a Variable has been found with the specified name.
-     * (Does not check for loop Variables)
      * 
-     * @param name - name of the Variable to search for
+     * @param name     - name of the Variable to search for
+     * @param bNoLoops - true if don't include loop params in search
      * 
      * @return type of Variable if found, null if not found
+     * 
+     * @throws ParserException
      */
-    public static ParameterStruct.ParamType isVariableDefined (String name) {
-        if (longParams.containsKey(name)) {
-            return ParameterStruct.ParamType.Integer;
+    public static Long getNumericValue (String name, boolean bNoLoops) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (name.charAt(0) == '$') {
+            name = name.substring(1);
         }
-        if (uintParams.containsKey(name)) {
-            return ParameterStruct.ParamType.Unsigned;
+        Long iValue = null;
+        try {
+            Integer loopVal = LoopStruct.getCurrentLoopValue(name);
+            if (loopVal != null) {
+                iValue = (long) loopVal;
+                if (bNoLoops) {
+                    return null; // value is a loop var, but is not allowed
+                }
+            }
+            else if (longParams.containsKey(name)) {
+                iValue = longParams.get(name);
+            }
+            else if (uintParams.containsKey(name)) {
+                iValue = uintParams.get(name);
+            }
+            else if (strParams.containsKey(name)) {
+                frame.outputInfoMsg(STATUS_DEBUG, "Converting from String to Integer: " + name);
+                String strValue = strParams.get(name);
+                iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+            }
+            else if (boolParams.containsKey(name)) {
+                frame.outputInfoMsg(STATUS_DEBUG, "Converting from Boolean to Integer: " + name);
+                iValue = boolParams.get(name) ? 1L : 0;
+            }
+            else if (VarArray.isIntArray(name)) {
+                frame.outputInfoMsg(STATUS_DEBUG, "Converting 1st entry of IntArray to Integer: " + name);
+                iValue = VarArray.getIntArray(name).getFirst();
+            }
+            else if (VarArray.isStrArray(name)) {
+                frame.outputInfoMsg(STATUS_DEBUG, "Converting 1st entry of StrArray to Integer: " + name);
+                String strValue = VarArray.getStrArray(name).getFirst();
+                iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+            }
+            else {
+                // this one can have Traits
+                if (name.startsWith("DATE.")) {
+                    String trait = name.substring(5);
+                    name = name.substring(0, 4);
+                    LocalDate currentDate = LocalDate.now();
+                    switch (trait) {
+                        case "DOW":
+                            iValue = (long) currentDate.getDayOfWeek().getValue();
+                            break;
+                        case "DOM":
+                            iValue = (long) currentDate.getDayOfMonth();
+                            break;
+                        case "DOY":
+                            iValue = (long) currentDate.getDayOfYear();
+                            break;
+                        case "MOY":
+                            iValue = (long) currentDate.getMonthValue();
+                            break;
+                        default:
+                            // no other value is allowed for Integers
+                            break;
+                    }
+                }
+                switch (name) {
+                    case "RESPONSE":
+                        String strValue = VarArray.getResponseValue().getFirst();
+                        iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+                        break;
+                    case "STATUS":
+                        iValue = bStatus ? 1L : 0;
+                        break;
+                    case "RANDOM":
+                        iValue = getRandomValue();
+                        break;
+                    case "DATE":  // already handled above
+                        break;
+                    case "TIME":  // can't be converted to Integer
+                    default:
+                        throw new ParserException(functionId + "Invalid variable for Numeric type: " + name);
+                }
+            }
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
         }
-        if (strParams.containsKey(name)) {
-            return ParameterStruct.ParamType.String;
+        if (iValue == null) {
+            throw new ParserException(functionId + "Integer value not found for variable: " + name);
         }
-        if (boolParams.containsKey(name)) {
-            return ParameterStruct.ParamType.Boolean;
-        }
-        if (VarArray.isIntArray(name)) {
-            return ParameterStruct.ParamType.IntArray;
-        }
-        if (VarArray.isStrArray(name)) {
-            return ParameterStruct.ParamType.StringArray;
-        }
-        return null;
+        return iValue;
     }
 
     /**
@@ -736,32 +847,39 @@ public class Variables {
             }
 
             // check for variable lists
-            boolean bLoop = LoopParam.isLoopParamDefined(name);
-            boolean bReserved = Variables.isReservedName(name);
-            boolean bVariable = Variables.isVariableDefined(name) != null;
-
+            VarClass varClass = getVariableClass (name);
             String errMsg = null;
             switch (use) {
                 default:
                 case DEFINE:
-                    if (bLoop)
-                        errMsg = "using Loop Variable name: " + name;
-                    else if (bReserved)
-                        errMsg = "using Reserved command name: " + name;
-                    else if (bVariable)
-                        errMsg = "Variable name already in use: " + name;
+                    switch (varClass) {
+                        case UNKNOWN  -> { // not found in any group is good
+                        }
+                        case LOOP     -> errMsg = "using Loop Variable name: " + name;
+                        case RESERVED -> errMsg = "using Reserved command name: " + name;
+                        default       -> errMsg = "Variable name already in use: " + name;
+                    }
                     break;
+
                 case SET:
-                    if (bLoop)
-                        errMsg = "using Loop Variable name: " + name;
-                    else if (bReserved && ! name.contentEquals("RANDOM"))
-                        errMsg = "using Reserved command name: " + name;
-                    if (! bVariable && ! name.contentEquals("RANDOM"))
-                        errMsg = "Variable name not found: " + name;
+                    // you can only set user variables plus this one reserved variable
+                    if (name.contentEquals("RANDOM")) {
+                        break;
+                    }
+                    switch (varClass) {
+                        case LOOP     -> errMsg = "using Loop Variable name: " + name;
+                        case RESERVED -> errMsg = "using Reserved command name: " + name;
+                        case UNKNOWN  -> errMsg = "Variable name not found: " + name;
+                        default       -> {  // any variable is good
+                        }
+                    }
                     break;
+
                 case REFERENCE:
-                    if (!bLoop && !bVariable && !bReserved)
+                    // if it is a member of any of the groups, it is good
+                    if (varClass == VarClass.UNKNOWN) {
                         errMsg = "Variable name not found: " + name;
+                    }
                     break;
             }
             if (errMsg != null) {
