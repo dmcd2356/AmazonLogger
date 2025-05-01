@@ -717,13 +717,14 @@ public class Variables {
      * determines if a Variable has been found with the specified name.
      * 
      * @param name     - name of the Variable to search for
+     * @param traitVal - the trait associated with the variable (null if none)
      * @param bNoLoops - true if don't include loop params in search
      * 
      * @return type of Variable if found, null if not found
      * 
      * @throws ParserException
      */
-    public static Long getNumericValue (String name, boolean bNoLoops) throws ParserException {
+    public static Long getNumericValue (String name, VariableExtract.Trait traitVal, boolean bNoLoops) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (name.charAt(0) == '$') {
@@ -745,47 +746,42 @@ public class Variables {
                 iValue = uintParams.get(name);
             }
             else if (strParams.containsKey(name)) {
-                frame.outputInfoMsg(STATUS_DEBUG, "Converting from String to Integer: " + name);
                 String strValue = strParams.get(name);
-                iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+                if (traitVal == null) {
+                    iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+                    frame.outputInfoMsg(STATUS_DEBUG, "Converting variable " + name + " to Integer: " + iValue);
+                }
+                else if (traitVal == VariableExtract.Trait.SIZE) {
+                    iValue = (long) strValue.length();
+                    frame.outputInfoMsg(STATUS_DEBUG, "Extracted SIZE of variable " + name + " as: " + iValue);
+                }
             }
             else if (boolParams.containsKey(name)) {
                 frame.outputInfoMsg(STATUS_DEBUG, "Converting from Boolean to Integer: " + name);
                 iValue = boolParams.get(name) ? 1L : 0;
             }
             else if (VarArray.isIntArray(name)) {
-                frame.outputInfoMsg(STATUS_DEBUG, "Converting 1st entry of IntArray to Integer: " + name);
-                iValue = VarArray.getIntArray(name).getFirst();
+                if (traitVal == null) {
+                    iValue = VarArray.getIntArray(name).getFirst();
+                    frame.outputInfoMsg(STATUS_DEBUG, "Extracted 1st entry of IntArray " + name + " to Integer: " + iValue);
+                }
+                else if (traitVal == VariableExtract.Trait.SIZE) {
+                    iValue = (long) VarArray.getIntArray(name).size();
+                    frame.outputInfoMsg(STATUS_DEBUG, "Extracted SIZE of IntArray " + name + " as: " + iValue);
+                }
             }
             else if (VarArray.isStrArray(name)) {
-                frame.outputInfoMsg(STATUS_DEBUG, "Converting 1st entry of StrArray to Integer: " + name);
-                String strValue = VarArray.getStrArray(name).getFirst();
-                iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+                if (traitVal == null) {
+                    String strValue = VarArray.getStrArray(name).getFirst();
+                    iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+                    frame.outputInfoMsg(STATUS_DEBUG, "Extracted 1st entry of StrArray " + name + " to Integer: " + iValue);
+                }
+                else if (traitVal == VariableExtract.Trait.SIZE) {
+                    iValue = (long) VarArray.getStrArray(name).size();
+                    frame.outputInfoMsg(STATUS_DEBUG, "Extracted SIZE of StrArray " + name + " as: " + iValue);
+                }
             }
             else {
-                // this one can have Traits
-                if (name.startsWith("DATE.")) {
-                    String trait = name.substring(5);
-                    name = name.substring(0, 4);
-                    LocalDate currentDate = LocalDate.now();
-                    switch (trait) {
-                        case "DOW":
-                            iValue = (long) currentDate.getDayOfWeek().getValue();
-                            break;
-                        case "DOM":
-                            iValue = (long) currentDate.getDayOfMonth();
-                            break;
-                        case "DOY":
-                            iValue = (long) currentDate.getDayOfYear();
-                            break;
-                        case "MOY":
-                            iValue = (long) currentDate.getMonthValue();
-                            break;
-                        default:
-                            // no other value is allowed for Integers
-                            break;
-                    }
-                }
                 switch (name) {
                     case "RESPONSE":
                         String strValue = VarArray.getResponseValue().getFirst();
@@ -797,18 +793,36 @@ public class Variables {
                     case "RANDOM":
                         iValue = getRandomValue();
                         break;
-                    case "DATE":  // already handled above
+                    case "DATE":
+                        LocalDate currentDate = LocalDate.now();
+                        switch (traitVal) {
+                            case DOW:
+                                iValue = (long) currentDate.getDayOfWeek().getValue();
+                                break;
+                            case DOM:
+                                iValue = (long) currentDate.getDayOfMonth();
+                                break;
+                            case DOY:
+                                iValue = (long) currentDate.getDayOfYear();
+                                break;
+                            case MOY:
+                                iValue = (long) currentDate.getMonthValue();
+                                break;
+                            default:
+                                // no other value is allowed for Integers
+                                break;
+                        }
                         break;
                     case "TIME":  // can't be converted to Integer
                     default:
-                        throw new ParserException(functionId + "Invalid variable for Numeric type: " + name);
+                        break;
                 }
             }
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
         if (iValue == null) {
-            throw new ParserException(functionId + "Integer value not found for variable: " + name);
+            throw new ParserException(functionId + "Numeric value not found for variable: " + name);
         }
         return iValue;
     }

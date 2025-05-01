@@ -35,7 +35,7 @@ public class CommandStruct {
         FCLOSE,     //  "       "       "
         FREAD,      //  "       "       "
         FWRITE,     //  "       "       "
-        DEFINE,     // this defines the parameters used by the program
+        ALLOCATE,   // this allocates the parameters used by the program
         SET,        // this sets the value of the parameters
         IF,         // these handles the conditional IF-ELSEIF-ELSE-ENDIF
         ELSE,       //  "       "       "

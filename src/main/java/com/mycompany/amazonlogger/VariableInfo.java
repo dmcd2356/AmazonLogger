@@ -95,8 +95,31 @@ public class VariableInfo {
         if (entry != null) {
             if (entry.getValue() != null)
                 return entry.getValue();
+            // no numeric value present, check if it is a variable
             if (entry.getVariable() != null) {
-                Long numValue = Variables.getNumericValue(entry.getVariable(), false);
+                // yes - we don't allow Brackets for indexes (that would be Brackets inside Brackets - too messy looking!)
+                // but we do allow Traits to be specified, as long as they return integer values
+                // The variable value in this case will have the Trait following a '.' char after the Variable name.
+                // Also, the 'false' flag in getNumericValue() indicates we do allow loop variables to be used here as well.
+                String varName = entry.getVariable();
+                int offset = varName.indexOf('.');
+                VariableExtract.Trait traitVal = null;
+                if (offset > 0 && varName.length() > offset + 1) {
+                    // Trait included: split name into var name and trait name
+                    String traitName = varName.substring(offset + 1);
+                    varName = varName.substring(0, offset);
+                    // now get corresponding trait type & validate that it is a numeric
+                    traitVal = VariableExtract.getTrait (traitName, varName);
+                    ParameterStruct.ParamType traitTyp = VariableExtract.getTraitDataType (traitVal, varName);
+                    switch (traitTyp) {
+                        case Integer:
+                        case Unsigned:
+                            break;
+                        default:
+                            throw new ParserException(functionId + "Specified Variable trait is not a numeric: " + traitName);
+                    }
+                }
+                Long numValue = Variables.getNumericValue(varName, traitVal, false);
                 if (numValue == null) {
                     throw new ParserException(functionId + "reference Variable " + entry.getVariable() + " not found");
                 }

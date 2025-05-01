@@ -473,7 +473,7 @@ public class ScriptExecute {
                 }
                 fileWriter.println(text);
                 break;
-            case DEFINE:
+            case ALLOCATE:
                 // nothing to do
                 break;
             case SET:

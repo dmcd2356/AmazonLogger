@@ -6,7 +6,6 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,7 +74,7 @@ public class LoopParam {
        
         if (paramName != null) {
             // it is a Variable, get the current value
-            Long numValue = Variables.getNumericValue(paramName, true);
+            Long numValue = Variables.getNumericValue(paramName, null, true);
             if (numValue == null) {
                 throw new ParserException(functionId + "reference Variable " + paramName + " is not an Integer: " + paramName);
             }

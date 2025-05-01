@@ -234,7 +234,7 @@ public class ScriptCompile {
                     // verify 1 argument: message to write
                     checkArgTypes(cmdStruct, "S", cmdIndex);
                     break;
-                case CommandStruct.CommandTable.DEFINE:
+                case ALLOCATE:
                     // must be a List of Variable name entries
                     checkArgTypes(cmdStruct, "L", cmdIndex);
 
