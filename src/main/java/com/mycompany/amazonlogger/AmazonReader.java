@@ -5,6 +5,7 @@
 package com.mycompany.amazonlogger;
 
 // Importing java input/output classes
+import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
@@ -21,8 +22,27 @@ public class AmazonReader {
     public  static UIFrame frame;
     public  static Keyword keyword;
     public  static PropertiesFile props;
+    
+    private static RunMode opMode;
 
+    public enum RunMode {
+        COMPILE_ONLY,
+        COMPILE,
+        EXECUTE,
+    }
 
+    private static void setRunMode (RunMode mode) {
+        opMode = mode;
+    }
+    
+    public static boolean isRunModeCompile () {
+        return opMode == RunMode.COMPILE;
+    }
+    
+    public static boolean isRunModeCompileOnly () {
+        return opMode == RunMode.COMPILE_ONLY;
+    }
+    
     // Main driver method
     public static void main(String[] args) {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
@@ -51,6 +71,7 @@ public class AmazonReader {
                 }
             } catch (ParserException | IOException | SAXException | TikaException ex) {
                 frame.outputInfoMsg (STATUS_ERROR, ex.getMessage() + "\n  -> " + functionId);
+                setRunMode (RunMode.EXECUTE);
                 ScriptExecute exec = new ScriptExecute();
                 try {
                     exec.close();
@@ -62,6 +83,7 @@ public class AmazonReader {
             // close the test output file
             frame.closeTestFile();
         } else {
+            setRunMode (RunMode.EXECUTE);
             // create the user interface to control things
             frame = new UIFrame(true);
             props = new PropertiesFile();
@@ -91,6 +113,13 @@ public class AmazonReader {
         frame.elapsedTimerEnable();
 
         try {
+            // if we are only doing a compile, set flag so we don't terminate till the end
+            if (bRunExec) {
+                setRunMode (RunMode.COMPILE);
+            } else {
+                setRunMode (RunMode.COMPILE_ONLY);
+            }
+
             // compile the program
             frame.outputInfoMsg(STATUS_COMPILE, "BEGINING PROGRAM COMPILE");
             ScriptCompile compiler = new ScriptCompile();
@@ -99,6 +128,7 @@ public class AmazonReader {
             if (bRunExec) {
                 // execute the program by running each 'cmdList' entry
                 frame.outputInfoMsg(STATUS_PROGRAM, "BEGINING PROGRAM EXECUTION");
+                setRunMode (RunMode.EXECUTE);
                 ScriptExecute exec = new ScriptExecute();
                 int cmdIx = 0;
                 while (cmdIx >= 0 && cmdIx < cmdList.size()) {
@@ -113,8 +143,8 @@ public class AmazonReader {
 
 }
 
-class ParserException extends Exception
-{
+class ParserException extends Exception {
+    
     // Parameterless Constructor
     public ParserException() {}
 
@@ -123,11 +153,6 @@ class ParserException extends Exception
     {
         super(message);
     }
-
-    // Constructor that accepts a message along with the line and its line number
-    public ParserException(String message, String line)
-    {
-        super(message + line);
-    }
+    
 }
 

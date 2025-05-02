@@ -130,7 +130,7 @@ public class ParseOrders {
                     case Keyword.KeyTyp.NOW_ARRIVING:
                         delivered = DateFormat.getFormattedDate(line, true);
                         if (delivered == null) {
-                            throw new ParserException("ParseOrders.parseOrders: invalid char in " + keywordInfo.eKeyId.name() + " date ", line);
+                            throw new ParserException("ParseOrders.parseOrders: invalid char in " + keywordInfo.eKeyId.name() + " date: " + line);
                         }
                         if (newItem.isItemDefined()) {
                             newItem = newOrder.addNewItem();
@@ -267,7 +267,7 @@ public class ParseOrders {
                         LocalDate date = DateFormat.getFormattedDate (line, true);
                         newOrder.setOrderDate(date);
                         if (date == null) {
-                            throw new ParserException("ParseOrders.parseOrders: invalid char in 'Order placed'", line);
+                            throw new ParserException("ParseOrders.parseOrders: invalid char in 'Order placed': " + line);
                         }
                         keywordInfo = null; // command complete
                         break;
@@ -282,7 +282,7 @@ public class ParseOrders {
 
                     case Keyword.KeyTyp.DESCRIPTION_2:
                         if (descript1 == null) {
-                            throw new ParserException("ParseOrders.parseOrders: 1st line of description wasn't found", line);
+                            throw new ParserException("ParseOrders.parseOrders: 1st line of description wasn't found: " + line);
                         }
                         
                         String descript2 = line;

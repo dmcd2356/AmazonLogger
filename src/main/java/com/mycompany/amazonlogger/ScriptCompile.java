@@ -7,6 +7,7 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -95,7 +96,6 @@ public class ScriptCompile {
         CommandStruct cmdStruct;
 
         // open the file to compile and extract the commands from it
-        try {
         File scriptFile = Utils.checkFilename (fname, ".scr", Utils.PathType.Test, false);
         FileReader fReader = new FileReader(scriptFile);
         BufferedReader fileReader = new BufferedReader(fReader);
@@ -107,550 +107,563 @@ public class ScriptCompile {
         int lineNum = 0;
         boolean bExit = false;
         while (!bExit && (line = fileReader.readLine()) != null) {
-            lineNum++;
-            line = line.strip();
-            // check for comment at end of lines
-            int comment = line.indexOf("##");
-            if (comment > 0) {
-                line = line.substring(0, comment).strip();
-            }
-            if (line.isBlank() || line.charAt(0) == '#') {
-                continue;
-            }
-
-            lineInfo = "LINE " + lineNum + ": ";
-            cmdIndex = cmdList.size(); // the command index
-
-            // first, extract the 1st word as the command keyword
-            String strCmd = line;
-            String parmString = "";
-            int offset = strCmd.indexOf(" ");
-            if (offset > 0) {
-                strCmd = strCmd.substring(0, offset).strip();
-                parmString = line.substring(offset).strip();
-            }
-            CommandStruct.CommandTable command;
-            if (line.startsWith("-")) {
-                // if the optional RUN command was omitted from an option command, let's add it here
-                String argTypes = cmdOptionParser.getOptionArgs(strCmd);
-                if (argTypes == null) {
-                    throw new ParserException(functionId + "command option is not valid: " + strCmd);
+            try {
+                lineNum++;
+                line = line.strip();
+                // check for comment at end of lines
+                int comment = line.indexOf("##");
+                if (comment > 0) {
+                    line = line.substring(0, comment).strip();
                 }
-                command = CommandStruct.CommandTable.RUN;
-                parmString = line;
-            } else {
-                // next, check if it is a standard program command
-                command = CommandStruct.isValidCommand(strCmd);
+                if (line.isBlank() || line.charAt(0) == '#') {
+                    continue;
+                }
+
+                lineInfo = "LINE " + lineNum + ": ";
+                cmdIndex = cmdList.size(); // the command index
+
+                // first, extract the 1st word as the command keyword
+                String strCmd = line;
+                String parmString = "";
+                int offset = strCmd.indexOf(" ");
+                if (offset > 0) {
+                    strCmd = strCmd.substring(0, offset).strip();
+                    parmString = line.substring(offset).strip();
+                }
+                CommandStruct.CommandTable command;
+                if (line.startsWith("-")) {
+                    // if the optional RUN command was omitted from an option command, let's add it here
+                    String argTypes = cmdOptionParser.getOptionArgs(strCmd);
+                    if (argTypes == null) {
+                        throw new ParserException(functionId + "command option is not valid: " + strCmd);
+                    }
+                    command = CommandStruct.CommandTable.RUN;
+                    parmString = line;
+                } else {
+                    // next, check if it is a standard program command
+                    command = CommandStruct.isValidCommand(strCmd);
+                    if (command == null) {
+                        // lastly, check for variable names in the case of an assignment statement
+                        VariableExtract parmInfo = new VariableExtract(line);
+                        String parmName = parmInfo.getName();
+                        String parmEqu  = parmInfo.getEquality();
+                        String parmCalc = parmInfo.getEvaluation();
+                        if (parmInfo.isEquation() && parmName != null && parmCalc != null) {
+                            command = CommandStruct.CommandTable.SET;
+                            parmString = parmName + " " + parmEqu + " " + parmCalc;
+                        }
+                    }
+                }
+
                 if (command == null) {
-                    // lastly, check for variable names in the case of an assignment statement
-                    VariableExtract parmInfo = new VariableExtract(line);
-                    String parmName = parmInfo.getName();
-                    String parmEqu  = parmInfo.getEquality();
-                    String parmCalc = parmInfo.getEvaluation();
-                    if (parmInfo.isEquation() && parmName != null && parmCalc != null) {
-                        command = CommandStruct.CommandTable.SET;
-                        parmString = parmName + " " + parmEqu + " " + parmCalc;
-                    }
+                    throw new ParserException(functionId + lineInfo + "Invalid command " + strCmd);
                 }
-            }
-            
-            if (command == null) {
-                throw new ParserException(functionId + lineInfo + "Invalid command " + strCmd);
-            }
 
-            // 'parmString' is a string containing the arguments following the command
-            // 'cmdStruct'  will receive the command, with the arguments yet to be placed.
-            cmdStruct = new CommandStruct(command, lineNum);
-            ArrayList<String> listParms;
-            
-            // extract the arguments to pass to the command
-            frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
-            boolean bParamAssign = (CommandStruct.CommandTable.SET == command);
-            cmdStruct.params = packParameters (parmString, bParamAssign);
-            ParameterStruct.showParamTypeList(cmdStruct.params);
+                // 'parmString' is a string containing the arguments following the command
+                // 'cmdStruct'  will receive the command, with the arguments yet to be placed.
+                cmdStruct = new CommandStruct(command, lineNum);
+                ArrayList<String> listParms;
 
-            // now let's check for valid command keywords and extract the arguments
-            //  into the cmdStruct structure.
-            switch (cmdStruct.command) {
-                case CommandStruct.CommandTable.EXIT:
-                    bExit = true;
-                    break;
-                case PRINT:
-                    // we print anything, so no checking
-                    break;
-                case DIRECTORY:
-                    // verify 1 String argument: directory & 1 optional String -d or -f
-                    checkArgTypes(cmdStruct, "Ss", cmdIndex);
-                    break;
-                case CD:
-                    // verify 1 String argument: directory
-                    checkArgTypes(cmdStruct, "S", cmdIndex);
-                    break;
-                case FCREATER:
-                    // verify 1 String argument: file name
-                    checkArgTypes(cmdStruct, "S", cmdIndex);
-                    break;
-                case FEXISTS:
-                    // verify 1 String argument: file name & 1 optional argument String: READABLE / WRITABLE / DIRECTORY
-                    checkArgTypes(cmdStruct, "Ss", cmdIndex);
-                    break;
-                case FDELETE:
-                    // verify 1 String argument: file name
-                    checkArgTypes(cmdStruct, "S", cmdIndex);
-                    break;
-                case FCREATEW:
-                    // verify 1 String argument: file name
-                    checkArgTypes(cmdStruct, "S", cmdIndex);
-                    break;
-                case FOPENR:
-                    // verify 1 String argument: file name
-                    checkArgTypes(cmdStruct, "S", cmdIndex);
-                    break;
-                case FOPENW:
-                    // verify 1 String argument: file name
-                    checkArgTypes(cmdStruct, "S", cmdIndex);
-                    break;
-                case FCLOSE:
-                    // verify 1 String argument: file name
-                    checkArgTypes(cmdStruct, "S", cmdIndex);
-                    break;
-                case FREAD:
-                    // verify 1 optional number of lines to read
-                    checkArgTypes(cmdStruct, "u", cmdIndex);
-                    if (cmdStruct.params.isEmpty()) {
-                        // argument is missing, supply the default value
-                        ParameterStruct lines = new ParameterStruct("1",
-                                                ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.Unsigned);
-                        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + cmdStruct.params.size() + "]: type Unsigned value: 1");
-                        cmdStruct.params.add(lines);
-                    } else {
-                        Long count = cmdStruct.params.get(0).getIntegerValue();
-                        if (count == null || count < 1) {
-                            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Count value missing or < 0");
-                        }
-                    }
-                    break;
-                case FWRITE:
-                    // verify 1 argument: message to write
-                    checkArgTypes(cmdStruct, "S", cmdIndex);
-                    break;
-                case ALLOCATE:
-                    // must be a Data Type followed by a List of Variable name entries
-                    checkArgTypes(cmdStruct, "SL", cmdIndex);
+                // extract the arguments to pass to the command
+                frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
+                boolean bParamAssign = (CommandStruct.CommandTable.SET == command);
+                cmdStruct.params = packParameters (parmString, bParamAssign);
+                ParameterStruct.showParamTypeList(cmdStruct.params);
 
-                    // get the data type first
-                    String dataType = cmdStruct.params.get(0).getStringValue();
-                    
-                    // this defines the Variable names, and must be done prior to their use.
-                    // This Compile method will allocate them, so the Execute does not need
-                    //  to do anything with this command.
-                    // Multiple Variables can be defined on one line, with the names comma separated.
-                    ParameterStruct list = cmdStruct.params.get(1);
-                    for (int ix = 0; ix < list.getStrArraySize(); ix++) {
-                        String pName = list.getStrArrayElement(ix);
-                        try {
-                            // allocate the Variable
-                            Variables.allocateVariable(dataType, pName);
-                        } catch (ParserException exMsg) {
-                            throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
-                        }
-                    }
-                    break;
-                case CommandStruct.CommandTable.SET:
-                    // we pack parameters differently for calculations, so if the param
-                    //  is a numeric parameter and it is more than a simple assignment to
-                    //  a discrete value or a single parameter reference, let's pepack.
-                    // The arguments are: ParamName = Calculation
-                    ParameterStruct.ParamType ptype = Variables.getVariableTypeFromName(parmString);
-                    if (cmdStruct.params.size() > 3) {
-                        switch (ptype) {
-                            case ParameterStruct.ParamType.Integer,
-                                 ParameterStruct.ParamType.Unsigned,
-                                 ParameterStruct.ParamType.Boolean -> {
-                                cmdStruct.params = packCalculation (parmString, ptype);
+                // now let's check for valid command keywords and extract the arguments
+                //  into the cmdStruct structure.
+                switch (cmdStruct.command) {
+                    case CommandStruct.CommandTable.EXIT:
+                        bExit = true;
+                        break;
+                    case PRINT:
+                        // we print anything, so no checking
+                        break;
+                    case DIRECTORY:
+                        // verify 1 String argument: directory & 1 optional String -d or -f
+                        checkArgTypes(cmdStruct, "Ss", cmdIndex);
+                        break;
+                    case CD:
+                        // verify 1 String argument: directory
+                        checkArgTypes(cmdStruct, "S", cmdIndex);
+                        break;
+                    case FCREATER:
+                        // verify 1 String argument: file name
+                        checkArgTypes(cmdStruct, "S", cmdIndex);
+                        break;
+                    case FEXISTS:
+                        // verify 1 String argument: file name & 1 optional argument String: READABLE / WRITABLE / DIRECTORY
+                        checkArgTypes(cmdStruct, "Ss", cmdIndex);
+                        break;
+                    case FDELETE:
+                        // verify 1 String argument: file name
+                        checkArgTypes(cmdStruct, "S", cmdIndex);
+                        break;
+                    case FCREATEW:
+                        // verify 1 String argument: file name
+                        checkArgTypes(cmdStruct, "S", cmdIndex);
+                        break;
+                    case FOPENR:
+                        // verify 1 String argument: file name
+                        checkArgTypes(cmdStruct, "S", cmdIndex);
+                        break;
+                    case FOPENW:
+                        // verify 1 String argument: file name
+                        checkArgTypes(cmdStruct, "S", cmdIndex);
+                        break;
+                    case FCLOSE:
+                        // verify 1 String argument: file name
+                        checkArgTypes(cmdStruct, "S", cmdIndex);
+                        break;
+                    case FREAD:
+                        // verify 1 optional number of lines to read
+                        checkArgTypes(cmdStruct, "u", cmdIndex);
+                        if (cmdStruct.params.isEmpty()) {
+                            // argument is missing, supply the default value
+                            ParameterStruct lines = new ParameterStruct("1",
+                                                    ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.Unsigned);
+                            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + cmdStruct.params.size() + "]: type Unsigned value: 1");
+                            cmdStruct.params.add(lines);
+                        } else {
+                            Long count = cmdStruct.params.get(0).getIntegerValue();
+                            if (count == null || count < 1) {
+                                throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Count value missing or < 0");
                             }
-                            case ParameterStruct.ParamType.String -> {
-                                cmdStruct.params = packStringConcat (cmdStruct.params, 2);
+                        }
+                        break;
+                    case FWRITE:
+                        // verify 1 argument: message to write
+                        checkArgTypes(cmdStruct, "S", cmdIndex);
+                        break;
+                    case ALLOCATE:
+                        // must be a Data Type followed by a List of Variable name entries
+                        checkArgTypes(cmdStruct, "SL", cmdIndex);
+
+                        // get the data type first
+                        String dataType = cmdStruct.params.get(0).getStringValue();
+                        if (ParameterStruct.checkParamType (dataType) == null) {
+                            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : invalid data type: " + dataType);
+                        }
+
+                        // this defines the Variable names, and must be done prior to their use.
+                        // This Compile method will allocate them, so the Execute does not need
+                        //  to do anything with this command.
+                        // Multiple Variables can be defined on one line, with the names comma separated.
+                        ParameterStruct list = cmdStruct.params.get(1);
+                        for (int ix = 0; ix < list.getStrArraySize(); ix++) {
+                            String pName = list.getStrArrayElement(ix);
+                            try {
+                                // allocate the Variable
+                                Variables.allocateVariable(dataType, pName);
+                            } catch (ParserException exMsg) {
+                                throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
+                            }
+                        }
+                        break;
+                    case CommandStruct.CommandTable.SET:
+                        // we pack parameters differently for calculations, so if the param
+                        //  is a numeric parameter and it is more than a simple assignment to
+                        //  a discrete value or a single parameter reference, let's pepack.
+                        // The arguments are: ParamName = Calculation
+                        ParameterStruct.ParamType ptype = Variables.getVariableTypeFromName(parmString);
+                        if (cmdStruct.params.size() > 3) {
+                            switch (ptype) {
+                                case ParameterStruct.ParamType.Integer,
+                                     ParameterStruct.ParamType.Unsigned,
+                                     ParameterStruct.ParamType.Boolean -> {
+                                    cmdStruct.params = packCalculation (parmString, ptype);
+                                }
+                                case ParameterStruct.ParamType.String -> {
+                                    cmdStruct.params = packStringConcat (cmdStruct.params, 2);
+                                }
+                                default -> {
+                                    // Strings are handled in the execution phase
+                                    // Arrays are not allowed to have any operations, just simple assignments
+                                }
+                            }
+                        }
+                        break;
+
+                    // these are the Array-only commands
+                    case CommandStruct.CommandTable.INSERT:
+                    case CommandStruct.CommandTable.APPEND:
+                        // ARGS: ParamName, Value (String or Integer)
+                        ParameterStruct.ParamType argtype;
+                        String varName;
+                        if (cmdStruct.params.size() < 2) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing arguments: " + parmString);
+                        }
+                        ParameterStruct param1 = cmdStruct.params.get(0);
+                        ParameterStruct param2 = cmdStruct.params.get(1);
+                        varName = param1.getStringValue();
+                        argtype = param2.getParamType();
+                        ptype = Variables.getVariableTypeFromName(varName);
+                        switch (ptype) {
+                            case IntArray -> {
+                                if (cmdStruct.params.size() > 2) {
+                                    cmdStruct.params = packCalculation (parmString, ptype);
+                                } else {
+                                    if (argtype != ParameterStruct.ParamType.Integer &&
+                                        argtype != ParameterStruct.ParamType.Unsigned) {
+                                        throw new ParserException(functionId + lineInfo + cmdStruct.command +
+                                                " command has mismatched data type for reference Variable: " + parmString);
+                                    }
+                                }
+                            }
+                            case StrArray -> {
+                                if (cmdStruct.params.size() > 2) {
+                                    cmdStruct.params = packStringConcat (cmdStruct.params, 1);
+                                } else {
+                                    if (argtype != ParameterStruct.ParamType.String) {
+                                        throw new ParserException(functionId + lineInfo + cmdStruct.command +
+                                                " command has mismatched data type for reference Variable: " + parmString);
+                                    }
+                                }
                             }
                             default -> {
-                                // Strings are handled in the execution phase
-                                // Arrays are not allowed to have any operations, just simple assignments
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
                             }
                         }
-                    }
-                    break;
+                        break;
 
-                // these are the Array-only commands
-                case CommandStruct.CommandTable.INSERT:
-                case CommandStruct.CommandTable.APPEND:
-                    // ARGS: ParamName, Value (String or Integer)
-                    ParameterStruct.ParamType argtype;
-                    String varName;
-                    if (cmdStruct.params.size() < 2) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing arguments: " + parmString);
-                    }
-                    ParameterStruct param1 = cmdStruct.params.get(0);
-                    ParameterStruct param2 = cmdStruct.params.get(1);
-                    varName = param1.getStringValue();
-                    argtype = param2.getParamType();
-                    ptype = Variables.getVariableTypeFromName(varName);
-                    switch (ptype) {
-                        case IntArray -> {
-                            if (cmdStruct.params.size() > 2) {
-                                cmdStruct.params = packCalculation (parmString, ptype);
-                            } else {
-                                if (argtype != ParameterStruct.ParamType.Integer &&
-                                    argtype != ParameterStruct.ParamType.Unsigned) {
-                                    throw new ParserException(functionId + lineInfo + cmdStruct.command +
-                                            " command has mismatched data type for reference Variable: " + parmString);
-                                }
-                            }
+                    case CommandStruct.CommandTable.MODIFY:
+                        // ParamName, Index (Integer), Value (String or Integer)
+                        // verify there are the correct number and type of arguments
+                        if (cmdStruct.params.size() != 3) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 3 arguments : " + parmString);
                         }
-                        case StrArray -> {
-                            if (cmdStruct.params.size() > 2) {
-                                cmdStruct.params = packStringConcat (cmdStruct.params, 1);
-                            } else {
-                                if (argtype != ParameterStruct.ParamType.String) {
-                                    throw new ParserException(functionId + lineInfo + cmdStruct.command +
-                                            " command has mismatched data type for reference Variable: " + parmString);
-                                }
-                            }
-                        }
-                        default -> {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
-                        }
-                    }
-                    break;
-
-                case CommandStruct.CommandTable.MODIFY:
-                    // ParamName, Index (Integer), Value (String or Integer)
-                    // verify there are the correct number and type of arguments
-                    if (cmdStruct.params.size() != 3) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 3 arguments : " + parmString);
-                    }
-                    ParameterStruct param3;
-                    param1 = cmdStruct.params.get(0);
-                    param2 = cmdStruct.params.get(1);
-                    param3 = cmdStruct.params.get(2);
-                    if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
-                    }
-                    if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
-                        param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
-                    }
-                    ptype = Variables.getVariableTypeFromName(param1.getStringValue());
-                    argtype = param3.getParamType();
-                    switch (ptype) {
-                        case IntArray -> {
-                            if (argtype != ParameterStruct.ParamType.Integer &&
-                                argtype != ParameterStruct.ParamType.Unsigned) {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
-                            }
-                    }
-                        case StrArray -> {
-                            if (argtype != ParameterStruct.ParamType.String) {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
-                            }
-                    }
-                        default -> throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
-                    }
-                    break;
-
-                case CommandStruct.CommandTable.REMOVE:
-                    // ParamName, Index (Integer)
-                    // verify there are the correct number and type of arguments
-                    if (cmdStruct.params.size() != 2) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 arguments : " + parmString);
-                    }
-                    param1 = cmdStruct.params.get(0);
-                    param2 = cmdStruct.params.get(1);
-                    if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
-                    }
-                    if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
-                        param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
-                    }
-                    ptype = Variables.getVariableTypeFromName(param1.getStringValue());
-                    if (ptype != ParameterStruct.ParamType.IntArray &&
-                        ptype != ParameterStruct.ParamType.StrArray) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
-                    }
-                    break;
-
-                case CommandStruct.CommandTable.TRUNCATE:
-                case CommandStruct.CommandTable.POP:
-                    // ParamName, Index (Integer - optional)
-                    // verify there are the correct number and type of arguments
-                    if (cmdStruct.params.size() != 1 && cmdStruct.params.size() != 2) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 arguments : " + parmString);
-                    }
-                    param1 = cmdStruct.params.get(0);
-                    if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
-                    }
-                    ptype = Variables.getVariableTypeFromName(param1.getStringValue());
-                    if (ptype != ParameterStruct.ParamType.IntArray &&
-                        ptype != ParameterStruct.ParamType.StrArray) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
-                    }
-                    if (cmdStruct.params.size() == 2) {
+                        ParameterStruct param3;
+                        param1 = cmdStruct.params.get(0);
                         param2 = cmdStruct.params.get(1);
+                        param3 = cmdStruct.params.get(2);
+                        if (param1.getParamType() != ParameterStruct.ParamType.String) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
+                        }
                         if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
                             param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
                         }
-                    }
-                    break;
-
-                case CLEAR:
-                    // ARGS: 0 = ParamName
-                    // verify there are the correct number and type of arguments
-                    if (cmdStruct.params.size() != 1) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 1 argument : " + parmString);
-                    }
-                    param1 = cmdStruct.params.get(0);
-                    if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
-                    }
-                    ptype = Variables.getVariableTypeFromName(param1.getStringValue());
-                    if (ptype == null && ! param1.getStringValue().contentEquals("RESPONSE")) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
-                    }
-                    break;
-                    
-                case FILTER:
-                    // ARGS: 0 = ParamName or RESET, 1 (optional) the filter string
-                    // verify there are the correct number and type of arguments
-                    if (cmdStruct.params.size() < 1) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires at least 1 argument : " + parmString);
-                    }
-                    param1 = cmdStruct.params.get(0);
-                    if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable name or RESET: " + parmString);
-                    }
-                    // if entry was RESET, no more checking to do
-                    if (! param1.getStringValue().contentEquals("RESET")) {
                         ptype = Variables.getVariableTypeFromName(param1.getStringValue());
-                        if (ptype == null) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + " variable: " + param1.getStringValue());
-                        }
-                        // we should also have 1 or 2 more arguments
+                        argtype = param3.getParamType();
                         switch (ptype) {
-                            case ParameterStruct.ParamType.StrArray:
-                                // String Array should have an additional String argument representing the filter to use
-                                // and an optional String argument that can modify how the filter works:
-                                //   If the 1st char is a '!', it means to filter out entries that DO match the pattern
-                                //   (otherwise it filters out those that DO NOT match the pattern).
-                                //   If there is more to the string, it must be either LEFT or RIGHT. LEFT means the pattern
-                                //   must be at the start of the string entry and RIGHT means it must be at the end.
-                                //   This allows the following options: !, !LEFT, !RIGHT, LEFT, RIGHT
-                                // If neither LEFT or RIGHT is specified, it simply searches for a pattern match anywhere
-                                //   in the entry.
-                                if (cmdStruct.params.size() < 2 || cmdStruct.params.size() > 3) {
-                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 or 3 arguments for StrArrays: " + parmString);
+                            case IntArray -> {
+                                if (argtype != ParameterStruct.ParamType.Integer &&
+                                    argtype != ParameterStruct.ParamType.Unsigned) {
+                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
                                 }
-                                param2 = cmdStruct.params.get(1);
-                                if (param2.getParamType() != ParameterStruct.ParamType.String) {
-                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 2nd argument must be String (filter value)" + parmString);
+                        }
+                            case StrArray -> {
+                                if (argtype != ParameterStruct.ParamType.String) {
+                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
                                 }
-                                if (cmdStruct.params.size() == 3) {
+                        }
+                            default -> throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
+                        }
+                        break;
+
+                    case CommandStruct.CommandTable.REMOVE:
+                        // ParamName, Index (Integer)
+                        // verify there are the correct number and type of arguments
+                        if (cmdStruct.params.size() != 2) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 arguments : " + parmString);
+                        }
+                        param1 = cmdStruct.params.get(0);
+                        param2 = cmdStruct.params.get(1);
+                        if (param1.getParamType() != ParameterStruct.ParamType.String) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
+                        }
+                        if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
+                            param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
+                        }
+                        ptype = Variables.getVariableTypeFromName(param1.getStringValue());
+                        if (ptype != ParameterStruct.ParamType.IntArray &&
+                            ptype != ParameterStruct.ParamType.StrArray) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
+                        }
+                        break;
+
+                    case CommandStruct.CommandTable.TRUNCATE:
+                    case CommandStruct.CommandTable.POP:
+                        // ParamName, Index (Integer - optional)
+                        // verify there are the correct number and type of arguments
+                        if (cmdStruct.params.size() != 1 && cmdStruct.params.size() != 2) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 arguments : " + parmString);
+                        }
+                        param1 = cmdStruct.params.get(0);
+                        if (param1.getParamType() != ParameterStruct.ParamType.String) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
+                        }
+                        ptype = Variables.getVariableTypeFromName(param1.getStringValue());
+                        if (ptype != ParameterStruct.ParamType.IntArray &&
+                            ptype != ParameterStruct.ParamType.StrArray) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
+                        }
+                        if (cmdStruct.params.size() == 2) {
+                            param2 = cmdStruct.params.get(1);
+                            if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
+                                param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
+                            }
+                        }
+                        break;
+
+                    case CLEAR:
+                        // ARGS: 0 = ParamName
+                        // verify there are the correct number and type of arguments
+                        if (cmdStruct.params.size() != 1) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 1 argument : " + parmString);
+                        }
+                        param1 = cmdStruct.params.get(0);
+                        if (param1.getParamType() != ParameterStruct.ParamType.String) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
+                        }
+                        ptype = Variables.getVariableTypeFromName(param1.getStringValue());
+                        if (ptype == null && ! param1.getStringValue().contentEquals("RESPONSE")) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
+                        }
+                        break;
+
+                    case FILTER:
+                        // ARGS: 0 = ParamName or RESET, 1 (optional) the filter string
+                        // verify there are the correct number and type of arguments
+                        if (cmdStruct.params.size() < 1) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires at least 1 argument : " + parmString);
+                        }
+                        param1 = cmdStruct.params.get(0);
+                        if (param1.getParamType() != ParameterStruct.ParamType.String) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable name or RESET: " + parmString);
+                        }
+                        // if entry was RESET, no more checking to do
+                        if (! param1.getStringValue().contentEquals("RESET")) {
+                            ptype = Variables.getVariableTypeFromName(param1.getStringValue());
+                            if (ptype == null) {
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + " variable: " + param1.getStringValue());
+                            }
+                            // we should also have 1 or 2 more arguments
+                            switch (ptype) {
+                                case ParameterStruct.ParamType.StrArray:
+                                    // String Array should have an additional String argument representing the filter to use
+                                    // and an optional String argument that can modify how the filter works:
+                                    //   If the 1st char is a '!', it means to filter out entries that DO match the pattern
+                                    //   (otherwise it filters out those that DO NOT match the pattern).
+                                    //   If there is more to the string, it must be either LEFT or RIGHT. LEFT means the pattern
+                                    //   must be at the start of the string entry and RIGHT means it must be at the end.
+                                    //   This allows the following options: !, !LEFT, !RIGHT, LEFT, RIGHT
+                                    // If neither LEFT or RIGHT is specified, it simply searches for a pattern match anywhere
+                                    //   in the entry.
+                                    if (cmdStruct.params.size() < 2 || cmdStruct.params.size() > 3) {
+                                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 or 3 arguments for StrArrays: " + parmString);
+                                    }
+                                    param2 = cmdStruct.params.get(1);
+                                    if (param2.getParamType() != ParameterStruct.ParamType.String) {
+                                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 2nd argument must be String (filter value)" + parmString);
+                                    }
+                                    if (cmdStruct.params.size() == 3) {
+                                        param3 = cmdStruct.params.get(2);
+                                        switch (param3.getStringValue()) {
+                                            case "!":
+                                            case "!LEFT":
+                                            case "!RIGHT":
+                                            case "LEFT":
+                                            case "RIGHT":
+                                                break;
+                                            default:
+                                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 2nd argument invalid: " + parmString);
+                                        }
+                                    }
+                                    break;
+                                case ParameterStruct.ParamType.IntArray:
+                                    // Int Array should have 2 arguments: the compare sign { ==, !=, >=, <=, >, < } and the Integer value
+                                    if (cmdStruct.params.size() != 3) {
+                                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 3 arguments for IntArrays: " + parmString);
+                                    }
+                                    param2 = cmdStruct.params.get(1);
                                     param3 = cmdStruct.params.get(2);
-                                    switch (param3.getStringValue()) {
-                                        case "!":
-                                        case "!LEFT":
-                                        case "!RIGHT":
-                                        case "LEFT":
-                                        case "RIGHT":
+                                    switch (param2.getStringValue()) {
+                                        case "==":
+                                        case "!=":
+                                        case ">=":
+                                        case "<=":
+                                        case ">":
+                                        case "<":
                                             break;
                                         default:
                                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 2nd argument invalid: " + parmString);
                                     }
-                                }
-                                break;
-                            case ParameterStruct.ParamType.IntArray:
-                                // Int Array should have 2 arguments: the compare sign { ==, !=, >=, <=, >, < } and the Integer value
-                                if (cmdStruct.params.size() != 3) {
-                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 3 arguments for IntArrays: " + parmString);
-                                }
-                                param2 = cmdStruct.params.get(1);
-                                param3 = cmdStruct.params.get(2);
-                                switch (param2.getStringValue()) {
-                                    case "==":
-                                    case "!=":
-                                    case ">=":
-                                    case "<=":
-                                    case ">":
-                                    case "<":
-                                        break;
-                                    default:
-                                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 2nd argument invalid: " + parmString);
-                                }
-                                if (param3.getParamType() != ParameterStruct.ParamType.Integer) {
-                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 3rd argument must be Integer type: " + parmString);
-                                }
-                                break;
-                            default:
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
+                                    if (param3.getParamType() != ParameterStruct.ParamType.Integer) {
+                                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 3rd argument must be Integer type: " + parmString);
+                                    }
+                                    break;
+                                default:
+                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
+                            }
                         }
-                    }
-                    break;
-                    
-                case CommandStruct.CommandTable.IF:
-                    // verify number and type of arguments
-                    cmdStruct.params = packComparison (parmString);
-                    ParameterStruct.showParamTypeList(cmdStruct.params);
+                        break;
 
-                    // read the arguments passed
-                    // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Variables)
-                    String ifName = cmdStruct.params.get(0).getStringValue();
+                    case CommandStruct.CommandTable.IF:
+                        // verify number and type of arguments
+                        cmdStruct.params = packComparison (parmString);
+                        ParameterStruct.showParamTypeList(cmdStruct.params);
 
-                    // if not first IF statement, make sure previous IF had an ENDIF
-                    IFStruct ifInfo;
-                    if (!IFStruct.isIfListEnpty() && !IFStruct.isIfStackEnpty()) {
+                        // read the arguments passed
+                        // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Variables)
+                        String ifName = cmdStruct.params.get(0).getStringValue();
+
+                        // if not first IF statement, make sure previous IF had an ENDIF
+                        IFStruct ifInfo;
+                        if (!IFStruct.isIfListEnpty() && !IFStruct.isIfStackEnpty()) {
+                            ifInfo = IFStruct.getIfListEntry();
+                            if (!ifInfo.isValid()) {
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when previous IF has no matching ENDIF");
+                            }
+                        }
+
+                        // add entry to the current loop stack
+                        ifInfo = new IFStruct (cmdIndex, LoopStruct.getStackSize());
+                        IFStruct.ifListPush(ifInfo);
+                        IFStruct.stackPush(cmdIndex);
+                        frame.outputInfoMsg(STATUS_COMPILE, "   - new IF level " + IFStruct.getStackSize() + " Variable " + ifName);
+                        break;
+                    case CommandStruct.CommandTable.ELSE:
+                        if (IFStruct.isIfListEnpty()) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
+                        }
+                        // save the current command index in the current if structure
                         ifInfo = IFStruct.getIfListEntry();
-                        if (!ifInfo.isValid()) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when previous IF has no matching ENDIF");
+                        ifInfo.setElseIndex(cmdIndex, false, LoopStruct.getStackSize());
+                        frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
+                        break;
+                    case CommandStruct.CommandTable.ELSEIF:
+                        if (IFStruct.isIfStackEnpty()) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
                         }
-                    }
-                    
-                    // add entry to the current loop stack
-                    ifInfo = new IFStruct (cmdIndex, LoopStruct.getStackSize());
-                    IFStruct.ifListPush(ifInfo);
-                    IFStruct.stackPush(cmdIndex);
-                    frame.outputInfoMsg(STATUS_COMPILE, "   - new IF level " + IFStruct.getStackSize() + " Variable " + ifName);
-                    break;
-                case CommandStruct.CommandTable.ELSE:
-                    if (IFStruct.isIfListEnpty()) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
-                    }
-                    // save the current command index in the current if structure
-                    ifInfo = IFStruct.getIfListEntry();
-                    ifInfo.setElseIndex(cmdIndex, false, LoopStruct.getStackSize());
-                    frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
-                    break;
-                case CommandStruct.CommandTable.ELSEIF:
-                    if (IFStruct.isIfStackEnpty()) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
-                    }
-                    
-                    // read the arguments passed
-                    // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Variables)
-                    cmdStruct.params = packComparison (parmString);
-                    ifName = cmdStruct.params.get(0).getStringValue();
-                    
-                    // save the current command index in the current if structure
-                    ifInfo = IFStruct.getIfListEntry();
-                    ifInfo.setElseIndex(cmdIndex, true, LoopStruct.getStackSize());
-                    frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " Variable " + ifName);
-                    break;
-                case CommandStruct.CommandTable.ENDIF:
-                    if (IFStruct.isIfStackEnpty()) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
-                    }
-                    // save the current command index in the current if structure
-                    ifInfo = IFStruct.getIfListEntry();
-                    ifInfo.setEndIfIndex(cmdIndex, LoopStruct.getStackSize());
-                    IFStruct.stackPop();
-                    frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
-                    break;
-                case CommandStruct.CommandTable.FOR:
-                    // read the arguments passed
-                    // assumed format is: FOR Name = StartIx ; < EndIx ; IncrVal
-                    // (and trailing "; IncrVal" is optional)
-                    listParms = extractUserParams ("S=I;CI;I", parmString);
-                    if (listParms.size() < 4) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing parameters");
-                    } else if (listParms.size() < 5) {
-                        listParms.add("1"); // use 1 as a default value
-                        frame.outputInfoMsg(STATUS_COMPILE, "    (using default step size of 1)");
-                    }
 
-                    // get the parameters and format them for use
-                    String loopStart, loopEnd, loopStep;
-                    String loopName, loopComp;
-                    loopName  = listParms.get(0);
-                    loopStart = listParms.get(1);
-                    loopComp  = listParms.get(2);
-                    loopEnd   = listParms.get(3);
-                    loopStep  = listParms.get(4);
+                        // read the arguments passed
+                        // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Variables)
+                        cmdStruct.params = packComparison (parmString);
+                        ifName = cmdStruct.params.get(0).getStringValue();
 
-                    // create a new loop ID (name + command index) for the entry and add it
-                    // to the list of IDs for the loop parameter name
-                    LoopId loopId = new LoopId(loopName, cmdIndex);
-                    LoopStruct loopInfo;
-                    try {
-                        loopInfo = new LoopStruct (loopName, loopStart, loopEnd, loopStep, loopComp, cmdIndex, IFStruct.getStackSize());
-                    } catch (ParserException exMsg) {
-                        throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
-                    }
-                    LoopParam.saveLoopParameter (loopName, loopId, loopInfo);
-                    
-                    // add entry to the current loop stack
-                    LoopStruct.pushStack(loopId);
-                    frame.outputInfoMsg(STATUS_COMPILE, "   - new FOR Loop level " + LoopStruct.getStackSize() + " Variable " + loopName + " index @ " + cmdIndex);
-                    break;
-                case CommandStruct.CommandTable.BREAK:
-                    // make sure we are in a FOR ... NEXT loop
-                    if (LoopStruct.getStackSize() == 0) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
-                    }
-                    // verify the IF loop level hasn't been exceeded
-                    LoopId curLoop = LoopStruct.peekStack();
-                    LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
-                    break;
-                case CommandStruct.CommandTable.CONTINUE:
-                    // make sure we are in a FOR ... NEXT loop
-                    if (LoopStruct.getStackSize() == 0) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
-                    }
-                    // verify the IF loop level hasn't been exceeded
-                    curLoop = LoopStruct.peekStack();
-                    LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
-                    break;
-                case CommandStruct.CommandTable.NEXT:
-                    // make sure we are in a FOR ... NEXT loop
-                    if (LoopStruct.getStackSize() == 0) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
-                    }
-                    // verify the IF loop level hasn't been exceeded
-                    curLoop = LoopStruct.peekStack();
-                    LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
-                    break;
-                case CommandStruct.CommandTable.ENDFOR:
-                    // make sure we are in a FOR ... NEXT loop
-                    if (LoopStruct.getStackSize() == 0) {
-                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
-                    }
-                    // store line location in labelsMap
-                    curLoop = LoopStruct.peekStack();
-                    LoopParam.setLoopEndIndex(cmdList.size(), curLoop);
+                        // save the current command index in the current if structure
+                        ifInfo = IFStruct.getIfListEntry();
+                        ifInfo.setElseIndex(cmdIndex, true, LoopStruct.getStackSize());
+                        frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " Variable " + ifName);
+                        break;
+                    case CommandStruct.CommandTable.ENDIF:
+                        if (IFStruct.isIfStackEnpty()) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
+                        }
+                        // save the current command index in the current if structure
+                        ifInfo = IFStruct.getIfListEntry();
+                        ifInfo.setEndIfIndex(cmdIndex, LoopStruct.getStackSize());
+                        IFStruct.stackPop();
+                        frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
+                        break;
+                    case CommandStruct.CommandTable.FOR:
+                        // read the arguments passed
+                        // assumed format is: FOR Name = StartIx ; < EndIx ; IncrVal
+                        // (and trailing "; IncrVal" is optional)
+                        listParms = extractUserParams ("S=I;CI;I", parmString);
+                        if (listParms.size() < 4) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing parameters");
+                        } else if (listParms.size() < 5) {
+                            listParms.add("1"); // use 1 as a default value
+                            frame.outputInfoMsg(STATUS_COMPILE, "    (using default step size of 1)");
+                        }
 
-                    // remove entry from loop stack
-                    LoopStruct.popStack();
-                    break;
-                case CommandStruct.CommandTable.RUN:
-                    // verify the option command and its parameters
-                    // NOTE: when we place the command in cmdStruct, we remove the RUN label,
-                    //       so executeProgramCommand does not need to check for it.
-                    ArrayList<String> optCmd = new ArrayList<>(Arrays.asList(parmString.split(" ")));
-                    ArrayList<CommandStruct> runList = cmdOptionParser.formatCmdOptions (optCmd, lineNum);
-                    
-                    // append all option commands on the line to the command list, 1 option per command line
-                    while (! runList.isEmpty()) {
-                        cmdList.add(runList.removeFirst());
-                    }
-                    cmdStruct = null; // clear this since we have copied all the commands from here
-                    break;
+                        // get the parameters and format them for use
+                        String loopStart, loopEnd, loopStep;
+                        String loopName, loopComp;
+                        loopName  = listParms.get(0);
+                        loopStart = listParms.get(1);
+                        loopComp  = listParms.get(2);
+                        loopEnd   = listParms.get(3);
+                        loopStep  = listParms.get(4);
 
-                default:
-                    throw new ParserException(functionId + lineInfo + "Unknown command: " + cmdStruct.command);
-            }
+                        // create a new loop ID (name + command index) for the entry and add it
+                        // to the list of IDs for the loop parameter name
+                        LoopId loopId = new LoopId(loopName, cmdIndex);
+                        LoopStruct loopInfo;
+                        try {
+                            loopInfo = new LoopStruct (loopName, loopStart, loopEnd, loopStep, loopComp, cmdIndex, IFStruct.getStackSize());
+                        } catch (ParserException exMsg) {
+                            throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
+                        }
+                        LoopParam.saveLoopParameter (loopName, loopId, loopInfo);
 
-            // all good, add command to list
-            if (cmdStruct != null) {
-                cmdList.add(cmdStruct);
+                        // add entry to the current loop stack
+                        LoopStruct.pushStack(loopId);
+                        frame.outputInfoMsg(STATUS_COMPILE, "   - new FOR Loop level " + LoopStruct.getStackSize() + " Variable " + loopName + " index @ " + cmdIndex);
+                        break;
+                    case CommandStruct.CommandTable.BREAK:
+                        // make sure we are in a FOR ... NEXT loop
+                        if (LoopStruct.getStackSize() == 0) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
+                        }
+                        // verify the IF loop level hasn't been exceeded
+                        LoopId curLoop = LoopStruct.peekStack();
+                        LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
+                        break;
+                    case CommandStruct.CommandTable.CONTINUE:
+                        // make sure we are in a FOR ... NEXT loop
+                        if (LoopStruct.getStackSize() == 0) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
+                        }
+                        // verify the IF loop level hasn't been exceeded
+                        curLoop = LoopStruct.peekStack();
+                        LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
+                        break;
+                    case CommandStruct.CommandTable.NEXT:
+                        // make sure we are in a FOR ... NEXT loop
+                        if (LoopStruct.getStackSize() == 0) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
+                        }
+                        // verify the IF loop level hasn't been exceeded
+                        curLoop = LoopStruct.peekStack();
+                        LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
+                        break;
+                    case CommandStruct.CommandTable.ENDFOR:
+                        // make sure we are in a FOR ... NEXT loop
+                        if (LoopStruct.getStackSize() == 0) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
+                        }
+                        // store line location in labelsMap
+                        curLoop = LoopStruct.peekStack();
+                        LoopParam.setLoopEndIndex(cmdList.size(), curLoop);
+
+                        // remove entry from loop stack
+                        LoopStruct.popStack();
+                        break;
+                    case CommandStruct.CommandTable.RUN:
+                        // verify the option command and its parameters
+                        // NOTE: when we place the command in cmdStruct, we remove the RUN label,
+                        //       so executeProgramCommand does not need to check for it.
+                        ArrayList<String> optCmd = new ArrayList<>(Arrays.asList(parmString.split(" ")));
+                        ArrayList<CommandStruct> runList = cmdOptionParser.formatCmdOptions (optCmd, lineNum);
+
+                        // append all option commands on the line to the command list, 1 option per command line
+                        while (! runList.isEmpty()) {
+                            cmdList.add(runList.removeFirst());
+                        }
+                        cmdStruct = null; // clear this since we have copied all the commands from here
+                        break;
+
+                    default:
+                        throw new ParserException(functionId + lineInfo + "Unknown command: " + cmdStruct.command);
+                }
+
+                // all good, add command to list
+                if (cmdStruct != null) {
+                    cmdList.add(cmdStruct);
+                }
+            } catch (ParserException exMsg) {
+                String msg = exMsg + "\n  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + line;
+                if (AmazonReader.isRunModeCompileOnly()) {
+                    // if only running compiler, just log the messages but don't exit
+                    frame.outputInfoMsg(STATUS_ERROR, msg);
+                } else {
+                    throw new ParserException(msg);
+                }
             }
         }
         
@@ -668,9 +681,6 @@ public class ScriptCompile {
         cmdList.add(new CommandStruct(CommandStruct.CommandTable.EXIT, lineNum));
         frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "]: EXIT  (appended)");
         return cmdList;
-        } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + line);
-        }
     }
 
     /**

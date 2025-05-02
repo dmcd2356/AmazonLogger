@@ -112,7 +112,7 @@ public class ParseDetails {
                         // now extract date from begining of string
                         LocalDate date = DateFormat.getFormattedDate (line.substring(0, offset), true);
                         if (date == null)
-                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.eKeyId.name() + " date ", line);
+                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.eKeyId.name() + " date: " + line);
                         newOrder.setOrderDate(date);
                         newOrder.setOrderNumber(strOrderNum);
                         frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Order date: " + date.toString());
@@ -125,7 +125,7 @@ public class ParseDetails {
                     case Keyword.KeyTyp.NOW_ARRIVING:
                         LocalDate delivered = DateFormat.getFormattedDate(line, true);
                         if (delivered == null) {
-                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.eKeyId.name() + " date ", line);
+                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.eKeyId.name() + " date: " + line);
                         }
                         if (newItem.isItemDefined()) {
                             frame.outputInfoMsg (UIFrame.STATUS_INFO, "* Added new ITEM in multi-item ORDER");

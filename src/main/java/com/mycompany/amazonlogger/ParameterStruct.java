@@ -126,7 +126,7 @@ public final class ParameterStruct {
             // HARD-CODED ENTRIES:
             String invalidMsg = "Invalid value for '" + dataType + "' type param: " + strValue;
             switch (dataType) {
-                case ParamType.Boolean:
+                case Boolean:
                     if (!strParam.equalsIgnoreCase("TRUE") &&
                         !strParam.equalsIgnoreCase("FALSE") &&
                         !strParam.contentEquals("0") &&
@@ -135,7 +135,7 @@ public final class ParameterStruct {
                     }
                     boolParam = strParam.equalsIgnoreCase("TRUE") || strParam.contentEquals("1");
                     break;
-                case ParamType.Unsigned:
+                case Unsigned:
                     try {
                         longParam = getLongOrUnsignedValue(strParam);
                     } catch (ParserException ex) {
@@ -145,15 +145,15 @@ public final class ParameterStruct {
                         throw new ParserException(functionId + invalidMsg);
                     }
                     break;
-                case ParamType.Integer:
+                case Integer:
                     try {
                         longParam = getLongOrUnsignedValue(strParam);
                     } catch (ParserException ex) {
                         throw new ParserException(functionId + invalidMsg);
                     }
                     break;
-                case ParamType.IntArray:
-                case ParamType.StrArray:
+                case IntArray:
+                case StrArray:
                     // first transfer the array entries to the String Array param
                     strArrayParam = new ArrayList<>(Arrays.asList(strParam.split(",")));
                     intArrayParam = new ArrayList<>();
@@ -181,7 +181,7 @@ public final class ParameterStruct {
                         frame.outputInfoMsg(STATUS_DEBUG, msgGap + "new " + paramType + " size " + strArrayParam.size());
                     }
                     break;
-                case ParamType.String:
+                case String:
                     // the data has already been added to the String entry, so we are done
                     break;
                 default:
@@ -326,7 +326,23 @@ public final class ParameterStruct {
     public boolean isCalculation () {
         return paramClass == ParamClass.Calculation && (calcParam != null);
     }
-       
+
+    /**
+     * determines if the parameter type is valid
+     * 
+     * @param pname - the string name of the parameter type
+     * 
+     * @return the ParamType if value, null if not
+     */
+    public static ParamType checkParamType (String pname) {
+        for (ParamType entry : ParamType.values()) {
+            if (entry.toString().contentEquals(pname)) {
+                return entry;
+            }
+        }
+        return null;
+    }
+    
     /**
      * sets the parameter type value.
      * 

@@ -214,10 +214,10 @@ public class Utils {
         for (offset = 0; offset < line.length() && line.charAt(offset) == ' '; offset++) { }
         line = line.substring(offset);
         if (line.length() == 0) {
-            throw new ParserException(functionId + "no word found", line);
+            throw new ParserException(functionId + "next word not found in line");
         }
         if (line.length() < minlen) {
-            throw new ParserException(functionId + "word < minimum length", line);
+            throw new ParserException(functionId + "word < minimum length of " + minlen + "chars: " + line);
         }
         if (maxlen <= 0) { // this indicates we want the entire length of remaining string
             maxlen = line.length();

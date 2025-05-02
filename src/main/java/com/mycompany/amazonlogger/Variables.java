@@ -106,23 +106,27 @@ public class Variables {
             throw new ParserException(functionId + "Variable " + name + " already defined");
         }
 
-        switch (dataType) {
-            case "Integer":
+        ParameterStruct.ParamType ptype = ParameterStruct.checkParamType (dataType);
+        if (ptype == null) {
+            throw new ParserException(functionId + "Invalid variable type: " + dataType);
+        }
+        switch (ptype) {
+            case Integer:
                 longParams.put(name, 0L);
                 break;
-            case "Unsigned":
+            case Unsigned:
                 uintParams.put(name, 0L);
                 break;
-            case "Boolean":
+            case Boolean:
                 boolParams.put(name, false);
                 break;
-            case "IntArray":
+            case IntArray:
                 VarArray.allocateVariable(name, ParameterStruct.ParamType.IntArray);
                 break;
-            case "StrArray":
+            case StrArray:
                 VarArray.allocateVariable(name, ParameterStruct.ParamType.StrArray);
                 break;
-            case "String":
+            case String:
                 strParams.put(name, "");        // default value to empty String
                 break;
             default:
