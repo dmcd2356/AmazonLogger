@@ -45,7 +45,7 @@ public final class ParameterStruct {
         Boolean,        // 'B' type
         String,         // 'S' type
         IntArray,       // 'A' type
-        StringArray,    // 'L' type
+        StrArray,       // 'L' type
     }
 
     public ParameterStruct() {
@@ -153,7 +153,7 @@ public final class ParameterStruct {
                     }
                     break;
                 case ParamType.IntArray:
-                case ParamType.StringArray:
+                case ParamType.StrArray:
                     // first transfer the array entries to the String Array param
                     strArrayParam = new ArrayList<>(Arrays.asList(strParam.split(",")));
                     intArrayParam = new ArrayList<>();
@@ -164,7 +164,7 @@ public final class ParameterStruct {
                             strArrayParam.set(ix, cleanStr); // remove leading & trailing spaces
                             longParam = getLongOrUnsignedValue(cleanStr);
                             intArrayParam.add(longParam);
-                            if (paramType == ParamType.StringArray) {
+                            if (paramType == ParamType.StrArray) {
                                 // if it was a String Array but was all Integers, reclassify it
                                 paramType = ParamType.IntArray;
                                 paramTypeID = getParamTypeID (paramType);
@@ -339,8 +339,7 @@ public final class ParameterStruct {
             case ParamType.Boolean:     return 'B';
             case ParamType.String:      return 'S';
             case ParamType.IntArray:    return 'A';
-            case ParamType.StringArray: return 'L';
-//            case ParamType.Calculation: return 'C';
+            case ParamType.StrArray:    return 'L';
             default:
                 break;
         }
@@ -428,7 +427,7 @@ public final class ParameterStruct {
                             strValue = strValue.substring(0, 60) + " ... " + strValue.substring(offset);
                         }
                     }
-                    case ParamType.StringArray -> {
+                    case ParamType.StrArray -> {
                         strValue = strArrayParam.toString();
                         if (strValue.length() > 100) {
                             int offset = strValue.length() - 25;
@@ -461,6 +460,11 @@ public final class ParameterStruct {
     /**
      * determines the type of data in a String value.
      * 
+     * Only called in Compile stage, so we don't know the contents of the parameters yet.
+     * This only works on right side parameters because we need to see that
+     *   it starts with a '$' to indicate a parameter, but this is only true
+     *   for parameters when they are not on the left-side of an assignment.
+     * 
      * @param strValue - the String value to check
      * 
      * @return the data type found
@@ -470,28 +474,34 @@ public final class ParameterStruct {
 
         // first check if it is a Variable
         if (strValue.startsWith("$")) {
-            char pType = 'S';
-            if (strValue.charAt(2) == '_') {
-                pType = strValue.charAt(1);
+            // it's a parameter - determine its data type
+            ParamType varType = Variables.getVariableTypeFromName (strValue);
+            switch (varType) {
+                default:
+                case String:    dataType = 'S';    break;
+                case Integer:   dataType = 'I';    break;
+                case Unsigned:  dataType = 'U';    break;
+                case Boolean:   dataType = 'B';    break;
+                case IntArray:  dataType = 'A';    break;
+                case StrArray:  dataType = 'L';    break;
             }
-            dataType = switch (pType) {
-                case 'I', 'U', 'B', 'A', 'L' -> pType;
-                default -> 'S';
-            };
         }
-        else if (strValue.equalsIgnoreCase("TRUE") ||
-                 strValue.equalsIgnoreCase("FALSE")) {
-            dataType = 'B';
-        } else {
-            try {
-                Long longVal = getLongOrUnsignedValue (strValue);
-                dataType = isUnsignedInt(longVal) ? 'U' : 'I';
-            } catch (ParserException ex) {
-                int offset = strValue.indexOf('{');
-                if (offset > 0) {
-                    dataType = 'L'; // NOTE: could also be Array, but let's leave it at List
-                } else {
-                    dataType = 'S';
+        else {
+            // not a parameter, so it must be a discreet value
+            if (strValue.equalsIgnoreCase("TRUE") ||
+                strValue.equalsIgnoreCase("FALSE")) {
+                dataType = 'B';
+            } else {
+                try {
+                    Long longVal = getLongOrUnsignedValue (strValue);
+                    dataType = isUnsignedInt(longVal) ? 'U' : 'I';
+                } catch (ParserException ex) {
+                    int offset = strValue.indexOf('{');
+                    if (offset > 0) {
+                        dataType = 'L'; // NOTE: could also be Array, but let's leave it at List
+                    } else {
+                        dataType = 'S';
+                    }
                 }
             }
         }
@@ -569,40 +579,34 @@ public final class ParameterStruct {
             return;
 //            ptype = parm.get(index).getVariableRefType();
         }
-        boolean bValid = ptype == expType;
+        boolean bValid = (ptype == expType);
         if (! bValid) {
             // check for other alternate types that are allowed and if entry is not null
             switch (expType) {
                 case Integer:
+                    // Integer will also accept Unsigned type
                     if (ptype == ParameterStruct.ParamType.Unsigned)
                         bValid = true;
                     break;
                 case Unsigned:
+                    // Unsigned will also accept Integer type, but may
+                    //  cause error at runtime if value exceeds limits
                     if (ptype == ParameterStruct.ParamType.Integer)
                         bValid = true;
                     break;
-                case Boolean:
-                    break;
-                case String:
-                    break;
                 case IntArray:
-                    switch (ptype) {
-                        case Integer:
-                        case Unsigned:
-                            bValid = true;
-                            break;
-                        default:
-                            break;
+                    // IntArray can also use a single value Integer or Unsigned as entry
+                    if (ptype == ParameterStruct.ParamType.Integer ||
+                        ptype == ParameterStruct.ParamType.Unsigned) {
+                        bValid = true;
                     }
                     break;
-                case StringArray:
-                    switch (ptype) {
-                        case String:
-                        case IntArray:
-                            bValid = true;
-                            break;
-                        default:
-                            break;
+                case StrArray:
+                    // StrArray can also use single value String, and can convert
+                    //  entries in InArray type to String entries.
+                    if (ptype == ParameterStruct.ParamType.String ||
+                        ptype == ParameterStruct.ParamType.IntArray) {
+                        bValid = true;
                     }
                     break;
                 default:
@@ -713,7 +717,7 @@ public final class ParameterStruct {
                 value = "(size " + iArray.size() + ")";
                 bValid = true;
                 break;
-            case StringArray:
+            case StrArray:
                 // we will allow IntArray as well and just copy the data into the StrArray as strings
                 ArrayList<String> sArray = parm.get(index).getStrArray();
                 iArray = parm.get(index).getIntArray();
@@ -763,22 +767,22 @@ public final class ParameterStruct {
      */
     public void updateConversions () throws ParserException {
         switch (paramType) {
-            case ParamType.Integer:
+            case Integer:
                 strParam = longParam.toString();
                 boolParam = longParam != 0;
                 frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
-            case ParamType.Unsigned:
+            case Unsigned:
                 strParam = longParam.toString();
                 boolParam = longParam != 0;
                 frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
-            case ParamType.Boolean:
+            case Boolean:
                 strParam = boolParam.toString();
                 longParam = (boolParam) ? 1L : 0L;
                 frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
-            case ParamType.String:
+            case String:
                 if (!strParam.isBlank()) {
                     if (strParam.equalsIgnoreCase("TRUE")) {
                         boolParam = true;
@@ -807,7 +811,7 @@ public final class ParameterStruct {
                     frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 }
                 break;
-            case ParamType.IntArray:
+            case IntArray:
                 if (intArrayParam.isEmpty()) {
                     strParam = "";
                     longParam = 0L;
@@ -819,7 +823,7 @@ public final class ParameterStruct {
                 }
                 frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
-            case ParamType.StringArray:  // String List type
+            case StrArray:  // String List type
                 if (strArrayParam.isEmpty()) {
                     strParam = "";
                     boolParam = true;

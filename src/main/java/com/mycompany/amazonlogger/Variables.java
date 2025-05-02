@@ -86,11 +86,12 @@ public class Variables {
     /**
      * creates a new entry in the Variable table and sets the initial value.
      * 
-     * @param name  - Variable name
+     * @param dataType - the data type to allocate
+     * @param name     - Variable name
      * 
      * @throws ParserException - if Variable was already defined
      */
-    public static void allocateVariable (String name) throws ParserException {
+    public static void allocateVariable (String dataType, String name) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // first, verify Variable name to make sure it is valid format and
@@ -105,28 +106,29 @@ public class Variables {
             throw new ParserException(functionId + "Variable " + name + " already defined");
         }
 
-        ParameterStruct.ParamType type = getVariableTypeFromName(name);
-        switch (type) {
-            case Integer:
+        switch (dataType) {
+            case "Integer":
                 longParams.put(name, 0L);
                 break;
-            case Unsigned:
+            case "Unsigned":
                 uintParams.put(name, 0L);
                 break;
-            case Boolean:
+            case "Boolean":
                 boolParams.put(name, false);
                 break;
-            case IntArray:
-            case StringArray:
-                VarArray.allocateVariable(name, type);
+            case "IntArray":
+                VarArray.allocateVariable(name, ParameterStruct.ParamType.IntArray);
                 break;
-            case String:
+            case "StrArray":
+                VarArray.allocateVariable(name, ParameterStruct.ParamType.StrArray);
+                break;
+            case "String":
                 strParams.put(name, "");        // default value to empty String
                 break;
             default:
-                break;
+                throw new ParserException(functionId + "Invalid variable type: " + dataType);
         }
-        frame.outputInfoMsg(STATUS_VARS, "   - Allocated " + type.toString() + " variable: " + name);
+        frame.outputInfoMsg(STATUS_VARS, "   - Allocated " + dataType + " variable: " + name);
     }
 
     /**
@@ -250,7 +252,6 @@ public class Variables {
         }
         
         ParameterStruct.ParamType pType = paramInfo.getType();
-        ParameterStruct.ParamType findType;
         Long varValue;
         switch (getVariableClass (name)) {
             // check the reserved params list
@@ -258,7 +259,7 @@ public class Variables {
                 switch (name) {
                     case "RESPONSE":
                         paramValue.setStrArray(VarArray.getResponseValue());
-                        pType = ParameterStruct.ParamType.StringArray;
+                        pType = ParameterStruct.ParamType.StrArray;
                         break;
                     case "STATUS":
                         paramValue.setBooleanValue(bStatus);
@@ -356,7 +357,7 @@ public class Variables {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
                     break;
-                case ParameterStruct.ParamType.StringArray:
+                case ParameterStruct.ParamType.StrArray:
                     if (iStart < paramValue.getStrArraySize()) {
                         paramValue.setStringValue(paramValue.getStrArrayElement(iStart));
                         pType = ParameterStruct.ParamType.String;
@@ -420,7 +421,7 @@ public class Variables {
                     }
                     frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type " + pType + ": " + paramValue.getStringValue());
                     break;
-                case ParameterStruct.ParamType.StringArray:
+                case ParameterStruct.ParamType.StrArray:
                     psize = paramValue.getStrArraySize();
                     String strValue = "";
                     switch (trait) {
@@ -625,45 +626,10 @@ public class Variables {
             frame.outputInfoMsg(STATUS_VARS, "   - Deleted IntArray Variable: " + name);
         }
         if (VarArray.isStrArray(name)) {
-            VarArray.removeArrayEntry(name, ParameterStruct.ParamType.StringArray);
+            VarArray.removeArrayEntry(name, ParameterStruct.ParamType.StrArray);
             frame.outputInfoMsg(STATUS_VARS, "   - Deleted StrArray Variable: " + name);
         }
         return false;
-    }
-
-    /**
-     * determines the type of Variable from the first 2 chars of the Variable name.
-     * 
-     * @param name - name of the Variable
-     * 
-     * @return the corresponding Variable type
-     */    
-    public static ParameterStruct.ParamType getVariableTypeFromName (String name) {
-        if (name.charAt(0) == '$') {
-            name = name.substring(1);
-        }
-        if (name.length() > 1 && name.charAt(1) == '_') {
-            switch (name.charAt(0)) {
-                case 'I': return ParameterStruct.ParamType.Integer;
-                case 'U': return ParameterStruct.ParamType.Unsigned;
-                case 'B': return ParameterStruct.ParamType.Boolean;
-                case 'A': return ParameterStruct.ParamType.IntArray;
-                case 'L': return ParameterStruct.ParamType.StringArray;
-                default:  return ParameterStruct.ParamType.String;
-            }
-        } else if (name.contentEquals("RESPONSE")) {
-            return ParameterStruct.ParamType.StringArray;
-        } else if (name.contentEquals("STATUS")) {
-            return ParameterStruct.ParamType.Integer;
-        } else if (name.contentEquals("RANDOM")) {
-            return ParameterStruct.ParamType.Unsigned;
-        } else if (name.contentEquals("DATE")) {
-            return ParameterStruct.ParamType.String;  // can also be Unsigned
-        } else if (name.contentEquals("TIME")) {
-            return ParameterStruct.ParamType.String;
-        }
-        // default
-        return ParameterStruct.ParamType.String;
     }
 
     /**
@@ -713,6 +679,44 @@ public class Variables {
         return VarClass.UNKNOWN;
     }
     
+    /**
+     * determines the type of Variable from the first 2 chars of the Variable name.
+     * 
+     * @param name - name of the Variable
+     * 
+     * @return the corresponding Variable type
+     */    
+    public static ParameterStruct.ParamType getVariableTypeFromName (String name) {
+        if (name.charAt(0) == '$') {
+            name = name.substring(1);
+        }
+        if (longParams.containsKey(name)) {
+            return ParameterStruct.ParamType.Integer;
+        } if (uintParams.containsKey(name)) {
+            return ParameterStruct.ParamType.Unsigned;
+        } if (boolParams.containsKey(name)) {
+            return ParameterStruct.ParamType.Boolean;
+        } if (strParams.containsKey(name)) {
+            return ParameterStruct.ParamType.String;
+        } if (VarArray.isIntArray(name)) {
+            return ParameterStruct.ParamType.IntArray;
+        } if (VarArray.isStrArray(name)) {
+            return ParameterStruct.ParamType.StrArray;
+        } else if (name.contentEquals("RESPONSE")) {
+            return ParameterStruct.ParamType.StrArray;
+        } else if (name.contentEquals("STATUS")) {
+            return ParameterStruct.ParamType.Integer;
+        } else if (name.contentEquals("RANDOM")) {
+            return ParameterStruct.ParamType.Unsigned;
+        } else if (name.contentEquals("DATE")) {
+            return ParameterStruct.ParamType.String;  // can also be Unsigned
+        } else if (name.contentEquals("TIME")) {
+            return ParameterStruct.ParamType.String;
+        }
+        // default
+        return ParameterStruct.ParamType.String;
+    }
+
     /**
      * determines if a Variable has been found with the specified name.
      * 
@@ -960,7 +964,7 @@ public class Variables {
                         frame.outputInfoMsg(STATUS_DEBUG, "Variable assignment should not include '$': " + name);
                         return false;
                     }
-                    if (type != ParameterStruct.ParamType.String && type != ParameterStruct.ParamType.StringArray && type != ParameterStruct.ParamType.IntArray) {
+                    if (type != ParameterStruct.ParamType.String && type != ParameterStruct.ParamType.StrArray && type != ParameterStruct.ParamType.IntArray) {
                         frame.outputInfoMsg(STATUS_DEBUG,  "Variable extensions are only valid for String and Array types: " + name);
                         return false;
                     }

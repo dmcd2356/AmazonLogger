@@ -85,7 +85,7 @@ public class ScriptCompile {
      * @throws IOException 
      */
     public ArrayList<CommandStruct> compileProgram (String fname) throws ParserException, IOException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName();
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         frame.outputInfoMsg(STATUS_COMPILE, "Compiling file: " + fname);
         ArrayList<CommandStruct> cmdList = new ArrayList<>();
@@ -235,19 +235,22 @@ public class ScriptCompile {
                     checkArgTypes(cmdStruct, "S", cmdIndex);
                     break;
                 case ALLOCATE:
-                    // must be a List of Variable name entries
-                    checkArgTypes(cmdStruct, "L", cmdIndex);
+                    // must be a Data Type followed by a List of Variable name entries
+                    checkArgTypes(cmdStruct, "SL", cmdIndex);
 
+                    // get the data type first
+                    String dataType = cmdStruct.params.get(0).getStringValue();
+                    
                     // this defines the Variable names, and must be done prior to their use.
                     // This Compile method will allocate them, so the Execute does not need
                     //  to do anything with this command.
                     // Multiple Variables can be defined on one line, with the names comma separated.
-                    ParameterStruct list = cmdStruct.params.getFirst();
+                    ParameterStruct list = cmdStruct.params.get(1);
                     for (int ix = 0; ix < list.getStrArraySize(); ix++) {
                         String pName = list.getStrArrayElement(ix);
                         try {
                             // allocate the Variable
-                            Variables.allocateVariable(pName);
+                            Variables.allocateVariable(dataType, pName);
                         } catch (ParserException exMsg) {
                             throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
                         }
@@ -303,7 +306,7 @@ public class ScriptCompile {
                                 }
                             }
                         }
-                        case StringArray -> {
+                        case StrArray -> {
                             if (cmdStruct.params.size() > 2) {
                                 cmdStruct.params = packStringConcat (cmdStruct.params, 1);
                             } else {
@@ -339,13 +342,13 @@ public class ScriptCompile {
                     ptype = Variables.getVariableTypeFromName(param1.getStringValue());
                     argtype = param3.getParamType();
                     switch (ptype) {
-                        case ParameterStruct.ParamType.IntArray -> {
+                        case IntArray -> {
                             if (argtype != ParameterStruct.ParamType.Integer &&
                                 argtype != ParameterStruct.ParamType.Unsigned) {
                                 throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
                             }
                     }
-                        case ParameterStruct.ParamType.StringArray -> {
+                        case StrArray -> {
                             if (argtype != ParameterStruct.ParamType.String) {
                                 throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
                             }
@@ -371,7 +374,7 @@ public class ScriptCompile {
                     }
                     ptype = Variables.getVariableTypeFromName(param1.getStringValue());
                     if (ptype != ParameterStruct.ParamType.IntArray &&
-                        ptype != ParameterStruct.ParamType.StringArray) {
+                        ptype != ParameterStruct.ParamType.StrArray) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
                     }
                     break;
@@ -389,7 +392,7 @@ public class ScriptCompile {
                     }
                     ptype = Variables.getVariableTypeFromName(param1.getStringValue());
                     if (ptype != ParameterStruct.ParamType.IntArray &&
-                        ptype != ParameterStruct.ParamType.StringArray) {
+                        ptype != ParameterStruct.ParamType.StrArray) {
                         throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
                     }
                     if (cmdStruct.params.size() == 2) {
@@ -435,7 +438,7 @@ public class ScriptCompile {
                         }
                         // we should also have 1 or 2 more arguments
                         switch (ptype) {
-                            case ParameterStruct.ParamType.StringArray:
+                            case ParameterStruct.ParamType.StrArray:
                                 // String Array should have an additional String argument representing the filter to use
                                 // and an optional String argument that can modify how the filter works:
                                 //   If the 1st char is a '!', it means to filter out entries that DO match the pattern
@@ -807,7 +810,7 @@ public class ScriptCompile {
                     }
                     
                     // place them in the proper list structure
-                    arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.StringArray);
+                    arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.StrArray);
                     frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: [ " + nextArg + " ]");
                     params.add(arg);
                     continue;

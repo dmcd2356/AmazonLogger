@@ -99,7 +99,7 @@ public class VarArray {
             case ParameterStruct.ParamType.IntArray:
                 intArrayParams.put(name, new ArrayList<>());
                 break;
-            case ParameterStruct.ParamType.StringArray:
+            case ParameterStruct.ParamType.StrArray:
                 strArrayParams.put(name, new ArrayList<>());
                 break;
             default:
@@ -118,7 +118,7 @@ public class VarArray {
             case ParameterStruct.ParamType.IntArray:
                 intArrayParams.remove(name);
                 break;
-            case ParameterStruct.ParamType.StringArray:
+            case ParameterStruct.ParamType.StrArray:
                 strArrayParams.remove(name);
                 break;
             default:
@@ -453,7 +453,7 @@ public class VarArray {
     }
     
     /**
-     * sets the filter entries based on the matching conditions in the StringArray.
+     * sets the filter entries based on the matching conditions in the StrArray.
      * 
      * @param varName   - name of the variable to check
      * @param strFilter - the filter match criteria

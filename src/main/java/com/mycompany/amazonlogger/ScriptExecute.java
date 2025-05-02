@@ -285,7 +285,7 @@ public class ScriptExecute {
             case PRINT:
                 // arg 0: text to output
                 String text;
-                if (cmdStruct.params.get(0).getParamType() == ParameterStruct.ParamType.StringArray) {
+                if (cmdStruct.params.get(0).getParamType() == ParameterStruct.ParamType.StrArray) {
                     ArrayList<String> list = cmdStruct.params.get(0).getStrArray();
                     for (int ix = 0; ix < list.size(); ix++) {
                         text = list.get(ix);
@@ -509,7 +509,7 @@ public class ScriptExecute {
                     case ParameterStruct.ParamType.IntArray:
                         VarArray.setIntArrayVariable(parmName, parm1.getIntArray());
                         break;
-                    case ParameterStruct.ParamType.StringArray:
+                    case ParameterStruct.ParamType.StrArray:
                         VarArray.setStrArrayVariable(parmName, parm1.getStrArray());
                         break;
                     case ParameterStruct.ParamType.String:
@@ -538,7 +538,7 @@ public class ScriptExecute {
                         Long result = getIntegerArg (parmValue);
                         strValue = result.toString();
                         break;
-                    case StringArray:
+                    case StrArray:
                     case String:
                         strValue = getStringArg (cmdStruct.params, 1);
                         break;
@@ -561,7 +561,7 @@ public class ScriptExecute {
                         Long result = getIntegerArg (parmValue);
                         strValue = result.toString();
                         break;
-                    case StringArray:
+                    case StrArray:
                         strValue = getStringArg (cmdStruct.params, 1);
                         break;
                     default:
@@ -588,7 +588,7 @@ public class ScriptExecute {
                         Long result = getIntegerArg (parmValue);
                         strValue = result.toString();
                         break;
-                    case StringArray:
+                    case StrArray:
                         strValue = getStringArg (cmdStruct.params, 2);
                         break;
                     default:
@@ -665,7 +665,7 @@ public class ScriptExecute {
                     VarArray.arrayFilterReset();
                 } else {
                     switch (parmType) {
-                        case StringArray:
+                        case StrArray:
                             filter = cmdStruct.params.get(1).getStringValue();
                             String opts = "NONE";
                             if (cmdStruct.params.size() == 3) {

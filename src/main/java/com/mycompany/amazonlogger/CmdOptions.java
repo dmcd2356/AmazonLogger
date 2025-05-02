@@ -87,7 +87,7 @@ public class CmdOptions {
             case 'U':   return ParameterStruct.ParamType.Unsigned;
             case 'B':   return ParameterStruct.ParamType.Boolean;
             case 'A':   return ParameterStruct.ParamType.IntArray;
-            case 'L':   return ParameterStruct.ParamType.StringArray;
+            case 'L':   return ParameterStruct.ParamType.StrArray;
             default:
             case 'S':   return ParameterStruct.ParamType.String;
         }
@@ -314,7 +314,7 @@ public class CmdOptions {
                 int pix = (parmCnt < maxArgs) ? parmCnt : maxArgs - 1;
                 char nextType = Character.toUpperCase(optInfo.argTypes.charAt(pix));
                 ParameterStruct.ParamType parmType = getParameterType(nextType);
-                if (parmCnt >= maxArgs && (parmType != ParameterStruct.ParamType.StringArray || parmType != ParameterStruct.ParamType.IntArray)) {
+                if (parmCnt >= maxArgs && (parmType != ParameterStruct.ParamType.StrArray || parmType != ParameterStruct.ParamType.IntArray)) {
                     throw new ParserException(functionId + "Too many args for option " + newCommand.command
                                         + ": " + (parmCnt+1) + ", arglist = " + optInfo.argTypes);
                 }

@@ -217,15 +217,15 @@ public class VariableExtract {
             case SORT:
             case REVERSE:
                 // these are only valid for StrArray types
-                if (ptype != ParameterStruct.ParamType.StringArray) {
+                if (ptype != ParameterStruct.ParamType.StrArray) {
                     traitVal = null;
                 }
                 break;
 
             case FILTER:
                 // these are only valid for StrArray and IntArray types
-                if (ptype != ParameterStruct.ParamType.StringArray &&
-                    ptype != ParameterStruct.ParamType.IntArray)      {
+                if (ptype != ParameterStruct.ParamType.StrArray &&
+                    ptype != ParameterStruct.ParamType.IntArray)   {
                     traitVal = null;
                 }
                 break;
@@ -233,9 +233,9 @@ public class VariableExtract {
             case SIZE:
             case ISEMPTY:
                 // these are allowed for Strings and Arrays
-                if (ptype != ParameterStruct.ParamType.StringArray &&
-                    ptype != ParameterStruct.ParamType.IntArray    &&
-                    ptype != ParameterStruct.ParamType.String)        {
+                if (ptype != ParameterStruct.ParamType.StrArray &&
+                    ptype != ParameterStruct.ParamType.IntArray &&
+                    ptype != ParameterStruct.ParamType.String)     {
                     traitVal = null;
                 }
                 break;
@@ -282,7 +282,7 @@ public class VariableExtract {
 
             case SORT:
             case REVERSE:
-                ptype = ParameterStruct.ParamType.StringArray;
+                ptype = ParameterStruct.ParamType.StrArray;
                 break;
 
             case ISEMPTY:
@@ -343,11 +343,14 @@ public class VariableExtract {
             if (offset > 0) {
                 index    = packIndexValue (leftover.substring(0, offset));
                 indexmax = packIndexValue (leftover.substring(offset+1));
-                frame.outputInfoMsg(STATUS_VARS, "Variable index range found: " + name + "[" + index + "-" + indexmax + "]");
+                String ixStart = index.getValue() != null ? "" + index.getValue() : index.getVariable();
+                String ixEnd = indexmax.getValue() != null ? "" + indexmax.getValue() : indexmax.getVariable();
+                frame.outputInfoMsg(STATUS_VARS, "Variable index range found: " + name + "[" + ixStart + "-" + ixEnd + "]");
             } else {
                 index = packIndexValue(leftover);
                 indexmax = null;
-                frame.outputInfoMsg(STATUS_VARS, "Variable index entry found: " + name + "[" + index + "]");
+                String ixStr = index.getValue() != null ? "" + index.getValue() : index.getVariable();
+                frame.outputInfoMsg(STATUS_VARS, "Variable index entry found: " + name + "[" + ixStr + "]");
             }
         } else if (offTrait > 0) {
             if (! bRightSide) {
