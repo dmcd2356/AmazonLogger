@@ -56,7 +56,7 @@ public class Variables {
     }
 
     public enum VarCheck {
-        DEFINE,         // defining a Variable or loop parameter
+        ALLOCATE,       // defining a Variable or loop parameter
         SET,            // setting a standard Variable value (left side of =)
         REFERENCE,      // referencing a Variable (standard, reserved or loop)
     }
@@ -96,14 +96,13 @@ public class Variables {
 
         // first, verify Variable name to make sure it is valid format and
         //  not already used.
-        boolean bValid;
+        if (dataType == null || name == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
         try {
-            bValid = isValidVariableName(VarCheck.DEFINE, name);
+            checkValidVariable(VarCheck.ALLOCATE, name);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
-        }
-        if (! bValid) {
-            throw new ParserException(functionId + "Variable " + name + " already defined");
         }
 
         ParameterStruct.ParamType ptype = ParameterStruct.checkParamType (dataType);
@@ -527,6 +526,9 @@ public class Variables {
     public static void modifyStringVariable (String name, String value) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (name == null || value == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
         if (strParams.containsKey(name)) {
             strParams.replace(name, value);
             frame.outputInfoMsg(STATUS_VARS, "   - Modified String param: " + name + " = " + value);
@@ -547,6 +549,9 @@ public class Variables {
     public static void modifyIntegerVariable (String name, Long value) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (name == null || value == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
         if (longParams.containsKey(name)) {
             longParams.replace(name, value);
             frame.outputInfoMsg(STATUS_VARS, "   - Modified Integer param: " + name + " = " + value);
@@ -567,6 +572,9 @@ public class Variables {
     public static void modifyUnsignedVariable (String name, Long value) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (name == null || value == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
         if (! ParameterStruct.isUnsignedInt(value)) {
             throw new ParserException(functionId + "value for Variable " + name + " exceeds limits for Unsigned: " + value);
         }
@@ -592,6 +600,9 @@ public class Variables {
     public static void modifyBooleanVariable (String name, Boolean value) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (name == null || value == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
         if (boolParams.containsKey(name)) {
             boolParams.replace(name, value);
             frame.outputInfoMsg(STATUS_VARS, "   - Modified Boolean param: " + name + " = " + value);
@@ -607,8 +618,15 @@ public class Variables {
      * @param name  - Variable name
      * 
      * @return true if successful, false if the Variable was not found
+     * 
+     * @throws ParserException
      */
-    public static boolean variableDelete (String name) {
+    public static boolean variableDelete (String name) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (name == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
         if (longParams.containsKey(name)) {
             longParams.remove(name);
             frame.outputInfoMsg(STATUS_VARS, "   - Deleted Integer Variable: " + name);
@@ -642,11 +660,18 @@ public class Variables {
      * @param name - the name to check
      * 
      * @return true if it is a reserved name
+     * 
+     * @throws ParserException
      */
-    public static boolean isReservedName (String name) {
+    public static boolean isReservedName (String name) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (name == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
         for (ReservedVars entry : ReservedVars.values()) {
             if (entry.toString().contentEquals(name)) {
-                frame.outputInfoMsg(STATUS_VARS, "    Reserved name found: " + name);
+                frame.outputInfoMsg(STATUS_DEBUG, "    Reserved name found: " + name);
                 return true;
             }
         }
@@ -659,8 +684,10 @@ public class Variables {
      * @param name - name of the variable
      * 
      * @return type of variable (UNKNOWN if not found)
+     * 
+     * @throws ParserException
      */
-    public static VarClass getVariableClass (String name) {
+    public static VarClass getVariableClass (String name) throws ParserException {
         if (name == null || name.isEmpty()) {
             return VarClass.UNKNOWN;
         }
@@ -684,41 +711,62 @@ public class Variables {
     }
     
     /**
-     * determines the type of Variable from the first 2 chars of the Variable name.
+     * determines the type of Variable by searching for the name.
      * 
      * @param name - name of the Variable
      * 
      * @return the corresponding Variable type
+     * 
+     * @throws ParserException
      */    
-    public static ParameterStruct.ParamType getVariableTypeFromName (String name) {
+    public static ParameterStruct.ParamType getVariableTypeFromName (String name) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (name == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
         if (name.charAt(0) == '$') {
             name = name.substring(1);
         }
-        if (longParams.containsKey(name)) {
-            return ParameterStruct.ParamType.Integer;
-        } if (uintParams.containsKey(name)) {
-            return ParameterStruct.ParamType.Unsigned;
-        } if (boolParams.containsKey(name)) {
-            return ParameterStruct.ParamType.Boolean;
-        } if (strParams.containsKey(name)) {
-            return ParameterStruct.ParamType.String;
-        } if (VarArray.isIntArray(name)) {
-            return ParameterStruct.ParamType.IntArray;
-        } if (VarArray.isStrArray(name)) {
-            return ParameterStruct.ParamType.StrArray;
+        int offTrait = name.indexOf('.');
+        int offBrack = name.indexOf('[');
+        if (offTrait > 0 && (offBrack > offTrait || offBrack < 0))
+            name = name.substring(0, offTrait);
+        else if (offBrack > 0 && (offTrait > offBrack || offTrait < 0))
+            name = name.substring(0, offBrack);
+
+        // this is the default value
+        ParameterStruct.ParamType vartype = null;
+
+        if (LoopStruct.getCurrentLoopValue(name) != null) {
+            vartype = ParameterStruct.ParamType.Integer;
+        } else if (longParams.containsKey(name)) {
+            vartype = ParameterStruct.ParamType.Integer;
+        } else if (uintParams.containsKey(name)) {
+            vartype = ParameterStruct.ParamType.Unsigned;
+        } else if (boolParams.containsKey(name)) {
+            vartype = ParameterStruct.ParamType.Boolean;
+        } else if (strParams.containsKey(name)) {
+            vartype = ParameterStruct.ParamType.String;
+        } else if (VarArray.isIntArray(name)) {
+            vartype = ParameterStruct.ParamType.IntArray;
+        } else if (VarArray.isStrArray(name)) {
+            vartype = ParameterStruct.ParamType.StrArray;
         } else if (name.contentEquals("RESPONSE")) {
-            return ParameterStruct.ParamType.StrArray;
+            vartype = ParameterStruct.ParamType.StrArray;
         } else if (name.contentEquals("STATUS")) {
-            return ParameterStruct.ParamType.Integer;
+            vartype = ParameterStruct.ParamType.Integer;
         } else if (name.contentEquals("RANDOM")) {
-            return ParameterStruct.ParamType.Unsigned;
+            vartype = ParameterStruct.ParamType.Unsigned;
         } else if (name.contentEquals("DATE")) {
-            return ParameterStruct.ParamType.String;  // can also be Unsigned
+            vartype = ParameterStruct.ParamType.String;  // can also be Unsigned
         } else if (name.contentEquals("TIME")) {
-            return ParameterStruct.ParamType.String;
+            vartype = ParameterStruct.ParamType.String;
         }
-        // default
-        return ParameterStruct.ParamType.String;
+        if (vartype == null) {
+            throw new ParserException(functionId + "Variable entry not found: " + name);
+        }
+        return vartype;
     }
 
     /**
@@ -735,6 +783,9 @@ public class Variables {
     public static Long getNumericValue (String name, VariableExtract.Trait traitVal, boolean bNoLoops) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
+        if (name == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
         if (name.charAt(0) == '$') {
             name = name.substring(1);
         }
@@ -846,15 +897,16 @@ public class Variables {
      * @param use  - how the variable is being used
      * @param name - the name to check
      * 
-     * @return  true if Variable is already defined, false if not
-     * 
      * @throws ParserException - if not valid
      */
-    public static boolean isValidVariableName (VarCheck use, String name) throws ParserException {
+    public static void checkValidVariable (VarCheck use, String name) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (name == null || use == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
         try {
-            if (name.startsWith("$")) {
+            if (name.startsWith("$") && use == VarCheck.REFERENCE) {
                 name = name.substring(1);
             }
 
@@ -873,12 +925,12 @@ public class Variables {
             String errMsg = null;
             switch (use) {
                 default:
-                case DEFINE:
+                case ALLOCATE:
                     switch (varClass) {
                         case UNKNOWN  -> { // not found in any group is good
                         }
-                        case LOOP     -> errMsg = "using Loop Variable name: " + name;
-                        case RESERVED -> errMsg = "using Reserved command name: " + name;
+                        case LOOP     -> errMsg = "Using Loop Variable name: " + name;
+                        case RESERVED -> errMsg = "Using Reserved command name: " + name;
                         default       -> errMsg = "Variable name already in use: " + name;
                     }
                     break;
@@ -889,8 +941,8 @@ public class Variables {
                         break;
                     }
                     switch (varClass) {
-                        case LOOP     -> errMsg = "using Loop Variable name: " + name;
-                        case RESERVED -> errMsg = "using Reserved command name: " + name;
+                        case LOOP     -> errMsg = "Using Loop Variable name: " + name;
+                        case RESERVED -> errMsg = "Using Reserved command name: " + name;
                         case UNKNOWN  -> errMsg = "Variable name not found: " + name;
                         default       -> {  // any variable is good
                         }
@@ -907,7 +959,6 @@ public class Variables {
             if (errMsg != null) {
                 throw new ParserException(functionId + errMsg);
             }
-            return true;
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId + name);
         }
@@ -920,18 +971,10 @@ public class Variables {
      * @param name - the name to check
      * 
      * @return true if Variable name is syntactically valid
-     * 
-     * @throws ParserException - if not valid
      */
-    public static boolean verifyVariableFormat (String name) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        
-        if (name == null) {
+    public static boolean verifyVariableFormat (String name) {
+        if (name == null || name.isBlank()) {
             frame.outputInfoMsg(STATUS_DEBUG, "Variable name is null");
-            return false;
-        }
-        if (name.isBlank()) {
-            frame.outputInfoMsg(STATUS_DEBUG, "Variable name is blank");
             return false;
         }
         boolean bRighthand = false;
@@ -945,66 +988,59 @@ public class Variables {
             return false;
         }
 
-        // determine if we have a special param type that can take on appendages
-        ParameterStruct.ParamType type = Variables.getVariableTypeFromName (name);
-        
-            // TODO: we need to do this for the '.' operator as well
-            int indexStart = 0;
-            int indexEnd = 0;
-            for (int ix = 0; ix < name.length(); ix++) {
-                char curch = name.charAt(ix);
-                // valid char for Variable
-                if ( (curch == '_') || Character.isLetterOrDigit(curch) ) {
-                    if (ix > NAME_MAXLEN) {
-                        frame.outputInfoMsg(STATUS_DEBUG, "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
-                        return false;
-                    }
-                } else {
-                    // this will terminate the Variable search
-                    if (curch == ' ' || curch == '=') {
-                        break;
-                    }
-                    if (!bRighthand) {
-                        frame.outputInfoMsg(STATUS_DEBUG, "Variable assignment should not include '$': " + name);
-                        return false;
-                    }
-                    if (type != ParameterStruct.ParamType.String && type != ParameterStruct.ParamType.StrArray && type != ParameterStruct.ParamType.IntArray) {
-                        frame.outputInfoMsg(STATUS_DEBUG,  "Variable extensions are only valid for String and Array types: " + name);
-                        return false;
-                    }
-                    // check for bracket index on Array, List and String Variable
-                    switch (curch) {
-                        case '[':
-                            int offset = name.indexOf(']');
-                            if (offset <= 0 || offset >= name.length() - 1) {
-                                frame.outputInfoMsg(STATUS_DEBUG,  "missing end bracket in Variable name: " + name);
-                                return false;
-                            }
-                            try {
-                                indexStart = Utils.getIntValue(name.substring(ix+1)).intValue();
-                            } catch (ParserException exMsg) {
-                                frame.outputInfoMsg(STATUS_DEBUG, "invalid numeric in brackets");
-                                return false;
-                            }
-                            // TODO: evaluate indexEnd
-                            break;
-                        case '.':
-                            // TODO:
-                            break;
-                        default:
-                            frame.outputInfoMsg(STATUS_DEBUG, "invalid character '" + curch + "' in Variable name: " + name);
+        // TODO: we need to do this for the '.' operator as well
+        int indexStart = 0;
+        int indexEnd = 0;
+        for (int ix = 0; ix < name.length(); ix++) {
+            char curch = name.charAt(ix);
+            // valid char for Variable
+            if ( (curch == '_') || Character.isLetterOrDigit(curch) ) {
+                if (ix > NAME_MAXLEN) {
+                    frame.outputInfoMsg(STATUS_DEBUG, "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
+                    return false;
+                }
+            } else {
+                // this will terminate the Variable search
+                if (curch == ' ' || curch == '=') {
+                    break;
+                }
+                if (!bRighthand) {
+                    frame.outputInfoMsg(STATUS_DEBUG, "Variable assignment should not include '$': " + name);
+                    return false;
+                }
+                // check for bracket index on Array, List and String Variable
+                switch (curch) {
+                    case '[':
+                        int offset = name.indexOf(']');
+                        if (offset <= 0 || offset >= name.length() - 1) {
+                            frame.outputInfoMsg(STATUS_DEBUG,  "missing end bracket in Variable name: " + name);
                             return false;
-                    }
+                        }
+                        try {
+                            indexStart = Utils.getIntValue(name.substring(ix+1)).intValue();
+                        } catch (ParserException exMsg) {
+                            frame.outputInfoMsg(STATUS_DEBUG, "invalid numeric in brackets");
+                            return false;
+                        }
+                        // TODO: evaluate indexEnd
+                        break;
+                    case '.':
+                        // TODO:
+                        break;
+                    default:
+                        frame.outputInfoMsg(STATUS_DEBUG, "invalid character '" + curch + "' in Variable name: " + name);
+                        return false;
                 }
             }
-            if (indexStart == 0 && name.length() > NAME_MAXLEN) {
-                frame.outputInfoMsg(STATUS_DEBUG, "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name);
-                return false;
-            }
-            if (indexStart > 0 && indexEnd == 0) {
-                frame.outputInfoMsg(STATUS_DEBUG, "Variable name index missing ending bracket: " + name);
-                return false;
-            }
+        }
+        if (indexStart == 0 && name.length() > NAME_MAXLEN) {
+            frame.outputInfoMsg(STATUS_DEBUG, "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name);
+            return false;
+        }
+        if (indexStart > 0 && indexEnd == 0) {
+            frame.outputInfoMsg(STATUS_DEBUG, "Variable name index missing ending bracket: " + name);
+            return false;
+        }
             
         return true;
     }

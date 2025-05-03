@@ -363,7 +363,6 @@ public class VariableExtract {
                 leftover = field.substring(offTrait + 1);
             }
             trait = getTrait (leftover, name);
-            type = getTraitDataType (trait, name);
         } else {
             // no additional entries, the param name must be by itself
             name = field;
@@ -371,14 +370,10 @@ public class VariableExtract {
         }
         
         // verify Variable name is valid
-        boolean bValid;
         try {
-            bValid = Variables.isValidVariableName(Variables.VarCheck.REFERENCE, name);
+            Variables.checkValidVariable(Variables.VarCheck.REFERENCE, name);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
-        }
-        if (! bValid) {
-            throw new ParserException(functionId + "Variable not found: " + name);
         }
     }
 

@@ -660,10 +660,10 @@ public class ScriptExecute {
                 // ParamName or RESET, 1 (optional) the filter string
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref or RESET
                 parmName = getArrayAssignment(parmRef);
-                parmType = Variables.getVariableTypeFromName (parmName);
                 if (parmName.contentEquals("RESET")) {
                     VarArray.arrayFilterReset();
                 } else {
+                    parmType = Variables.getVariableTypeFromName (parmName);
                     switch (parmType) {
                         case StrArray:
                             filter = cmdStruct.params.get(1).getStringValue();

@@ -43,6 +43,7 @@ public class ScriptCompile {
      */
     public static void checkArgTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
         String prefix = command + " - ";
         if (linenum >= 0) {  // omit the line numberinfo if < 0
             prefix = "line " + linenum + ", " + prefix;
@@ -74,6 +75,244 @@ public class ScriptCompile {
         }
     }
 
+    /**
+     * verifies that the argument data type is valid for the expected type.
+     * 
+     * @param expType - the expected data type of the argument
+     * @param arg     - the argument in question
+     * 
+     * @throws ParserException 
+     */
+    private void verifyArgDataType (ParameterStruct.ParamType expType, ParameterStruct arg) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        boolean bValid = true;
+        ParameterStruct.ParamType argtype = ParameterStruct.classifyDataType(arg.getStringValue());
+        if (! arg.isVariableRef()) {
+            // only verify type if not a variable reference, since we allow type conversion
+            switch (expType) {
+                case Integer:
+                case Unsigned:
+                    switch (argtype) {
+                        // these are not allowed
+                        case StrArray, IntArray -> bValid = false;
+                    }
+                    break;
+
+                case Boolean:
+                    switch (argtype) {
+                        // these are not allowed
+                        case StrArray, IntArray, String -> bValid = false;
+                    }
+                    break;
+
+                case IntArray:
+                    switch (argtype) {
+                        // these are not allowed
+                        case Boolean -> bValid = false;
+                    }
+                    break;
+
+                case String:
+                case StrArray:
+                default:
+                    // allow anything
+                    break;
+            }
+            if (! bValid) {
+                throw new ParserException(functionId + "Mismatched data type for reference Variable. Expected " + expType + ", got: " + argtype);
+            }
+        }
+    }
+
+    /**
+     * checks if the specified argument in the arg list is a valid variable name for assignment.
+     * 
+     * @param index    - the index of the argument in the arg list
+     * @param parmList - the list of args
+     * 
+     * @return the data type of the variable
+     * 
+     * @throws ParserException 
+     */    
+    private ParameterStruct.ParamType checkVariableName (int index, ArrayList<ParameterStruct> parmList) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (parmList == null) {
+            throw new ParserException(functionId + "Null parameter list");
+        }
+        if (parmList.size() <= index) {
+            throw new ParserException(functionId + "Missing arguments in list - number found: " + parmList.size());
+        }
+        String varName = parmList.get(index).getStringValue();
+        if (varName == null || varName.isBlank()) {
+            throw new ParserException(functionId + "Variable name is null value");
+        }
+
+        // verify the parameter name is valid for assigning a value to
+        Variables.checkValidVariable(Variables.VarCheck.SET, varName);
+        
+        // return the datatype
+        ParameterStruct.ParamType vtype = Variables.getVariableTypeFromName(varName);
+        return vtype;
+    }
+
+    /**
+     * checks if the specified argument(s) comply for an Integer or Calculation value.
+     * 
+     * @param index      - the index of the argument in the arg list
+     * @param vartype    - the type of variable it is being assigned to
+     * @param parmList   - the list of args
+     * @param parmString - the parameter list as a String (for repacking)
+     * 
+     * @return the parameter list (may be replaced with Calculation params)
+     * 
+     * @throws ParserException 
+     */    
+    private ArrayList<ParameterStruct> checkArgIntOrCalc (int index, ParameterStruct.ParamType vartype,
+            ArrayList<ParameterStruct> parmList, String parmString) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (parmList == null) {
+            throw new ParserException(functionId + "Null parameter list");
+        }
+        if (parmList.size() <= index) {
+            throw new ParserException(functionId + "Missing arguments in list - number found: " + parmList.size());
+        }
+        if (parmList.size() == index + 1) {
+            verifyArgDataType (ParameterStruct.ParamType.Integer, parmList.get(index));
+        } else if (vartype != null) {
+            parmList = packCalculation (parmString, vartype);
+        } else {
+            throw new ParserException(functionId + "Too many arguments in list - number found: " + parmList.size());
+        }
+        return parmList;
+    }
+
+    /**
+     * checks if the specified argument(s) comply for a String or String Concatenation value.
+     * 
+     * @param index      - the index of the argument in the arg list
+     * @param parmList   - the list of args
+     * 
+     * @return the parameter list (may be replaced with Concatenation params)
+     * 
+     * @throws ParserException 
+     */    
+    private ArrayList<ParameterStruct> checkArgStringOrConcat (int index, ArrayList<ParameterStruct> parmList) throws ParserException {
+         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (parmList == null) {
+            throw new ParserException(functionId + "Null parameter list");
+        }
+        if (parmList.size() <= index) {
+            throw new ParserException(functionId + "Missing arguments in list - number found: " + parmList.size());
+        }
+        if (parmList.size() == index + 1) {
+            verifyArgDataType (ParameterStruct.ParamType.String, parmList.get(index));
+        } else {
+            parmList = packStringConcat (parmList, 1);
+        }
+        return parmList;
+    }
+
+    /**
+     * checks if the specified argument(s) comply for an Integer or Calculation value.
+     * 
+     * @param index      - the index of the argument in the arg list
+     * @param exptype    - the type of variable the command is expecting
+     * @param parmList   - the list of args
+     * 
+     * @throws ParserException 
+     */    
+    private void checkArgType (int index, ParameterStruct.ParamType expType, ArrayList<ParameterStruct> parmList) throws ParserException {
+         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (parmList == null) {
+            throw new ParserException(functionId + "Null parameter list");
+        }
+        if (parmList.size() <= index) {
+            throw new ParserException(functionId + "Missing arguments in list - number found: " + parmList.size());
+        }
+        verifyArgDataType (expType, parmList.get(index));
+    }
+
+    /**
+     * checks if the specified argument(s) comply with an Array Filter type.
+     * 
+     * @param index      - the index of the argument in the arg list
+     * @param vartype    - the type of variable it is being assigned to (Array types only)
+     * @param parmList   - the list of args
+     * 
+     * @throws ParserException 
+     */    
+    private void checkArgFilterValue (int index, ParameterStruct.ParamType vartype, ArrayList<ParameterStruct> parmList) throws ParserException {
+         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (parmList == null) {
+            throw new ParserException(functionId + "Null parameter list");
+        }
+        if (parmList.size() <= index) {
+            throw new ParserException(functionId + "Missing arguments in list - number found: " + parmList.size());
+        }
+
+        ParameterStruct arg = parmList.get(index);
+        String argValue = arg.getStringValue();
+        switch (vartype) {
+            case StrArray:
+                // String array just requires whether we are filtering left or right side and if inverting the filter
+                if (arg.isVariableRef()) {
+                    ParameterStruct.ParamType vtype = Variables.getVariableTypeFromName(argValue);
+                    if (vtype == null || (vtype != ParameterStruct.ParamType.String && vtype != ParameterStruct.ParamType.StrArray)) {
+                        throw new ParserException(functionId + "Invalid variable type " + vtype + " for " + vartype + " Filter argument: " + argValue);
+                    }
+                } else {
+                    switch (argValue) {
+                        case "!":
+                        case "!LEFT":
+                        case "!RIGHT":
+                        case "LEFT":
+                        case "RIGHT":
+                            break;
+                        default:
+                            throw new ParserException(functionId + "Invalid Filter argument for " + vartype + " type: " + argValue);
+                    }
+                }
+                break;
+            case IntArray:
+                // Int Array should have 2 arguments
+                if (parmList.size() <= index + 1) {
+                    throw new ParserException(functionId + "Missing arguments in list - number found: " + parmList.size());
+                }
+                
+                // this 1st arg is the comparison type to use for filtering
+                if (arg.isVariableRef()) {
+                    ParameterStruct.ParamType vtype = Variables.getVariableTypeFromName(argValue);
+                    if (vtype == null || (vtype != ParameterStruct.ParamType.String && vtype != ParameterStruct.ParamType.StrArray)) {
+                        throw new ParserException(functionId + "Invalid Filter argument for " + vartype + " type: " + argValue);
+                    }
+                } else {
+                    switch (argValue) {
+                        case "==":
+                        case "!=":
+                        case ">=":
+                        case "<=":
+                        case ">":
+                        case "<":
+                            break;
+                        default:
+                            throw new ParserException(functionId + "Invalid Filter argument for " + vartype + " type: " + argValue);
+                    }
+                }
+                
+                // now verify we have an integer value for the filter data
+                checkArgType (index + 1, ParameterStruct.ParamType.Integer, parmList);
+                break;
+            default:
+                throw new ParserException(functionId + "Invalid variable type (must be an Array type): " + vartype);
+        }
+    }
+    
     /**
      * compiles the external script file (when -f option used) into a series of
      * CommandStruct entities to execute.
@@ -235,6 +474,7 @@ public class ScriptCompile {
                         // verify 1 argument: message to write
                         checkArgTypes(cmdStruct, "S", cmdIndex);
                         break;
+                        
                     case ALLOCATE:
                         // must be a Data Type followed by a List of Variable name entries
                         checkArgTypes(cmdStruct, "SL", cmdIndex);
@@ -252,26 +492,23 @@ public class ScriptCompile {
                         ParameterStruct list = cmdStruct.params.get(1);
                         for (int ix = 0; ix < list.getStrArraySize(); ix++) {
                             String pName = list.getStrArrayElement(ix);
-                            try {
-                                // allocate the Variable
-                                Variables.allocateVariable(dataType, pName);
-                            } catch (ParserException exMsg) {
-                                throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
-                            }
+                            Variables.allocateVariable(dataType, pName);
                         }
                         break;
+                        
                     case CommandStruct.CommandTable.SET:
                         // we pack parameters differently for calculations, so if the param
                         //  is a numeric parameter and it is more than a simple assignment to
                         //  a discrete value or a single parameter reference, let's pepack.
                         // The arguments are: ParamName = Calculation
-                        ParameterStruct.ParamType ptype = Variables.getVariableTypeFromName(parmString);
+                        ParameterStruct.ParamType vartype = checkVariableName (0, cmdStruct.params);
+//                        ParameterStruct.ParamType ptype = Variables.getVariableTypeFromName(parmString);
                         if (cmdStruct.params.size() > 3) {
-                            switch (ptype) {
+                            switch (vartype) {
                                 case ParameterStruct.ParamType.Integer,
                                      ParameterStruct.ParamType.Unsigned,
                                      ParameterStruct.ParamType.Boolean -> {
-                                    cmdStruct.params = packCalculation (parmString, ptype);
+                                    cmdStruct.params = packCalculation (parmString, vartype);
                                 }
                                 case ParameterStruct.ParamType.String -> {
                                     cmdStruct.params = packStringConcat (cmdStruct.params, 2);
@@ -287,140 +524,68 @@ public class ScriptCompile {
                     // these are the Array-only commands
                     case CommandStruct.CommandTable.INSERT:
                     case CommandStruct.CommandTable.APPEND:
-                        // ARGS: ParamName, Value (String or Integer)
-                        ParameterStruct.ParamType argtype;
-                        String varName;
-                        if (cmdStruct.params.size() < 2) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing arguments: " + parmString);
-                        }
-                        ParameterStruct param1 = cmdStruct.params.get(0);
-                        ParameterStruct param2 = cmdStruct.params.get(1);
-                        varName = param1.getStringValue();
-                        argtype = param2.getParamType();
-                        ptype = Variables.getVariableTypeFromName(varName);
-                        switch (ptype) {
+                        // VarName, Data Value
+                        // arg 0 should be the Array variable name
+                        vartype = checkVariableName (0, cmdStruct.params);
+                        // arg 2 is the data value and should be an Integer or String based on Array type
+                        //       but we also allow Calculation for IntArray and Concatenation for StrArray
+                        switch (vartype) {
                             case IntArray -> {
-                                if (cmdStruct.params.size() > 2) {
-                                    cmdStruct.params = packCalculation (parmString, ptype);
-                                } else {
-                                    if (argtype != ParameterStruct.ParamType.Integer &&
-                                        argtype != ParameterStruct.ParamType.Unsigned) {
-                                        throw new ParserException(functionId + lineInfo + cmdStruct.command +
-                                                " command has mismatched data type for reference Variable: " + parmString);
-                                    }
-                                }
+                                // you can either assign a single numeric value or a Calculation that results in a numeric
+                                cmdStruct.params = checkArgIntOrCalc (1, vartype, cmdStruct.params, parmString);
                             }
                             case StrArray -> {
-                                if (cmdStruct.params.size() > 2) {
-                                    cmdStruct.params = packStringConcat (cmdStruct.params, 1);
-                                } else {
-                                    if (argtype != ParameterStruct.ParamType.String) {
-                                        throw new ParserException(functionId + lineInfo + cmdStruct.command +
-                                                " command has mismatched data type for reference Variable: " + parmString);
-                                    }
-                                }
+                                // you can either assign a single string value or a list of strings connected with '+' signs
+                                cmdStruct.params = checkArgStringOrConcat (1, cmdStruct.params);
                             }
                             default -> {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + vartype + ": " + parmString);
                             }
                         }
                         break;
 
                     case CommandStruct.CommandTable.MODIFY:
-                        // ParamName, Index (Integer), Value (String or Integer)
-                        // verify there are the correct number and type of arguments
-                        if (cmdStruct.params.size() != 3) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 3 arguments : " + parmString);
+                        // VarName, Index, Data Value
+                        // arg 0 should be the Array variable name
+                        vartype = checkVariableName (0, cmdStruct.params);
+                        // arg 1 is the Array index and should be an Integer or Unsigned
+                        checkArgType (1, ParameterStruct.ParamType.Integer, cmdStruct.params);
+                        // determine argument type needed for the data for the Array
+                        ParameterStruct.ParamType argType;
+                        switch (vartype) {
+                            case IntArray -> { argType = ParameterStruct.ParamType.Integer;  }
+                            case StrArray -> { argType = ParameterStruct.ParamType.String;  }
+                            default -> throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + vartype + ": " + parmString);
                         }
-                        ParameterStruct param3;
-                        param1 = cmdStruct.params.get(0);
-                        param2 = cmdStruct.params.get(1);
-                        param3 = cmdStruct.params.get(2);
-                        if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
-                        }
-                        if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
-                            param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
-                        }
-                        ptype = Variables.getVariableTypeFromName(param1.getStringValue());
-                        argtype = param3.getParamType();
-                        switch (ptype) {
-                            case IntArray -> {
-                                if (argtype != ParameterStruct.ParamType.Integer &&
-                                    argtype != ParameterStruct.ParamType.Unsigned) {
-                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
-                                }
-                        }
-                            case StrArray -> {
-                                if (argtype != ParameterStruct.ParamType.String) {
-                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has mismatched data type for reference Variable: " + parmString);
-                                }
-                        }
-                            default -> throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
-                        }
+                        // arg 2 is the data value and should be an Integer or String based on Array type
+                        checkArgType (2, argType, cmdStruct.params);
                         break;
 
                     case CommandStruct.CommandTable.REMOVE:
-                        // ParamName, Index (Integer)
-                        // verify there are the correct number and type of arguments
-                        if (cmdStruct.params.size() != 2) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 arguments : " + parmString);
-                        }
-                        param1 = cmdStruct.params.get(0);
-                        param2 = cmdStruct.params.get(1);
-                        if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
-                        }
-                        if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
-                            param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
-                        }
-                        ptype = Variables.getVariableTypeFromName(param1.getStringValue());
-                        if (ptype != ParameterStruct.ParamType.IntArray &&
-                            ptype != ParameterStruct.ParamType.StrArray) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
-                        }
+                        // VarName, Index
+                        // arg 0 should be the Array variable name
+                        checkVariableName (0, cmdStruct.params);
+                        // arg 1 is the Array index and should be an Integer or Unsigned
+                        checkArgType (1, ParameterStruct.ParamType.Integer, cmdStruct.params);
                         break;
 
                     case CommandStruct.CommandTable.TRUNCATE:
                     case CommandStruct.CommandTable.POP:
-                        // ParamName, Index (Integer - optional)
-                        // verify there are the correct number and type of arguments
-                        if (cmdStruct.params.size() != 1 && cmdStruct.params.size() != 2) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 arguments : " + parmString);
-                        }
-                        param1 = cmdStruct.params.get(0);
-                        if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
-                        }
-                        ptype = Variables.getVariableTypeFromName(param1.getStringValue());
-                        if (ptype != ParameterStruct.ParamType.IntArray &&
-                            ptype != ParameterStruct.ParamType.StrArray) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for Variable " + param1.getStringValue());
-                        }
+                        // VarName, Index (optional)
+                        // arg 0 should be the Array variable name
+                        checkVariableName (0, cmdStruct.params);
+                        // arg 1 (OPTIONAL) is the Array index and should be an Integer or Unsigned
                         if (cmdStruct.params.size() == 2) {
-                            param2 = cmdStruct.params.get(1);
-                            if (param2.getParamType() != ParameterStruct.ParamType.Integer &&
-                                param2.getParamType() != ParameterStruct.ParamType.Unsigned) {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command has invalid index value type: " + parmString);
-                            }
+                            checkArgType (1, ParameterStruct.ParamType.Integer, cmdStruct.params);
                         }
                         break;
 
                     case CLEAR:
-                        // ARGS: 0 = ParamName
-                        // verify there are the correct number and type of arguments
-                        if (cmdStruct.params.size() != 1) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 1 argument : " + parmString);
-                        }
-                        param1 = cmdStruct.params.get(0);
-                        if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable reference name : " + parmString);
-                        }
-                        ptype = Variables.getVariableTypeFromName(param1.getStringValue());
-                        if (ptype == null && ! param1.getStringValue().contentEquals("RESPONSE")) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
+                        // VarName
+                        // arg 0 should be the Array variable name or RESPONSE
+                        String varName = cmdStruct.params.get(0).getStringValue();
+                        if (! varName.contentEquals("RESPONSE")) {
+                            checkVariableName (0, cmdStruct.params);
                         }
                         break;
 
@@ -430,74 +595,15 @@ public class ScriptCompile {
                         if (cmdStruct.params.size() < 1) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires at least 1 argument : " + parmString);
                         }
-                        param1 = cmdStruct.params.get(0);
-                        if (param1.getParamType() != ParameterStruct.ParamType.String) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 1st argument must be Variable name or RESET: " + parmString);
-                        }
+
                         // if entry was RESET, no more checking to do
-                        if (! param1.getStringValue().contentEquals("RESET")) {
-                            ptype = Variables.getVariableTypeFromName(param1.getStringValue());
-                            if (ptype == null) {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + " variable: " + param1.getStringValue());
-                            }
-                            // we should also have 1 or 2 more arguments
-                            switch (ptype) {
-                                case ParameterStruct.ParamType.StrArray:
-                                    // String Array should have an additional String argument representing the filter to use
-                                    // and an optional String argument that can modify how the filter works:
-                                    //   If the 1st char is a '!', it means to filter out entries that DO match the pattern
-                                    //   (otherwise it filters out those that DO NOT match the pattern).
-                                    //   If there is more to the string, it must be either LEFT or RIGHT. LEFT means the pattern
-                                    //   must be at the start of the string entry and RIGHT means it must be at the end.
-                                    //   This allows the following options: !, !LEFT, !RIGHT, LEFT, RIGHT
-                                    // If neither LEFT or RIGHT is specified, it simply searches for a pattern match anywhere
-                                    //   in the entry.
-                                    if (cmdStruct.params.size() < 2 || cmdStruct.params.size() > 3) {
-                                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 2 or 3 arguments for StrArrays: " + parmString);
-                                    }
-                                    param2 = cmdStruct.params.get(1);
-                                    if (param2.getParamType() != ParameterStruct.ParamType.String) {
-                                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 2nd argument must be String (filter value)" + parmString);
-                                    }
-                                    if (cmdStruct.params.size() == 3) {
-                                        param3 = cmdStruct.params.get(2);
-                                        switch (param3.getStringValue()) {
-                                            case "!":
-                                            case "!LEFT":
-                                            case "!RIGHT":
-                                            case "LEFT":
-                                            case "RIGHT":
-                                                break;
-                                            default:
-                                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 2nd argument invalid: " + parmString);
-                                        }
-                                    }
-                                    break;
-                                case ParameterStruct.ParamType.IntArray:
-                                    // Int Array should have 2 arguments: the compare sign { ==, !=, >=, <=, >, < } and the Integer value
-                                    if (cmdStruct.params.size() != 3) {
-                                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires 3 arguments for IntArrays: " + parmString);
-                                    }
-                                    param2 = cmdStruct.params.get(1);
-                                    param3 = cmdStruct.params.get(2);
-                                    switch (param2.getStringValue()) {
-                                        case "==":
-                                        case "!=":
-                                        case ">=":
-                                        case "<=":
-                                        case ">":
-                                        case "<":
-                                            break;
-                                        default:
-                                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 2nd argument invalid: " + parmString);
-                                    }
-                                    if (param3.getParamType() != ParameterStruct.ParamType.Integer) {
-                                        throw new ParserException(functionId + lineInfo + cmdStruct.command + " command 3rd argument must be Integer type: " + parmString);
-                                    }
-                                    break;
-                                default:
-                                    throw new ParserException(functionId + lineInfo + cmdStruct.command + " command not valid for " + ptype + ": " + parmString);
-                            }
+                        varName = cmdStruct.params.get(0).getStringValue();
+                        if (! varName.contentEquals("RESET")) {
+                            // otherwise,
+                            // arg 0 should be the Array variable name
+                            vartype = checkVariableName (0, cmdStruct.params);
+                            // arg 1 (and possibly 2) should be the filter values
+                            checkArgFilterValue (1, vartype, cmdStruct.params);
                         }
                         break;
 
@@ -771,9 +877,7 @@ public class ScriptCompile {
             // must be the parameter name. verify it is valid.
             if (bParamAssign) {
                 if (ix == 0) {
-                    if (! Variables.isValidVariableName(Variables.VarCheck.SET, nextArg)) {
-                        throw new ParserException(functionId + "Variable name not found: " + nextArg);
-                    }
+                    Variables.checkValidVariable(Variables.VarCheck.SET, nextArg);
                     if (line.isEmpty()) {
                         throw new ParserException(functionId + "no arguments following Variable name: " + nextArg);
                     }
@@ -949,14 +1053,10 @@ public class ScriptCompile {
         
         // 1st entry should be the parameter name
         String paramName = getParamName (line);
-        boolean bValid;
         try {
-            bValid = Variables.isValidVariableName(Variables.VarCheck.SET, paramName);
+            Variables.checkValidVariable(Variables.VarCheck.SET, paramName);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
-        }
-        if (! bValid) {
-            throw new ParserException(functionId + "parameter name not found: " + paramName);
         }
         if (line.contentEquals(paramName)) {
             throw new ParserException(functionId + "no arguments following parameter name: " + line);
@@ -1142,9 +1242,13 @@ public class ScriptCompile {
             
         if (! bCalc && ! bQuote) {
             // if neither of the above, let's determine if the entries are numeric or not.
-            char ctype1 = ParameterStruct.classifyDataType(prefix);
-            char ctype2 = ParameterStruct.classifyDataType(line);
-            if ((ctype1 == 'I' || ctype1 == 'U') || (ctype2 == 'I' || ctype2 == 'U')) {
+            ParameterStruct.ParamType ctype1, ctype2;
+            ctype1 = ParameterStruct.classifyDataType(prefix);
+            ctype2 = ParameterStruct.classifyDataType(line);
+            if (ctype1 == ParameterStruct.ParamType.Integer  ||
+                ctype1 == ParameterStruct.ParamType.Unsigned ||
+                ctype2 == ParameterStruct.ParamType.Integer  ||
+                ctype2 == ParameterStruct.ParamType.Unsigned) {
                 bCalc = true;
             }
         }

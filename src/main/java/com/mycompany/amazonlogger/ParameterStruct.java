@@ -344,9 +344,11 @@ public final class ParameterStruct {
     }
     
     /**
-     * sets the parameter type value.
+     * converts the parameter type to a character value.
      * 
      * @param type 
+     * 
+     * @return  character version of the parameter type
      */
     public static char getParamTypeID (ParamType type) {
         switch (type) {
@@ -484,45 +486,58 @@ public final class ParameterStruct {
      * @param strValue - the String value to check
      * 
      * @return the data type found
+     * 
+     * @throws ParserException
      */
-    public static char classifyDataType (String strValue) {
-        char dataType;
-
+    public static ParamType classifyDataType (String strValue) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (strValue == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
+        
         // first check if it is a Variable
+        ParamType varType;
         if (strValue.startsWith("$")) {
             // it's a parameter - determine its data type
-            ParamType varType = Variables.getVariableTypeFromName (strValue);
-            switch (varType) {
-                default:
-                case String:    dataType = 'S';    break;
-                case Integer:   dataType = 'I';    break;
-                case Unsigned:  dataType = 'U';    break;
-                case Boolean:   dataType = 'B';    break;
-                case IntArray:  dataType = 'A';    break;
-                case StrArray:  dataType = 'L';    break;
+            varType = Variables.getVariableTypeFromName (strValue);
+            int iLBracket = strValue.indexOf('[');
+            int iRBracket = strValue.indexOf(']');
+            int iRange = strValue.indexOf('-');
+            if (iRange < 0 && iLBracket > 0 && iRBracket > iLBracket) {
+                switch (varType) {
+                    case StrArray:
+                        varType = ParamType.String;
+                        break;
+                    case IntArray:
+                        varType = ParamType.Integer;
+                        break;
+                    default:
+                        break;
+                }
             }
         }
         else {
             // not a parameter, so it must be a discreet value
             if (strValue.equalsIgnoreCase("TRUE") ||
                 strValue.equalsIgnoreCase("FALSE")) {
-                dataType = 'B';
+                varType = ParamType.Boolean;
             } else {
                 try {
                     Long longVal = getLongOrUnsignedValue (strValue);
-                    dataType = isUnsignedInt(longVal) ? 'U' : 'I';
+                    varType = isUnsignedInt(longVal) ? ParamType.Unsigned : ParamType.Integer;
                 } catch (ParserException ex) {
                     int offset = strValue.indexOf('{');
                     if (offset > 0) {
-                        dataType = 'L'; // NOTE: could also be Array, but let's leave it at List
+                        varType = ParamType.StrArray; // NOTE: could also be Array, but let's leave it at List
                     } else {
-                        dataType = 'S';
+                        varType = ParamType.String;
                     }
                 }
             }
         }
         
-        return dataType;
+        return varType;
     }
     
     /**
