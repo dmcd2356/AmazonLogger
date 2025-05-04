@@ -29,6 +29,8 @@ public class VariableExtract {
     public enum Trait {
         UPPER,              // String:   convert all chars to uppercase
         LOWER,              // String:   convert all chars to lowercase
+        TOLINES,            // String:   convert to StrArray of lines of text
+        TOWORDS,            // String:   convert to StrArray of words
         SORT,               // StrArray: sort from A-Z
         REVERSE,            // StrArray: sort from A-Z
         FILTER,             // StrArray or IntArray: filtered contents
@@ -208,6 +210,8 @@ public class VariableExtract {
 
             case LOWER:
             case UPPER:
+            case TOLINES:
+            case TOWORDS:
                 // these are only valid for String types
                 if (ptype != ParameterStruct.ParamType.String) {
                     traitVal = null;
@@ -269,7 +273,6 @@ public class VariableExtract {
             case DOY:
             case MOY:
             case SIZE:
-                // these are only valid for Integer types and only for $DATE
                 ptype = ParameterStruct.ParamType.Unsigned;
                 break;
 
@@ -282,6 +285,8 @@ public class VariableExtract {
 
             case SORT:
             case REVERSE:
+            case TOLINES:
+            case TOWORDS:
                 ptype = ParameterStruct.ParamType.StrArray;
                 break;
 

@@ -173,7 +173,7 @@ public class VarArray {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
         strArrayParams.replace(name, value);
-        frame.outputInfoMsg(STATUS_VARS, "   - Saved StrArray param: " + name + " = " + value);
+        frame.outputInfoMsg(STATUS_VARS, "   - Saved StrArray param: " + name);
     }
 
     /**
@@ -195,7 +195,7 @@ public class VarArray {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
         intArrayParams.replace(name, value);
-        frame.outputInfoMsg(STATUS_VARS, "   - Saved IntArray param: " + name + " = " + value);
+        frame.outputInfoMsg(STATUS_VARS, "   - Saved IntArray param: " + name);
     }
 
     /**

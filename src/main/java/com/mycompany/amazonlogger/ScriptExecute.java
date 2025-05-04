@@ -5,6 +5,7 @@
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
+import static com.mycompany.amazonlogger.CommandStruct.CommandTable.OCRSCAN;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.io.BufferedReader;
@@ -473,6 +474,12 @@ public class ScriptExecute {
                 }
                 fileWriter.println(text);
                 break;
+            case OCRSCAN:
+                // verify 1 String argument: file name
+                fname = cmdStruct.params.get(0).getStringValue();
+                OCRReader ocr = new OCRReader();
+                ocr.run (fname);
+                break;
             case ALLOCATE:
                 // nothing to do
                 break;
@@ -830,7 +837,7 @@ public class ScriptExecute {
                 cmdOptionParser.runCmdOption (cmdStruct);
                 break;
         }
-        } catch (ParserException exMsg) {
+        } catch (IOException | TikaException | SAXException | ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + exceptPreface);
         }
         

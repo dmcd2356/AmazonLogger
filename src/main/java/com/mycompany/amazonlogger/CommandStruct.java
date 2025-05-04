@@ -35,6 +35,7 @@ public class CommandStruct {
         FCLOSE,     //  "       "       "
         FREAD,      //  "       "       "
         FWRITE,     //  "       "       "
+        OCRSCAN,    // this does an OCR scan of the specified PDF file
         ALLOCATE,   // this allocates the parameters used by the program
         SET,        // this sets the value of the parameters
         IF,         // these handles the conditional IF-ELSEIF-ELSE-ENDIF

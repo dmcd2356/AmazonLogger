@@ -103,6 +103,17 @@ public class AmazonReader {
      * @throws IOException
      * @throws SAXException
      * @throws TikaException 
+     */    
+    /**
+     * runs the program from command line input
+     * 
+     * @param fname - the name of the script file to run
+     * @param bRunExec - TRUE if execute script after compile, FALSE if compile only
+     * 
+     * @throws ParserException
+     * @throws IOException
+     * @throws SAXException
+     * @throws TikaException 
      */
     private static void runFromFile (String fname, boolean bRunExec) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";

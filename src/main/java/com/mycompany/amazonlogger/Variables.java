@@ -12,8 +12,10 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 
@@ -43,6 +45,7 @@ public class Variables {
         RANDOM,
         DATE,
         TIME,
+        OCRTEXT,
     }
     
     public enum VarClass {
@@ -259,25 +262,26 @@ public class Variables {
         switch (getVariableClass (name)) {
             // check the reserved params list
             case RESERVED:
-                switch (name) {
-                    case "RESPONSE":
+                ReservedVars reserved = isReservedName (name);
+                switch (reserved) {
+                    case RESPONSE:
                         paramValue.setStrArray(VarArray.getResponseValue());
                         pType = ParameterStruct.ParamType.StrArray;
                         break;
-                    case "STATUS":
+                    case STATUS:
                         paramValue.setBooleanValue(bStatus);
                         pType = ParameterStruct.ParamType.Boolean;
                         break;
-                    case "RANDOM":
+                    case RANDOM:
                         paramValue.setIntegerValue(getRandomValue());
                         pType = ParameterStruct.ParamType.Integer;
                         break;
-                    case "TIME":
+                    case TIME:
                         LocalTime currentTime = LocalTime.now();
                         paramValue.setStringValue(currentTime.toString().substring(0,12));
                         pType = ParameterStruct.ParamType.String;
                         break;
-                    case "DATE":
+                    case DATE:
                         Integer iDate = getDateIntValue (paramInfo.getTrait());
                         if (iDate != null) {
                             paramValue.setIntegerValue((long) iDate);
@@ -287,6 +291,10 @@ public class Variables {
                             paramValue.setStringValue(strDate);
                             pType = ParameterStruct.ParamType.String;
                         }
+                        break;
+                    case OCRTEXT:
+                        String ocrText = OCRReader.getContent();
+                        paramValue.setStringValue(ocrText);
                         break;
                     default:
                         break;
@@ -331,6 +339,7 @@ public class Variables {
                         int length = arrayValue.length();
                         arrayValue = arrayValue.substring(0,60) + "..." + arrayValue.substring(length-30);
                     }
+                    pType = ParameterStruct.ParamType.IntArray;
                 } else {
                     ArrayList<String> strList = VarArray.getStrArray(name);
                     paramValue.setStrArray(strList);
@@ -339,6 +348,7 @@ public class Variables {
                         int length = arrayValue.length();
                         arrayValue = arrayValue.substring(0,60) + "..." + arrayValue.substring(length-30);
                     }
+                    pType = ParameterStruct.ParamType.StrArray;
                 }
                 frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
                 break;
@@ -349,35 +359,59 @@ public class Variables {
         // now check for brackets being applied (this will change the type for Arrays)
         if (paramInfo.getIndexStart() != null) {
             int iStart = paramInfo.getIndexStart();
+            int iEnd = iStart;
+            String ixRange = "[" + iStart + "]";
+            if(paramInfo.getIndexEnd() != null) {
+                iEnd = paramInfo.getIndexEnd();
+                if (iEnd > iStart) {
+                    ixRange = "[" + iStart + "-" + iEnd + "]";
+                }
+            }
             switch (pType) {
                 case ParameterStruct.ParamType.IntArray:
-                    if (iStart < paramValue.getIntArraySize()) {
-                        paramValue.setIntegerValue(paramValue.getIntArrayElement(iStart));
-                        paramValue.setStringValue(paramValue.getIntegerValue().toString());
-                        pType = ParameterStruct.ParamType.Integer;
+                    if (iStart >= 0 && iEnd < paramValue.getIntArraySize()) {
+                        if (iEnd == iStart) {
+                            paramValue.setIntegerValue(paramValue.getIntArrayElement(iStart));
+                            paramValue.setStringValue(paramValue.getIntegerValue().toString());
+                            pType = ParameterStruct.ParamType.Integer;
+                        } else {
+                            int count = paramValue.getIntArraySize() - iEnd - 1;
+                            for (int ix = 0; ix < count; ix++) {
+                                paramValue.getIntArray().remove(iEnd + 1);
+                            }
+                            for (int ix = 0; ix < iStart; ix++) {
+                                paramValue.getIntArray().remove(0);
+                            }
+                            pType = ParameterStruct.ParamType.IntArray;
+                        }
                         frame.outputInfoMsg(STATUS_VARS, "    " + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getIntegerValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
                     break;
                 case ParameterStruct.ParamType.StrArray:
-                    if (iStart < paramValue.getStrArraySize()) {
-                        paramValue.setStringValue(paramValue.getStrArrayElement(iStart));
-                        pType = ParameterStruct.ParamType.String;
+                    if (iStart >= 0 && iEnd < paramValue.getStrArraySize()) {
+                        if (iEnd == iStart) {
+                            paramValue.setStringValue(paramValue.getStrArrayElement(iStart));
+                            pType = ParameterStruct.ParamType.String;
+                        } else {
+                            int count = paramValue.getStrArraySize() - iEnd - 1;
+                            for (int ix = 0; ix < count; ix++) {
+                                paramValue.getStrArray().remove(iEnd + 1);
+                            }
+                            for (int ix = 0; ix < iStart; ix++) {
+                                paramValue.getStrArray().remove(0);
+                            }
+                            pType = ParameterStruct.ParamType.StrArray;
+                        }
                         frame.outputInfoMsg(STATUS_VARS, "    " + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getStringValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
                     break;
                 case ParameterStruct.ParamType.String:
-                    int iEnd = iStart + 1;
-                    String ixRange = "[" + iStart + "]";
-                    if(paramInfo.getIndexEnd() != null) {
-                        iEnd = paramInfo.getIndexEnd();
-                        ixRange = "[" + iStart + "-" + iEnd + "]";
-                    }
-                    if (iEnd <= paramValue.getStrArraySize()) {
-                        paramValue.setStringValue(paramValue.getStringValue().substring(iStart, iEnd));
+                    if (iStart >= 0 && iEnd < paramValue.getStrArraySize()) {
+                        paramValue.setStringValue(paramValue.getStringValue().substring(iStart, iEnd + 1));
                         frame.outputInfoMsg(STATUS_VARS, "    " + name + "index" + ixRange + " as type " + pType + ": " + paramValue.getStringValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index" + ixRange + " exceeds array");
@@ -477,6 +511,18 @@ public class Variables {
                         case LOWER:
                             paramValue.setStringValue(paramValue.getStringValue().toLowerCase());
                             strValue = paramValue.getStringValue();
+                            break;
+                        case TOLINES:
+                            strValue = paramValue.getStringValue();
+                            List<String> list = Arrays.asList(strValue.split("\n"));
+                            ArrayList<String> strList = new ArrayList<>(list);
+                            paramValue.setStrArray(strList);
+                            break;
+                        case TOWORDS:
+                            strValue = paramValue.getStringValue();
+                            list = Arrays.asList(strValue.split(" "));
+                            strList = new ArrayList<>(list);
+                            paramValue.setStrArray(strList);
                             break;
                         case SIZE:
                             paramValue.setIntegerValue((long)paramValue.getStringValue().length());
@@ -659,11 +705,11 @@ public class Variables {
      * 
      * @param name - the name to check
      * 
-     * @return true if it is a reserved name
+     * @return the reserved variable name if valid, null if not
      * 
      * @throws ParserException
      */
-    public static boolean isReservedName (String name) throws ParserException {
+    private static ReservedVars isReservedName (String name) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null) {
@@ -672,10 +718,10 @@ public class Variables {
         for (ReservedVars entry : ReservedVars.values()) {
             if (entry.toString().contentEquals(name)) {
                 frame.outputInfoMsg(STATUS_DEBUG, "    Reserved name found: " + name);
-                return true;
+                return entry;
             }
         }
-        return false;
+        return null;
     }
     
     /**
@@ -699,7 +745,7 @@ public class Variables {
             if (offset > 0) name = name.substring(0, offset);
         }
         // classify the type
-        if (isReservedName (name))           return VarClass.RESERVED;
+        if (isReservedName (name) != null)   return VarClass.RESERVED;
         if (longParams.containsKey(name)) return VarClass.NUMERIC;
         if (uintParams.containsKey(name)) return VarClass.NUMERIC;
         if (strParams.containsKey(name))  return VarClass.STRING;
@@ -737,8 +783,32 @@ public class Variables {
 
         // this is the default value
         ParameterStruct.ParamType vartype = null;
-
-        if (LoopStruct.getCurrentLoopValue(name) != null) {
+        ReservedVars reserved = isReservedName (name);
+        if (reserved != null) {
+            switch (reserved) {
+                case RESPONSE:
+                    vartype = ParameterStruct.ParamType.StrArray;
+                    break;
+                case STATUS:
+                    vartype = ParameterStruct.ParamType.Integer;
+                    break;
+                case RANDOM:
+                    vartype = ParameterStruct.ParamType.Unsigned;
+                    break;
+                case DATE:
+                    vartype = ParameterStruct.ParamType.String;  // can also be Unsigned
+                    break;
+                case TIME:
+                    vartype = ParameterStruct.ParamType.String;
+                    break;
+                case OCRTEXT:
+                    vartype = ParameterStruct.ParamType.String;
+                    break;
+                default:
+                    break;
+            }
+        }
+        else if (LoopStruct.getCurrentLoopValue(name) != null) {
             vartype = ParameterStruct.ParamType.Integer;
         } else if (longParams.containsKey(name)) {
             vartype = ParameterStruct.ParamType.Integer;
@@ -752,16 +822,6 @@ public class Variables {
             vartype = ParameterStruct.ParamType.IntArray;
         } else if (VarArray.isStrArray(name)) {
             vartype = ParameterStruct.ParamType.StrArray;
-        } else if (name.contentEquals("RESPONSE")) {
-            vartype = ParameterStruct.ParamType.StrArray;
-        } else if (name.contentEquals("STATUS")) {
-            vartype = ParameterStruct.ParamType.Integer;
-        } else if (name.contentEquals("RANDOM")) {
-            vartype = ParameterStruct.ParamType.Unsigned;
-        } else if (name.contentEquals("DATE")) {
-            vartype = ParameterStruct.ParamType.String;  // can also be Unsigned
-        } else if (name.contentEquals("TIME")) {
-            vartype = ParameterStruct.ParamType.String;
         }
         if (vartype == null) {
             throw new ParserException(functionId + "Variable entry not found: " + name);
@@ -791,11 +851,50 @@ public class Variables {
         }
         Long iValue = null;
         try {
+            ReservedVars reserved = isReservedName (name);
             Integer loopVal = LoopStruct.getCurrentLoopValue(name);
             if (loopVal != null) {
                 iValue = (long) loopVal;
                 if (bNoLoops) {
                     return null; // value is a loop var, but is not allowed
+                }
+            } else if (reserved != null) {
+                switch (reserved) {
+                    case RESPONSE:
+                        String strValue = VarArray.getResponseValue().getFirst();
+                        iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+                        break;
+                    case STATUS:
+                        iValue = bStatus ? 1L : 0;
+                        break;
+                    case RANDOM:
+                        iValue = getRandomValue();
+                        break;
+                    case DATE:
+                        LocalDate currentDate = LocalDate.now();
+                        switch (traitVal) {
+                            case DOW:
+                                iValue = (long) currentDate.getDayOfWeek().getValue();
+                                break;
+                            case DOM:
+                                iValue = (long) currentDate.getDayOfMonth();
+                                break;
+                            case DOY:
+                                iValue = (long) currentDate.getDayOfYear();
+                                break;
+                            case MOY:
+                                iValue = (long) currentDate.getMonthValue();
+                                break;
+                            default:
+                                // no other value is allowed for Integers
+                                break;
+                        }
+                        break;
+                    default:
+                    case TIME:
+                    case OCRTEXT:
+                        // these can't be converted to Integer
+                        break;
                 }
             }
             else if (longParams.containsKey(name)) {
@@ -838,43 +937,6 @@ public class Variables {
                 else if (traitVal == VariableExtract.Trait.SIZE) {
                     iValue = (long) VarArray.getStrArray(name).size();
                     frame.outputInfoMsg(STATUS_DEBUG, "Extracted SIZE of StrArray " + name + " as: " + iValue);
-                }
-            }
-            else {
-                switch (name) {
-                    case "RESPONSE":
-                        String strValue = VarArray.getResponseValue().getFirst();
-                        iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
-                        break;
-                    case "STATUS":
-                        iValue = bStatus ? 1L : 0;
-                        break;
-                    case "RANDOM":
-                        iValue = getRandomValue();
-                        break;
-                    case "DATE":
-                        LocalDate currentDate = LocalDate.now();
-                        switch (traitVal) {
-                            case DOW:
-                                iValue = (long) currentDate.getDayOfWeek().getValue();
-                                break;
-                            case DOM:
-                                iValue = (long) currentDate.getDayOfMonth();
-                                break;
-                            case DOY:
-                                iValue = (long) currentDate.getDayOfYear();
-                                break;
-                            case MOY:
-                                iValue = (long) currentDate.getMonthValue();
-                                break;
-                            default:
-                                // no other value is allowed for Integers
-                                break;
-                        }
-                        break;
-                    case "TIME":  // can't be converted to Integer
-                    default:
-                        break;
                 }
             }
         } catch (ParserException exMsg) {

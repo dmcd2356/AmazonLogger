@@ -120,7 +120,6 @@ public class ScriptCompile {
                 // 'parmString' is a string containing the arguments following the command
                 // 'cmdStruct'  will receive the command, with the arguments yet to be placed.
                 cmdStruct = new CommandStruct(command, lineNum);
-                ArrayList<String> listParms;
 
                 // extract the arguments to pass to the command
                 frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
@@ -208,6 +207,11 @@ public class ScriptCompile {
                         break;
                     case FWRITE:
                         // verify 1 argument: message to write
+                        checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        break;
+                        
+                    case OCRSCAN:
+                        // verify 1 String argument: file name
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                         
@@ -419,6 +423,7 @@ public class ScriptCompile {
                         // read the arguments passed
                         // assumed format is: FOR Name = StartIx ; < EndIx ; IncrVal
                         // (and trailing "; IncrVal" is optional)
+                        ArrayList<String> listParms;
                         listParms = extractUserParams ("S=I;CI;I", parmString);
                         if (listParms.size() < 4) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing parameters");
