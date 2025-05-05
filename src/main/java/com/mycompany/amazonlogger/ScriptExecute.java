@@ -818,7 +818,6 @@ public class ScriptExecute {
                 }
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
-//                curLoopId = LoopStruct.popStack();
                 LoopStruct.popStack();
                 loopSize = LoopStruct.getStackSize();
                 if (loopSize > 0) {

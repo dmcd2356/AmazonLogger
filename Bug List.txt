@@ -2,12 +2,16 @@ KNOWN BUGS:
 
 TODO:
 - Add the following PROGRAM features:
+    - cleanup ScriptExecute on checking parameters
+    - get rid of the OCR data that is output when it is run (not sure why this is occurring)
+    - eliminate duplicate text data on OCR scan (not sure why this is occurring)
     - add -hyper option command to place a hypertext link in the cell of a spreadsheet
     - add DOUNTIL and DOWHILE commands (terminate in DONE)
     - add subroutine calls (SUB, RETURN) and getting the return value $RETURN
     - add loading other script files (LOAD. CALL)
     - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
     - cleanup error handling messages.
+ - More thorough error checking
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with
     certain debug messages enabled. Then capturing the debug output and comparing them to expected
     results.
@@ -15,7 +19,6 @@ TODO:
     current entry item before copying the data.
 - After spreadsheet is loaded, show the last (most recent entry) in Dan and Connie tab to make it
     easier to find the next page to load without having to look at the spreadsheet directly.
-- Add ability to do OCR of scanned text documents and be able to read the text.
 
 TESTING PHASE:
  * modify RESPONSE to be a StrArray instead of a String to access each element
@@ -38,4 +41,5 @@ TESTING PHASE:
  * allow setting the RANDOM variable that sets the range of random values
  * add CD command to change directory within the Testpath base
  * add FILTER command and Trait to filter arrays.
+ * Add ability to do OCR of scanned text documents and be able to read the text.
 

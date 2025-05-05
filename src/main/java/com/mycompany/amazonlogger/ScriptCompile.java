@@ -6,7 +6,6 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
 import java.io.BufferedReader;
 import java.io.File;
@@ -421,40 +420,54 @@ public class ScriptCompile {
                         break;
                     case CommandStruct.CommandTable.FOR:
                         // read the arguments passed
-                        // assumed format is: FOR Name = StartIx ; < EndIx ; IncrVal
-                        // (and trailing "; IncrVal" is optional)
-                        ArrayList<String> listParms;
-                        listParms = extractUserParams ("S=I;CI;I", parmString);
-                        if (listParms.size() < 4) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " missing parameters");
-                        } else if (listParms.size() < 5) {
-                            listParms.add("1"); // use 1 as a default value
-                            frame.outputInfoMsg(STATUS_COMPILE, "    (using default step size of 1)");
+                        // assumed format is: FOR VarName [=] StartIx TO EndIx [STEP StepVal]
+                        String loopName, loopStart, loopEnd, strVal;
+                        String loopStep = "1";
+                        // arg 0 should be the Loop variable name
+                        loopName = checkArgType (0, ParameterStruct.ParamType.String,  cmdStruct.params);
+                        // check for optional '=' sign and eliminate if found
+                        strVal   = checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
+                        if (strVal.contentEquals("=")) {
+                            cmdStruct.params.remove(1);
                         }
+                        boolean bValid = true;
+                        if (cmdStruct.params.size() != 4 && cmdStruct.params.size() != 6) {
+                            bValid = false;
+                        } else {
+                            // this checks the required start and end loop index values
+                            loopStart = checkArgType (1, ParameterStruct.ParamType.Integer, cmdStruct.params);
+                            strVal    = checkArgType (2, ParameterStruct.ParamType.String,  cmdStruct.params);
+                            loopEnd   = checkArgType (3, ParameterStruct.ParamType.Integer, cmdStruct.params);
+                            if (! strVal.contentEquals("TO")) {
+                                bValid = false;
+                            }
+                            else if (cmdStruct.params.size() == 6) {
+                                // this checks the optional loop index step value
+                                strVal   = checkArgType (4, ParameterStruct.ParamType.String,  cmdStruct.params);
+                                loopStep = checkArgType (5, ParameterStruct.ParamType.Integer, cmdStruct.params);
+                                if (! strVal.contentEquals("STEP")) {
+                                    bValid = false;
+                                }
+                            }
+                            // create a new loop ID (name + command index) for the entry and add it
+                            // to the list of IDs for the loop parameter name
+                            LoopId loopId = new LoopId(loopName, cmdIndex);
+                            try {
+                                LoopStruct loopInfo = new LoopStruct (loopName, loopStart, loopEnd, loopStep,
+                                                cmdIndex, IFStruct.getStackSize());
+                                LoopParam.saveLoopParameter (loopName, loopId, loopInfo);
+                            } catch (ParserException exMsg) {
+                                throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
+                            }
 
-                        // get the parameters and format them for use
-                        String loopStart, loopEnd, loopStep;
-                        String loopName, loopComp;
-                        loopName  = listParms.get(0);
-                        loopStart = listParms.get(1);
-                        loopComp  = listParms.get(2);
-                        loopEnd   = listParms.get(3);
-                        loopStep  = listParms.get(4);
-
-                        // create a new loop ID (name + command index) for the entry and add it
-                        // to the list of IDs for the loop parameter name
-                        LoopId loopId = new LoopId(loopName, cmdIndex);
-                        LoopStruct loopInfo;
-                        try {
-                            loopInfo = new LoopStruct (loopName, loopStart, loopEnd, loopStep, loopComp, cmdIndex, IFStruct.getStackSize());
-                        } catch (ParserException exMsg) {
-                            throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
+                            // add entry to the current loop stack
+                            LoopStruct.pushStack(loopId);
+                            frame.outputInfoMsg(STATUS_COMPILE, "   - new FOR Loop level " + LoopStruct.getStackSize() + " Variable " + loopName + " index @ " + cmdIndex);
                         }
-                        LoopParam.saveLoopParameter (loopName, loopId, loopInfo);
-
-                        // add entry to the current loop stack
-                        LoopStruct.pushStack(loopId);
-                        frame.outputInfoMsg(STATUS_COMPILE, "   - new FOR Loop level " + LoopStruct.getStackSize() + " Variable " + loopName + " index @ " + cmdIndex);
+                        if (! bValid) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " invalid command format" +
+                                    ": should be of form VarName [=] StartIx TO EndIx [STEP StepIx]");
+                        }
                         break;
                     case CommandStruct.CommandTable.BREAK:
                         // make sure we are in a FOR ... NEXT loop
@@ -595,7 +608,7 @@ public class ScriptCompile {
     }
 
     /**
-     * checks if the specified argument in the arg list is a valid variable name for assignment.
+     * checks if the specified argument in the arg list is a valid variable name for assignment to.
      * 
      * @param index    - the index of the argument in the arg list
      * @param parmList - the list of args
@@ -687,7 +700,7 @@ public class ScriptCompile {
     }
 
     /**
-     * checks if the specified argument(s) comply for an Integer or Calculation value.
+     * checks if the specified argument compiles with the specified data type.
      * 
      * @param index      - the index of the argument in the arg list
      * @param exptype    - the type of variable the command is expecting
@@ -695,7 +708,7 @@ public class ScriptCompile {
      * 
      * @throws ParserException 
      */    
-    private void checkArgType (int index, ParameterStruct.ParamType expType, ArrayList<ParameterStruct> parmList) throws ParserException {
+    private String checkArgType (int index, ParameterStruct.ParamType expType, ArrayList<ParameterStruct> parmList) throws ParserException {
          String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (parmList == null) {
@@ -705,10 +718,11 @@ public class ScriptCompile {
             throw new ParserException(functionId + "Missing arguments in list - number found: " + parmList.size());
         }
         verifyArgDataType (expType, parmList.get(index));
+        return parmList.get(index).getStringValue();
     }
 
     /**
-     * checks if the specified argument(s) comply with an Array Filter type.
+     * checks if the specified argument compiles with the Array Filter type.
      * 
      * @param index      - the index of the argument in the arg list
      * @param vartype    - the type of variable it is being assigned to (Array types only)
@@ -781,64 +795,6 @@ public class ScriptCompile {
             default:
                 throw new ParserException(functionId + "Invalid variable type (must be an Array type): " + vartype);
         }
-    }
-    
-    /**
-     * extracts the specified list of parameter types from the string passed.
-     * The 'parmArr' value should be the String containing the param list for the command
-     * and the 'strType' contains a representation of the parameters and format that
-     * we expect. NOTE: this does not verify all params have been read, so that
-     * trailing params can be optional, so you have to chack for the number of
-     * params returned.
-     * 
-     * parameter types:
-     * S is a String or String parameter
-     * I is an Integer or String/Integer parameter
-     * C is a comparison string (==, !=, >, >=, <, <=)
-     * other entries are taken as separator chars, such as ; , = etc.
-     * 
-     * @param strType - the format string for the param list
-     * @param parmArr - the string of params to parse
-     * 
-     * @return an ArrayList of Strings containing the parameters
-     * 
-     * @throws ParserException 
-     */
-    private ArrayList<String> extractUserParams (String strType, String parmArr) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        ArrayList<String> parmList = new ArrayList<>();
-        for (int parmIx = 0; parmIx < strType.length() && !parmArr.isBlank(); parmIx++) {
-            frame.outputInfoMsg(STATUS_COMPILE, functionId + parmArr);
-
-            // get the next entry type to read
-            char curType = strType.charAt(parmIx);
-            
-            // remove any leading spaces and extract the next parameter type
-            parmArr = parmArr.strip();
-            int offset = getValidStringLen (curType, parmArr);
-            if (offset <= 0) {
-                throw new ParserException (functionId + "Missing parameter for arg[" + parmList.size() + "] type " + curType);
-            }
-            
-            // get the parameter we are searching for and remove it from the input list
-            String param = parmArr.substring(0, offset);
-            parmArr = parmArr.substring(offset);
-            frame.outputInfoMsg(STATUS_COMPILE, "    offset = " + offset);
-
-            switch (curType) {
-                case 'S':
-                case 'I':
-                case 'C':
-                    frame.outputInfoMsg(STATUS_COMPILE, "    extracted arg[" + parmList.size() + "]: '" + param + "'");
-                    parmList.add(param);
-                    break;
-                default:
-                    frame.outputInfoMsg(STATUS_COMPILE, "    extracted character: '" + curType + "'");
-                    break;
-            }
-        }
-        return parmList;
     }
     
     /**
@@ -1366,66 +1322,6 @@ public class ScriptCompile {
                 return line.substring(0, ix);
         }
         return line;
-    }
-    
-    /**
-     * extracts the number of chars read from a command line that match the type of 
-     * parameter we are looking for.
-     * 
-     * @param type - the type of parameter to look for
-     * @param line - the command line that starts with the next entry to parse
-     * 
-     * @return the number of chars found in the string that match the param type
-     * 
-     * @throws ParserException 
-     */
-    private int getValidStringLen (char type, String line) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        boolean bParam = false;
-        for (int ix = 0; ix < line.length(); ix++) {
-            char curChar = line.charAt(ix);
-            frame.outputInfoMsg(STATUS_DEBUG, functionId + "char type " + type + ": char '" + curChar + "'");
-            switch (type) {
-                case 'S':
-                    // String or Parameter
-                    if (ix == 0 && curChar == '$') {
-                        bParam = true;
-                        continue;
-                    }
-                    if (Character.isLetterOrDigit(curChar) || curChar == '_') {
-                        continue;
-                    }
-                    return ix;
-                case 'I':
-                    // Integer or Parameter
-                    if (ix == 0 && curChar == '$') {
-                        bParam = true;
-                        continue;
-                    }
-                    if (Character.isDigit(curChar)) {
-                        continue;
-                    }
-                    if (bParam) {
-                        if (Character.isLetterOrDigit(curChar) || curChar == '_') {
-                            continue;
-                        }
-                    }
-                    return ix;
-                case 'C':
-                    // Comparison sign
-                    if (curChar == '=' || curChar == '!' || curChar == '>' || curChar == '<') {
-                        continue;
-                    }
-                    return ix;
-                default:
-                    if (curChar == type) {
-                        return ix + 1;
-                    }
-                    throw new ParserException (functionId + "Invalid char for type " + type + ": " + curChar);
-            }
-        }
-        return line.length();
     }
     
 }

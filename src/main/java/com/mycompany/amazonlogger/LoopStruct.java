@@ -20,7 +20,7 @@ public class LoopStruct {
     private final LoopParam valStart;   // loop start value
     private final LoopParam valEnd;     // loop end   value
     private final LoopParam valStep;    // value to increment value by on each loop
-    private final String    comparator; // the comparison symbols used for checking against valEnd
+    private       String    comparator; // the comparison symbols used for checking against valEnd
     private final Integer   ixBegin;    // command index of start of loop (where it returns to)
     private       Integer   ixEnd;      // command index of ENDFOR (end of loop or break reached)
     private       Integer   ifLevel;    // IF nest level (to make sure loop def doesn't exceed the boundaries)
@@ -37,13 +37,12 @@ public class LoopStruct {
      * @param start - starting value of the parameter
      * @param end   - ending value of the parameter
      * @param step  - amount to increase the parameter on each iteration
-     * @param comp  - the type of comparison for the loop 
      * @param index - the index of the command list to return to on each loop (index of FOR)
      * @param ifLev - the IF nest level at start of LOOP def
      * 
      * @throws ParserException
      */
-    LoopStruct (String name, String start, String end, String step, String comp, int index, int ifLev) throws ParserException {
+    LoopStruct (String name, String start, String end, String step, int index, int ifLev) throws ParserException {
         String functionId = CLASS_NAME + " (new): ";
        
         // check for invalid input
@@ -51,11 +50,6 @@ public class LoopStruct {
         if (start == null) throw new ParserException(functionId + "FOR param @ " + index + ": 'start' entry is null");
         if (end   == null) throw new ParserException(functionId + "FOR param @ " + index + ": 'end' entry is null");
         if (step  == null) throw new ParserException(functionId + "FOR param @ " + index + ": 'step' entry is null");
-        switch (comp) {
-            case "<", "<=", ">", ">=", "!=", "=", "==" -> {
-            }
-            default -> throw new ParserException(functionId + "FOR param @ " + index + ": Invalid comparison chars: " + comp);
-        }
         try {
             isValidLoopName(name, index);
         } catch (ParserException exMsg) {
@@ -68,7 +62,6 @@ public class LoopStruct {
             this.valEnd   = new LoopParam (end);
             this.valStep  = new LoopParam (step);
             this.value    = valStart.getIntValue(); // set to the current start value if this is a ref param
-            this.comparator = comp;
             this.ixBegin  = index;
             this .ixEnd   = null;
             this.ifLevel  = ifLev;
@@ -132,6 +125,11 @@ public class LoopStruct {
         value = valStart.getIntValue();
         
         // just in case the loop is set to not run, perform the exit comparison
+        if (valStep.getIntValue() >= 1) {
+            comparator = "<=";
+        } else {
+            comparator = ">=";
+        }
         boolean bResult = Utils.compareParameterValues (valStart.getIntValue(), valEnd.getIntValue(), comparator);
         if (! bResult) {
             return ixEnd;
