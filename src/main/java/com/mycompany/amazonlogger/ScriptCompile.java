@@ -435,13 +435,17 @@ public class ScriptCompile {
                             bValid = false;
                         } else {
                             // this checks the required start and end loop index values
+                            boolean bInclEnd = false;
                             loopStart = checkArgType (1, ParameterStruct.ParamType.Integer, cmdStruct.params);
                             strVal    = checkArgType (2, ParameterStruct.ParamType.String,  cmdStruct.params);
                             loopEnd   = checkArgType (3, ParameterStruct.ParamType.Integer, cmdStruct.params);
-                            if (! strVal.contentEquals("TO")) {
+                            if (! strVal.contentEquals("TO") && ! strVal.contentEquals("UPTO")) {
                                 bValid = false;
                             }
                             else if (cmdStruct.params.size() == 6) {
+                                if (strVal.contentEquals("TO")) {
+                                    bInclEnd = true;
+                                }
                                 // this checks the optional loop index step value
                                 strVal   = checkArgType (4, ParameterStruct.ParamType.String,  cmdStruct.params);
                                 loopStep = checkArgType (5, ParameterStruct.ParamType.Integer, cmdStruct.params);
@@ -454,7 +458,7 @@ public class ScriptCompile {
                             LoopId loopId = new LoopId(loopName, cmdIndex);
                             try {
                                 LoopStruct loopInfo = new LoopStruct (loopName, loopStart, loopEnd, loopStep,
-                                                cmdIndex, IFStruct.getStackSize());
+                                                bInclEnd, cmdIndex, IFStruct.getStackSize());
                                 LoopParam.saveLoopParameter (loopName, loopId, loopInfo);
                             } catch (ParserException exMsg) {
                                 throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);

@@ -274,7 +274,11 @@ public class ScriptExecute {
         for (int ix = 0; ix < cmdStruct.params.size(); ix++) {
             if (ix > 0 || cmdStruct.command != CommandStruct.CommandTable.SET) {
                 ParameterStruct param = cmdStruct.params.get(ix);
-                param.updateFromReference();
+                try {
+                    param.updateFromReference();
+                } catch (ParserException exMsg) {
+                    throw new ParserException(exMsg + "\n  -> " + exceptPreface + " - replacing reference: " + param.getVariableRefName());
+                }
             }
         }
         frame.outputInfoMsg(STATUS_PROGRAM, linePreface + cmdStruct.showCommand());

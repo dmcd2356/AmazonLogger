@@ -20,6 +20,7 @@ public class LoopStruct {
     private final LoopParam valStart;   // loop start value
     private final LoopParam valEnd;     // loop end   value
     private final LoopParam valStep;    // value to increment value by on each loop
+    private final boolean   bInclEnd;   // true if include valEnd limit before exit, false if exit on = valEnd
     private       String    comparator; // the comparison symbols used for checking against valEnd
     private final Integer   ixBegin;    // command index of start of loop (where it returns to)
     private       Integer   ixEnd;      // command index of ENDFOR (end of loop or break reached)
@@ -42,7 +43,7 @@ public class LoopStruct {
      * 
      * @throws ParserException
      */
-    LoopStruct (String name, String start, String end, String step, int index, int ifLev) throws ParserException {
+    LoopStruct (String name, String start, String end, String step, boolean bIncl, int index, int ifLev) throws ParserException {
         String functionId = CLASS_NAME + " (new): ";
        
         // check for invalid input
@@ -61,6 +62,7 @@ public class LoopStruct {
             this.valStart = new LoopParam (start);
             this.valEnd   = new LoopParam (end);
             this.valStep  = new LoopParam (step);
+            this.bInclEnd = bIncl;
             this.value    = valStart.getIntValue(); // set to the current start value if this is a ref param
             this.ixBegin  = index;
             this .ixEnd   = null;
@@ -126,9 +128,9 @@ public class LoopStruct {
         
         // just in case the loop is set to not run, perform the exit comparison
         if (valStep.getIntValue() >= 1) {
-            comparator = "<";
+            comparator = bInclEnd ? "<=" : "<";
         } else {
-            comparator = ">";
+            comparator = bInclEnd ? ">=" : ">";
         }
         boolean bResult = Utils.compareParameterValues (valStart.getIntValue(), valEnd.getIntValue(), comparator);
         if (! bResult) {

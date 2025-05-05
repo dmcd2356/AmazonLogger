@@ -395,8 +395,14 @@ public final class ParameterStruct {
      * @throws ParserException 
      */
     public void updateFromReference () throws ParserException {
-        
-        ParameterStruct value = Variables.getVariableInfo (variableRef);
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        ParameterStruct value = null;
+        try {
+            value = Variables.getVariableInfo (variableRef);
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
+        }
         if (value != null) {
             this.paramType      = value.paramType;
             this.paramTypeID    = value.paramTypeID;
