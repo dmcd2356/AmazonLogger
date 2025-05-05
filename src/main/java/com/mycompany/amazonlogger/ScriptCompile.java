@@ -492,22 +492,27 @@ public class ScriptCompile {
                         if (LoopStruct.getStackSize() == 0) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                         }
+                        
+                        // add a token ENDFOR command following the NEXT, so we have a location to go to on exiting loop
+                        cmdList.add(cmdStruct); // place the NEXT command here and queue up the ENDFOR command
+                        cmdStruct = new CommandStruct(CommandStruct.CommandTable.ENDFOR, lineNum);
+                        frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + (cmdIndex + 1) + "]: " + cmdStruct.command + " (added to follow NEXT)");
+                        // (this will be added at the end of this switch statement)
+
                         // verify the IF loop level hasn't been exceeded
                         curLoop = LoopStruct.peekStack();
                         LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
-                        break;
-                    case CommandStruct.CommandTable.ENDFOR:
-                        // make sure we are in a FOR ... NEXT loop
-                        if (LoopStruct.getStackSize() == 0) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
-                        }
-                        // store line location in labelsMap
+
+                        // set the added ENDFOR command to be the location to go to upon completion
                         curLoop = LoopStruct.peekStack();
                         LoopParam.setLoopEndIndex(cmdList.size(), curLoop);
 
                         // remove entry from loop stack
                         LoopStruct.popStack();
                         break;
+                    case CommandStruct.CommandTable.ENDFOR:
+                        // ignore the user entry of this command - we place our own ENDFOR when the NEXT command is found.
+                        continue;
                     case CommandStruct.CommandTable.RUN:
                         // verify the option command and its parameters
                         // NOTE: when we place the command in cmdStruct, we remove the RUN label,

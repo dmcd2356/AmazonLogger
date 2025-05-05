@@ -126,9 +126,9 @@ public class LoopStruct {
         
         // just in case the loop is set to not run, perform the exit comparison
         if (valStep.getIntValue() >= 1) {
-            comparator = "<=";
+            comparator = "<";
         } else {
-            comparator = ">=";
+            comparator = ">";
         }
         boolean bResult = Utils.compareParameterValues (valStart.getIntValue(), valEnd.getIntValue(), comparator);
         if (! bResult) {
