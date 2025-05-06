@@ -305,6 +305,15 @@ public final class ParameterStruct {
      * 
      * @return the reference Variable name (null if parameter is not a reference)
      */
+    public VariableInfo getVariableRef () {
+        return variableRef;
+    }
+       
+    /**
+     * returns the Variable name if it is a reference.
+     * 
+     * @return the reference Variable name (null if parameter is not a reference)
+     */
     public String getVariableRefName () {
         return isVariableRef() ? variableRef.getName() : null;
     }

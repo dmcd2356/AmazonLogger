@@ -7,7 +7,7 @@ TODO:
     - eliminate duplicate text data on OCR scan (not sure why this is occurring)
     - add -hyper option command to place a hypertext link in the cell of a spreadsheet
     - add DOUNTIL and DOWHILE commands (terminate in DONE)
-    - add subroutine calls (SUB, RETURN) and getting the return value $RETURN
+    - add commands for subroutine calls (GOSUB, RETURN), SUB <Name> to define a subroutine, and getting the return value $RETURN
     - add loading other script files (LOAD. CALL)
     - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
     - cleanup error handling messages.
