@@ -39,12 +39,12 @@ public final class ParameterStruct {
     }
 
     public enum ParamType {
-        Integer,        // 'I' type
-        Unsigned,       // 'U' type
-        Boolean,        // 'B' type
-        String,         // 'S' type
-        IntArray,       // 'A' type
-        StrArray,       // 'L' type
+        Integer,
+        Unsigned,
+        Boolean,
+        String,
+        IntArray,
+        StrArray,
     }
 
     public ParameterStruct() {
@@ -402,42 +402,23 @@ public final class ParameterStruct {
     }
 
     /**
-     * converts the parameter type to a character value.
-     * 
-     * @param type 
-     * 
-     * @return  character version of the parameter type
-     */
-    private static String getParamTypeID (ParamType type) {
-        switch (type) {
-            case ParamType.Integer:     return "I";
-            case ParamType.Unsigned:    return "U";
-            case ParamType.Boolean:     return "B";
-            case ParamType.String:      return "S";
-            case ParamType.IntArray:    return "A";
-            case ParamType.StrArray:    return "L";
-            default:
-                break;
-        }
-        return "?";
-    }
-    
-    /**
      * returns a String for displaying the current param data type and value.
+     * 
+     * @param ix - the index of the parameter
      * 
      * @return a String indicating the parameter type and value
      */
-    public String showParam () {
+    public String showParam (int ix) {
         String strValue;
-        String strID = getParamTypeID (paramType);
+        String strID = paramType.toString();
         switch (paramClass) {
             case ParamClass.Reference:
                 strValue = variableRef.getName();
-                strID += "ref";
+                strID += "(ref)";
                 break;
             case ParamClass.Calculation:
                 strValue = strParam;
-                strID += "calc";
+                strID += "(calc)";
                 break;
             default:
                 switch (paramType) {
@@ -468,7 +449,7 @@ public final class ParameterStruct {
                 break;
         }
             
-        return "  " + strID + ": " + strValue;
+        return "arg[" + ix + "]: " + strID + ", value: " + strValue;
     }
 
     /**
@@ -479,7 +460,7 @@ public final class ParameterStruct {
     public static void showParamTypeList (ArrayList<ParameterStruct> params) {
         String paramTypes = "";
         for (int ix = 0; ix < params.size(); ix++) {
-            String strID = getParamTypeID (params.get(ix).paramType);
+            String strID = params.get(ix).paramType.toString();
             paramTypes += strID;
         }
         frame.outputInfoMsg(STATUS_DEBUG, "     dataTypes: " + paramTypes);
@@ -587,103 +568,98 @@ public final class ParameterStruct {
         return longVal >= 0L && longVal <= 0xFFFFFFFFL;
     }
     
-    /**
-     * gets the Integer value of a parameter and verifies it qualifies as an Unsigned.
-     * 
-     * This is to be used during Compile stage only!
-     * 
-     * @param parm  - the argument list
-     * @param index - the index of the argument to get
-     * @param type  - the expected type of argument ('I', 'U', etc)
-     * 
-     * @throws ParserException if not valid Unsigned value
-     *
-     */
-    public static void verifyArgEntryCompile (ArrayList<ParameterStruct> parm, int index, char type) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        // verify index does not exceed bounds
-        if (parm.size() <= index) {
-            throw new ParserException(functionId + "Parameter index " + index + " exceeds list size of " + parm.size());
-        }
-        
-        // these types can be lowercase if entry is optional
-        type = Character.toUpperCase(type);
-        ParameterStruct.ParamType expType = CmdOptions.getParameterType(type);
-        
-        // verify type is correct and entry is not null
-        ParameterStruct.ParamType ptype = parm.get(index).getParamType();
-        boolean bVariable = parm.get(index).isVariableRef();
-        if (bVariable) {
-            // if it's a variable, we can't really say what the data type is at this
-            // point, since it could be a String that has an Integer value.
-            return;
-//            ptype = parm.get(index).getVariableRefType();
-        }
-        boolean bValid = (ptype == expType);
-        if (! bValid) {
-            // check for other alternate types that are allowed and if entry is not null
-            switch (expType) {
-                case Integer:
-                    // Integer will also accept Unsigned type
-                    if (ptype == ParameterStruct.ParamType.Unsigned)
-                        bValid = true;
-                    break;
-                case Unsigned:
-                    // Unsigned will also accept Integer type, but may
-                    //  cause error at runtime if value exceeds limits
-                    if (ptype == ParameterStruct.ParamType.Integer)
-                        bValid = true;
-                    break;
-                case IntArray:
-                    // IntArray can also use a single value Integer or Unsigned as entry
-                    if (ptype == ParameterStruct.ParamType.Integer ||
-                        ptype == ParameterStruct.ParamType.Unsigned) {
-                        bValid = true;
-                    }
-                    break;
-                case StrArray:
-                    // StrArray can also use single value String, and can convert
-                    //  entries in InArray type to String entries.
-                    if (ptype == ParameterStruct.ParamType.String ||
-                        ptype == ParameterStruct.ParamType.IntArray) {
-                        bValid = true;
-                    }
-                    break;
-                default:
-                    break;
-            }
-        }
-        if (! bValid) {
-            throw new ParserException(functionId + "Param[" + index + "] expected type " + expType + ", was type: " + ptype);
-        }
-    }
+//    /**
+//     * gets the Integer value of a parameter and verifies it qualifies as an Unsigned.
+//     * 
+//     * This is to be used during Compile stage only!
+//     * 
+//     * @param parm  - the argument list
+//     * @param index - the index of the argument to get
+//     * @param type  - the expected type of argument ('I', 'U', etc)
+//     * 
+//     * @throws ParserException if not valid Unsigned value
+//     *
+//     */
+//    public static void verifyArgEntryCompile (ArrayList<ParameterStruct> parm, int index, char type) throws ParserException {
+//        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+//
+//        // verify index does not exceed bounds
+//        if (parm.size() <= index) {
+//            throw new ParserException(functionId + "Parameter index " + index + " exceeds list size of " + parm.size());
+//        }
+//        
+//        // these types can be lowercase if entry is optional
+//        type = Character.toUpperCase(type);
+//        ParameterStruct.ParamType expType = CmdOptions.getParameterType(type);
+//        
+//        // verify type is correct and entry is not null
+//        ParameterStruct.ParamType ptype = parm.get(index).getParamType();
+//        boolean bVariable = parm.get(index).isVariableRef();
+//        if (bVariable) {
+//            // if it's a variable, we can't really say what the data type is at this
+//            // point, since it could be a String that has an Integer value.
+//            return;
+//        }
+//        boolean bValid = (ptype == expType);
+//        if (! bValid) {
+//            // check for other alternate types that are allowed and if entry is not null
+//            switch (expType) {
+//                case Integer:
+//                    // Integer will also accept Unsigned type
+//                    if (ptype == ParameterStruct.ParamType.Unsigned)
+//                        bValid = true;
+//                    break;
+//                case Unsigned:
+//                    // Unsigned will also accept Integer type, but may
+//                    //  cause error at runtime if value exceeds limits
+//                    if (ptype == ParameterStruct.ParamType.Integer)
+//                        bValid = true;
+//                    break;
+//                case IntArray:
+//                    // IntArray can also use a single value Integer or Unsigned as entry
+//                    if (ptype == ParameterStruct.ParamType.Integer ||
+//                        ptype == ParameterStruct.ParamType.Unsigned) {
+//                        bValid = true;
+//                    }
+//                    break;
+//                case StrArray:
+//                    // StrArray can also use single value String, and can convert
+//                    //  entries in InArray type to String entries.
+//                    if (ptype == ParameterStruct.ParamType.String ||
+//                        ptype == ParameterStruct.ParamType.IntArray) {
+//                        bValid = true;
+//                    }
+//                    break;
+//                default:
+//                    break;
+//            }
+//        }
+//        if (! bValid) {
+//            throw new ParserException(functionId + "Param[" + index + "] expected type " + expType + ", was type: " + ptype);
+//        }
+//    }
     
     /**
      * gets the Integer value of a parameter and verifies it qualifies as an Unsigned.
      * 
      * This is to be used during Execution stage only!
      * 
-     * @param parm  - the argument list
-     * @param index - the index of the argument to get
-     * @param type  - the expected type of argument ('I', 'U', etc)
+     * @param parm    - the argument list
+     * @param index   - the index of the argument to get
+     * @param expType - the expected type of argument
      * 
      * @return unsigned value
      * 
      * @throws ParserException if not valid Unsigned value
      *
      */
-    public static ParameterStruct verifyArgEntry (ArrayList<ParameterStruct> parm, int index, char type) throws ParserException {
+    public static ParameterStruct verifyArgEntry (ArrayList<ParameterStruct> parm, int index, ParamType expType) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // verify index does not exceed bounds
         if (parm.size() <= index) {
             throw new ParserException(functionId + "Parameter index " + index + " exceeds list size of " + parm.size());
         }
-        
-        // these types can be lowercase if entry is optional
-        type = Character.toUpperCase(type);
-        ParameterStruct.ParamType expType = CmdOptions.getParameterType(type);
         
         // verify type is correct and entry is not null
         ParameterStruct.ParamType ptype = parm.get(index).getParamType();

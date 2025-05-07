@@ -4,6 +4,9 @@
  */
 package com.mycompany.amazonlogger;
 
+import static com.mycompany.amazonlogger.AmazonReader.frame;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.util.ArrayList;
 
 /**
@@ -93,17 +96,17 @@ public class CommandStruct {
         params  = new ArrayList<>();
     }
         
-    String showCommand () {
+    void showCommand (String preface) {
         String strCommand = command.toString();
         if (option != null && !option.isEmpty()) {
             strCommand += " option " + option + ": ";
         }
+        frame.outputInfoMsg(STATUS_PROGRAM, preface + strCommand);
+
         for (int ix = 0; ix < params.size(); ix++) {
             ParameterStruct parStc = params.get(ix);
-            strCommand += parStc.showParam();
+            frame.outputInfoMsg(STATUS_DEBUG, "        " + parStc.showParam(ix));
         }
-            
-        return strCommand;
     }
 
     /**

@@ -149,48 +149,6 @@ public class ScriptExecute {
         frame.outputInfoMsg(STATUS_PROGRAM, "    File path changed to: " + fileDir);
     }
 
-    /**
-     * verifies the argument types found in the command line match what is specified for the command.
-     * 
-     * @param command    - the command line to run
-     * @param validTypes - the list of data types to match to
-     * @param linenum    - the current line number of the program (for debug msgs)
-     * 
-     * @throws ParserException 
-     */
-    public static void checkArgTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        String prefix = command + " - ";
-        if (linenum >= 0) {  // omit the line numberinfo if < 0
-            prefix = "line " + linenum + ", " + prefix;
-        }
-        
-        // determine the min and max number of arguments
-        int min = 0;
-        int max = validTypes.length();
-        for (int ix = 0; ix < max; ix++) {
-            if (validTypes.charAt(ix) >= 'A' && validTypes.charAt(ix) <= 'Z') {
-                min++;
-            } else {
-                break;
-            }
-        }
-        
-        // verify we have the correct number of arguments
-        if (command.params.size() < min || command.params.size() > max) {
-            throw new ParserException(functionId + prefix + "Invalid number of arguments: " + command.params.size() + " (valid = " + validTypes + ")");
-        }
-        
-        // now verify the types
-        try {
-            for (int ix = 0; ix < command.params.size(); ix++) {
-                ParameterStruct.verifyArgEntry (command.params, ix, validTypes.charAt(ix));
-            }
-        } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
-        }
-    }
-
     private String getArrayAssignment (ParameterStruct parmRef) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
@@ -263,7 +221,7 @@ public class ScriptExecute {
      */
     public int executeProgramCommand (int cmdIndex, CommandStruct cmdStruct) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        String linePreface = "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + showLineNumberInfo(cmdStruct.line);
+        String linePreface = "PROGIX [" + cmdIndex + "]: " + showLineNumberInfo(cmdStruct.line);
         String exceptPreface = functionId + linePreface;
         String debugPreface = "    ";
         int newIndex = -1;
@@ -281,7 +239,7 @@ public class ScriptExecute {
                 }
             }
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, linePreface + cmdStruct.showCommand());
+        cmdStruct.showCommand(linePreface);
 
         try {
         switch (cmdStruct.command) {
@@ -495,44 +453,44 @@ public class ScriptExecute {
                 ParameterStruct parm1   = cmdStruct.params.get(2);
                 ParameterStruct parm2   = cmdStruct.params.size() > 3 ? cmdStruct.params.get(3) : null;
                 ParameterStruct parm3   = cmdStruct.params.size() > 4 ? cmdStruct.params.get(4) : null;
-                String parmName = parmRef.getVariableRefName();
-                ParameterStruct.ParamType type = parmRef.getVariableRefType();
-                if (type == null || parmName == null) {
-                    parmName = parmRef.getStringValue();
+                String varName = parmRef.getVariableRefName();
+                ParameterStruct.ParamType varType = parmRef.getVariableRefType();
+                ParameterStruct.ParamType type = varType;
+                if (varType == null || varName == null) {
+                    varName = parmRef.getStringValue();
                     type = ParameterStruct.ParamType.String;
                 }
                 // make sure we are converting to the type of the reference parameter
                 switch (type) {
                     case ParameterStruct.ParamType.Integer:
                         Long result = getIntegerArg (parm1);
-                        Variables.modifyIntegerVariable(parmName, result);
+                        Variables.modifyIntegerVariable(varName, result);
                         break;
                     case ParameterStruct.ParamType.Unsigned:
                         result = getIntegerArg (parm1);
                         result &= 0xFFFFFFFF;
-                        Variables.modifyUnsignedVariable(parmName, result);
+                        Variables.modifyUnsignedVariable(varName, result);
                         break;
                     case ParameterStruct.ParamType.Boolean:
                         Boolean bResult = getComparison(parm1, parm2, parm3);
-                        frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Boolean Variable " + parmName + " = " + bResult);
+                        frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Boolean Variable " + varName + " = " + bResult);
                         break;
 
                     case ParameterStruct.ParamType.IntArray:
-                        VarArray.setIntArrayVariable(parmName, parm1.getIntArray());
+                        VarArray.setIntArrayVariable(varName, parm1.getIntArray());
                         break;
                     case ParameterStruct.ParamType.StrArray:
-                        VarArray.setStrArrayVariable(parmName, parm1.getStrArray());
+                        VarArray.setStrArrayVariable(varName, parm1.getStrArray());
                         break;
                     case ParameterStruct.ParamType.String:
                         // The entries should be a list of 1 or more Strings to concatenate into 1
                         // (any parameter references should have been converted to their appropriate value
                         //  at the begining of the execution phase)
                         String concat = getStringArg (cmdStruct.params, 2);
-                        Variables.modifyStringVariable(parmName, concat);
+                        Variables.modifyStringVariable(varName, concat);
                         break;
                     default:
-                        throw new ParserException(exceptPreface + parmRef.getVariableRefType().toString() +
-                                                " Invalid data type: " + type);
+                        throw new ParserException(exceptPreface + varType + " Invalid data type: " + type);
                 }
                 break;
 
@@ -541,8 +499,8 @@ public class ScriptExecute {
                 ParameterStruct parmValue;
                 parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be appended to
                 parmValue = cmdStruct.params.get(1); // element 1 is the value being appended
-                parmName = getArrayAssignment(parmRef);
-                ParameterStruct.ParamType parmType = Variables.getVariableTypeFromName (parmName);
+                varName = getArrayAssignment(parmRef);
+                ParameterStruct.ParamType parmType = Variables.getVariableTypeFromName (varName);
                 String strValue;
                 switch (parmType) {
                     case IntArray:
@@ -557,16 +515,16 @@ public class ScriptExecute {
                         throw new ParserException(exceptPreface + "Invalid parameter type: " + parmRef.getParamType());
                 }
 
-                boolean bSuccess = VarArray.arrayInsertEntry (parmName, 0, strValue);
+                boolean bSuccess = VarArray.arrayInsertEntry (varName, 0, strValue);
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + " parameter ref not found: " + parmName);
+                    throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
 
             case APPEND:
                 parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be appended to
                 parmValue = cmdStruct.params.get(1); // element 1 is the value being appended
-                parmName = getArrayAssignment(parmRef);
-                parmType = Variables.getVariableTypeFromName (parmName);
+                varName = getArrayAssignment(parmRef);
+                parmType = Variables.getVariableTypeFromName (varName);
                 switch (parmType) {
                     case IntArray:
                         Long result = getIntegerArg (parmValue);
@@ -579,9 +537,9 @@ public class ScriptExecute {
                         throw new ParserException(exceptPreface + "Invalid parameter type: " + parmType);
                 }
 
-                bSuccess = VarArray.arrayAppendEntry (parmName, strValue);
+                bSuccess = VarArray.arrayAppendEntry (varName, strValue);
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + " parameter ref not found: " + parmName);
+                    throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
                 break;
             case MODIFY:
@@ -590,8 +548,8 @@ public class ScriptExecute {
                 parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be modified
                 parmIndex = cmdStruct.params.get(1); // element 1 is the index element being modified
                 parmValue = cmdStruct.params.get(2); // element 2 is the value to set the entry to
-                parmName  = getArrayAssignment(parmRef);
-                parmType  = Variables.getVariableTypeFromName (parmName);
+                varName  = getArrayAssignment(parmRef);
+                parmType  = Variables.getVariableTypeFromName (varName);
                 int index = parmIndex.getIntegerValue().intValue();
 
                 switch (parmType) {
@@ -606,45 +564,45 @@ public class ScriptExecute {
                         throw new ParserException(exceptPreface + "Invalid parameter type: " + parmRef.getParamType());
                 }
                 
-                bSuccess = VarArray.arrayModifyEntry (parmName, index, strValue);
+                bSuccess = VarArray.arrayModifyEntry (varName, index, strValue);
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + " parameter ref not found: " + parmName);
+                    throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
                 break;
             case REMOVE:
                 // ParamName, Index (Integer)
                 parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be modified
                 parmIndex = cmdStruct.params.get(1); // element 1 is the index element being removed
-                parmName  = getArrayAssignment(parmRef);
+                varName  = getArrayAssignment(parmRef);
                 index = parmIndex.getIntegerValue().intValue();
-                bSuccess = VarArray.arrayRemoveEntries (parmName, index, 1);
+                bSuccess = VarArray.arrayRemoveEntries (varName, index, 1);
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + " parameter ref not found: " + parmName);
+                    throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
                 break;
             case TRUNCATE:
                 // ParamName, Count (Integer - optional)
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
-                parmName = getArrayAssignment(parmRef);
-                int size = VarArray.getArraySize(parmName);
+                varName = getArrayAssignment(parmRef);
+                int size = VarArray.getArraySize(varName);
                 int iCount = 1;
                 if (cmdStruct.params.size() > 1) {
                     parmIndex = cmdStruct.params.get(1); // element 1 is the (optional) number of entries being removed
                     iCount = parmIndex.getIntegerValue().intValue();
                     if (iCount > size) {
-                        throw new ParserException(exceptPreface + "item count " + iCount + " exceeds size of " + parmName);
+                        throw new ParserException(exceptPreface + "item count " + iCount + " exceeds size of " + varName);
                     }
                 }
                 int iStart = size - iCount;
-                bSuccess = VarArray.arrayRemoveEntries (parmName, iStart, iCount);
+                bSuccess = VarArray.arrayRemoveEntries (varName, iStart, iCount);
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + " parameter ref not found: " + parmName);
+                    throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
                 break;
             case POP:
                 // ParamName, Index (Integer - optional)
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
-                parmName = getArrayAssignment(parmRef);
+                varName = getArrayAssignment(parmRef);
                 size = VarArray.getArraySize(parmRef.getStringValue());
                 iCount = 1;
                 iStart = 0;
@@ -652,29 +610,29 @@ public class ScriptExecute {
                     parmIndex = cmdStruct.params.get(1); // element 1 is the (optional) number of entries being removed
                     iCount = parmIndex.getIntegerValue().intValue();
                     if (iCount > size) {
-                        throw new ParserException(exceptPreface + "item count " + iCount + " exceeds size of " + parmName);
+                        throw new ParserException(exceptPreface + "item count " + iCount + " exceeds size of " + varName);
                     }
                 }
-                bSuccess = VarArray.arrayRemoveEntries (parmName, iStart, iCount);
+                bSuccess = VarArray.arrayRemoveEntries (varName, iStart, iCount);
                 if (!bSuccess) {
-                    throw new ParserException(exceptPreface + " parameter ref not found: " + parmName);
+                    throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
                 break;
             case CLEAR:
                 // ParamName
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
-                parmName = getArrayAssignment(parmRef);
-                VarArray.arrayRemoveAll(parmName);
+                varName = getArrayAssignment(parmRef);
+                VarArray.arrayRemoveAll(varName);
                 break;
                 
             case FILTER:
                 // ParamName or RESET, 1 (optional) the filter string
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref or RESET
-                parmName = getArrayAssignment(parmRef);
-                if (parmName.contentEquals("RESET")) {
+                varName = getArrayAssignment(parmRef);
+                if (varName.contentEquals("RESET")) {
                     VarArray.arrayFilterReset();
                 } else {
-                    parmType = Variables.getVariableTypeFromName (parmName);
+                    parmType = Variables.getVariableTypeFromName (varName);
                     switch (parmType) {
                         case StrArray:
                             filter = cmdStruct.params.get(1).getStringValue();
@@ -682,12 +640,12 @@ public class ScriptExecute {
                             if (cmdStruct.params.size() == 3) {
                                 opts = cmdStruct.params.get(2).getStringValue();
                             }
-                            VarArray.arrayFilterString(parmName, filter, opts);
+                            VarArray.arrayFilterString(varName, filter, opts);
                             break;
                         case IntArray:
                             String compSign = cmdStruct.params.get(1).getStringValue();
                             Long iValue = cmdStruct.params.get(2).getIntegerValue();
-                            VarArray.arrayFilterInt(parmName, compSign, iValue);
+                            VarArray.arrayFilterInt(varName, compSign, iValue);
                             break;
                         default:
                             throw new ParserException(exceptPreface + "Invalid data type for FILTER: " + parmType);

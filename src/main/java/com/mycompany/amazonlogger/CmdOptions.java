@@ -140,7 +140,7 @@ public class CmdOptions {
      * @throws ParserException if not value Unsigned value
      */
     public Integer getUnsignedValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
-        ParameterStruct param = ParameterStruct.verifyArgEntry (parm, index, 'U');
+        ParameterStruct param = ParameterStruct.verifyArgEntry (parm, index, ParameterStruct.ParamType.Unsigned);
         return param.getIntegerValue().intValue();
     }
         
@@ -360,6 +360,51 @@ public class CmdOptions {
     }
     
     /**
+     * verifies the argument types found in the command line match what is specified for the command.
+     * 
+     * @param command    - the command line to run
+     * @param validTypes - the list of data types to match to
+     * @param linenum    - the current line number of the program (for debug msgs)
+     * 
+     * @throws ParserException 
+     */
+    private static void checkArgTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        String prefix = command + " - ";
+        if (linenum >= 0) {  // omit the line numberinfo if < 0
+            prefix = "line " + linenum + ", " + prefix;
+        }
+        
+        // determine the min and max number of arguments
+        int min = 0;
+        int max = validTypes.length();
+        for (int ix = 0; ix < max; ix++) {
+            if (validTypes.charAt(ix) >= 'A' && validTypes.charAt(ix) <= 'Z') {
+                min++;
+            } else {
+                break;
+            }
+        }
+        
+        // verify we have the correct number of arguments
+        if (command.params.size() < min || command.params.size() > max) {
+            throw new ParserException(functionId + prefix + "Invalid number of arguments: " + command.params.size() + " (valid = " + validTypes + ")");
+        }
+        
+        // now verify the types
+        try {
+            for (int ix = 0; ix < command.params.size(); ix++) {
+                char type = validTypes.charAt(ix);
+                type = Character.toUpperCase(type);
+                ParameterStruct.ParamType expType = CmdOptions.getParameterType(type);
+                ParameterStruct.verifyArgEntry (command.params, ix, expType);
+            }
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId);
+        }
+    }
+
+    /**
      * executes the command line option specified
      * 
      * @param cmdLine - the option command to execute
@@ -381,7 +426,7 @@ public class CmdOptions {
         PdfReader pdfReader = null;
         ArrayList<ParameterStruct> params = cmdLine.params;
 
-        frame.outputInfoMsg(STATUS_PROGRAM, "      Executing: " + cmdLine.showCommand());
+        cmdLine.showCommand("");
 
         String argTypes = getOptionArgs(cmdLine.option);
         if (argTypes == null) {
@@ -389,7 +434,7 @@ public class CmdOptions {
         }
 
         // verify integrity of params
-        ScriptExecute.checkArgTypes (cmdLine, argTypes, -1);
+        checkArgTypes (cmdLine, argTypes, -1);
                 
         // the rest will be the parameters associated with the option (if any) plus any additional options
         try {
