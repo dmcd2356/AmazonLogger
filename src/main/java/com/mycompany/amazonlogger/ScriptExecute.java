@@ -261,10 +261,12 @@ public class ScriptExecute {
                 break;
             case DIRECTORY:
                 // arg 0: directory path, optional arg 1: filter selection (-f or -d)
-                String fname = cmdStruct.params.get(0).getStringValue();
+                String fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                         ParameterStruct.ParamType.String).getStringValue();
                 String filter = "";
                 if (cmdStruct.params.size() > 1) {
-                    filter  = cmdStruct.params.get(1).getStringValue();
+                    filter = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                       ParameterStruct.ParamType.String).getStringValue();
                 }
                 File file = getFilePath(fname);
                 if (! file.isDirectory()) {
@@ -281,18 +283,21 @@ public class ScriptExecute {
                 break;
             case CD:
                 // arg 0: directory path
-                fname = cmdStruct.params.get(0).getStringValue();
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
                 setFilePath (fname);
                 break;
             case FEXISTS:
-                // arg 0: filename
-                fname = cmdStruct.params.get(0).getStringValue();
+                // arg 0: filename, optional arg 1: type of check on file
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
                 file = getFilePath(fname);
 
                 boolean value;
                 String strCheck = "EXISTS";
                 if (cmdStruct.params.size() > 1) {
-                    strCheck = cmdStruct.params.get(1).getStringValue();
+                    strCheck = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                      ParameterStruct.ParamType.String).getStringValue();
                 }
                 switch (strCheck) {
                     case "WRITABLE":
@@ -315,7 +320,8 @@ public class ScriptExecute {
                 break;
             case FDELETE:
                 // arg 0: filename
-                fname = cmdStruct.params.get(0).getStringValue();
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
                 file = getFilePath(fname);
                 if (! file.isFile()) {
                     throw new ParserException(exceptPreface + "File not found: " + fname);
@@ -328,7 +334,8 @@ public class ScriptExecute {
                 break;
             case FCREATER:
                 // arg 0: filename
-                fname = cmdStruct.params.get(0).getStringValue();
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
@@ -343,7 +350,8 @@ public class ScriptExecute {
                 break;
             case FCREATEW:
                 // arg 0: filename
-                fname = cmdStruct.params.get(0).getStringValue();
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
@@ -359,7 +367,8 @@ public class ScriptExecute {
                 break;
             case FOPENR:
                 // arg 0: filename
-                fname = cmdStruct.params.get(0).getStringValue();
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
@@ -376,7 +385,8 @@ public class ScriptExecute {
                 break;
             case FOPENW:
                 // arg 0: filename
-                fname = cmdStruct.params.get(0).getStringValue();
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
                 if (fileReader != null || fileWriter != null) {
                     throw new ParserException(exceptPreface + "File already open: " + fileName);
                 }
@@ -393,7 +403,8 @@ public class ScriptExecute {
                 break;
             case FCLOSE:
                 // arg 0: filename
-                fname = cmdStruct.params.get(0).getStringValue();
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
                 if (fileName == null) {
                     throw new ParserException(exceptPreface + "Filename not found: " + fname);
                 }
@@ -411,8 +422,8 @@ public class ScriptExecute {
                 break;
             case FREAD:
                 // arg 0: number of lines to read
-                int count;
-                count = cmdStruct.params.get(0).getIntegerValue().intValue();
+                int count = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                      ParameterStruct.ParamType.Integer).getIntegerValue().intValue();
                 if (fileReader == null) {
                     throw new ParserException(exceptPreface + "Read file not open");
                 }
@@ -430,7 +441,8 @@ public class ScriptExecute {
                 break;
             case FWRITE:
                 // arg 0: text to write
-                text  = cmdStruct.params.get(0).getStringValue();
+                text = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
                 if (fileWriter == null) {
                     throw new ParserException(exceptPreface + "Write file not open");
                 }
@@ -438,7 +450,8 @@ public class ScriptExecute {
                 break;
             case OCRSCAN:
                 // verify 1 String argument: file name
-                fname = cmdStruct.params.get(0).getStringValue();
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
                 OCRReader ocr = new OCRReader();
                 ocr.run (fname);
                 break;
@@ -494,7 +507,6 @@ public class ScriptExecute {
                 }
                 break;
 
-            // TODO: these are the Array-only commands
             case INSERT:
                 ParameterStruct parmValue;
                 parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be appended to

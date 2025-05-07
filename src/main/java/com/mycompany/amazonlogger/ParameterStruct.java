@@ -568,125 +568,45 @@ public final class ParameterStruct {
         return longVal >= 0L && longVal <= 0xFFFFFFFFL;
     }
     
-//    /**
-//     * gets the Integer value of a parameter and verifies it qualifies as an Unsigned.
-//     * 
-//     * This is to be used during Compile stage only!
-//     * 
-//     * @param parm  - the argument list
-//     * @param index - the index of the argument to get
-//     * @param type  - the expected type of argument ('I', 'U', etc)
-//     * 
-//     * @throws ParserException if not valid Unsigned value
-//     *
-//     */
-//    public static void verifyArgEntryCompile (ArrayList<ParameterStruct> parm, int index, char type) throws ParserException {
-//        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-//
-//        // verify index does not exceed bounds
-//        if (parm.size() <= index) {
-//            throw new ParserException(functionId + "Parameter index " + index + " exceeds list size of " + parm.size());
-//        }
-//        
-//        // these types can be lowercase if entry is optional
-//        type = Character.toUpperCase(type);
-//        ParameterStruct.ParamType expType = CmdOptions.getParameterType(type);
-//        
-//        // verify type is correct and entry is not null
-//        ParameterStruct.ParamType ptype = parm.get(index).getParamType();
-//        boolean bVariable = parm.get(index).isVariableRef();
-//        if (bVariable) {
-//            // if it's a variable, we can't really say what the data type is at this
-//            // point, since it could be a String that has an Integer value.
-//            return;
-//        }
-//        boolean bValid = (ptype == expType);
-//        if (! bValid) {
-//            // check for other alternate types that are allowed and if entry is not null
-//            switch (expType) {
-//                case Integer:
-//                    // Integer will also accept Unsigned type
-//                    if (ptype == ParameterStruct.ParamType.Unsigned)
-//                        bValid = true;
-//                    break;
-//                case Unsigned:
-//                    // Unsigned will also accept Integer type, but may
-//                    //  cause error at runtime if value exceeds limits
-//                    if (ptype == ParameterStruct.ParamType.Integer)
-//                        bValid = true;
-//                    break;
-//                case IntArray:
-//                    // IntArray can also use a single value Integer or Unsigned as entry
-//                    if (ptype == ParameterStruct.ParamType.Integer ||
-//                        ptype == ParameterStruct.ParamType.Unsigned) {
-//                        bValid = true;
-//                    }
-//                    break;
-//                case StrArray:
-//                    // StrArray can also use single value String, and can convert
-//                    //  entries in InArray type to String entries.
-//                    if (ptype == ParameterStruct.ParamType.String ||
-//                        ptype == ParameterStruct.ParamType.IntArray) {
-//                        bValid = true;
-//                    }
-//                    break;
-//                default:
-//                    break;
-//            }
-//        }
-//        if (! bValid) {
-//            throw new ParserException(functionId + "Param[" + index + "] expected type " + expType + ", was type: " + ptype);
-//        }
-//    }
-    
+
     /**
-     * gets the Integer value of a parameter and verifies it qualifies as an Unsigned.
+     * verifies the parameter has valid content for the expected type & returns it.
      * 
      * This is to be used during Execution stage only!
      * 
-     * @param parm    - the argument list
-     * @param index   - the index of the argument to get
-     * @param expType - the expected type of argument
+     * @param parm    - the parameter to check
+     * @param expType - the expected data type
      * 
      * @return unsigned value
      * 
      * @throws ParserException if not valid Unsigned value
      *
      */
-    public static ParameterStruct verifyArgEntry (ArrayList<ParameterStruct> parm, int index, ParamType expType) throws ParserException {
+    public static ParameterStruct verifyArgEntry (ParameterStruct parm, ParamType expType) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        // verify index does not exceed bounds
-        if (parm.size() <= index) {
-            throw new ParserException(functionId + "Parameter index " + index + " exceeds list size of " + parm.size());
-        }
-        
         // verify type is correct and entry is not null
-        ParameterStruct.ParamType ptype = parm.get(index).getParamType();
-//        boolean bVariable = parm.get(index).isVariableRef();
-//        if (bVariable) {
-//            ptype = parm.get(index).getVariableRefType();
-//        }
+        ParameterStruct.ParamType ptype = parm.getParamType();
         boolean bValid = ptype == expType;
         if (! bValid) {
-            frame.outputInfoMsg(STATUS_DEBUG, "Param[" + index + "] type " + ptype + " when expected: " + expType);
+            frame.outputInfoMsg(STATUS_DEBUG, "    Param type " + ptype + " when expected: " + expType);
         }
 
         // check for other alternate types that are allowed and if entry is not null
         String value;
         switch (expType) {
             case Integer:
-                Long iValue = parm.get(index).getIntegerValue();
+                Long iValue = parm.getIntegerValue();
                 if (iValue == null) {
-                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                    throw new ParserException(functionId + "Param type " + ptype + ": entry was null");
                 }
                 value = iValue.toString();
                 bValid = true;
                 break;
             case Unsigned:
-                iValue = parm.get(index).getIntegerValue();
+                iValue = parm.getIntegerValue();
                 if (iValue == null) {
-                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                    throw new ParserException(functionId + "Param type " + ptype + ": entry was null");
                 }
                 // make sure bounds aren't exceeded for unsigned
                 if (! ParameterStruct.isUnsignedInt(iValue)) {
@@ -696,51 +616,51 @@ public final class ParameterStruct {
                 bValid = true;
                 break;
             case Boolean:
-                Boolean bValue = parm.get(index).getBooleanValue();
+                Boolean bValue = parm.getBooleanValue();
                 if (bValue == null) {
-                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                    throw new ParserException(functionId + "Param type " + ptype + ": entry was null");
                 }
                 value = bValue.toString();
                 bValid = true;
                 break;
             case String:
-                value = parm.get(index).getStringValue();
+                value = parm.getStringValue();
                 if (value == null) {
-                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                    throw new ParserException(functionId + "Param type " + ptype + ": entry was null");
                 }
                 bValid = true;
                 break;
             case IntArray:
-                ArrayList<Long> iArray = parm.get(index).getIntArray();
+                ArrayList<Long> iArray = parm.getIntArray();
                 switch (ptype) {
                     case Integer:
                     case Unsigned:
-                        Long entry = parm.get(index).getIntegerValue();
+                        Long entry = parm.getIntegerValue();
                         iArray = new ArrayList<>();
                         iArray.add(entry);
-                        parm.get(index).setIntArray(iArray);
-                        frame.outputInfoMsg(STATUS_DEBUG, "Param[" + index + "] type " + ptype + ": converted from " + expType);
+                        parm.setIntArray(iArray);
+                        frame.outputInfoMsg(STATUS_DEBUG, "Param type " + ptype + ": converted from " + expType);
                         break;
                     default:
                         break;
                 }
                 if (iArray == null) {
-                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                    throw new ParserException(functionId + "Param type " + ptype + ": entry was null");
                 }
                 value = "(size " + iArray.size() + ")";
                 bValid = true;
                 break;
             case StrArray:
                 // we will allow IntArray as well and just copy the data into the StrArray as strings
-                ArrayList<String> sArray = parm.get(index).getStrArray();
-                iArray = parm.get(index).getIntArray();
+                ArrayList<String> sArray = parm.getStrArray();
+                iArray = parm.getIntArray();
                 switch (ptype) {
                     case String:
-                        String entry = parm.get(index).getStringValue();
+                        String entry = parm.getStringValue();
                         sArray = new ArrayList<>();
                         sArray.add(entry);
-                        parm.get(index).setStrArray(sArray);
-                        frame.outputInfoMsg(STATUS_DEBUG, "Param[" + index + "] type " + ptype + ": converted from " + expType);
+                        parm.setStrArray(sArray);
+                        frame.outputInfoMsg(STATUS_DEBUG, "Param type " + ptype + ": converted from " + expType);
                         break;
                     case IntArray:
                         if (iArray != null) {
@@ -748,27 +668,27 @@ public final class ParameterStruct {
                             for (int ix = 0; ix < iArray.size(); ix++) {
                                 sArray.add(iArray.get(ix).toString());
                             }
-                            parm.get(index).setStrArray(sArray);
-                            frame.outputInfoMsg(STATUS_DEBUG, "Param[" + index + "] type " + ptype + ": converted from " + expType);
+                            parm.setStrArray(sArray);
+                            frame.outputInfoMsg(STATUS_DEBUG, "Param type " + ptype + ": converted from " + expType);
                         }
                         break;
                     default:
                         break;
                 }
                 if (sArray == null) {
-                    throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
+                    throw new ParserException(functionId + "Param type " + ptype + ": entry was null");
                 }
                 value = "(size " + sArray.size() + ")";
                 bValid = true;
                 break;
             default:
-                throw new ParserException(functionId + "Param[" + index + "] has invalid type: " + expType);
+                throw new ParserException(functionId + "Param has invalid type: " + expType);
         }
         if (! bValid) {
-            throw new ParserException(functionId + "Param[" + index + "] expected type " + expType + ", was type: " + ptype);
+            throw new ParserException(functionId + "Param expected type " + expType + ", was type: " + ptype);
         }
-        frame.outputInfoMsg(STATUS_DEBUG, "Param[" + index + "] type " + ptype + ": " + value);
-        return parm.get(index);
+        frame.outputInfoMsg(STATUS_DEBUG, "Param type " + ptype + ": " + value);
+        return parm;
     }
     
     /**

@@ -140,7 +140,13 @@ public class CmdOptions {
      * @throws ParserException if not value Unsigned value
      */
     public Integer getUnsignedValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
-        ParameterStruct param = ParameterStruct.verifyArgEntry (parm, index, ParameterStruct.ParamType.Unsigned);
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (index > parm.size()) {
+            throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + parm.size());
+        }
+        ParameterStruct parmVal = parm.get(index);
+        ParameterStruct param = ParameterStruct.verifyArgEntry (parmVal, ParameterStruct.ParamType.Unsigned);
         return param.getIntegerValue().intValue();
     }
         
@@ -368,12 +374,8 @@ public class CmdOptions {
      * 
      * @throws ParserException 
      */
-    private static void checkArgTypes (CommandStruct command, String validTypes, int linenum) throws ParserException {
+    private static void checkArgTypes (CommandStruct command, String validTypes) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        String prefix = command + " - ";
-        if (linenum >= 0) {  // omit the line numberinfo if < 0
-            prefix = "line " + linenum + ", " + prefix;
-        }
         
         // determine the min and max number of arguments
         int min = 0;
@@ -388,19 +390,20 @@ public class CmdOptions {
         
         // verify we have the correct number of arguments
         if (command.params.size() < min || command.params.size() > max) {
-            throw new ParserException(functionId + prefix + "Invalid number of arguments: " + command.params.size() + " (valid = " + validTypes + ")");
+            throw new ParserException(functionId + command + " - Invalid number of arguments: " + command.params.size() + " (valid = " + validTypes + ")");
         }
         
         // now verify the types
+        int ix = 0;
         try {
-            for (int ix = 0; ix < command.params.size(); ix++) {
+            for (ix = 0; ix < command.params.size(); ix++) {
                 char type = validTypes.charAt(ix);
                 type = Character.toUpperCase(type);
                 ParameterStruct.ParamType expType = CmdOptions.getParameterType(type);
-                ParameterStruct.verifyArgEntry (command.params, ix, expType);
+                ParameterStruct.verifyArgEntry (command.params.get(ix), expType);
             }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            throw new ParserException(exMsg + "\n  -> " + functionId + command + " - arg[" + ix + "]");
         }
     }
 
@@ -434,7 +437,7 @@ public class CmdOptions {
         }
 
         // verify integrity of params
-        checkArgTypes (cmdLine, argTypes, -1);
+        checkArgTypes (cmdLine, argTypes);
                 
         // the rest will be the parameters associated with the option (if any) plus any additional options
         try {
