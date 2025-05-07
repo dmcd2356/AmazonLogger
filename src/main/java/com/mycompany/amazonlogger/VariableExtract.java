@@ -21,28 +21,9 @@ public class VariableExtract {
     private String  equalSign;      // type of '=' sign found (null if none)
     private BracketIx index;        // associated index [x] for String, StrArray, IntArray params
     private BracketIx indexmax;     // associated ending index for String, StrArray, IntArray params
-    private Trait   trait;          // object after '.' demarcation
+    private TraitInfo.Trait trait;          // object after '.' demarcation
     private String  evaluation;     // evaluation on Right-side of '=' to set parameter to
     private boolean bRightSide;     // true if parameter is a reference and must be on right side of '='
-
-    // traits extensions to String, StrArray and IntArray types
-    public enum Trait {
-        UPPER,              // String:   convert all chars to uppercase
-        LOWER,              // String:   convert all chars to lowercase
-        TOLINES,            // String:   convert to StrArray of lines of text
-        TOWORDS,            // String:   convert to StrArray of words
-        SORT,               // StrArray: sort from A-Z
-        REVERSE,            // StrArray: sort from A-Z
-        FILTER,             // StrArray or IntArray: filtered contents
-        SIZE,               // Any: number of chars for String, number of elements for Arrays
-        ISEMPTY,            // Any: check if item is zero-length (not null)
-        DOW,                // Unsigned (DATE only): for day of week
-        DOM,                // Unsigned (DATE only): for day of month
-        DOY,                // Unsigned (DATE only): for day of year
-        MOY,                // Unsigned (DATE only): for month of year
-        DAY,                // String   (DATE only): for Day of week
-        MONTH,              // String   (DATE only): for Month
-    }
 
     /**
      * extracts the Variable and any extensions from a command line.
@@ -163,150 +144,6 @@ public class VariableExtract {
     }
 
     /**
-     * finds a Trait match for the selected traitName.
-     * 
-     * @param traitName - portion of variable name that represents the trait (follows the '.' char)
-     * @param varName   - the base name of the variable
-     * 
-     * @return the Trait value
-     * 
-     * @throws ParserException if trait not found or not valid for selected variable
-     */
-    public static Trait getTrait (String traitName, String varName) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-    
-        // ignore the leading $ char if present
-        if (varName.charAt(0) == '$') {
-            varName = varName.substring(1);
-        }
-        
-        Trait traitVal = null;
-        for (Trait entry : Trait.values()) {
-            if (entry.toString().contentEquals(traitName)) {
-                traitVal = entry;
-                frame.outputInfoMsg(STATUS_VARS, "Variable trait found: ." + traitVal + " in " + varName);
-                break;
-            }
-        }
-        if (traitVal == null) {
-            throw new ParserException(functionId + "Invalid Trait for Variable: " + varName);
-        }
-
-        // get the Variable type
-        ParameterStruct.ParamType ptype = Variables.getVariableTypeFromName (varName);
-        
-        switch (traitVal) {
-            case DOW:
-            case DOM:
-            case DOY:
-            case MOY:
-            case DAY:
-            case MONTH:
-                // these are only valid for $DATE
-                if ( ! varName.contentEquals("DATE") ) {
-                    traitVal = null;
-                }
-                break;
-
-            case LOWER:
-            case UPPER:
-            case TOLINES:
-            case TOWORDS:
-                // these are only valid for String types
-                if (ptype != ParameterStruct.ParamType.String) {
-                    traitVal = null;
-                }
-                break;
-
-            case SORT:
-            case REVERSE:
-                // these are only valid for StrArray types
-                if (ptype != ParameterStruct.ParamType.StrArray) {
-                    traitVal = null;
-                }
-                break;
-
-            case FILTER:
-                // these are only valid for StrArray and IntArray types
-                if (ptype != ParameterStruct.ParamType.StrArray &&
-                    ptype != ParameterStruct.ParamType.IntArray)   {
-                    traitVal = null;
-                }
-                break;
-                    
-            case SIZE:
-            case ISEMPTY:
-                // these are allowed for Strings and Arrays
-                if (ptype != ParameterStruct.ParamType.StrArray &&
-                    ptype != ParameterStruct.ParamType.IntArray &&
-                    ptype != ParameterStruct.ParamType.String)     {
-                    traitVal = null;
-                }
-                break;
-            default:
-                throw new ParserException(functionId + "Invalid Trait for " + ptype + " Variable " + varName + ": " + traitName);
-        }
-
-        if (traitVal == null) {
-            throw new ParserException(functionId + "Invalid Trait for " + ptype + " Variable " + varName + ": " + traitName);
-        }
-        return traitVal;
-    }
-
-    /**
-     * finds a Trait match for the selected traitName.
-     * 
-     * @param traitVal - the Trait to check
-     * @param varName  - the base name of the variable
-     * 
-     * @return the type of data returned by the trait
-     * 
-     * @throws ParserException if trait not found or not valid for selected variable
-     */
-    public static ParameterStruct.ParamType getTraitDataType (Trait traitVal, String varName) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        ParameterStruct.ParamType ptype;
-        switch (traitVal) {
-            case DOW:
-            case DOM:
-            case DOY:
-            case MOY:
-            case SIZE:
-                ptype = ParameterStruct.ParamType.Unsigned;
-                break;
-
-            case DAY:
-            case MONTH:
-            case LOWER:
-            case UPPER:
-                ptype = ParameterStruct.ParamType.String;
-                break;
-
-            case SORT:
-            case REVERSE:
-            case TOLINES:
-            case TOWORDS:
-                ptype = ParameterStruct.ParamType.StrArray;
-                break;
-
-            case ISEMPTY:
-                ptype = ParameterStruct.ParamType.Boolean;
-                break;
-                
-            case FILTER:
-                // keep the Variable type
-                ptype = Variables.getVariableTypeFromName (varName);
-                break;
-
-            default:
-                throw new ParserException(functionId + "Invalid Trait: " + traitVal.toString());
-        }
-        return ptype;
-    }
-        
-    
-    /**
      * this looks at the parameter reference name and separates out any extensions.
      *  the 'name' will be set to the parameter name by itself
      *  bracket index values will set the entries 'index' and 'indexmax' (if any)
@@ -367,7 +204,7 @@ public class VariableExtract {
             if (field.length() > offTrait + 1) {
                 leftover = field.substring(offTrait + 1);
             }
-            trait = getTrait (leftover, name);
+            trait = TraitInfo.getTrait (leftover, name, type);
         } else {
             // no additional entries, the param name must be by itself
             name = field;
@@ -448,7 +285,7 @@ public class VariableExtract {
         return indexmax;
     }
     
-    public Trait getTrait () {
+    public TraitInfo.Trait getTrait () {
         return trait;
     }
     

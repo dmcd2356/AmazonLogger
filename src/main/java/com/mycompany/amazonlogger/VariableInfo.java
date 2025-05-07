@@ -13,11 +13,11 @@ public class VariableInfo {
     private static final String CLASS_NAME = VariableInfo.class.getSimpleName();
     
     // this defines characteristics for a referenced Variable
-    private String      name;               // name of Variable
-    private ParameterStruct.ParamType type; // data type classification
-    private BracketIx   index;              // associated index [x] for String, StrArray, IntArray params
-    private BracketIx   indexmax;           // associated ending index for String, StrArray, IntArray params
-    private VariableExtract.Trait trait;    // object after '.' demarcation
+    private String                  name;       // name of Variable
+    private ParameterStruct.ParamType type;     // data type classification
+    private final BracketIx         index;      // associated index [x] for String, StrArray, IntArray params
+    private final BracketIx         indexmax;   // associated ending index for String, StrArray, IntArray params
+    private final TraitInfo.Trait   trait;      // object after '.' demarcation
 
     /**
      * this is only called by ParameterStruct() to init the variableRef entry.
@@ -63,12 +63,6 @@ public class VariableInfo {
         this.type = type;
     }
     
-//    public void setParamTraits (VariableExtract data) throws ParserException {
-//        this.index    = data.getIndex();
-//        this.indexmax = data.getIndexEnd();
-//        this.trait    = data.getTrait();
-//    }
-    
     public String getName() {
         return this.name;
     }
@@ -85,7 +79,7 @@ public class VariableInfo {
         return getIxValue (indexmax);
     }
     
-    public VariableExtract.Trait getTrait() {
+    public TraitInfo.Trait getTrait() {
         return this.trait;
     }
 
@@ -103,20 +97,18 @@ public class VariableInfo {
                 // Also, the 'false' flag in getNumericValue() indicates we do allow loop variables to be used here as well.
                 String varName = entry.getVariable();
                 int offset = varName.indexOf('.');
-                VariableExtract.Trait traitVal = null;
+                TraitInfo.Trait traitVal = null;
                 if (offset > 0 && varName.length() > offset + 1) {
                     // Trait included: split name into var name and trait name
                     String traitName = varName.substring(offset + 1);
                     varName = varName.substring(0, offset);
                     // now get corresponding trait type & validate that it is a numeric
-                    traitVal = VariableExtract.getTrait (traitName, varName);
-                    ParameterStruct.ParamType traitTyp = VariableExtract.getTraitDataType (traitVal, varName);
+                    ParameterStruct.ParamType ptype = Variables.getVariableTypeFromName (varName);
+                    traitVal = TraitInfo.getTrait (traitName, varName, ptype);
+                    ParameterStruct.ParamType traitTyp = TraitInfo.getTraitDataType (traitVal, varName, ptype);
                     switch (traitTyp) {
-                        case Integer:
-                        case Unsigned:
-                            break;
-                        default:
-                            throw new ParserException(functionId + "Specified Variable trait is not a numeric: " + traitName);
+                        case Integer, Unsigned -> {  }
+                        default -> throw new ParserException(functionId + "Specified Variable trait is not a numeric: " + traitName);
                     }
                 }
                 Long numValue = Variables.getNumericValue(varName, traitVal, false);

@@ -30,7 +30,6 @@ public final class ParameterStruct {
     
     private ParamClass          paramClass;     // class of the parameter
     private ParamType           paramType;      // parameter classification
-    private char                paramTypeID;    // ID corresponding to the paramType
     private VariableInfo        variableRef;    // info if a referenced Variable is used instead of a value
     
     public enum ParamClass {
@@ -58,7 +57,6 @@ public final class ParameterStruct {
         paramClass = null;
         variableRef = new VariableInfo();
         paramType = null;
-        paramTypeID = '?';
     }
 
     /**
@@ -83,7 +81,6 @@ public final class ParameterStruct {
         strParam = strValue;
         paramClass = pClass;
         paramType = dataType;
-        paramTypeID = getParamTypeID (paramType);
 
         try {
             // Need to do these special cases before we handle the mundane hard-coded entries.
@@ -167,7 +164,6 @@ public final class ParameterStruct {
                             if (paramType == ParamType.StrArray) {
                                 // if it was a String Array but was all Integers, reclassify it
                                 paramType = ParamType.IntArray;
-                                paramTypeID = getParamTypeID (paramType);
                             }
                         } catch (ParserException ex) {
                             if (paramType == ParamType.IntArray) {
@@ -227,7 +223,6 @@ public final class ParameterStruct {
 
     public void setParamTypeDiscrete (ParamType ptype) {
         paramType   = ptype;
-        paramTypeID = getParamTypeID (ptype);
         paramClass  = ParamClass.Discrete;
     }
     
@@ -353,27 +348,6 @@ public final class ParameterStruct {
     }
     
     /**
-     * converts the parameter type to a character value.
-     * 
-     * @param type 
-     * 
-     * @return  character version of the parameter type
-     */
-    public static char getParamTypeID (ParamType type) {
-        switch (type) {
-            case ParamType.Integer:     return 'I';
-            case ParamType.Unsigned:    return 'U';
-            case ParamType.Boolean:     return 'B';
-            case ParamType.String:      return 'S';
-            case ParamType.IntArray:    return 'A';
-            case ParamType.StrArray:    return 'L';
-            default:
-                break;
-        }
-        return '?';
-    }
-    
-    /**
      * returns the Calculation data value
      * 
      * @param type - the data type being calculated
@@ -414,7 +388,6 @@ public final class ParameterStruct {
         }
         if (value != null) {
             this.paramType      = value.paramType;
-            this.paramTypeID    = value.paramTypeID;
             this.longParam      = value.longParam;
             this.boolParam      = value.boolParam;
             this.strParam       = value.strParam;
@@ -424,10 +397,31 @@ public final class ParameterStruct {
             this.paramClass     = value.paramClass;
             this.variableRef    = value.variableRef;
             
-            frame.outputInfoMsg(STATUS_DEBUG, "    unpacked param " + variableRef.getName() + " as type '" + paramTypeID);
+            frame.outputInfoMsg(STATUS_DEBUG, "    unpacked param " + variableRef.getName() + " as type '" + paramType);
         }
     }
 
+    /**
+     * converts the parameter type to a character value.
+     * 
+     * @param type 
+     * 
+     * @return  character version of the parameter type
+     */
+    private static String getParamTypeID (ParamType type) {
+        switch (type) {
+            case ParamType.Integer:     return "I";
+            case ParamType.Unsigned:    return "U";
+            case ParamType.Boolean:     return "B";
+            case ParamType.String:      return "S";
+            case ParamType.IntArray:    return "A";
+            case ParamType.StrArray:    return "L";
+            default:
+                break;
+        }
+        return "?";
+    }
+    
     /**
      * returns a String for displaying the current param data type and value.
      * 
@@ -435,7 +429,7 @@ public final class ParameterStruct {
      */
     public String showParam () {
         String strValue;
-        String strID = "" + paramTypeID;
+        String strID = getParamTypeID (paramType);
         switch (paramClass) {
             case ParamClass.Reference:
                 strValue = variableRef.getName();
@@ -485,7 +479,8 @@ public final class ParameterStruct {
     public static void showParamTypeList (ArrayList<ParameterStruct> params) {
         String paramTypes = "";
         for (int ix = 0; ix < params.size(); ix++) {
-            paramTypes += params.get(ix).paramTypeID;
+            String strID = getParamTypeID (params.get(ix).paramType);
+            paramTypes += strID;
         }
         frame.outputInfoMsg(STATUS_DEBUG, "     dataTypes: " + paramTypes);
     }
@@ -692,10 +687,10 @@ public final class ParameterStruct {
         
         // verify type is correct and entry is not null
         ParameterStruct.ParamType ptype = parm.get(index).getParamType();
-        boolean bVariable = parm.get(index).isVariableRef();
-        if (bVariable) {
-            ptype = parm.get(index).getVariableRefType();
-        }
+//        boolean bVariable = parm.get(index).isVariableRef();
+//        if (bVariable) {
+//            ptype = parm.get(index).getVariableRefType();
+//        }
         boolean bValid = ptype == expType;
         if (! bValid) {
             frame.outputInfoMsg(STATUS_DEBUG, "Param[" + index + "] type " + ptype + " when expected: " + expType);
@@ -705,8 +700,6 @@ public final class ParameterStruct {
         String value;
         switch (expType) {
             case Integer:
-//                if (ptype == ParameterStruct.ParamType.Unsigned)
-//                    bValid = true;
                 Long iValue = parm.get(index).getIntegerValue();
                 if (iValue == null) {
                     throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
@@ -715,8 +708,6 @@ public final class ParameterStruct {
                 bValid = true;
                 break;
             case Unsigned:
-//                if (ptype == ParameterStruct.ParamType.Integer)
-//                    bValid = true;
                 iValue = parm.get(index).getIntegerValue();
                 if (iValue == null) {
                     throw new ParserException(functionId + "Param[" + index + "] type " + ptype + ": entry was null");
@@ -833,21 +824,17 @@ public final class ParameterStruct {
                     if (strParam.equalsIgnoreCase("TRUE")) {
                         boolParam = true;
                         paramType = ParamType.Boolean;
-                        paramTypeID = getParamTypeID (paramType);
                     } else if (strParam.equalsIgnoreCase("FALSE")) {
                         boolParam = false;
                         paramType = ParamType.Boolean;
-                        paramTypeID = getParamTypeID (paramType);
                     } else {
                         try {
                             Long longVal = getLongOrUnsignedValue (strParam);
                             longParam = longVal;
                             if (isUnsignedInt(longVal)) {
                                 paramType = ParamType.Unsigned;
-                                paramTypeID = getParamTypeID (paramType);
                             } else {
                                 paramType = ParamType.Integer;
-                                paramTypeID = getParamTypeID (paramType);
                             }
                             boolParam = longParam != 0;
                         } catch (ParserException ex) {

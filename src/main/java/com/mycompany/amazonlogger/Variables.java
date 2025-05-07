@@ -7,15 +7,11 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 
@@ -138,6 +134,21 @@ public class Variables {
     }
 
     /**
+     * returns the length of the specified string variable
+     * 
+     * @param name - name of the variable
+     * 
+     * @return the string length (0 if not found)
+     */
+    public static int getStringSize (String name) {
+        String strValue = strParams.get(name);
+        if (strValue != null) {
+            return strValue.length();
+        }
+        return 0;
+    }
+    
+    /**
      * gets the next random value
      * 
      * @return the next random value
@@ -147,214 +158,6 @@ public class Variables {
         return rand.nextLong(maxRandom);
     }
     
-    /**
-     * extracts and applies the Trait found for the parameter value.
-     * Does nothing if no Trait listed. Checks to verify the Trait is applicable to
-     *  the data type of the parameter.
-     * 
-     * @param paramValue - the parameter value to check the Trait of
-     * 
-     * @return the parameter value representing the Trait
-     * 
-     * @throws ParserException 
-     */
-    private static ParameterStruct applyTraitValue (ParameterStruct paramValue) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        VariableInfo paramInfo = paramValue.getVariableRef();
-        if (paramInfo == null) {
-            return paramValue;
-        }
-        VariableExtract.Trait trait = paramInfo.getTrait();
-        if (trait == null) {
-            return paramValue;
-        }
-        String name = paramInfo.getName();
-        if (name.charAt(0) == '$') {
-            name = name.substring(1);
-        }
-
-        ParameterStruct.ParamType pType = paramValue.getParamType();
-        switch (pType) {
-            case ParameterStruct.ParamType.IntArray:
-                int psize = paramValue.getIntArraySize();
-                switch (trait) {
-                    case SIZE:
-                        paramValue.setIntegerValue((long)psize);
-                        paramValue.setStringValue(paramValue.getIntegerValue().toString());
-                        pType = ParameterStruct.ParamType.Integer;
-                        break;
-                    case ISEMPTY:
-                        paramValue.setBooleanValue(paramValue.isIntArrayEmpty());
-                        paramValue.setStringValue(paramValue.getBooleanValue().toString());
-                        pType = ParameterStruct.ParamType.Boolean;
-                        break;
-                    case FILTER:
-                        if (VarArray.getFilterArray() == null) {
-                            throw new ParserException(functionId + trait.toString() + " has not been initialized yet");
-                        }
-                        if (VarArray.getFilterArray().size() != psize) {
-                            throw new ParserException(functionId + trait.toString() + " has size " + VarArray.getFilterArray().size() + ", but array is size " + psize);
-                        }
-                        // remove the selected entries
-                        for (int ix = psize - 1; ix >= 0; ix--) {
-                            if (!VarArray.getFilterArray().get(ix)) {
-                                paramValue.getIntArray().remove(ix);
-                            }
-                        }
-                        break;
-                    default:
-                        throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);
-                }
-                frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type " + pType + ": " + paramValue.getStringValue());
-                break;
-                
-            case ParameterStruct.ParamType.StrArray:
-                psize = paramValue.getStrArraySize();
-                String strValue = "";
-                switch (trait) {
-                    case SORT:
-                        Collections.sort(paramValue.getStrArray().subList(0, psize));
-                        strValue = paramValue.getStrArray().toString();
-                        if (strValue.length() > 20) strValue = strValue.substring(0, 20) + "...";
-                        break;
-                    case REVERSE:
-                        Collections.reverse(paramValue.getStrArray());
-                        strValue = paramValue.getStrArray().toString();
-                        if (strValue.length() > 20) strValue = strValue.substring(0, 20) + "...";
-                        break;
-                    case SIZE:
-                        paramValue.setIntegerValue((long)psize);
-                        strValue = paramValue.getIntegerValue().toString();
-                        pType = ParameterStruct.ParamType.Integer;
-                        break;
-                    case ISEMPTY:
-                        paramValue.setBooleanValue(paramValue.isStrArrayEmpty());
-                        strValue = paramValue.getBooleanValue().toString();
-                        pType = ParameterStruct.ParamType.Boolean;
-                        break;
-                    case FILTER:
-                        if (VarArray.getFilterArray() == null) {
-                            throw new ParserException(functionId + trait.toString() + " has not been initialized yet");
-                        }
-                        if (VarArray.getFilterArray().size() != psize) {
-                            throw new ParserException(functionId + trait.toString() + " has size " + VarArray.getFilterArray().size() + ", but array is size " + psize);
-                        }
-                        // remove the selected entries
-                        for (int ix = psize - 1; ix >= 0; ix--) {
-                            if (!VarArray.getFilterArray().get(ix)) {
-                                paramValue.getStrArray().remove(ix);
-                            }
-                        }
-                        break;
-                    default:
-                        throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);
-                }
-                frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type " + pType + ": " + strValue);
-                break;
-                
-            case ParameterStruct.ParamType.String:
-                // these only apply to the DATE variable, so make sure the variable is correct
-                switch (trait) {
-                    case VariableExtract.Trait.DOW:
-                    case VariableExtract.Trait.DOM:
-                    case VariableExtract.Trait.DOY:
-                    case VariableExtract.Trait.MOY:
-                    case VariableExtract.Trait.DAY:
-                    case VariableExtract.Trait.MONTH:
-                        if (! name.contentEquals("DATE")) {
-                            throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for variable " + name + " (only allowed for $DATE)");
-                        }
-                        break;
-                    default:
-                        break;
-                }
-                
-                Integer intValue;
-                strValue = "";
-                switch (trait) {
-                    case UPPER:
-                        paramValue.setStringValue(paramValue.getStringValue().toUpperCase());
-                        strValue = paramValue.getStringValue();
-                        break;
-                    case LOWER:
-                        paramValue.setStringValue(paramValue.getStringValue().toLowerCase());
-                        strValue = paramValue.getStringValue();
-                        break;
-                    case TOLINES:
-                        strValue = paramValue.getStringValue();
-                        List<String> list = Arrays.asList(strValue.split("\n"));
-                        ArrayList<String> strList = new ArrayList<>(list);
-                        paramValue.setStrArray(strList);
-                        break;
-                    case TOWORDS:
-                        strValue = paramValue.getStringValue();
-                        list = Arrays.asList(strValue.split(" "));
-                        strList = new ArrayList<>(list);
-                        paramValue.setStrArray(strList);
-                        break;
-                    case SIZE:
-                        paramValue.setIntegerValue((long)paramValue.getStringValue().length());
-                        strValue = paramValue.getIntegerValue().toString();
-                        pType = ParameterStruct.ParamType.Integer;
-                        break;
-                    case ISEMPTY:
-                        paramValue.setBooleanValue(paramValue.getStringValue().isEmpty());
-                        strValue = paramValue.getBooleanValue().toString();
-                        pType = ParameterStruct.ParamType.Boolean;
-                        break;
-                    case DOW:
-                        intValue = LocalDate.now().getDayOfWeek().getValue();
-                        strValue = intValue.toString();
-                        paramValue.setIntegerValue((long)intValue);
-                        paramValue.setStringValue(strValue);
-                        pType = ParameterStruct.ParamType.Integer;
-                        break;
-                    case DOM:
-                        intValue = LocalDate.now().getDayOfMonth();
-                        strValue = intValue.toString();
-                        paramValue.setIntegerValue((long)intValue);
-                        paramValue.setStringValue(strValue);
-                        pType = ParameterStruct.ParamType.Integer;
-                        break;
-                    case DOY:
-                        intValue = LocalDate.now().getDayOfYear();
-                        strValue = intValue.toString();
-                        paramValue.setIntegerValue((long)intValue);
-                        paramValue.setStringValue(strValue);
-                        pType = ParameterStruct.ParamType.Integer;
-                        break;
-                    case MOY:
-                        intValue = LocalDate.now().getMonthValue();
-                        strValue = intValue.toString();
-                        paramValue.setIntegerValue((long)intValue);
-                        paramValue.setStringValue(strValue);
-                        pType = ParameterStruct.ParamType.Integer;
-                        break;
-                    case DAY:
-                        strValue = LocalDate.now().getDayOfWeek().toString();
-                        paramValue.setStringValue(strValue);
-                        pType = ParameterStruct.ParamType.String;
-                        break;
-                    case MONTH:
-                        strValue = LocalDate.now().getMonth().toString();
-                        paramValue.setStringValue(strValue);
-                        pType = ParameterStruct.ParamType.String;
-                        break;
-                    default:
-                        throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType.toString());
-                }
-                frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type Boolean: " + strValue);
-                break;
-            default:
-                throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType.toString());
-        }
-        
-        // save the parameter type
-        paramValue.setParamTypeDiscrete (pType);
-        return paramValue;
-    }
-
     /**
      * extracts and applies the Bracketing found for the parameter value.
      * Does nothing if no Brackets listed. Checks to verify the Brackets are applicable to
@@ -582,7 +385,7 @@ public class Variables {
         paramValue = applyBracketing(paramValue);
 
         // now check for traits being applied (this can also change the data type returned)
-        paramValue = applyTraitValue (paramValue);
+        paramValue = TraitInfo.applyTraitValue (paramValue);
         
         // convert value to other forms where possible
         paramValue.updateConversions();
@@ -869,7 +672,7 @@ public class Variables {
      * 
      * @throws ParserException
      */
-    public static Long getNumericValue (String name, VariableExtract.Trait traitVal, boolean bNoLoops) throws ParserException {
+    public static Long getNumericValue (String name, TraitInfo.Trait traitVal, boolean bNoLoops) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (name == null) {
@@ -901,23 +704,7 @@ public class Variables {
                         break;
                     case DATE:
                         LocalDate currentDate = LocalDate.now();
-                        switch (traitVal) {
-                            case DOW:
-                                iValue = (long) currentDate.getDayOfWeek().getValue();
-                                break;
-                            case DOM:
-                                iValue = (long) currentDate.getDayOfMonth();
-                                break;
-                            case DOY:
-                                iValue = (long) currentDate.getDayOfYear();
-                                break;
-                            case MOY:
-                                iValue = (long) currentDate.getMonthValue();
-                                break;
-                            default:
-                                // no other value is allowed for Integers
-                                break;
-                        }
+                        iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.String);
                         break;
                     default:
                     case TIME:
@@ -933,14 +720,12 @@ public class Variables {
                 iValue = uintParams.get(name);
             }
             else if (strParams.containsKey(name)) {
-                String strValue = strParams.get(name);
-                if (traitVal == null) {
+                // first, check for a Trait
+                iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.String);
+                if (iValue == null) {
+                    String strValue = strParams.get(name);
                     iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
                     frame.outputInfoMsg(STATUS_DEBUG, "Converting variable " + name + " to Integer: " + iValue);
-                }
-                else if (traitVal == VariableExtract.Trait.SIZE) {
-                    iValue = (long) strValue.length();
-                    frame.outputInfoMsg(STATUS_DEBUG, "Extracted SIZE of variable " + name + " as: " + iValue);
                 }
             }
             else if (boolParams.containsKey(name)) {
@@ -948,24 +733,20 @@ public class Variables {
                 iValue = boolParams.get(name) ? 1L : 0;
             }
             else if (VarArray.isIntArray(name)) {
-                if (traitVal == null) {
+                // first, check for a Trait
+                iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.IntArray);
+                if (iValue == null) {
                     iValue = VarArray.getIntArray(name).getFirst();
                     frame.outputInfoMsg(STATUS_DEBUG, "Extracted 1st entry of IntArray " + name + " to Integer: " + iValue);
                 }
-                else if (traitVal == VariableExtract.Trait.SIZE) {
-                    iValue = (long) VarArray.getIntArray(name).size();
-                    frame.outputInfoMsg(STATUS_DEBUG, "Extracted SIZE of IntArray " + name + " as: " + iValue);
-                }
             }
             else if (VarArray.isStrArray(name)) {
-                if (traitVal == null) {
+                // first, check for a Trait
+                iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.StrArray);
+                if (iValue == null) {
                     String strValue = VarArray.getStrArray(name).getFirst();
                     iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
                     frame.outputInfoMsg(STATUS_DEBUG, "Extracted 1st entry of StrArray " + name + " to Integer: " + iValue);
-                }
-                else if (traitVal == VariableExtract.Trait.SIZE) {
-                    iValue = (long) VarArray.getStrArray(name).size();
-                    frame.outputInfoMsg(STATUS_DEBUG, "Extracted SIZE of StrArray " + name + " as: " + iValue);
                 }
             }
         } catch (ParserException exMsg) {
