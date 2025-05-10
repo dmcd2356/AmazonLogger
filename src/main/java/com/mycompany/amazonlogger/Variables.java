@@ -34,14 +34,18 @@ public class Variables {
     // reserved static Variables
     private static boolean            bStatus = false;          // true/false status indications
     private static long               maxRandom = 1000000000;   // for random values 0 - 999999999
+    
+    // the value returned from the last subroutine call
+    private static String subRetValue;
 
     public enum ReservedVars {
-        RESPONSE,
-        STATUS,
-        RANDOM,
-        DATE,
-        TIME,
-        OCRTEXT,
+        RESPONSE,       // StrArray value from various commands
+        RETVAL,         // String return value from subroutine call
+        STATUS,         // Boolean return from various commands
+        RANDOM,         // Integer random number output
+        DATE,           // String current date (or Integer if Traits are added)
+        TIME,           // String current time
+        OCRTEXT,        // String output of OCRSCAN command
     }
     
     public enum VarClass {
@@ -80,6 +84,15 @@ public class Variables {
      */
     public static void putStatusValue (boolean value) {
         bStatus = value;
+    }
+
+    /**
+     * set the value of the $RETVAL Variable
+     * 
+     * @param value - value to set the subroutine return Variable to
+     */
+    public static void putSubRetValue (String value) {
+        subRetValue = value;
     }
 
     /**
@@ -302,6 +315,10 @@ public class Variables {
                     case RANDOM:
                         paramValue.setIntegerValue(getRandomValue());
                         pType = ParameterStruct.ParamType.Integer;
+                        break;
+                    case RETVAL:
+                        paramValue.setStringValue(subRetValue);
+                        pType = ParameterStruct.ParamType.String;
                         break;
                     case TIME:
                         LocalTime currentTime = LocalTime.now();
@@ -549,7 +566,7 @@ public class Variables {
         }
         for (ReservedVars entry : ReservedVars.values()) {
             if (entry.toString().contentEquals(name)) {
-                frame.outputInfoMsg(STATUS_DEBUG, "    Reserved name found: " + name);
+//                frame.outputInfoMsg(STATUS_DEBUG, "    Reserved name found: " + name);
                 return entry;
             }
         }
@@ -627,6 +644,9 @@ public class Variables {
                 case RANDOM:
                     vartype = ParameterStruct.ParamType.Unsigned;
                     break;
+                case RETVAL:
+                    vartype = ParameterStruct.ParamType.String;
+                    break;
                 case DATE:
                     vartype = ParameterStruct.ParamType.String;  // can also be Unsigned
                     break;
@@ -701,6 +721,9 @@ public class Variables {
                         break;
                     case RANDOM:
                         iValue = getRandomValue();
+                        break;
+                    case RETVAL:
+                        iValue = Utils.getIntValue(subRetValue);
                         break;
                     case DATE:
                         LocalDate currentDate = LocalDate.now();

@@ -24,13 +24,13 @@ public class ScriptCompile {
 
     // this handles the command line options via the RUN command
     private final CmdOptions cmdOptionParser;
-     
+    
 
     ScriptCompile() {
         // create an instance of the command options parser for any RUN commands
         cmdOptionParser = new CmdOptions();
     }
-    
+
     /**
      * compiles the external script file (when -f option used) into a series of
      * CommandStruct entities to execute.
@@ -47,7 +47,6 @@ public class ScriptCompile {
 
         frame.outputInfoMsg(STATUS_COMPILE, "Compiling file: " + fname);
         ArrayList<CommandStruct> cmdList = new ArrayList<>();
-        String line = "";
         int cmdIndex = 0;
         String lineInfo = "";
         CommandStruct cmdStruct;
@@ -60,10 +59,13 @@ public class ScriptCompile {
         // clear out the static Variable values
         Variables.initVariables();
 
+        // access the Subroutine class to define them
+        Subroutine subs = new Subroutine();
+
         // read the program and compile into ArrayList 'cmdList'
         int lineNum = 0;
-        boolean bExit = false;
-        while (!bExit && (line = fileReader.readLine()) != null) {
+        String line;
+        while ((line = fileReader.readLine()) != null) {
             try {
                 lineNum++;
                 line = line.strip();
@@ -124,13 +126,35 @@ public class ScriptCompile {
                 frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
                 boolean bParamAssign = (CommandStruct.CommandTable.SET == command);
                 cmdStruct.params = packParameters (parmString, bParamAssign);
-                ParameterStruct.showParamTypeList(cmdStruct.params);
 
                 // now let's check for valid command keywords and extract the arguments
                 //  into the cmdStruct structure.
                 switch (cmdStruct.command) {
-                    case CommandStruct.CommandTable.EXIT:
-                        bExit = true;
+                    case EXIT:
+                        break;
+                    case ENDMAIN:
+                        subs.compileEndOfMain (lineNum);
+                        break;
+                    case SUB:
+                        // verify 1 String argument: name of subroutine
+                        String subName = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        subs.compileSubStart (subName, lineNum, cmdIndex);
+                        break;
+                    case ENDSUB:
+                        subs.compileSubEnd (lineNum);
+                        break;
+                    case GOSUB:
+                        // verify 1 String argument: name of subroutine (and optionally a list of various args)
+                        // (don't have to verify the args, since they can be of any type or not exist at all)
+                        subName = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        subs.compileSubGosub (subName);
+                        break;
+                    case RETURN:
+                        // optional String argument returned
+                        if (!cmdStruct.params.isEmpty()) {
+                            checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        }
+                        subs.compileSubReturn ();
                         break;
                     case PRINT:
                         // we print anything, so no checking
@@ -363,7 +387,6 @@ public class ScriptCompile {
                     case CommandStruct.CommandTable.IF:
                         // verify number and type of arguments
                         cmdStruct.params = packComparison (parmString);
-                        ParameterStruct.showParamTypeList(cmdStruct.params);
 
                         // read the arguments passed
                         // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Variables)
@@ -379,7 +402,8 @@ public class ScriptCompile {
                         }
 
                         // add entry to the current loop stack
-                        ifInfo = new IFStruct (cmdIndex, LoopStruct.getStackSize());
+                        String sname = Subroutine.getSubName(lineNum);
+                        ifInfo = new IFStruct (cmdIndex, LoopStruct.getStackSize(), sname);
                         IFStruct.ifListPush(ifInfo);
                         IFStruct.stackPush(cmdIndex);
                         frame.outputInfoMsg(STATUS_COMPILE, "   - new IF level " + IFStruct.getStackSize() + " Variable " + ifName);
@@ -390,6 +414,9 @@ public class ScriptCompile {
                         }
                         // save the current command index in the current if structure
                         ifInfo = IFStruct.getIfListEntry();
+                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(lineNum))) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " was outside subroutine of matching IF statement");
+                        }
                         ifInfo.setElseIndex(cmdIndex, false, LoopStruct.getStackSize());
                         frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
                         break;
@@ -405,6 +432,9 @@ public class ScriptCompile {
 
                         // save the current command index in the current if structure
                         ifInfo = IFStruct.getIfListEntry();
+                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(lineNum))) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " was outside subroutine of matching IF statement");
+                        }
                         ifInfo.setElseIndex(cmdIndex, true, LoopStruct.getStackSize());
                         frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " Variable " + ifName);
                         break;
@@ -414,6 +444,9 @@ public class ScriptCompile {
                         }
                         // save the current command index in the current if structure
                         ifInfo = IFStruct.getIfListEntry();
+                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(lineNum))) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " was outside subroutine of matching IF statement");
+                        }
                         ifInfo.setEndIfIndex(cmdIndex, LoopStruct.getStackSize());
                         IFStruct.stackPop();
                         frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
@@ -537,6 +570,7 @@ public class ScriptCompile {
 
                 // all good, add command to list
                 if (cmdStruct != null) {
+                    ParameterStruct.showParamTypeList(cmdStruct.params);
                     cmdList.add(cmdStruct);
                 }
             } catch (ParserException exMsg) {
@@ -548,7 +582,7 @@ public class ScriptCompile {
                     throw new ParserException(msg);
                 }
             }
-        }
+        }  // end of while loop
         
         int loopSize = LoopStruct.getStackSize();
         if (loopSize != 0) {
@@ -557,12 +591,13 @@ public class ScriptCompile {
         if (!IFStruct.isIfStackEnpty() && !IFStruct.getIfListEntry().isValid()) {
             throw new ParserException(functionId + "Last IF has no matching ENDIF");
         }
+        Subroutine.checkSubroutineMissing();
 
         fileReader.close();
         
-        // the last line will be the one to end the program flow
-        cmdList.add(new CommandStruct(CommandStruct.CommandTable.EXIT, lineNum));
-        frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "]: EXIT  (appended)");
+//        // the last line will be the one to end the program flow
+//        cmdList.add(new CommandStruct(CommandStruct.CommandTable.EXIT, lineNum));
+//        frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "]: EXIT  (appended)");
         return cmdList;
     }
 
@@ -941,7 +976,7 @@ public class ScriptCompile {
             params.add(arg);
         }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            throw new ParserException(exMsg + "\n  -> " + functionId + " bParamAssign = " + bParamAssign);
         }
         
         return params;
@@ -1095,7 +1130,6 @@ public class ScriptCompile {
             params.add(parm);
         }
         
-        ParameterStruct.showParamTypeList(params);
         return params;
     }
     

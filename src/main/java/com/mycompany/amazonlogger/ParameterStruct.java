@@ -461,7 +461,7 @@ public final class ParameterStruct {
         String paramTypes = "";
         for (int ix = 0; ix < params.size(); ix++) {
             String strID = params.get(ix).paramType.toString();
-            paramTypes += strID;
+            paramTypes += " " + strID;
         }
         frame.outputInfoMsg(STATUS_DEBUG, "     dataTypes: " + paramTypes);
     }

@@ -49,7 +49,12 @@ public class CommandStruct {
         BREAK,      //  "       "       "
         CONTINUE,   //  "       "       "
         NEXT,       //  "       "       "
-        ENDFOR,     //  "       "       "
+        ENDFOR,     // (not a user command, but inserted by compiler)
+        ENDMAIN,    // marks end of MAIN program so subroutines can be defined
+        SUB,        // defines the start of a subroutine
+        ENDSUB,     // defines the end   of a subroutine
+        GOSUB,      // calls a subroutine
+        RETURN,     // returns from a subroutine
         INSERT,     // these are Array commands only
         APPEND,     //  "       "       "
         MODIFY,     //  "       "       "

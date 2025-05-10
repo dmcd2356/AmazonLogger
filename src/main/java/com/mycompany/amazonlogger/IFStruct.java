@@ -22,6 +22,7 @@ public class IFStruct {
     boolean bFinalElse; // true if last entry in ixElse list was an ELSE, so there can be no more
     Integer ixEndIf;    // command index for ENDIF statement
     Integer loopLevel;  // loop nest level for start of IF statement
+    String  subName;    // subroutine the IF statement was found in
     boolean bCondMet;   // set to the IF level condition being executed (null if none)
 
     // IF List is built during Compile phase and referenced during Execution phase.
@@ -32,7 +33,7 @@ public class IFStruct {
     private final static Stack<Integer>      ifStack = new Stack<>();
 
     
-    IFStruct (int index, int loopLevel) {
+    IFStruct (int index, int loopLevel, String subName) {
         this.ixIf    = index;
         this.ixElse  = new ArrayList<>();
         this.ixEndIf = null;
@@ -41,6 +42,9 @@ public class IFStruct {
             
         // save the loop level for testing whether ELSE and ENDIF are at same level
         this.loopLevel = loopLevel;
+        
+        // save the subroutine (or MAIN) entry to make sure rest of IF is in same function
+        this.subName = subName;
 
         String cmdId = "line " + index + " IF ";
         String nestLevel = " (nest level " + loopLevel + ")";
@@ -125,6 +129,20 @@ public class IFStruct {
         this.bCondMet = false;
     }
         
+    /**
+     * check if in same subroutine.
+     * 
+     * @param subName - subroutine of current command
+     * 
+     * @return  true if it is same as subroutine of current IF statement
+     */
+    public boolean isSameSubroutine (String subName) {
+        if (this.subName == null || subName == null) {
+            return false;
+        }
+        return subName.contentEquals(this.subName);
+    }
+    
     /**
      * get the command index of the next ELSE, ELSEIF or ENDIF statement.
      * 

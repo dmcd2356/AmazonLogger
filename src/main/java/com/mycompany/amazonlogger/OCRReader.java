@@ -25,7 +25,7 @@ import org.xml.sax.SAXException;
  */
 public class OCRReader {
 
-    private static final String CLASS_NAME = AmazonReader.class.getSimpleName();
+    private static final String CLASS_NAME = OCRReader.class.getSimpleName();
     
     private static Metadata metadata;
     private static String   content = "";

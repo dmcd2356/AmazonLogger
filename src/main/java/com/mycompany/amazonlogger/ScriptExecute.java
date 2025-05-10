@@ -197,8 +197,6 @@ public class ScriptExecute {
      * @throws ParserException 
      */
     private String getStringArg (ArrayList<ParameterStruct> parmList, int offset) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
         String strValue = "";
         for (int ix = offset; ix < parmList.size(); ix++) {
             strValue += parmList.get(ix).getStringValue();
@@ -244,7 +242,34 @@ public class ScriptExecute {
         try {
         switch (cmdStruct.command) {
             case EXIT:
+            case ENDMAIN:
                 return -1; // this will terminate the program
+            case SUB:
+                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Subroutine entered at level: " + Subroutine.getSubroutineLevel());
+                break;
+            case ENDSUB:
+                break;
+            case GOSUB:
+                String subName = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                           ParameterStruct.ParamType.String).getStringValue();
+                // if we are passing arguments to the function, add them to the arg list
+                ArrayList<ParameterStruct> argList = new ArrayList<>();
+                if (cmdStruct.params.size() > 1) {
+                    for (int ix = 0; ix < cmdStruct.params.size(); ix++) {
+                        argList.add(cmdStruct.params.get(ix));
+                    }
+                }
+                Subroutine subroutine = new Subroutine();
+                newIndex = subroutine.subBegin(subName, argList, cmdIndex + 1);
+                break;
+            case RETURN:
+                String retArg = "";
+                if (! cmdStruct.params.isEmpty()) {
+                    retArg = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                           ParameterStruct.ParamType.String).getStringValue();
+                }
+                newIndex = Subroutine.subReturn(retArg);
+                break;
             case PRINT:
                 // arg 0: text to output
                 String text;

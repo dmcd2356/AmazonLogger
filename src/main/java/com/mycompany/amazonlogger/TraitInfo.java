@@ -19,7 +19,7 @@ import java.util.List;
  */
 public class TraitInfo {
     
-    private static final String CLASS_NAME = VariableExtract.class.getSimpleName();
+    private static final String CLASS_NAME = TraitInfo.class.getSimpleName();
     
     // traits extensions
     // KEY: I = Integer, U = Unsigned, B = Boolean, S = String, L = StrArray, A = IntArray
