@@ -32,7 +32,7 @@ public class Subroutine {
     // this holds the calls to subs to verify at the end of compilation that they are defined
     private static final ArrayList<String> subCallList = new ArrayList<>();
     
-    private static Integer endOfMainLine = null; // the last line of the main program
+    private static Integer endOfMainLine = null; // the last command index of the main program
 
     /**
      * this class is used for defining the bounds of the script file for the subroutines.
@@ -45,28 +45,31 @@ public class Subroutine {
     private class Bounds {
         private int start;
         private int end;
-        private int cmdIx;
         
-        Bounds (int start, int cmdIx) {
+        Bounds (int start) {
             this.start = start;
             this.end = 0; // set to an invalid value
-            this.cmdIx = cmdIx;
         }
         
         public boolean setEnd (int end) {
-            if (this.end <= 0) {
-                this.end = end;
-                return true;
+            if (this.end > 0) {
+                return false;
+            }
+            this.end = end;
+            return true;
+        }
+        
+        public boolean isContained(int lineNum) {
+            if (lineNum >= this.start) {
+                if (lineNum <= this.end || this.end == 0) {
+                    return true;
+                }
             }
             return false;
         }
         
-        public boolean isContained(int lineNum) {
-            return (this.start <= lineNum && lineNum <= this.end);
-        }
-        
-        public int getCmdIx() {
-            return this.cmdIx;
+        public int getStart() {
+            return this.start;
         }
     }
     
@@ -83,12 +86,12 @@ public class Subroutine {
     
         private final int     index;      // command index of return location
         private final String  name;       // name of current subroutine
-        private final ArrayList<ParameterStruct> args;
+        private final ParameterStruct arg;
         
-        SubCall (int index, String name, ArrayList<ParameterStruct> argList) {
+        SubCall (int index, String name, ParameterStruct arg) {
             this.index = index;
             this.name  = name;
-            this.args  = argList;
+            this.arg   = arg;
         }
         
         String getName() {
@@ -100,47 +103,45 @@ public class Subroutine {
         }
         
         int getArgCount() {
-            if (args != null) {
-                return args.size();
-            }
-            return 0;
+            return (arg == null) ? 0 : 1;
         }
         
-        ParameterStruct getArg(int index) throws ParserException {
+        ParameterStruct getArg() throws ParserException {
             String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-            if (args != null) {
-                return args.get(index);
+            if (arg == null) {
+                throw new ParserException(functionId + "Subroutine " + this.name + " arg not defined");
             }
-            throw new ParserException(functionId + "Subroutine " + this.name + " arg index exceeded: " + index + " (max = " + getArgCount() + ")");
+            return arg;
         }
     }
 
     /**
-     * returns the subroutine name the line is currently contained in.
+     * returns the subroutine name for the  current command index.
      * 
-     * @param lineNum - the current line number
+     * @param cmdIx - the current command index
      * 
-     * @return the name of the current subroutine (MAIN if not in a subroutine)
+     * @return the name of the current subroutine (*MAIN* if not in a subroutine)
      */
-    public static String getSubName (int lineNum) {
-        if (endOfMainLine == null || lineNum <= endOfMainLine) {
-            return "MAIN";
+    public static String getSubName (int cmdIx) {
+        if (endOfMainLine == null || cmdIx <= endOfMainLine) {
+            return "*MAIN*";
         }
         if (! boundary.isEmpty()) {
             for (String name : boundary.keySet()) {
-                if (boundary.get(name).isContained(lineNum)) {
+                if (boundary.get(name).isContained(cmdIx)) {
                     return name;
                 }
             }
         }
-        return "MAIN";
+        return "*MAIN*";
     }
 
     /**
      * returns the specified parameter for the current subroutine.
      * 
      * @param index - the subroutine argument selection
+     *                (0 for fctn name, 1 for argument)
      * 
      * @return the parameter selection for the current subroutine
      * 
@@ -159,7 +160,7 @@ public class Subroutine {
                     ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
         }
         
-        return current.getArg(index - 1);
+        return current.getArg();
     }
     
     /**
@@ -177,19 +178,19 @@ public class Subroutine {
     }
     
     /**
-     * saves indication of end of MAIN routine (marked by EXIT command).
+     * saves indication of end of MAIN routine (marked by ENDMAIN command).
      * 
-     * @param lineNum - line number of last line of MAIN
+     * @param cmdIx - command index of last line of MAIN
      * 
      * @throws ParserException
      */
-    public void compileEndOfMain (int lineNum) throws ParserException {
+    public void compileEndOfMain (int cmdIx) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (endOfMainLine != null) {
-            throw new ParserException(functionId + "Duplicate EXIT command (prev at line " + endOfMainLine + ")");
+            throw new ParserException(functionId + "Duplicate EXIT command (prev at index " + endOfMainLine + ")");
         }
-        endOfMainLine = lineNum;
+        endOfMainLine = cmdIx;
     }
 
     /**
@@ -197,12 +198,11 @@ public class Subroutine {
      * Used during COMPILE stage only.
      *
      * @param name    - name of subroutine
-     * @param lineNum - line number of SUB command
-     * @param cmdIx   - the command index of the SUB command
+     * @param cmdIx   - command index of the SUB command
      * 
      * @throws ParserException
      */
-    public void compileSubStart (String name, int lineNum, int cmdIx) throws ParserException {
+    public void compileSubStart (String name, int cmdIx) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (endOfMainLine == null) {
@@ -218,7 +218,7 @@ public class Subroutine {
             throw new ParserException(functionId + "Duplicate subroutine definition: " + name);
         }
         lastSubName = name;
-        boundary.put(name, new Bounds(lineNum, cmdIx));
+        boundary.put(name, new Bounds(cmdIx));
         addSubroutine (name, cmdIx);
     }
     
@@ -226,11 +226,11 @@ public class Subroutine {
      * saves info for marking end of subroutine in script.
      * Used during COMPILE stage only.
      *
-     * @param lineNum - line number of ENDSUB command
+     * @param cmdIx - command index of the ENDSUB command
      * 
      * @throws ParserException
      */
-    public void compileSubEnd (int lineNum) throws ParserException {
+    public void compileSubEnd (int cmdIx) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (endOfMainLine == null) {
@@ -243,7 +243,7 @@ public class Subroutine {
         if (bounds == null) {
             throw new ParserException(functionId + "Subroutine not found: " + lastSubName);
         }
-        boolean bSuccess = bounds.setEnd(lineNum);
+        boolean bSuccess = bounds.setEnd(cmdIx);
         if (! bSuccess) {
             throw new ParserException(functionId + "Duplicate ENDSUB on line " + bounds.end);
         }
@@ -279,24 +279,24 @@ public class Subroutine {
      * adds a subroutine name to the list, along with the command index it resides at.
      * 
      * @param name  - the subroutine name
-     * @param index - the command index of the subroutine
+     * @param cmdIx - the command index of the subroutine
      * 
      * @throws ParserException
      */
-    public static void addSubroutine (String name, int index) throws ParserException {
+    public static void addSubroutine (String name, int cmdIx) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isBlank()) {
             throw new ParserException(functionId + "Subroutine name is empty");
         }
-        if (index < 0) {
-            throw new ParserException(functionId + "Invalid index value: " + index);
+        if (cmdIx < 0) {
+            throw new ParserException(functionId + "Invalid index value: " + cmdIx);
         }
         if (subroutines.containsKey(name)) {
             throw new ParserException(functionId + "Subroutine already defined: " + name);
         }
-        subroutines.put(name, index);
-        frame.outputInfoMsg(STATUS_DEBUG, "Added subroutine: " + name + " at location " + index);
+        subroutines.put(name, cmdIx);
+        frame.outputInfoMsg(STATUS_DEBUG, "Added subroutine: " + name + " at location " + cmdIx);
     }
 
     /**
@@ -325,14 +325,14 @@ public class Subroutine {
      * returns the subroutine command index.
      * 
      * @param name    - the subroutine name
-     * @param argList - the list of any arguments to pass
-     * @param index   - the command index of the current command
+     * @param arg     - optional argument (null if none)
+     * @param cmdIx   - the command index of the current command
      * 
      * @return the new command index to execute
      * 
      * @throws ParserException
      */
-    public int subBegin (String name, ArrayList<ParameterStruct> argList, int index) throws ParserException {
+    public int subBegin (String name, ParameterStruct arg, int cmdIx) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isBlank()) {
@@ -343,10 +343,12 @@ public class Subroutine {
         }
         
         // push the command index location to return to
-        int argSize = (argList == null) ? 0 : argList.size();
-        frame.outputInfoMsg(STATUS_PROGRAM, "      Subroutine " + name + " index " + index +
-                " entered at level " + (1 + subStack.size()) + ", " + argSize + " args passed");
-        SubCall info = new SubCall(index, name, argList);
+        String argInfo = "(no arg passed)";
+        if (arg != null)
+            argInfo = "(arg: " + arg.getStringValue() + ")";
+        frame.outputInfoMsg(STATUS_PROGRAM, "      Subroutine " + name + " index " + cmdIx +
+                " entered at level " + (1 + subStack.size()) + ", " + argInfo);
+        SubCall info = new SubCall(cmdIx, name, arg);
         subStack.push(info);
         return subroutines.get(name);
     }
@@ -369,6 +371,10 @@ public class Subroutine {
         
         // return the parameter value (null if none)
         Variables.putSubRetValue (param);
+        
+        // release the variables defined in the subroutine
+        String myName = subStack.peek().name;
+        Variables.releaseSubVariables (myName);
         
         // get the command index of the calling function to return to
         SubCall info = subStack.pop();

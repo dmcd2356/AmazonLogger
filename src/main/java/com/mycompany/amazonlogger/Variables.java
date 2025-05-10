@@ -38,6 +38,36 @@ public class Variables {
     // the value returned from the last subroutine call
     private static String subRetValue;
 
+    // table to keep track of variable access in functions
+    private static final ArrayList<AccessInfo> varAccess = new ArrayList<>();
+
+    private class AccessInfo {
+        String      subName;            // name of function that allocated the variable
+        String      varName;            // name of the variable owned by subroutine
+        ParameterStruct.ParamType type; // parameter type
+        AccessType  access;             // type of access permitted to variable
+        
+        AccessInfo (String subName, String varName, ParameterStruct.ParamType type, AccessType access) {
+            this.subName  = subName;
+            this.varName  = varName;
+            this.type     = type;
+            this.access   = access;
+        }
+    }
+
+    /**
+     * NOTE.
+     * For MAIN allocations, external access is for all subroutines.
+     * For subroutine allocations, it only applies to subroutines called by it,
+     *  since it deletes all allocations upon exit.
+     * By 'local', it means the function (or MAIN) that created it.
+     */
+    public enum AccessType {
+        GLOBAL,     // global access for Read & Write (default)
+        READONLY,   // only only local function can Write, local & called functions can Read
+        LOCAL,      // only local function can R/W
+     }
+    
     public enum ReservedVars {
         RESPONSE,       // StrArray value from various commands
         RETVAL,         // String return value from subroutine call
@@ -78,6 +108,72 @@ public class Variables {
     }
 
     /**
+     * checks whether specified variable has Read permission for current function.
+     * 
+     * @param varName - name of variable to check
+     * @param progIx  - current command index (indicates whether command is in Main or Subroutine)
+     * 
+     * @throws ParserException 
+     */
+    public static void checkReadAccess (String varName, int progIx) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        // check if already defined
+        for (AccessInfo entry : varAccess) {
+            if (entry.varName.contentEquals(varName)) {
+                switch (entry.access) {
+                    default:
+                    case GLOBAL:
+                    case READONLY:
+                        return;
+                    case LOCAL:
+                        String curSub = Subroutine.getSubName(progIx);
+                        if (! entry.subName.contentEquals(curSub)) {
+                            throw new ParserException(functionId + "Read access restricted on " + entry.access + " Variable: " + varName);
+                        }
+                        break;
+                }
+                return;
+            }
+        }
+        // if variable not found, do nothing. It may be a reserved variable
+        // which would have GLOBAL access.
+    }
+    
+    /**
+     * checks whether specified variable has Write permission for current function.
+     * 
+     * @param varName - name of variable to check
+     * @param progIx  - current command index (indicates whether command is in Main or Subroutine)
+     * 
+     * @throws ParserException 
+     */
+    public static void checkWriteAccess (String varName, int progIx) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        // check if already defined
+        for (AccessInfo entry : varAccess) {
+            if (entry.varName.contentEquals(varName)) {
+                switch (entry.access) {
+                    default:
+                    case GLOBAL:
+                        return;
+                    case READONLY:
+                    case LOCAL:
+                        String curSub = Subroutine.getSubName(progIx);
+                        if (! entry.subName.contentEquals(curSub)) {
+                            throw new ParserException(functionId + "Write access restricted on " + entry.access + " Variable: " + varName);
+                        }
+                        break;
+                }
+                return;
+            }
+        }
+        // if variable not found, do nothing. It may be a reserved variable
+        // which would have GLOBAL access.
+    }
+    
+    /**
      * set the value of the $STATUS Variable
      * 
      * @param value - value to set the result Variable to
@@ -99,20 +195,25 @@ public class Variables {
      * creates a new entry in the Variable table and sets the initial value.
      * 
      * @param dataType - the data type to allocate
-     * @param name     - Variable name
+     * @param varName  - Variable name
+     * @param subName  - the function the variable is defined in
+     * @param access   - type of access to grant variable
      * 
      * @throws ParserException - if Variable was already defined
      */
-    public static void allocateVariable (String dataType, String name) throws ParserException {
+    public void allocateVariable (String dataType, String varName, String subName, AccessType access) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // first, verify Variable name to make sure it is valid format and
         //  not already used.
-        if (dataType == null || name == null) {
+        if (dataType == null || varName == null) {
             throw new ParserException(functionId + "Null input value");
         }
+        if (subName == null) {
+            subName = "*MAIN*";
+        }
         try {
-            checkValidVariable(VarCheck.ALLOCATE, name);
+            checkValidVariable(VarCheck.ALLOCATE, varName);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
@@ -121,29 +222,82 @@ public class Variables {
         if (ptype == null) {
             throw new ParserException(functionId + "Invalid variable type: " + dataType);
         }
+        
+        // check if already defined
+        for (AccessInfo entry : varAccess) {
+            if (entry.varName.contentEquals(varName)) {
+                throw new ParserException(functionId + "Variable already defined: " + varName);
+            }
+        }
+        
+        // add to list of variable access
+        AccessInfo entry = new AccessInfo(subName, varName, ptype, access);
+        varAccess.add(entry);
+        
+        // allocate and set default value for the variable
         switch (ptype) {
             case Integer:
-                longParams.put(name, 0L);
+                longParams.put(varName, 0L);
                 break;
             case Unsigned:
-                uintParams.put(name, 0L);
+                uintParams.put(varName, 0L);
                 break;
             case Boolean:
-                boolParams.put(name, false);
-                break;
-            case IntArray:
-                VarArray.allocateVariable(name, ParameterStruct.ParamType.IntArray);
-                break;
-            case StrArray:
-                VarArray.allocateVariable(name, ParameterStruct.ParamType.StrArray);
+                boolParams.put(varName, false);
                 break;
             case String:
-                strParams.put(name, "");        // default value to empty String
+                strParams.put(varName, "");
+                break;
+            case IntArray:
+            case StrArray:
+                VarArray.allocateVariable(varName, ptype);
                 break;
             default:
                 throw new ParserException(functionId + "Invalid variable type: " + dataType);
         }
-        frame.outputInfoMsg(STATUS_VARS, "   - Allocated " + dataType + " variable: " + name);
+        frame.outputInfoMsg(STATUS_VARS, "   - Allocated " + dataType + " variable: " + varName + " in " + subName + " with access: " + access);
+    }
+
+        /**
+     * releases the allocations for the specified subroutine.
+     * 
+     * @param subName  - the function exiting
+     * 
+     * @throws ParserException - if Variable was already defined
+     */
+    public static void releaseSubVariables (String subName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (subName == null || subName.contentEquals("*MAIN*")) {
+            throw new ParserException(functionId + "Variables allocated by MAIN can't be deleted");
+        }
+        for (AccessInfo entry : varAccess) {
+            if (entry.subName.contentEquals(subName)) {
+                ParameterStruct.ParamType ptype = entry.type;
+                String varName = entry.varName;
+                switch (ptype) {
+                    case Integer:
+                        longParams.remove(varName);
+                        break;
+                    case Unsigned:
+                        uintParams.remove(varName);
+                        break;
+                    case Boolean:
+                        boolParams.remove(varName);
+                        break;
+                    case String:
+                        strParams.remove(varName);
+                        break;
+                    case IntArray:
+                    case StrArray:
+                        VarArray.releaseVariable(varName, ptype);
+                        break;
+                    default:
+                        throw new ParserException(functionId + "Invalid variable type: " + ptype);
+                }
+                frame.outputInfoMsg(STATUS_VARS, "   - Released " + subName + " allocation for: " + varName + " (type " + ptype + ")");
+            }
+        }
     }
 
     /**
@@ -549,6 +703,29 @@ public class Variables {
         return false;
     }
 
+    /**
+     * indicates if the name is reserved and can't be used for a variable.
+     * 
+     * @param name - the name to check
+     * 
+     * @return the reserved variable name if valid, null if not
+     * 
+     * @throws ParserException
+     */
+    public static AccessType getAccessType (String name) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (name == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
+        for (AccessType entry : AccessType.values()) {
+            if (entry.toString().contentEquals(name)) {
+                return entry;
+            }
+        }
+        return null;
+    }
+    
     /**
      * indicates if the name is reserved and can't be used for a variable.
      * 

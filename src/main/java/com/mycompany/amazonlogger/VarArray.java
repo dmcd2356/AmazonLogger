@@ -108,6 +108,27 @@ public class VarArray {
     }
     
     /**
+     * removes an allocation in the Variable table.
+     * 
+     * @param name  - Variable name
+     * @param type  - the type of parameter
+     */
+    public static void releaseVariable (String name, ParameterStruct.ParamType type) {
+        switch (type) {
+            case ParameterStruct.ParamType.IntArray:
+                intArrayParams.get(name).clear();
+                intArrayParams.remove(name);
+                break;
+            case ParameterStruct.ParamType.StrArray:
+                strArrayParams.get(name).clear();
+                strArrayParams.remove(name);
+                break;
+            default:
+                break;
+        }
+    }
+    
+    /**
      * removes the specified array variable entry.
      * 
      * @param name  - Variable name

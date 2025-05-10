@@ -133,12 +133,12 @@ public class ScriptCompile {
                     case EXIT:
                         break;
                     case ENDMAIN:
-                        subs.compileEndOfMain (lineNum);
+                        subs.compileEndOfMain (cmdIndex);
                         break;
                     case SUB:
                         // verify 1 String argument: name of subroutine
                         String subName = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
-                        subs.compileSubStart (subName, lineNum, cmdIndex);
+                        subs.compileSubStart (subName, cmdIndex);
                         break;
                     case ENDSUB:
                         subs.compileSubEnd (lineNum);
@@ -240,23 +240,33 @@ public class ScriptCompile {
                         
                     case ALLOCATE:
                         // must be a Data Type followed by a List of Variable name entries
-                        checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
-                        checkArgType (1, ParameterStruct.ParamType.StrArray, cmdStruct.params);
+                        String accStr   = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        String dataType = checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
+                        checkArgType (2, ParameterStruct.ParamType.StrArray, cmdStruct.params);
+                        ParameterStruct list = cmdStruct.params.get(2);
 
-                        // get the data type first
-                        String dataType = cmdStruct.params.get(0).getStringValue();
+                        // get the data type and access type for the variable
+                        Variables.AccessType access = Variables.getAccessType (accStr);
+                        if (access == null) {
+                            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : invalid access type: " + accStr);
+                        }
                         if (ParameterStruct.checkParamType (dataType) == null) {
                             throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : invalid data type: " + dataType);
                         }
 
+                        // get the current function name (Main or Subroutine).
+                        // The parameters can be accessed globally, but can only be set in the
+                        //   function that allocated them.
+                        subName = Subroutine.getSubName(cmdIndex);
+                        
                         // this defines the Variable names, and must be done prior to their use.
                         // This Compile method will allocate them, so the Execute does not need
                         //  to do anything with this command.
-                        // Multiple Variables can be defined on one line, with the names comma separated.
-                        ParameterStruct list = cmdStruct.params.get(1);
+                        // Multiple Variables can be defined on one line, with the names comma separated
+                        Variables var = new Variables();
                         for (int ix = 0; ix < list.getStrArraySize(); ix++) {
                             String pName = list.getStrArrayElement(ix);
-                            Variables.allocateVariable(dataType, pName);
+                            var.allocateVariable(dataType, pName, subName, access);
                         }
                         break;
                         
@@ -402,7 +412,7 @@ public class ScriptCompile {
                         }
 
                         // add entry to the current loop stack
-                        String sname = Subroutine.getSubName(lineNum);
+                        String sname = Subroutine.getSubName(cmdIndex);
                         ifInfo = new IFStruct (cmdIndex, LoopStruct.getStackSize(), sname);
                         IFStruct.ifListPush(ifInfo);
                         IFStruct.stackPush(cmdIndex);
@@ -414,7 +424,7 @@ public class ScriptCompile {
                         }
                         // save the current command index in the current if structure
                         ifInfo = IFStruct.getIfListEntry();
-                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(lineNum))) {
+                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(cmdIndex))) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " was outside subroutine of matching IF statement");
                         }
                         ifInfo.setElseIndex(cmdIndex, false, LoopStruct.getStackSize());
@@ -432,7 +442,7 @@ public class ScriptCompile {
 
                         // save the current command index in the current if structure
                         ifInfo = IFStruct.getIfListEntry();
-                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(lineNum))) {
+                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(cmdIndex))) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " was outside subroutine of matching IF statement");
                         }
                         ifInfo.setElseIndex(cmdIndex, true, LoopStruct.getStackSize());
@@ -444,7 +454,7 @@ public class ScriptCompile {
                         }
                         // save the current command index in the current if structure
                         ifInfo = IFStruct.getIfListEntry();
-                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(lineNum))) {
+                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(cmdIndex))) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " was outside subroutine of matching IF statement");
                         }
                         ifInfo.setEndIfIndex(cmdIndex, LoopStruct.getStackSize());
@@ -749,6 +759,8 @@ public class ScriptCompile {
      * @param index      - the index of the argument in the arg list
      * @param exptype    - the type of variable the command is expecting
      * @param parmList   - the list of args
+     * 
+     * @return the value of the String argument (it should always be valid)
      * 
      * @throws ParserException 
      */    

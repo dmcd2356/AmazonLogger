@@ -252,15 +252,13 @@ public class ScriptExecute {
             case GOSUB:
                 String subName = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                            ParameterStruct.ParamType.String).getStringValue();
-                // if we are passing arguments to the function, add them to the arg list
-                ArrayList<ParameterStruct> argList = new ArrayList<>();
+                // check if we are passing an argument
+                ParameterStruct arg = null;
                 if (cmdStruct.params.size() > 1) {
-                    for (int ix = 0; ix < cmdStruct.params.size(); ix++) {
-                        argList.add(cmdStruct.params.get(ix));
-                    }
+                    arg = cmdStruct.params.get(1);
                 }
                 Subroutine subroutine = new Subroutine();
-                newIndex = subroutine.subBegin(subName, argList, cmdIndex + 1);
+                newIndex = subroutine.subBegin(subName, arg, cmdIndex + 1);
                 break;
             case RETURN:
                 String retArg = "";
@@ -279,6 +277,15 @@ public class ScriptExecute {
                         text = list.get(ix);
                         System.out.println(text);
                     }
+                } else if (cmdStruct.params.size() > 1) {
+                    text = "";
+                    for (int ix = 0; ix < cmdStruct.params.size(); ix++) {
+                        String entry = cmdStruct.params.get(ix).getStringValue();
+                        if (! entry.contentEquals("+")) {
+                            text += entry;
+                        }
+                    }
+                    System.out.println(text);
                 } else {
                     text = cmdStruct.params.get(0).getStringValue();
                     System.out.println(text);
@@ -498,6 +505,10 @@ public class ScriptExecute {
                     varName = parmRef.getStringValue();
                     type = ParameterStruct.ParamType.String;
                 }
+                
+                // make sure we have write access to the variable
+                Variables.checkWriteAccess (varName, cmdIndex);
+                
                 // make sure we are converting to the type of the reference parameter
                 switch (type) {
                     case ParameterStruct.ParamType.Integer:
@@ -538,6 +549,10 @@ public class ScriptExecute {
                 parmValue = cmdStruct.params.get(1); // element 1 is the value being appended
                 varName = getArrayAssignment(parmRef);
                 ParameterStruct.ParamType parmType = Variables.getVariableTypeFromName (varName);
+
+                // make sure we have write access to the variable
+                Variables.checkWriteAccess (varName, cmdIndex);
+                
                 String strValue;
                 switch (parmType) {
                     case IntArray:
@@ -562,6 +577,10 @@ public class ScriptExecute {
                 parmValue = cmdStruct.params.get(1); // element 1 is the value being appended
                 varName = getArrayAssignment(parmRef);
                 parmType = Variables.getVariableTypeFromName (varName);
+
+                // make sure we have write access to the variable
+                Variables.checkWriteAccess (varName, cmdIndex);
+                
                 switch (parmType) {
                     case IntArray:
                         Long result = getIntegerArg (parmValue);
@@ -589,6 +608,9 @@ public class ScriptExecute {
                 parmType  = Variables.getVariableTypeFromName (varName);
                 int index = parmIndex.getIntegerValue().intValue();
 
+                // make sure we have write access to the variable
+                Variables.checkWriteAccess (varName, cmdIndex);
+                
                 switch (parmType) {
                     case IntArray:
                         Long result = getIntegerArg (parmValue);
@@ -612,6 +634,10 @@ public class ScriptExecute {
                 parmIndex = cmdStruct.params.get(1); // element 1 is the index element being removed
                 varName  = getArrayAssignment(parmRef);
                 index = parmIndex.getIntegerValue().intValue();
+
+                // make sure we have write access to the variable
+                Variables.checkWriteAccess (varName, cmdIndex);
+                
                 bSuccess = VarArray.arrayRemoveEntries (varName, index, 1);
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
@@ -621,6 +647,10 @@ public class ScriptExecute {
                 // ParamName, Count (Integer - optional)
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
                 varName = getArrayAssignment(parmRef);
+
+                // make sure we have write access to the variable
+                Variables.checkWriteAccess (varName, cmdIndex);
+                
                 int size = VarArray.getArraySize(varName);
                 int iCount = 1;
                 if (cmdStruct.params.size() > 1) {
@@ -640,6 +670,10 @@ public class ScriptExecute {
                 // ParamName, Index (Integer - optional)
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
                 varName = getArrayAssignment(parmRef);
+
+                // make sure we have write access to the variable
+                Variables.checkWriteAccess (varName, cmdIndex);
+                
                 size = VarArray.getArraySize(parmRef.getStringValue());
                 iCount = 1;
                 iStart = 0;
@@ -659,6 +693,10 @@ public class ScriptExecute {
                 // ParamName
                 parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
                 varName = getArrayAssignment(parmRef);
+
+                // make sure we have write access to the variable
+                Variables.checkWriteAccess (varName, cmdIndex);
+                
                 VarArray.arrayRemoveAll(varName);
                 break;
                 
@@ -669,6 +707,9 @@ public class ScriptExecute {
                 if (varName.contentEquals("RESET")) {
                     VarArray.arrayFilterReset();
                 } else {
+                    // make sure we have write access to the variable
+                    Variables.checkWriteAccess (varName, cmdIndex);
+                
                     parmType = Variables.getVariableTypeFromName (varName);
                     switch (parmType) {
                         case StrArray:
