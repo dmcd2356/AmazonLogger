@@ -7,13 +7,7 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Random;
 
 /**
  *
@@ -22,68 +16,27 @@ import java.util.Random;
 public class Variables {
     
     private static final String CLASS_NAME = Variables.class.getSimpleName();
+    private static final String INDENT = "     ";
     
     static final int NAME_MAXLEN = 20;  // the max # chars in a param name
 
-    // user-defined static Variables
-    private static final HashMap<String, String>  strParams  = new HashMap<>();
-    private static final HashMap<String, Long>    longParams = new HashMap<>();
-    private static final HashMap<String, Long>    uintParams = new HashMap<>();
-    private static final HashMap<String, Boolean> boolParams = new HashMap<>();
+            
+    public final VarReserved varReserved = new VarReserved();
+    public final VarArray    varArray    = new VarArray();
+    public final VarLocal    varLocal    = new VarLocal();
+    public final VarGlobal   varGlobal   = new VarGlobal();
 
-    // reserved static Variables
-    private static boolean            bStatus = false;          // true/false status indications
-    private static long               maxRandom = 1000000000;   // for random values 0 - 999999999
-    
-    // the value returned from the last subroutine call
-    private static String subRetValue;
 
-    // table to keep track of variable access in functions
-    private static final ArrayList<AccessInfo> varAccess = new ArrayList<>();
-
-    private class AccessInfo {
-        String      subName;            // name of function that allocated the variable
-        String      varName;            // name of the variable owned by subroutine
-        ParameterStruct.ParamType type; // parameter type
-        AccessType  access;             // type of access permitted to variable
-        
-        AccessInfo (String subName, String varName, ParameterStruct.ParamType type, AccessType access) {
-            this.subName  = subName;
-            this.varName  = varName;
-            this.type     = type;
-            this.access   = access;
-        }
-    }
-
-    /**
-     * NOTE.
-     * For MAIN allocations, external access is for all subroutines.
-     * For subroutine allocations, it only applies to subroutines called by it,
-     *  since it deletes all allocations upon exit.
-     * By 'local', it means the function (or MAIN) that created it.
-     */
     public enum AccessType {
         GLOBAL,     // global access for Read & Write (default)
-        READONLY,   // only only local function can Write, local & called functions can Read
         LOCAL,      // only local function can R/W
+//        READONLY,   // only only local function can Write, local & called functions can Read
      }
-    
-    public enum ReservedVars {
-        RESPONSE,       // StrArray value from various commands
-        RETVAL,         // String return value from subroutine call
-        STATUS,         // Boolean return from various commands
-        RANDOM,         // Integer random number output
-        DATE,           // String current date (or Integer if Traits are added)
-        TIME,           // String current time
-        OCRTEXT,        // String output of OCRSCAN command
-    }
     
     public enum VarClass {
         UNKNOWN,            // not a valid variable
-        STRING,             // a String   variable
-        NUMERIC,            // a Numeric  variable (Integer or Unsigned)
-        BOOLEAN,            // a Boolean  variable
-        ARRAY,              // an Array   variable (String or Integer)
+        GLOBAL,             // a global user defined variable
+        LOCAL,              // a local  user defined variable
         LOOP,               // a Loop     variable
         RESERVED,           // a Reserved variable
     }
@@ -98,110 +51,283 @@ public class Variables {
      * initializes the saved Variables
      */
     public static void initVariables () {
-        strParams.clear();
-        longParams.clear();
-        uintParams.clear();
-        boolParams.clear();
-        bStatus = false;
+        VarReserved.initVariables();
+        VarGlobal.initVariables();
         VarArray.initVariables();
         LoopParam.initVariables();
+    }
+
+    /**
+     * modifies the value of an existing entry in the String Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
+     * 
+     * @param name  - Variable name
+     * @param value - Variable value
+     * 
+     * @throws ParserException
+     */
+    public void modifyStringVariable (String name, String value) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                varLocal.putString(name, value);
+                break;
+            default:
+            case GLOBAL:
+                VarGlobal.putStringVariable(name, value);
+                break;
+        }
+    }
+
+    /**
+     * modifies the value of an existing entry in the Integer Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
+     * 
+     * @param name  - Variable name
+     * @param value - Variable value
+     * 
+     * @throws ParserException
+     */
+    public void modifyIntegerVariable (String name, Long value) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                varLocal.putInteger(name, value);
+                break;
+            default:
+            case GLOBAL:
+                VarGlobal.putIntegerVariable(name, value);
+                break;
+        }
+    }
+
+    /**
+     * modifies the value of an existing entry in the Unsigned Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
+     * 
+     * @param name  - Variable name
+     * @param value - Variable value
+     * 
+     * @throws ParserException
+     */
+    public void modifyUnsignedVariable (String name, Long value) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                varLocal.putUnsigned(name, value);
+                break;
+            default:
+            case GLOBAL:
+                VarGlobal.putUnsignedVariable(name, value);
+                break;
+        }
+    }
+
+    /**
+     * modifies the value of an existing entry in the Boolean Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
+     * 
+     * @param name  - Variable name
+     * @param value - Variable value
+     * 
+     * @throws ParserException
+     */
+    public void modifyBooleanVariable (String name, Boolean value) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                varLocal.putBoolean(name, value);
+                break;
+            default:
+            case GLOBAL:
+                VarGlobal.putBooleanVariable(name, value);
+                break;
+        }
+    }
+
+    public String getStringValue (String name) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                return varLocal.getString(name);
+            default:
+            case GLOBAL:
+                return VarGlobal.getStringVariable(name);
+        }
+    }
+    
+    public Long getIntegerValue (String name) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                return varLocal.getInteger(name);
+            default:
+            case GLOBAL:
+                return VarGlobal.getIntegerVariable(name);
+        }
+    }
+    
+    public Long getUnsignedValue (String name) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                return varLocal.getUnsigned(name);
+            default:
+            case GLOBAL:
+                return VarGlobal.getUnsignedVariable(name);
+        }
+    }
+    
+    public Boolean getBooleanValue (String name) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                return varLocal.getBoolean(name);
+            default:
+            case GLOBAL:
+                return VarGlobal.getBooleanVariable(name);
+        }
+    }
+    
+    public void allocStrArray (String name) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                varLocal.allocVar(name, ParameterStruct.ParamType.StrArray);
+                break;
+            default:
+            case GLOBAL:
+                varArray.allocStrArray(name);
+                break;
+        }
+    }
+    
+    public void allocIntArray (String name) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                varLocal.allocVar(name, ParameterStruct.ParamType.IntArray);
+                break;
+            default:
+            case GLOBAL:
+                varArray.allocIntArray(name);
+                break;
+        }
+    }
+
+    public void updateStrArray (String name, ArrayList<String> value) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                varLocal.updateStrArray(name, value);
+                break;
+            default:
+            case GLOBAL:
+                varArray.updateStrArray(name, value);
+                break;
+        }
+    }
+    
+    public void updateIntArray (String name, ArrayList<Long> value) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                varLocal.updateIntArray(name, value);
+                break;
+            default:
+            case GLOBAL:
+                varArray.updateIntArray(name, value);
+                break;
+        }
+    }
+
+    public boolean isIntArray (String name) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                return varLocal.isIntArray(name);
+            default:
+            case GLOBAL:
+                return varArray.isIntArray(name);
+        }
+    }
+    
+    public boolean isStrArray (String name) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                return varLocal.isStrArray(name);
+            default:
+            case GLOBAL:
+                return varArray.isStrArray(name);
+        }
+    }
+    
+    public ArrayList<String> getStrArray (String name) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                return varLocal.getStrArray(name);
+            default:
+            case GLOBAL:
+                return varArray.getStrArray(name);
+        }
+    }
+    
+    public ArrayList<Long> getIntArray (String name) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                return varLocal.getIntArray(name);
+            default:
+            case GLOBAL:
+                return varArray.getIntArray(name);
+        }
     }
 
     /**
      * checks whether specified variable has Read permission for current function.
      * 
      * @param varName - name of variable to check
-     * @param progIx  - current command index (indicates whether command is in Main or Subroutine)
      * 
      * @throws ParserException 
      */
-    public static void checkReadAccess (String varName, int progIx) throws ParserException {
+    public static void checkReadAccess (String varName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        // check if already defined
-        for (AccessInfo entry : varAccess) {
-            if (entry.varName.contentEquals(varName)) {
-                switch (entry.access) {
-                    default:
-                    case GLOBAL:
-                    case READONLY:
-                        return;
-                    case LOCAL:
-                        String curSub = Subroutine.getSubName(progIx);
-                        if (! entry.subName.contentEquals(curSub)) {
-                            throw new ParserException(functionId + "Read access restricted on " + entry.access + " Variable: " + varName);
-                        }
-                        break;
-                }
-                return;
-            }
+        // MAIN function variables are GLOBAL, so read from anywhere
+        if (Subroutine.isMainFunction()) {
+            return;
         }
-        // if variable not found, do nothing. It may be a reserved variable
-        // which would have GLOBAL access.
+        
+        String curSub = Subroutine.getSubName();
+        VarLocal varLocal = new VarLocal();
+        boolean bExists = varLocal.isDefined(curSub, varName);
+        if (bExists) {
+            return;
+        }
+        throw new ParserException(functionId + "No Read access to variable " + varName);
     }
     
     /**
      * checks whether specified variable has Write permission for current function.
      * 
      * @param varName - name of variable to check
-     * @param progIx  - current command index (indicates whether command is in Main or Subroutine)
      * 
      * @throws ParserException 
      */
-    public static void checkWriteAccess (String varName, int progIx) throws ParserException {
+    public static void checkWriteAccess (String varName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        // check if already defined
-        for (AccessInfo entry : varAccess) {
-            if (entry.varName.contentEquals(varName)) {
-                switch (entry.access) {
-                    default:
-                    case GLOBAL:
-                        return;
-                    case READONLY:
-                    case LOCAL:
-                        String curSub = Subroutine.getSubName(progIx);
-                        if (! entry.subName.contentEquals(curSub)) {
-                            throw new ParserException(functionId + "Write access restricted on " + entry.access + " Variable: " + varName);
-                        }
-                        break;
-                }
-                return;
-            }
+        // MAIN function variables are GLOBAL, so read from anywhere
+        if (Subroutine.isMainFunction()) {
+            return;
         }
-        // if variable not found, do nothing. It may be a reserved variable
-        // which would have GLOBAL access.
-    }
-    
-    /**
-     * set the value of the $STATUS Variable
-     * 
-     * @param value - value to set the result Variable to
-     */
-    public static void putStatusValue (boolean value) {
-        bStatus = value;
-    }
-
-    /**
-     * set the value of the $RETVAL Variable
-     * 
-     * @param value - value to set the subroutine return Variable to
-     */
-    public static void putSubRetValue (String value) {
-        subRetValue = value;
+        
+        String curSub = Subroutine.getSubName();
+        VarLocal varLocal = new VarLocal();
+        boolean bExists = varLocal.isDefined(curSub, varName);
+        if (bExists) {
+            return;
+        }
+        throw new ParserException(functionId + "No Write access to variable " + varName);
     }
 
     /**
      * creates a new entry in the Variable table and sets the initial value.
      * 
+     * @param accStr   - the access type for the variable (GLOBAL, LOCAL)
      * @param dataType - the data type to allocate
      * @param varName  - Variable name
      * @param subName  - the function the variable is defined in
-     * @param access   - type of access to grant variable
      * 
      * @throws ParserException - if Variable was already defined
      */
-    public void allocateVariable (String dataType, String varName, String subName, AccessType access) throws ParserException {
+    public void allocateVariable (String accStr, String dataType, String varName, String subName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // first, verify Variable name to make sure it is valid format and
@@ -223,80 +349,13 @@ public class Variables {
             throw new ParserException(functionId + "Invalid variable type: " + dataType);
         }
         
-        // check if already defined
-        for (AccessInfo entry : varAccess) {
-            if (entry.varName.contentEquals(varName)) {
-                throw new ParserException(functionId + "Variable already defined: " + varName);
-            }
-        }
-        
-        // add to list of variable access
-        AccessInfo entry = new AccessInfo(subName, varName, ptype, access);
-        varAccess.add(entry);
-        
         // allocate and set default value for the variable
-        switch (ptype) {
-            case Integer:
-                longParams.put(varName, 0L);
-                break;
-            case Unsigned:
-                uintParams.put(varName, 0L);
-                break;
-            case Boolean:
-                boolParams.put(varName, false);
-                break;
-            case String:
-                strParams.put(varName, "");
-                break;
-            case IntArray:
-            case StrArray:
-                VarArray.allocateVariable(varName, ptype);
-                break;
-            default:
-                throw new ParserException(functionId + "Invalid variable type: " + dataType);
-        }
-        frame.outputInfoMsg(STATUS_VARS, "   - Allocated " + dataType + " variable: " + varName + " in " + subName + " with access: " + access);
-    }
-
-        /**
-     * releases the allocations for the specified subroutine.
-     * 
-     * @param subName  - the function exiting
-     * 
-     * @throws ParserException - if Variable was already defined
-     */
-    public static void releaseSubVariables (String subName) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (subName == null || subName.contentEquals("*MAIN*")) {
-            throw new ParserException(functionId + "Variables allocated by MAIN can't be deleted");
-        }
-        for (AccessInfo entry : varAccess) {
-            if (entry.subName.contentEquals(subName)) {
-                ParameterStruct.ParamType ptype = entry.type;
-                String varName = entry.varName;
-                switch (ptype) {
-                    case Integer:
-                        longParams.remove(varName);
-                        break;
-                    case Unsigned:
-                        uintParams.remove(varName);
-                        break;
-                    case Boolean:
-                        boolParams.remove(varName);
-                        break;
-                    case String:
-                        strParams.remove(varName);
-                        break;
-                    case IntArray:
-                    case StrArray:
-                        VarArray.releaseVariable(varName, ptype);
-                        break;
-                    default:
-                        throw new ParserException(functionId + "Invalid variable type: " + ptype);
-                }
-                frame.outputInfoMsg(STATUS_VARS, "   - Released " + subName + " allocation for: " + varName + " (type " + ptype + ")");
-            }
+        // TODO: use the 'accStr' to specify the type. for nao, MAIN is GLOBAL & subs are LOCAL.
+        AccessType access = (subName.contentEquals("*MAIN*")) ? AccessType.GLOBAL : AccessType.LOCAL;
+        if (access == AccessType.LOCAL) {
+            varLocal.allocVar (varName, ptype);
+        } else {
+            varGlobal.allocVar (varName, subName, ptype);
         }
     }
 
@@ -307,22 +366,12 @@ public class Variables {
      * 
      * @return the string length (0 if not found)
      */
-    public static int getStringSize (String name) {
-        String strValue = strParams.get(name);
+    public int getStringSize (String name) throws ParserException {
+        String strValue = getStringValue(name);
         if (strValue != null) {
             return strValue.length();
         }
         return 0;
-    }
-    
-    /**
-     * gets the next random value
-     * 
-     * @return the next random value
-     */
-    private static Long getRandomValue () {
-        Random rand = new Random();
-        return rand.nextLong(maxRandom);
     }
     
     /**
@@ -362,7 +411,7 @@ public class Variables {
                 }
             }
             switch (pType) {
-                case ParameterStruct.ParamType.IntArray:
+                case IntArray:
                     if (iStart >= 0 && iEnd < paramValue.getIntArraySize()) {
                         if (iEnd == iStart) {
                             paramValue.setIntegerValue(paramValue.getIntArrayElement(iStart));
@@ -378,12 +427,12 @@ public class Variables {
                             }
                             pType = ParameterStruct.ParamType.IntArray;
                         }
-                        frame.outputInfoMsg(STATUS_VARS, "    " + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getIntegerValue());
+                        frame.outputInfoMsg(STATUS_VARS, INDENT + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getIntegerValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
                     break;
-                case ParameterStruct.ParamType.StrArray:
+                case StrArray:
                     if (iStart >= 0 && iEnd < paramValue.getStrArraySize()) {
                         if (iEnd == iStart) {
                             paramValue.setStringValue(paramValue.getStrArrayElement(iStart));
@@ -398,15 +447,15 @@ public class Variables {
                             }
                             pType = ParameterStruct.ParamType.StrArray;
                         }
-                        frame.outputInfoMsg(STATUS_VARS, "    " + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getStringValue());
+                        frame.outputInfoMsg(STATUS_VARS, INDENT + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getStringValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
                     break;
-                case ParameterStruct.ParamType.String:
+                case String:
                     if (iStart >= 0 && iEnd < paramValue.getStrArraySize()) {
                         paramValue.setStringValue(paramValue.getStringValue().substring(iStart, iEnd + 1));
-                        frame.outputInfoMsg(STATUS_VARS, "    " + name + "index" + ixRange + " as type " + pType + ": " + paramValue.getStringValue());
+                        frame.outputInfoMsg(STATUS_VARS, INDENT + name + "index" + ixRange + " as type " + pType + ": " + paramValue.getStringValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index" + ixRange + " exceeds array");
                     }
@@ -435,7 +484,7 @@ public class Variables {
      * 
      * @throws ParserException - if Variable not found
      */
-    public static ParameterStruct getVariableInfo (VariableInfo paramInfo) throws ParserException {
+    public ParameterStruct getVariableInfo (VariableInfo paramInfo) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (paramInfo == null || paramInfo.getName() == null || paramInfo.getType() == null) {
@@ -444,7 +493,6 @@ public class Variables {
         
         // create a new parameter with all null entries
         ParameterStruct paramValue = new ParameterStruct();
-        paramValue.setVariableRef(new VariableInfo (paramInfo));
 
         String name = paramInfo.getName();
         if (name.charAt(0) == '$') {
@@ -456,99 +504,29 @@ public class Variables {
         switch (getVariableClass (name)) {
             // check the reserved params list
             case RESERVED:
-                ReservedVars reserved = isReservedName (name);
-                switch (reserved) {
-                    case RESPONSE:
-                        paramValue.setStrArray(VarArray.getResponseValue());
-                        pType = ParameterStruct.ParamType.StrArray;
-                        break;
-                    case STATUS:
-                        paramValue.setBooleanValue(bStatus);
-                        pType = ParameterStruct.ParamType.Boolean;
-                        break;
-                    case RANDOM:
-                        paramValue.setIntegerValue(getRandomValue());
-                        pType = ParameterStruct.ParamType.Integer;
-                        break;
-                    case RETVAL:
-                        paramValue.setStringValue(subRetValue);
-                        pType = ParameterStruct.ParamType.String;
-                        break;
-                    case TIME:
-                        LocalTime currentTime = LocalTime.now();
-                        paramValue.setStringValue(currentTime.toString().substring(0,12));
-                        pType = ParameterStruct.ParamType.String;
-                        break;
-                    case DATE:
-                        LocalDate currentDate = LocalDate.now();
-                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ENGLISH);
-                        String strDate = currentDate.format(formatter);
-                        paramValue.setStringValue(strDate);
-                        break;
-                    case OCRTEXT:
-                        String ocrText = OCRReader.getContent();
-                        paramValue.setStringValue(ocrText);
-                        break;
-                    default:
-                        break;
-                }
+                paramValue = varReserved.getVariableInfo (paramInfo, name, pType);
                 break;
             // next check for loop variables for name match
             case LOOP:
                 varValue = LoopParam.getLoopCurValue(name);
                 pType = ParameterStruct.ParamType.Integer;
                 paramValue.setIntegerValue(varValue);
-                frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
+                frame.outputInfoMsg(STATUS_VARS, INDENT + "- Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
                 break;
             // otherwise, let's check for standard variables for name match
-            case NUMERIC:
-                if (longParams.containsKey(name)) {
-                    varValue = longParams.get(name);
-                    pType = ParameterStruct.ParamType.Integer;
-                } else {
-                    varValue = uintParams.get(name);
-                    pType = ParameterStruct.ParamType.Unsigned;
-                }
-                paramValue.setIntegerValue(varValue);
-                frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
-                break;
-            case BOOLEAN:
-                paramValue.setBooleanValue(boolParams.get(name));
-                pType = ParameterStruct.ParamType.Boolean;
-                frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.getBooleanValue());
-                break;
-            case STRING:
-                paramValue.setStringValue(strParams.get(name));
-                pType = ParameterStruct.ParamType.String;
-                frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + paramValue.getStringValue());
-                break;
-            case ARRAY:
-                String arrayValue;
-                ArrayList<Long> intList = VarArray.getIntArray(name);
-                if (intList != null) {
-                    paramValue.setIntArray(intList);
-                    arrayValue = intList.toString();
-                    if (arrayValue.length() > 100) {
-                        int length = arrayValue.length();
-                        arrayValue = arrayValue.substring(0,60) + "..." + arrayValue.substring(length-30);
-                    }
-                    pType = ParameterStruct.ParamType.IntArray;
-                } else {
-                    ArrayList<String> strList = VarArray.getStrArray(name);
-                    paramValue.setStrArray(strList);
-                    arrayValue = strList.toString();
-                    if (arrayValue.length() > 100) {
-                        int length = arrayValue.length();
-                        arrayValue = arrayValue.substring(0,60) + "..." + arrayValue.substring(length-30);
-                    }
-                    pType = ParameterStruct.ParamType.StrArray;
-                }
-                frame.outputInfoMsg(STATUS_VARS, "    - Lookup Ref '" + name + "' as type " + pType + ": " + arrayValue);
+            default:
+            case GLOBAL:
+            case LOCAL:
+                paramValue = getReferenceValue (name);
+                paramValue.setVariableRef(new VariableInfo (paramInfo));
                 break;
             case UNKNOWN:
-                throw new ParserException(functionId + "    - Variable Ref '" + name + "' was not found in any Variable database");
+                throw new ParserException(functionId + "- Variable Ref '" + name + "' was not found in any Variable database");
         }
 
+        // save the variable info passed that contains Trait and Bracketing info
+        paramValue.setVariableRef(new VariableInfo (paramInfo));
+        
         // save the parameter type of the base parameter
         paramValue.setParamTypeDiscrete (pType);
 
@@ -564,193 +542,6 @@ public class Variables {
     }
 
     /**
-     * modifies the value of an existing entry in the String Variable table.
-     * Indicates if the name was not found (does NOT create a new entry).
-     * 
-     * @param name  - Variable name
-     * @param value - Variable value
-     * 
-     * @throws ParserException
-     */
-    public static void modifyStringVariable (String name, String value) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (name == null || value == null) {
-            throw new ParserException(functionId + "Null input value");
-        }
-        if (strParams.containsKey(name)) {
-            strParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_VARS, "   - Modified String param: " + name + " = " + value);
-        } else {
-            throw new ParserException(functionId + "Variable " + name + " not found");
-        }
-    }
-
-    /**
-     * modifies the value of an existing entry in the Integer Variable table.
-     * Indicates if the name was not found (does NOT create a new entry).
-     * 
-     * @param name  - Variable name
-     * @param value - Variable value
-     * 
-     * @throws ParserException
-     */
-    public static void modifyIntegerVariable (String name, Long value) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (name == null || value == null) {
-            throw new ParserException(functionId + "Null input value");
-        }
-        if (longParams.containsKey(name)) {
-            longParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_VARS, "   - Modified Integer param: " + name + " = " + value);
-        } else {
-            throw new ParserException(functionId + "Variable " + name + " not found");
-        }
-    }
-
-    /**
-     * modifies the value of an existing entry in the Unsigned Variable table.
-     * Indicates if the name was not found (does NOT create a new entry).
-     * 
-     * @param name  - Variable name
-     * @param value - Variable value
-     * 
-     * @throws ParserException
-     */
-    public static void modifyUnsignedVariable (String name, Long value) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (name == null || value == null) {
-            throw new ParserException(functionId + "Null input value");
-        }
-        if (! ParameterStruct.isUnsignedInt(value)) {
-            throw new ParserException(functionId + "value for Variable " + name + " exceeds limits for Unsigned: " + value);
-        }
-        if (name.contentEquals("RANDOM")) {
-            maxRandom = value;  // this will set the max range for random value (0 to maxRandom - 1)
-        } else if (uintParams.containsKey(name)) {
-            uintParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_VARS, "   - Modified Unsigned param: " + name + " = " + value);
-        } else {
-            throw new ParserException(functionId + "Variable " + name + " not found");
-        }
-    }
-
-    /**
-     * modifies the value of an existing entry in the Boolean Variable table.
-     * Indicates if the name was not found (does NOT create a new entry).
-     * 
-     * @param name  - Variable name
-     * @param value - Variable value
-     * 
-     * @throws ParserException
-     */
-    public static void modifyBooleanVariable (String name, Boolean value) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (name == null || value == null) {
-            throw new ParserException(functionId + "Null input value");
-        }
-        if (boolParams.containsKey(name)) {
-            boolParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_VARS, "   - Modified Boolean param: " + name + " = " + value);
-        } else {
-            throw new ParserException(functionId + "Variable " + name + " not found");
-        }
-    }
-
-    /**
-     * deletes the specified Variable.
-     * Indicates if the Variable was not found (does NOT create a new entry).
-     * 
-     * @param name  - Variable name
-     * 
-     * @return true if successful, false if the Variable was not found
-     * 
-     * @throws ParserException
-     */
-    public static boolean variableDelete (String name) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (name == null) {
-            throw new ParserException(functionId + "Null input value");
-        }
-        if (longParams.containsKey(name)) {
-            longParams.remove(name);
-            frame.outputInfoMsg(STATUS_VARS, "   - Deleted Integer Variable: " + name);
-        }
-        if (uintParams.containsKey(name)) {
-            uintParams.remove(name);
-            frame.outputInfoMsg(STATUS_VARS, "   - Deleted Unsigned Variable: " + name);
-        }
-        if (strParams.containsKey(name)) {
-            strParams.remove(name);
-            frame.outputInfoMsg(STATUS_VARS, "   - Deleted String Variable: " + name);
-        }
-        if (boolParams.containsKey(name)) {
-            boolParams.remove(name);
-            frame.outputInfoMsg(STATUS_VARS, "   - Deleted Boolean Variable: " + name);
-        }
-        if (VarArray.isIntArray(name)) {
-            VarArray.removeArrayEntry(name, ParameterStruct.ParamType.IntArray);
-            frame.outputInfoMsg(STATUS_VARS, "   - Deleted IntArray Variable: " + name);
-        }
-        if (VarArray.isStrArray(name)) {
-            VarArray.removeArrayEntry(name, ParameterStruct.ParamType.StrArray);
-            frame.outputInfoMsg(STATUS_VARS, "   - Deleted StrArray Variable: " + name);
-        }
-        return false;
-    }
-
-    /**
-     * indicates if the name is reserved and can't be used for a variable.
-     * 
-     * @param name - the name to check
-     * 
-     * @return the reserved variable name if valid, null if not
-     * 
-     * @throws ParserException
-     */
-    public static AccessType getAccessType (String name) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (name == null) {
-            throw new ParserException(functionId + "Null input value");
-        }
-        for (AccessType entry : AccessType.values()) {
-            if (entry.toString().contentEquals(name)) {
-                return entry;
-            }
-        }
-        return null;
-    }
-    
-    /**
-     * indicates if the name is reserved and can't be used for a variable.
-     * 
-     * @param name - the name to check
-     * 
-     * @return the reserved variable name if valid, null if not
-     * 
-     * @throws ParserException
-     */
-    private static ReservedVars isReservedName (String name) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (name == null) {
-            throw new ParserException(functionId + "Null input value");
-        }
-        for (ReservedVars entry : ReservedVars.values()) {
-            if (entry.toString().contentEquals(name)) {
-//                frame.outputInfoMsg(STATUS_DEBUG, "    Reserved name found: " + name);
-                return entry;
-            }
-        }
-        return null;
-    }
-    
-    /**
      * this returns the type of variable found.
      * 
      * @param name - name of the variable
@@ -759,9 +550,10 @@ public class Variables {
      * 
      * @throws ParserException
      */
-    public static VarClass getVariableClass (String name) throws ParserException {
+    public VarClass getVariableClass (String name) throws ParserException {
+        VarClass varClass = VarClass.UNKNOWN;
         if (name == null || name.isEmpty()) {
-            return VarClass.UNKNOWN;
+            return varClass;
         }
         // if name contains brackets or a Trait, eliminate that portion of the name for comparing type
         int offset = name.indexOf('.');
@@ -770,16 +562,22 @@ public class Variables {
             offset = name.indexOf('[');
             if (offset > 0) name = name.substring(0, offset);
         }
+        
         // classify the type
-        if (isReservedName (name) != null)   return VarClass.RESERVED;
-        if (longParams.containsKey(name)) return VarClass.NUMERIC;
-        if (uintParams.containsKey(name)) return VarClass.NUMERIC;
-        if (strParams.containsKey(name))  return VarClass.STRING;
-        if (boolParams.containsKey(name)) return VarClass.BOOLEAN;
-        if (VarArray.isIntArray(name))       return VarClass.ARRAY;
-        if (VarArray.isStrArray(name))       return VarClass.ARRAY;
-        if (LoopStruct.getCurrentLoopValue(name) != null)   return VarClass.LOOP;
-        return VarClass.UNKNOWN;
+        if (VarReserved.isReservedName (name) != null) {
+            varClass = VarClass.RESERVED;
+        }
+        else if (varLocal.getDataType (name, null) != null) {
+            varClass = VarClass.LOCAL;
+        }
+        else if (varGlobal.getDataType ( name) != null) {
+            varClass = VarClass.GLOBAL;
+        }
+        else if (LoopStruct.getCurrentLoopValue(name) != null) {
+            varClass = VarClass.LOOP;
+        }
+        
+        return varClass;
     }
     
     /**
@@ -791,7 +589,7 @@ public class Variables {
      * 
      * @throws ParserException
      */    
-    public static ParameterStruct.ParamType getVariableTypeFromName (String name) throws ParserException {
+    public ParameterStruct.ParamType getVariableTypeFromName (String name) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (name == null) {
@@ -809,48 +607,17 @@ public class Variables {
 
         // this is the default value
         ParameterStruct.ParamType vartype = null;
-        ReservedVars reserved = isReservedName (name);
-        if (reserved != null) {
-            switch (reserved) {
-                case RESPONSE:
-                    vartype = ParameterStruct.ParamType.StrArray;
-                    break;
-                case STATUS:
-                    vartype = ParameterStruct.ParamType.Integer;
-                    break;
-                case RANDOM:
-                    vartype = ParameterStruct.ParamType.Unsigned;
-                    break;
-                case RETVAL:
-                    vartype = ParameterStruct.ParamType.String;
-                    break;
-                case DATE:
-                    vartype = ParameterStruct.ParamType.String;  // can also be Unsigned
-                    break;
-                case TIME:
-                    vartype = ParameterStruct.ParamType.String;
-                    break;
-                case OCRTEXT:
-                    vartype = ParameterStruct.ParamType.String;
-                    break;
-                default:
-                    break;
-            }
+        if (LoopStruct.getCurrentLoopValue(name) != null) {
+            vartype = ParameterStruct.ParamType.Integer;
         }
-        else if (LoopStruct.getCurrentLoopValue(name) != null) {
-            vartype = ParameterStruct.ParamType.Integer;
-        } else if (longParams.containsKey(name)) {
-            vartype = ParameterStruct.ParamType.Integer;
-        } else if (uintParams.containsKey(name)) {
-            vartype = ParameterStruct.ParamType.Unsigned;
-        } else if (boolParams.containsKey(name)) {
-            vartype = ParameterStruct.ParamType.Boolean;
-        } else if (strParams.containsKey(name)) {
-            vartype = ParameterStruct.ParamType.String;
-        } else if (VarArray.isIntArray(name)) {
-            vartype = ParameterStruct.ParamType.IntArray;
-        } else if (VarArray.isStrArray(name)) {
-            vartype = ParameterStruct.ParamType.StrArray;
+        if (vartype == null) {
+            vartype = varReserved.getVariableTypeFromName(name);
+        }
+        if (vartype == null) {
+            vartype = varLocal.getDataType (name, null);
+        }
+        if (vartype == null) {
+            vartype = varGlobal.getDataType (name);
         }
         if (vartype == null) {
             throw new ParserException(functionId + "Variable entry not found: " + name);
@@ -858,6 +625,92 @@ public class Variables {
         return vartype;
     }
 
+    /**
+     * returns the current value for a user defined variable (LOCAL or GLOBAL).
+     * This is used in the EXECUTION stage.
+     * NOTE: This does NOT check Traits and doesn't check Reserved or Loop variables.
+     * 
+     * @param varName - name of the variable to evaluate
+     * 
+     * @return the variable value
+     * 
+     * @throws ParserException 
+     */
+    public ParameterStruct getReferenceValue (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (varName == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
+        if (varName.charAt(0) == '$') {
+            varName = varName.substring(1);
+        }
+        
+        // first, check for LOCAL parameters
+        ParameterStruct refValue;
+        ParameterStruct.ParamType varType;
+        String subName = Subroutine.getSubName();
+        try {
+            varType = varLocal.getDataType(varName, subName);
+            if (varType != null) {
+                refValue = new ParameterStruct();
+                refValue.setParamTypeDiscrete(varType);
+                switch (varType) {
+                    case Integer:
+                        refValue.setIntegerValue(varLocal.getInteger(varName));
+                        break;
+                    case Unsigned:
+                        refValue.setIntegerValue(varLocal.getUnsigned(varName));
+                        break;
+                    case Boolean:
+                        refValue.setBooleanValue(varLocal.getBoolean(varName));
+                        break;
+                    case String:
+                        refValue.setStringValue(varLocal.getString(varName));
+                        break;
+                    case StrArray:
+                        refValue.setStrArray(varLocal.getStrArray(varName));
+                        break;
+                    case IntArray:
+                        refValue.setIntArray(varLocal.getIntArray(varName));
+                        break;
+                }
+                String value = refValue.getStringValue();
+                frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + varType + " Variable " + varName + ": " + value);
+                return refValue;
+            }
+        } catch (ParserException exMsg) {
+            // just continue on to check GLOBALS
+        }
+        // not a LOCAL var, now check GLOBALS
+        varType = getVariableTypeFromName (varName);
+        refValue = new ParameterStruct();
+        refValue.setParamTypeDiscrete(varType);
+        switch (varType) {
+            case Integer:
+                refValue.setIntegerValue(VarGlobal.getIntegerVariable(varName));
+                break;
+            case Unsigned:
+                refValue.setIntegerValue(VarGlobal.getUnsignedVariable(varName));
+                break;
+            case Boolean:
+                refValue.setBooleanValue(VarGlobal.getBooleanVariable(varName));
+                break;
+            case String:
+                refValue.setStringValue(VarGlobal.getStringVariable(varName));
+                break;
+            case StrArray:
+                refValue.setStrArray(varArray.getStrArray(varName));
+                break;
+            case IntArray:
+                refValue.setIntArray(varArray.getIntArray(varName));
+                break;
+        }
+        String value = refValue.getStringValue();
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "GLOBAL " + varType + " Variable " + varName + ": " + value);
+        return refValue;
+    }
+    
     /**
      * determines if a Variable has been found with the specified name.
      * 
@@ -869,7 +722,7 @@ public class Variables {
      * 
      * @throws ParserException
      */
-    public static Long getNumericValue (String name, TraitInfo.Trait traitVal, boolean bNoLoops) throws ParserException {
+    public Long getNumericValue (String name, TraitInfo.Trait traitVal, boolean bNoLoops) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (name == null) {
@@ -880,73 +733,57 @@ public class Variables {
         }
         Long iValue = null;
         try {
-            ReservedVars reserved = isReservedName (name);
+            // first, check reserved values
+            iValue = varReserved.getNumericValue (name, traitVal);
+            if (iValue != null) {
+                return iValue;
+            }
+            // now check for loop values
             Integer loopVal = LoopStruct.getCurrentLoopValue(name);
             if (loopVal != null) {
                 iValue = (long) loopVal;
                 if (bNoLoops) {
                     return null; // value is a loop var, but is not allowed
                 }
-            } else if (reserved != null) {
-                switch (reserved) {
-                    case RESPONSE:
-                        String strValue = VarArray.getResponseValue().getFirst();
-                        iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+            }
+            else {
+                // check both LOCAL and GLOBAL params
+                ParameterStruct param = getReferenceValue (name);
+                switch (param.getParamType()) {
+                    case Integer:
+                    case Unsigned:
+                        iValue = param.getIntegerValue();
                         break;
-                    case STATUS:
-                        iValue = bStatus ? 1L : 0;
+                    case Boolean:
+                        frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Converting from Boolean to Integer: " + name);
+                        iValue = param.getBooleanValue() ? 1L : 0;
                         break;
-                    case RANDOM:
-                        iValue = getRandomValue();
-                        break;
-                    case RETVAL:
-                        iValue = Utils.getIntValue(subRetValue);
-                        break;
-                    case DATE:
-                        LocalDate currentDate = LocalDate.now();
+                    case String:
+                        // first, check for a Trait
                         iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.String);
+                        if (iValue == null) {
+                            String strValue = param.getStringValue();
+                            iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+                            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Converting variable " + name + " to Integer: " + iValue);
+                        }
                         break;
-                    default:
-                    case TIME:
-                    case OCRTEXT:
-                        // these can't be converted to Integer
+                    case StrArray:
+                        // first, check for a Trait
+                        iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.StrArray);
+                        if (iValue == null) {
+                            String strValue = param.getStrArray().getFirst();
+                            iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+                            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Extracted 1st entry of StrArray " + name + " to Integer: " + iValue);
+                        }
                         break;
-                }
-            }
-            else if (longParams.containsKey(name)) {
-                iValue = longParams.get(name);
-            }
-            else if (uintParams.containsKey(name)) {
-                iValue = uintParams.get(name);
-            }
-            else if (strParams.containsKey(name)) {
-                // first, check for a Trait
-                iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.String);
-                if (iValue == null) {
-                    String strValue = strParams.get(name);
-                    iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
-                    frame.outputInfoMsg(STATUS_DEBUG, "Converting variable " + name + " to Integer: " + iValue);
-                }
-            }
-            else if (boolParams.containsKey(name)) {
-                frame.outputInfoMsg(STATUS_DEBUG, "Converting from Boolean to Integer: " + name);
-                iValue = boolParams.get(name) ? 1L : 0;
-            }
-            else if (VarArray.isIntArray(name)) {
-                // first, check for a Trait
-                iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.IntArray);
-                if (iValue == null) {
-                    iValue = VarArray.getIntArray(name).getFirst();
-                    frame.outputInfoMsg(STATUS_DEBUG, "Extracted 1st entry of IntArray " + name + " to Integer: " + iValue);
-                }
-            }
-            else if (VarArray.isStrArray(name)) {
-                // first, check for a Trait
-                iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.StrArray);
-                if (iValue == null) {
-                    String strValue = VarArray.getStrArray(name).getFirst();
-                    iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
-                    frame.outputInfoMsg(STATUS_DEBUG, "Extracted 1st entry of StrArray " + name + " to Integer: " + iValue);
+                    case IntArray:
+                        // first, check for a Trait
+                        iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.IntArray);
+                        if (iValue == null) {
+                            iValue = param.getIntArray().getFirst();
+                            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Extracted 1st entry of IntArray " + name + " to Integer: " + iValue);
+                        }
+                        break;
                 }
             }
         } catch (ParserException exMsg) {
@@ -971,7 +808,7 @@ public class Variables {
      * 
      * @throws ParserException - if not valid
      */
-    public static void checkValidVariable (VarCheck use, String name) throws ParserException {
+    public void checkValidVariable (VarCheck use, String name) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || use == null) {
@@ -992,18 +829,27 @@ public class Variables {
                 throw new ParserException(functionId + "using Reserved command name: " + name);
             }
 
+            // get the access info for the specified variable and determine what function we are in
+//            checkWriteAccess (name);
+            String curSub = Subroutine.getSubName();
+            
             // check for variable lists
-            VarClass varClass = getVariableClass (name);
+            VarClass varClass;
+            try {
+                varClass = getVariableClass (name);
+            } catch (ParserException exMsg) {
+                varClass = VarClass.UNKNOWN;
+            }
             String errMsg = null;
             switch (use) {
                 default:
                 case ALLOCATE:
                     switch (varClass) {
-                        case UNKNOWN  -> { // not found in any group is good
-                        }
+                        case UNKNOWN  -> { } // not found in any group is good
                         case LOOP     -> errMsg = "Using Loop Variable name: " + name;
                         case RESERVED -> errMsg = "Using Reserved command name: " + name;
-                        default       -> errMsg = "Variable name already in use: " + name;
+                        case GLOBAL   -> errMsg = "Variable name already in use: " + name;
+                        case LOCAL    -> {  } // this is acceptable
                     }
                     break;
 
@@ -1013,20 +859,24 @@ public class Variables {
                         break;
                     }
                     switch (varClass) {
+                        case UNKNOWN  -> errMsg = "Variable name not found: " + name;
                         case LOOP     -> errMsg = "Using Loop Variable name: " + name;
                         case RESERVED -> errMsg = "Using Reserved command name: " + name;
-                        case UNKNOWN  -> errMsg = "Variable name not found: " + name;
-                        default       -> {  // any variable is good
-                        }
+                        case GLOBAL   -> {  } // this is acceptable
+                        case LOCAL    -> {  } // this is acceptable
                     }
                     break;
 
                 case REFERENCE:
-                    // if it is a member of any of the groups, it is good
-                    if (varClass == VarClass.UNKNOWN) {
-                        errMsg = "Variable name not found: " + name;
+                    switch (varClass) {
+                        case UNKNOWN  -> errMsg = "Variable name not found: " + name;
+                        case LOOP     -> { } // these are always valid
+                        case RESERVED -> { } // these are always valid
+                        case GLOBAL   -> {  } // this is acceptable
+                        case LOCAL    -> {  } // this is acceptable
                     }
                     break;
+
             }
             if (errMsg != null) {
                 throw new ParserException(functionId + errMsg);
@@ -1046,7 +896,7 @@ public class Variables {
      */
     public static boolean verifyVariableFormat (String name) {
         if (name == null || name.isBlank()) {
-            frame.outputInfoMsg(STATUS_DEBUG, "Variable name is null");
+            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Variable name is null");
             return false;
         }
         boolean bRighthand = false;
@@ -1056,7 +906,7 @@ public class Variables {
         }
         if (! Character.isLetter(name.charAt(0))) {
             // 1st character must be a letter
-            frame.outputInfoMsg(STATUS_DEBUG, "invalid initial character in Variable name: " + name);
+            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "invalid initial character in Variable name: " + name);
             return false;
         }
 
@@ -1068,7 +918,7 @@ public class Variables {
             // valid char for Variable
             if ( (curch == '_') || Character.isLetterOrDigit(curch) ) {
                 if (ix > NAME_MAXLEN) {
-                    frame.outputInfoMsg(STATUS_DEBUG, "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
+                    frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
                     return false;
                 }
             } else {
@@ -1077,7 +927,7 @@ public class Variables {
                     break;
                 }
                 if (!bRighthand) {
-                    frame.outputInfoMsg(STATUS_DEBUG, "Variable assignment should not include '$': " + name);
+                    frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Variable assignment should not include '$': " + name);
                     return false;
                 }
                 // check for bracket index on Array, List and String Variable
@@ -1085,13 +935,13 @@ public class Variables {
                     case '[':
                         int offset = name.indexOf(']');
                         if (offset <= 0 || offset >= name.length() - 1) {
-                            frame.outputInfoMsg(STATUS_DEBUG,  "missing end bracket in Variable name: " + name);
+                            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "missing end bracket in Variable name: " + name);
                             return false;
                         }
                         try {
                             indexStart = Utils.getIntValue(name.substring(ix+1)).intValue();
                         } catch (ParserException exMsg) {
-                            frame.outputInfoMsg(STATUS_DEBUG, "invalid numeric in brackets");
+                            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "invalid numeric in brackets");
                             return false;
                         }
                         // TODO: evaluate indexEnd
@@ -1100,17 +950,17 @@ public class Variables {
                         // TODO:
                         break;
                     default:
-                        frame.outputInfoMsg(STATUS_DEBUG, "invalid character '" + curch + "' in Variable name: " + name);
+                        frame.outputInfoMsg(STATUS_DEBUG, INDENT + "invalid character '" + curch + "' in Variable name: " + name);
                         return false;
                 }
             }
         }
         if (indexStart == 0 && name.length() > NAME_MAXLEN) {
-            frame.outputInfoMsg(STATUS_DEBUG, "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name);
+            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name);
             return false;
         }
         if (indexStart > 0 && indexEnd == 0) {
-            frame.outputInfoMsg(STATUS_DEBUG, "Variable name index missing ending bracket: " + name);
+            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Variable name index missing ending bracket: " + name);
             return false;
         }
             

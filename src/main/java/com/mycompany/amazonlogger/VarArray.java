@@ -18,16 +18,21 @@ import java.util.Objects;
 public class VarArray {
 
     private static final String CLASS_NAME = VarArray.class.getSimpleName();
+    private static final String INDENT = "    ";
     
     // array Variables
-    private static final HashMap<String, ArrayList<Long>>    intArrayParams = new HashMap<>();
-    private static final HashMap<String, ArrayList<String>>  strArrayParams = new HashMap<>();
+    private static final HashMap<String, ArrayList<Long>>   intArrayParams = new HashMap<>();
+    private static final HashMap<String, ArrayList<String>> strArrayParams = new HashMap<>();
     
     // reserved static Variables
-    private static final ArrayList<String>  strResponse = new ArrayList<>();    // responses from RUN commands
+    private static final ArrayList<String> strResponse = new ArrayList<>();    // responses from RUN commands
 
     // array filter info
     private static ArrayList<Boolean> ixFilter = null;
+
+ 
+    VarArray() {
+    }
     
     /**
      * initializes the saved Variables
@@ -39,36 +44,84 @@ public class VarArray {
     }
 
     //==========================================    
+    // Putter functions
+    //==========================================
+    
+    public void allocStrArray (String name) throws ParserException {
+        strArrayParams.put(name, new ArrayList<>());
+    }
+    
+    public void allocIntArray (String name) throws ParserException {
+        intArrayParams.put(name, new ArrayList<>());
+    }
+
+    public void updateStrArray (String name, ArrayList<String> value) throws ParserException {
+        strArrayParams.replace(name, value);
+    }
+    
+    public void updateIntArray (String name, ArrayList<Long> value) throws ParserException {
+        intArrayParams.replace(name, value);
+    }
+
+    //==========================================    
     // Getter functions
     //==========================================
     
-    public static ArrayList<String> getResponseValue () {
-        return strResponse;
+    public boolean isIntArray (String name) throws ParserException {
+        return intArrayParams.containsKey(name);
     }
     
+    public boolean isStrArray (String name) throws ParserException {
+        return strArrayParams.containsKey(name);
+    }
+    
+    public ArrayList<String> getStrArray (String name) throws ParserException {
+        return strArrayParams.get(name);
+    }
+    
+    public ArrayList<Long> getIntArray (String name) throws ParserException {
+        return intArrayParams.get(name);
+    }
+
+    public String getStrArrayEntry (String name, int ix) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        int size = getStrArray(name).size();
+        if (ix >= size) {
+            throw new ParserException(functionId + "Index exceeded max size of Array " + name + " (ix = " + ix + ", size = " + size + ")");
+        }
+        return getStrArray(name).get(ix);
+    }
+    
+    public Long getIntArrayEntry (String name, int ix) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        int size = getIntArray(name).size();
+        if (ix >= size) {
+            throw new ParserException(functionId + "Index exceeded max size of Array " + name + " (ix = " + ix + ", size = " + size + ")");
+        }
+        return getIntArray(name).get(ix);
+    }
+
+    //==========================================    
+    // Reserved variable access functions
+    //==========================================
+    
+    /**
+     * gets the $FILTER Variable
+     * 
+     * @return the filter Variable
+     */
     public static ArrayList<Boolean> getFilterArray () {
         return ixFilter;
     }
     
-    public static ArrayList<String> getStrArray (String name) {
-        return strArrayParams.get(name);
+    /**
+     * gets the $RESPONSE Variable
+     * 
+     * @return the response Variable
+     */
+    public static ArrayList<String> getResponseValue () {
+        return strResponse;
     }
-    
-    public static ArrayList<Long> getIntArray (String name) {
-        return intArrayParams.get(name);
-    }
-
-    public static boolean isIntArray (String name) {
-        return intArrayParams.containsKey(name);
-    }
-    
-    public static boolean isStrArray (String name) {
-        return strArrayParams.containsKey(name);
-    }
-    
-    //==========================================    
-    // Putter functions
-    //==========================================
     
     /**
      * adds a String value to the $RESPONSE Variable
@@ -94,53 +147,13 @@ public class VarArray {
      * @param name  - Variable name
      * @param type  - the type of parameter
      */
-    public static void allocateVariable (String name, ParameterStruct.ParamType type) {
+    public void allocateVariable (String name, ParameterStruct.ParamType type) throws ParserException {
         switch (type) {
             case ParameterStruct.ParamType.IntArray:
-                intArrayParams.put(name, new ArrayList<>());
+                allocIntArray(name);
                 break;
             case ParameterStruct.ParamType.StrArray:
-                strArrayParams.put(name, new ArrayList<>());
-                break;
-            default:
-                break;
-        }
-    }
-    
-    /**
-     * removes an allocation in the Variable table.
-     * 
-     * @param name  - Variable name
-     * @param type  - the type of parameter
-     */
-    public static void releaseVariable (String name, ParameterStruct.ParamType type) {
-        switch (type) {
-            case ParameterStruct.ParamType.IntArray:
-                intArrayParams.get(name).clear();
-                intArrayParams.remove(name);
-                break;
-            case ParameterStruct.ParamType.StrArray:
-                strArrayParams.get(name).clear();
-                strArrayParams.remove(name);
-                break;
-            default:
-                break;
-        }
-    }
-    
-    /**
-     * removes the specified array variable entry.
-     * 
-     * @param name  - Variable name
-     * @param type  - the type of parameter
-     */
-    public static void removeArrayEntry (String name, ParameterStruct.ParamType type) {
-        switch (type) {
-            case ParameterStruct.ParamType.IntArray:
-                intArrayParams.remove(name);
-                break;
-            case ParameterStruct.ParamType.StrArray:
-                strArrayParams.remove(name);
+                allocStrArray(name);
                 break;
             default:
                 break;
@@ -157,7 +170,7 @@ public class VarArray {
      * 
      * @throws ParserException
      */
-    public static int getArraySize (String name) throws ParserException {
+    public int getArraySize (String name) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
@@ -165,12 +178,10 @@ public class VarArray {
         }
         if (name.contentEquals("RESPONSE")) {
             return strResponse.size();
-        } else if (intArrayParams.containsKey(name)) {
-            ArrayList<Long> entry = intArrayParams.get(name);
-            return entry.size();
-        } else if (strArrayParams.containsKey(name)) {
-            ArrayList<String> entry = strArrayParams.get(name);
-            return entry.size();
+        } else if (isIntArray(name)) {
+            return getIntArray(name).size();
+        } else if (isStrArray(name)) {
+            return getStrArray(name).size();
         }
         throw new ParserException(functionId + "Array Variable " + name + " not found");
     }
@@ -184,17 +195,17 @@ public class VarArray {
      * 
      * @throws ParserException
      */
-    public static void setStrArrayVariable (String name, ArrayList<String> value) throws ParserException {
+    public void setStrArrayVariable (String name, ArrayList<String> value) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
         }
-        if (!strArrayParams.containsKey(name)) {
+        if (!isStrArray(name)) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
-        strArrayParams.replace(name, value);
-        frame.outputInfoMsg(STATUS_VARS, "   - Saved StrArray param: " + name);
+        updateStrArray(name, value);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Saved StrArray param: " + name);
     }
 
     /**
@@ -206,21 +217,22 @@ public class VarArray {
      * 
      * @throws ParserException
      */
-    public static void setIntArrayVariable (String name, ArrayList<Long> value) throws ParserException {
+    public void setIntArrayVariable (String name, ArrayList<Long> value) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
         }
-        if (!intArrayParams.containsKey(name)) {
+        if (!isIntArray(name)) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
-        intArrayParams.replace(name, value);
-        frame.outputInfoMsg(STATUS_VARS, "   - Saved IntArray param: " + name);
+        updateIntArray(name, value);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Saved IntArray param: " + name);
     }
 
     /**
      * clears all entries of an existing Array Variable.
+     * (DOES NOT DELETE THE VARIABLE, JUST CLEARS ITS DATA)
      * Indicates if the name was not found (does NOT create a new entry).
      * 
      * @param name  - Variable name
@@ -229,7 +241,7 @@ public class VarArray {
      * 
      * @throws ParserException
      */
-    public static boolean arrayRemoveAll (String name) throws ParserException {
+    public boolean arrayClearAll (String name) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
@@ -238,21 +250,21 @@ public class VarArray {
         if (name.contentEquals("RESPONSE")) {
             int size = strResponse.size();
             strResponse.clear();
-            frame.outputInfoMsg(STATUS_VARS, "   - Deleted " + size + " entries in Array param: " + name);
+            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Deleted " + size + " entries in Array param: " + name);
             return true;
         }
-        else if (intArrayParams.containsKey(name)) {
-            ArrayList<Long> entry = intArrayParams.get(name);
+        else if (isIntArray(name)) {
+            ArrayList<Long> entry = getIntArray(name);
             int size = entry.size();
             entry.clear();
-            frame.outputInfoMsg(STATUS_VARS, "   - Deleted " + size + " entries in Array param: " + name);
+            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Deleted " + size + " entries in Array param: " + name);
             return true;
         }
-        else if (strArrayParams.containsKey(name)) {
-            ArrayList<String> entry = strArrayParams.get(name);
+        else if (isStrArray(name)) {
+            ArrayList<String> entry = getStrArray(name);
             int size = entry.size();
             entry.clear();
-            frame.outputInfoMsg(STATUS_VARS, "   - Deleted " + size + " entries in List param: " + name);
+            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Deleted " + size + " entries in List param: " + name);
             return true;
         }
         return false;
@@ -261,6 +273,7 @@ public class VarArray {
     /**
      * clears selected entries of an existing Array Variable.
      * Indicates if the name was not found (does NOT create a new entry).
+     * (DOES NOT DELETE THE VARIABLE, JUST CLEARS ITS DATA)
      * 
      * @param name   - Variable name
      * @param iStart - index of starting entry in array to delete
@@ -270,7 +283,7 @@ public class VarArray {
      * 
      * @throws ParserException
      */
-    public static boolean arrayRemoveEntries (String name, int iStart, int iCount) throws ParserException {
+    public boolean arrayClearEntries (String name, int iStart, int iCount) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
@@ -281,8 +294,8 @@ public class VarArray {
         }
         int size;
         String arrayContents;
-        if (intArrayParams.containsKey(name)) {
-            ArrayList<Long> entry = intArrayParams.get(name);
+        if (isIntArray(name)) {
+            ArrayList<Long> entry = getIntArray(name);
             size = entry.size();
             if (iStart + iCount > size) {
                 throw new ParserException(functionId + "Array Variable " + name + " index range exceeded: " + iStart + " to " + (iStart + iCount) + " (max " + entry.size() + ")");
@@ -295,8 +308,8 @@ public class VarArray {
                 }
             }
             arrayContents = entry.toString();
-        } else if (strArrayParams.containsKey(name)) {
-            ArrayList<String> entry = strArrayParams.get(name);
+        } else if (isStrArray(name)) {
+            ArrayList<String> entry = getStrArray(name);
             size = entry.size();
             if (iStart + iCount > size) {
                 throw new ParserException(functionId + "Array Variable " + name + " index range exceeded: " + iStart + " to " + (iStart + iCount) + " (max " + entry.size() + ")");
@@ -312,8 +325,8 @@ public class VarArray {
         } else {
             return false;
         }
-        frame.outputInfoMsg(STATUS_VARS, "   - Removed " + iCount + " entries from Array param " + name + ": (new size = "+ size  + ")");
-        frame.outputInfoMsg(STATUS_VARS, "   - " + name + ": " + arrayContents);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Removed " + iCount + " entries from Array param " + name + ": (new size = "+ size  + ")");
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- " + name + ": " + arrayContents);
         return true;
     }
 
@@ -329,7 +342,7 @@ public class VarArray {
      * 
      * @throws ParserException
      */
-    public static boolean arrayModifyEntry (String name, int index, String value) throws ParserException {
+    public boolean arrayModifyEntry (String name, int index, String value) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
@@ -337,8 +350,8 @@ public class VarArray {
         }
         try {
             String arrayContents;
-            if (intArrayParams.containsKey(name)) {
-                ArrayList<Long> entry = intArrayParams.get(name);
+            if (isIntArray(name)) {
+                ArrayList<Long> entry = getIntArray(name);
                 if (index >= entry.size()) {
                     throw new ParserException(functionId + "Array Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
@@ -346,8 +359,8 @@ public class VarArray {
                 entry.set(index, longVal);
                 arrayContents = entry.toString();
             }
-            else if (strArrayParams.containsKey(name)) {
-                ArrayList<String> entry = strArrayParams.get(name);
+            else if (isStrArray(name)) {
+                ArrayList<String> entry = getStrArray(name);
                 if (index >= entry.size()) {
                     throw new ParserException(functionId + "List Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
@@ -356,8 +369,8 @@ public class VarArray {
             } else {
                 return false;
             }
-            frame.outputInfoMsg(STATUS_VARS, "   - Modified List param: " + name + " = " + value);
-            frame.outputInfoMsg(STATUS_VARS, "   - " + name + ": " + arrayContents);
+            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified List param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_VARS, INDENT + "- " + name + ": " + arrayContents);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
@@ -377,7 +390,7 @@ public class VarArray {
      * 
      * @throws ParserException
      */
-    public static boolean arrayInsertEntry (String name, int index, String value) throws ParserException {
+    public boolean arrayInsertEntry (String name, int index, String value) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
@@ -385,8 +398,8 @@ public class VarArray {
         }
         try {
             String arrayContents;
-            if (intArrayParams.containsKey(name)) {
-                ArrayList<Long> entry = intArrayParams.get(name);
+            if (isIntArray(name)) {
+                ArrayList<Long> entry = getIntArray(name);
                 Long longVal = getLongOrUnsignedValue (value);
                 if (index >= entry.size() || entry.isEmpty()) {
                     throw new ParserException(functionId + "Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
@@ -399,8 +412,8 @@ public class VarArray {
                 entry.set(index, longVal);
                 arrayContents = entry.toString();
             }
-            else if (strArrayParams.containsKey(name)) {
-                ArrayList<String> entry = strArrayParams.get(name);
+            else if (isStrArray(name)) {
+                ArrayList<String> entry = getStrArray(name);
                 if (index >= entry.size() || entry.isEmpty()) {
                     throw new ParserException(functionId + "Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
@@ -414,8 +427,8 @@ public class VarArray {
             } else {
                 return false;
             }
-            frame.outputInfoMsg(STATUS_VARS, "   - Inserted entry[" + index + "] in param: " + name + " = " + value);
-            frame.outputInfoMsg(STATUS_VARS, "   - " + name + ": " + arrayContents);
+            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Inserted entry[" + index + "] in param: " + name + " = " + value);
+            frame.outputInfoMsg(STATUS_VARS, INDENT + "- " + name + ": " + arrayContents);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
@@ -433,15 +446,15 @@ public class VarArray {
      * 
      * @throws ParserException
      */
-    public static boolean arrayAppendEntry (String name, String value) throws ParserException {
+    public boolean arrayAppendEntry (String name, String value) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
         }
         String arrayContents;
-        if (intArrayParams.containsKey(name)) {
-            ArrayList<Long> entry = intArrayParams.get(name);
+        if (isIntArray(name)) {
+            ArrayList<Long> entry = getIntArray(name);
             try {
                 Long longVal = getLongOrUnsignedValue (value);
                 entry.addLast(longVal);
@@ -450,8 +463,8 @@ public class VarArray {
                 throw new ParserException(exMsg + "\n  -> " + functionId);
             }
         }
-        else if (strArrayParams.containsKey(name)) {
-            ArrayList<String> entry = strArrayParams.get(name);
+        else if (isStrArray(name)) {
+            ArrayList<String> entry = getStrArray(name);
             entry.addLast(value);
             arrayContents = entry.toString();
         } else {
@@ -461,8 +474,8 @@ public class VarArray {
             int offset = value.length() - 25;
             value = value.substring(0, 60) + " ... " + value.substring(offset);
         }
-        frame.outputInfoMsg(STATUS_VARS, "   - Appended entry to Variable: " + name + " = " + value);
-        frame.outputInfoMsg(STATUS_VARS, "   - " + name + ": " + arrayContents);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Appended entry to Variable: " + name + " = " + value);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- " + name + ": " + arrayContents);
         return true;
     }
 
@@ -483,16 +496,16 @@ public class VarArray {
      * @throws ParserException
      * 
      */
-    public static void arrayFilterString (String varName, String strFilter, String opts) throws ParserException {
+    public void arrayFilterString (String varName, String strFilter, String opts) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (varName == null || varName.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
         }
-        if (! strArrayParams.containsKey(varName)) {
+        if (! isStrArray(varName)) {
             throw new ParserException(functionId + "Array parameter not found: " + varName);
         }
-        ArrayList<String> var = strArrayParams.get(varName);
+        ArrayList<String> var = getStrArray(varName);
 
         // if this is 1st filter being performed, init entries to all true
         if (ixFilter == null) {
@@ -557,16 +570,16 @@ public class VarArray {
      * @throws ParserException
      * 
      */
-    public static void arrayFilterInt (String varName, String compSign, Long value) throws ParserException {
+    public void arrayFilterInt (String varName, String compSign, Long value) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (varName == null || varName.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
         }
-        if (! intArrayParams.containsKey(varName)) {
+        if (! isIntArray(varName)) {
             throw new ParserException(functionId + "Array parameter not found: " + varName);
         }
-        ArrayList<Long> var = intArrayParams.get(varName);
+        ArrayList<Long> var = getIntArray(varName);
         for (int ix = 0; ix < var.size(); ix++) {
             Long entry = var.get(ix);
             boolean bMatch = false;

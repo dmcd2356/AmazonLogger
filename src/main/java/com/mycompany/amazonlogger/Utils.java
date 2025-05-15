@@ -7,6 +7,7 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
 
 import java.awt.Color;
 import java.io.File;
@@ -765,4 +766,17 @@ public class Utils {
                           .get()
                           .getMethodName();
     }
+
+    /**
+     * prints the call stack trace for debugging
+     */
+    public static void printCallTrace(String msg) {
+        StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+        StringBuilder traceBuilder = new StringBuilder();
+        for (StackTraceElement element : stackTraceElements) {
+            traceBuilder.append(element.toString()).append("\n");
+        }
+        frame.outputInfoMsg(STATUS_ERROR, "\n  -> " + traceBuilder.toString());
+    }
+
 }

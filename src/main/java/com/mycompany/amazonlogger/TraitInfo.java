@@ -192,7 +192,8 @@ public class TraitInfo {
                 
             case FILTER:
                 // keep the Variable type
-                ptype = Variables.getVariableTypeFromName (varName);
+                Variables variables = new Variables();
+                ptype = variables.getVariableTypeFromName (varName);
                 break;
 
             default:
@@ -202,17 +203,18 @@ public class TraitInfo {
     }
 
     /**
-     * returns Trait values that are Integer values.
-     * This is used in the Execution stage for Loop parameters and Index values
-     *  in an Array bracket.
+     * returns Trait values that are Integer values.This is used in the Execution stage for Loop parameters and Index values
+  in an Array bracket.
      * 
      * @param traitVal - the Trait selection
      * @param varName  - the name of the variable
      * @param varType  - the data type of the variable
      * 
      * @return the integer Trait value (null if not a Trait that returns an Integer value
+     * 
+     * @throws com.mycompany.amazonlogger.ParserException
      */
-    public static Long getTraitIntValues (Trait traitVal, String varName, ParameterStruct.ParamType varType) {
+    public static Long getTraitIntValues (Trait traitVal, String varName, ParameterStruct.ParamType varType) throws ParserException {
         Long iValue = null;
         if (varName.contentEquals("DATE")) {
             LocalDate currentDate = LocalDate.now();
@@ -238,13 +240,13 @@ public class TraitInfo {
         } else if (traitVal == Trait.SIZE) {
             switch (varType) {
                 case String:
-                    iValue = (long) Variables.getStringSize(varName);
+                    Variables variables = new Variables();
+                    iValue = (long) variables.getStringSize(varName);
                     break;
                 case StrArray:
-                    iValue = (long) VarArray.getStrArray(varName).size();
-                    break;
                 case IntArray:
-                    iValue = (long) VarArray.getIntArray(varName).size();
+                    VarArray varArray = new VarArray();
+                    iValue = (long) varArray.getArraySize(varName);
                     break;
                 default:
                     break;

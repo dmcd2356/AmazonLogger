@@ -32,6 +32,8 @@ public final class ParameterStruct {
     private ParamType           paramType;      // parameter classification
     private VariableInfo        variableRef;    // info if a referenced Variable is used instead of a value
     
+    Variables variables = new Variables();
+    
     public enum ParamClass {
         Discrete,       // a Hard-coded value
         Reference,      // a Variable reference
@@ -382,7 +384,7 @@ public final class ParameterStruct {
 
         ParameterStruct value = null;
         try {
-            value = Variables.getVariableInfo (variableRef);
+            value = variables.getVariableInfo (variableRef);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
@@ -458,12 +460,16 @@ public final class ParameterStruct {
      * @param params - the array of parameters for a command
      */
     public static void showParamTypeList (ArrayList<ParameterStruct> params) {
-        String paramTypes = "";
-        for (int ix = 0; ix < params.size(); ix++) {
-            String strID = params.get(ix).paramType.toString();
-            paramTypes += " " + strID;
+        if (params != null && ! params.isEmpty()) {
+            String paramTypes = "";
+            for (int ix = 0; ix < params.size(); ix++) {
+                String strID = params.get(ix).paramType.toString();
+                paramTypes += " " + strID;
+            }
+            frame.outputInfoMsg(STATUS_DEBUG, "     arg dataTypes: " + paramTypes);
+        } else {
+            frame.outputInfoMsg(STATUS_DEBUG, "     no args");
         }
-        frame.outputInfoMsg(STATUS_DEBUG, "     dataTypes: " + paramTypes);
     }
     
     /**
@@ -480,7 +486,7 @@ public final class ParameterStruct {
      * 
      * @throws ParserException
      */
-    public static ParamType classifyDataType (String strValue) throws ParserException {
+    public ParamType classifyDataType (String strValue) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (strValue == null) {
@@ -491,7 +497,7 @@ public final class ParameterStruct {
         ParamType varType;
         if (strValue.startsWith("$")) {
             // it's a parameter - determine its data type
-            varType = Variables.getVariableTypeFromName (strValue);
+            varType = variables.getVariableTypeFromName (strValue);
             int iLBracket = strValue.indexOf('[');
             int iRBracket = strValue.indexOf(']');
             int iRange = strValue.indexOf('-');

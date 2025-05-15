@@ -25,6 +25,9 @@ public class ScriptCompile {
     // this handles the command line options via the RUN command
     private final CmdOptions cmdOptionParser;
     
+    private static final Variables variables = new Variables();
+    private static final VarLocal  varLocal  = new VarLocal();
+    private static final ParameterStruct paramStruct = new ParameterStruct();
 
     ScriptCompile() {
         // create an instance of the command options parser for any RUN commands
@@ -80,6 +83,7 @@ public class ScriptCompile {
 
                 lineInfo = "LINE " + lineNum + ": ";
                 cmdIndex = cmdList.size(); // the command index
+                Subroutine.setCurrentIndex(cmdIndex);
 
                 // first, extract the 1st word as the command keyword
                 String strCmd = line;
@@ -123,7 +127,7 @@ public class ScriptCompile {
                 cmdStruct = new CommandStruct(command, lineNum);
 
                 // extract the arguments to pass to the command
-                frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "]: " + cmdStruct.command + " " + parmString);
+                frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + cmdStruct.command + " " + parmString);
                 boolean bParamAssign = (CommandStruct.CommandTable.SET == command);
                 cmdStruct.params = packParameters (parmString, bParamAssign);
 
@@ -131,26 +135,32 @@ public class ScriptCompile {
                 //  into the cmdStruct structure.
                 switch (cmdStruct.command) {
                     case EXIT:
+                        checkMaxArgs(0, cmdStruct);
                         break;
                     case ENDMAIN:
+                        checkMaxArgs(0, cmdStruct);
                         subs.compileEndOfMain (cmdIndex);
                         break;
                     case SUB:
                         // verify 1 String argument: name of subroutine
+                        checkMaxArgs(1, cmdStruct);
                         String subName = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         subs.compileSubStart (subName, cmdIndex);
+                        varLocal.allocSubroutine(subName);
                         break;
                     case ENDSUB:
-                        subs.compileSubEnd (lineNum);
+                        checkMaxArgs(0, cmdStruct);
+                        subs.compileSubEnd (cmdIndex);
                         break;
                     case GOSUB:
                         // verify 1 String argument: name of subroutine (and optionally a list of various args)
-                        // (don't have to verify the args, since they can be of any type or not exist at all)
+                        checkMaxArgs(1, cmdStruct);
                         subName = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         subs.compileSubGosub (subName);
                         break;
                     case RETURN:
                         // optional String argument returned
+                        checkMaxArgs(1, cmdStruct);
                         if (!cmdStruct.params.isEmpty()) {
                             checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         }
@@ -161,6 +171,7 @@ public class ScriptCompile {
                         break;
                     case DIRECTORY:
                         // verify 1 String argument: directory & 1 optional String -d or -f
+                        checkMaxArgs(2, cmdStruct);
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         if (cmdStruct.params.size() > 1) {
                             checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
@@ -173,14 +184,17 @@ public class ScriptCompile {
                         break;
                     case CD:
                         // verify 1 String argument: directory
+                        checkMaxArgs(1, cmdStruct);
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FCREATER:
                         // verify 1 String argument: file name
+                        checkMaxArgs(1, cmdStruct);
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FEXISTS:
                         // verify 1 String argument: file name & 1 optional argument String: READABLE / WRITABLE / DIRECTORY
+                        checkMaxArgs(2, cmdStruct);
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         if (cmdStruct.params.size() > 1) {
                             checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
@@ -193,26 +207,32 @@ public class ScriptCompile {
                         break;
                     case FDELETE:
                         // verify 1 String argument: file name
+                        checkMaxArgs(1, cmdStruct);
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FCREATEW:
                         // verify 1 String argument: file name
+                        checkMaxArgs(1, cmdStruct);
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FOPENR:
                         // verify 1 String argument: file name
+                        checkMaxArgs(1, cmdStruct);
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FOPENW:
                         // verify 1 String argument: file name
+                        checkMaxArgs(1, cmdStruct);
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FCLOSE:
                         // verify 1 String argument: file name
+                        checkMaxArgs(1, cmdStruct);
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FREAD:
                         // verify 1 optional number of lines to read
+                        checkMaxArgs(1, cmdStruct);
                         if (cmdStruct.params.isEmpty()) {
                             // argument is missing, supply the default value
                             ParameterStruct lines = new ParameterStruct("1",
@@ -230,26 +250,25 @@ public class ScriptCompile {
                         break;
                     case FWRITE:
                         // verify 1 argument: message to write
+                        checkMaxArgs(1, cmdStruct);
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                         
                     case OCRSCAN:
                         // verify 1 String argument: file name
+                        checkMaxArgs(1, cmdStruct);
                         checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                         
                     case ALLOCATE:
                         // must be a Data Type followed by a List of Variable name entries
-                        String accStr   = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        checkMaxArgs(3, cmdStruct);
+                        String access   = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         String dataType = checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
                         checkArgType (2, ParameterStruct.ParamType.StrArray, cmdStruct.params);
                         ParameterStruct list = cmdStruct.params.get(2);
 
                         // get the data type and access type for the variable
-                        Variables.AccessType access = Variables.getAccessType (accStr);
-                        if (access == null) {
-                            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : invalid access type: " + accStr);
-                        }
                         if (ParameterStruct.checkParamType (dataType) == null) {
                             throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : invalid data type: " + dataType);
                         }
@@ -257,7 +276,7 @@ public class ScriptCompile {
                         // get the current function name (Main or Subroutine).
                         // The parameters can be accessed globally, but can only be set in the
                         //   function that allocated them.
-                        subName = Subroutine.getSubName(cmdIndex);
+                        subName = Subroutine.getSubName();
                         
                         // this defines the Variable names, and must be done prior to their use.
                         // This Compile method will allocate them, so the Execute does not need
@@ -266,7 +285,7 @@ public class ScriptCompile {
                         Variables var = new Variables();
                         for (int ix = 0; ix < list.getStrArraySize(); ix++) {
                             String pName = list.getStrArrayElement(ix);
-                            var.allocateVariable(dataType, pName, subName, access);
+                            var.allocateVariable(access, dataType, pName, subName);
                         }
                         break;
                         
@@ -312,9 +331,10 @@ public class ScriptCompile {
                     case CommandStruct.CommandTable.INSERT:
                     case CommandStruct.CommandTable.APPEND:
                         // VarName, Data Value
+                        checkMaxArgs(2, cmdStruct);
                         // arg 0 should be the Array variable name
                         vartype = checkVariableName (0, cmdStruct.params);
-                        // arg 2 is the data value and should be an Integer or String based on Array type
+                        // arg 1 is the data value and should be an Integer or String based on Array type
                         //       but we also allow Calculation for IntArray and Concatenation for StrArray
                         switch (vartype) {
                             case IntArray -> {
@@ -333,6 +353,7 @@ public class ScriptCompile {
 
                     case CommandStruct.CommandTable.MODIFY:
                         // VarName, Index, Data Value
+                        checkMaxArgs(3, cmdStruct);
                         // arg 0 should be the Array variable name
                         vartype = checkVariableName (0, cmdStruct.params);
                         // arg 1 is the Array index and should be an Integer or Unsigned
@@ -350,6 +371,7 @@ public class ScriptCompile {
 
                     case CommandStruct.CommandTable.REMOVE:
                         // VarName, Index
+                        checkMaxArgs(2, cmdStruct);
                         // arg 0 should be the Array variable name
                         checkVariableName (0, cmdStruct.params);
                         // arg 1 is the Array index and should be an Integer or Unsigned
@@ -359,6 +381,7 @@ public class ScriptCompile {
                     case CommandStruct.CommandTable.TRUNCATE:
                     case CommandStruct.CommandTable.POP:
                         // VarName, Index (optional)
+                        checkMaxArgs(2, cmdStruct);
                         // arg 0 should be the Array variable name
                         checkVariableName (0, cmdStruct.params);
                         // arg 1 (OPTIONAL) is the Array index and should be an Integer or Unsigned
@@ -370,6 +393,7 @@ public class ScriptCompile {
                     case CLEAR:
                         // VarName
                         // arg 0 should be the Array variable name or RESPONSE
+                        checkMaxArgs(1, cmdStruct);
                         String varName = cmdStruct.params.get(0).getStringValue();
                         if (! varName.contentEquals("RESPONSE")) {
                             checkVariableName (0, cmdStruct.params);
@@ -379,6 +403,7 @@ public class ScriptCompile {
                     case FILTER:
                         // ARGS: 0 = ParamName or RESET, 1 (optional) the filter string
                         // verify there are the correct number and type of arguments
+                        checkMaxArgs(2, cmdStruct);
                         if (cmdStruct.params.size() < 1) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires at least 1 argument : " + parmString);
                         }
@@ -412,19 +437,20 @@ public class ScriptCompile {
                         }
 
                         // add entry to the current loop stack
-                        String sname = Subroutine.getSubName(cmdIndex);
+                        String sname = Subroutine.getSubName();
                         ifInfo = new IFStruct (cmdIndex, LoopStruct.getStackSize(), sname);
                         IFStruct.ifListPush(ifInfo);
                         IFStruct.stackPush(cmdIndex);
                         frame.outputInfoMsg(STATUS_COMPILE, "   - new IF level " + IFStruct.getStackSize() + " Variable " + ifName);
                         break;
                     case CommandStruct.CommandTable.ELSE:
+                        checkMaxArgs(0, cmdStruct);
                         if (IFStruct.isIfListEnpty()) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
                         }
                         // save the current command index in the current if structure
                         ifInfo = IFStruct.getIfListEntry();
-                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(cmdIndex))) {
+                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName())) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " was outside subroutine of matching IF statement");
                         }
                         ifInfo.setElseIndex(cmdIndex, false, LoopStruct.getStackSize());
@@ -442,19 +468,20 @@ public class ScriptCompile {
 
                         // save the current command index in the current if structure
                         ifInfo = IFStruct.getIfListEntry();
-                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(cmdIndex))) {
+                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName())) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " was outside subroutine of matching IF statement");
                         }
                         ifInfo.setElseIndex(cmdIndex, true, LoopStruct.getStackSize());
                         frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " Variable " + ifName);
                         break;
                     case CommandStruct.CommandTable.ENDIF:
+                        checkMaxArgs(0, cmdStruct);
                         if (IFStruct.isIfStackEnpty()) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
                         }
                         // save the current command index in the current if structure
                         ifInfo = IFStruct.getIfListEntry();
-                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName(cmdIndex))) {
+                        if (! ifInfo.isSameSubroutine(Subroutine.getSubName())) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " was outside subroutine of matching IF statement");
                         }
                         ifInfo.setEndIfIndex(cmdIndex, LoopStruct.getStackSize());
@@ -464,6 +491,7 @@ public class ScriptCompile {
                     case CommandStruct.CommandTable.FOR:
                         // read the arguments passed
                         // assumed format is: FOR VarName [=] StartIx TO EndIx [STEP StepVal]
+                        checkMaxArgs(6, cmdStruct);
                         String loopName, loopStart, loopEnd, strVal;
                         String loopStep = "1";
                         // arg 0 should be the Loop variable name
@@ -517,6 +545,7 @@ public class ScriptCompile {
                         }
                         break;
                     case CommandStruct.CommandTable.BREAK:
+                        checkMaxArgs(0, cmdStruct);
                         // make sure we are in a FOR ... NEXT loop
                         if (LoopStruct.getStackSize() == 0) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
@@ -526,6 +555,7 @@ public class ScriptCompile {
                         LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
                         break;
                     case CommandStruct.CommandTable.CONTINUE:
+                        checkMaxArgs(0, cmdStruct);
                         // make sure we are in a FOR ... NEXT loop
                         if (LoopStruct.getStackSize() == 0) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
@@ -535,6 +565,7 @@ public class ScriptCompile {
                         LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
                         break;
                     case CommandStruct.CommandTable.NEXT:
+                        checkMaxArgs(0, cmdStruct);
                         // make sure we are in a FOR ... NEXT loop
                         if (LoopStruct.getStackSize() == 0) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
@@ -558,6 +589,7 @@ public class ScriptCompile {
                         LoopStruct.popStack();
                         break;
                     case CommandStruct.CommandTable.ENDFOR:
+                        checkMaxArgs(0, cmdStruct);
                         // ignore the user entry of this command - we place our own ENDFOR when the NEXT command is found.
                         continue;
                     case CommandStruct.CommandTable.RUN:
@@ -584,12 +616,12 @@ public class ScriptCompile {
                     cmdList.add(cmdStruct);
                 }
             } catch (ParserException exMsg) {
-                String msg = exMsg + "\n  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + line;
+                String errMsg = exMsg + "\n  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + line;
                 if (AmazonReader.isRunModeCompileOnly()) {
                     // if only running compiler, just log the messages but don't exit
-                    frame.outputInfoMsg(STATUS_ERROR, msg);
+                    frame.outputInfoMsg(STATUS_ERROR, errMsg);
                 } else {
-                    throw new ParserException(msg);
+                    throw new ParserException(errMsg);
                 }
             }
         }  // end of while loop
@@ -623,7 +655,7 @@ public class ScriptCompile {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         boolean bValid = true;
-        ParameterStruct.ParamType argtype = ParameterStruct.classifyDataType(arg.getStringValue());
+        ParameterStruct.ParamType argtype = paramStruct.classifyDataType(arg.getStringValue());
         if (! arg.isVariableRef()) {
             // only verify type if not a variable reference, since we allow type conversion
             switch (expType) {
@@ -662,6 +694,26 @@ public class ScriptCompile {
     }
 
     /**
+     * checks the max args are not exceeded for the command.
+     * 
+     * @param count     - the max args allowed
+     * @param cmdStruct - the command list
+     * 
+     * @throws ParserException 
+     */
+    private void checkMaxArgs (int count, CommandStruct cmdStruct) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (cmdStruct.params.size() > count) {
+            if (count == 0) {
+                throw new ParserException(functionId + "No arguments permitted for this command");
+            } else {
+                throw new ParserException(functionId + "Too many arguments for this command. (max = " + count + ")");
+            }
+        }
+    }
+    
+    /**
      * checks if the specified argument in the arg list is a valid variable name for assignment to.
      * 
      * @param index    - the index of the argument in the arg list
@@ -686,10 +738,10 @@ public class ScriptCompile {
         }
 
         // verify the parameter name is valid for assigning a value to
-        Variables.checkValidVariable(Variables.VarCheck.SET, varName);
+        variables.checkValidVariable(Variables.VarCheck.SET, varName);
         
         // return the datatype
-        ParameterStruct.ParamType vtype = Variables.getVariableTypeFromName(varName);
+        ParameterStruct.ParamType vtype = variables.getVariableTypeFromName(varName);
         return vtype;
     }
 
@@ -802,7 +854,7 @@ public class ScriptCompile {
             case StrArray:
                 // String array just requires whether we are filtering left or right side and if inverting the filter
                 if (arg.isVariableRef()) {
-                    ParameterStruct.ParamType vtype = Variables.getVariableTypeFromName(argValue);
+                    ParameterStruct.ParamType vtype = variables.getVariableTypeFromName(argValue);
                     if (vtype == null || (vtype != ParameterStruct.ParamType.String && vtype != ParameterStruct.ParamType.StrArray)) {
                         throw new ParserException(functionId + "Invalid variable type " + vtype + " for " + vartype + " Filter argument: " + argValue);
                     }
@@ -827,7 +879,7 @@ public class ScriptCompile {
                 
                 // this 1st arg is the comparison type to use for filtering
                 if (arg.isVariableRef()) {
-                    ParameterStruct.ParamType vtype = Variables.getVariableTypeFromName(argValue);
+                    ParameterStruct.ParamType vtype = variables.getVariableTypeFromName(argValue);
                     if (vtype == null || (vtype != ParameterStruct.ParamType.String && vtype != ParameterStruct.ParamType.StrArray)) {
                         throw new ParserException(functionId + "Invalid Filter argument for " + vartype + " type: " + argValue);
                     }
@@ -883,12 +935,12 @@ public class ScriptCompile {
             // must be the parameter name. verify it is valid.
             if (bParamAssign) {
                 if (ix == 0) {
-                    Variables.checkValidVariable(Variables.VarCheck.SET, nextArg);
+                    variables.checkValidVariable(Variables.VarCheck.SET, nextArg);
                     if (line.isEmpty()) {
                         throw new ParserException(functionId + "no arguments following Variable name: " + nextArg);
                     }
                     // check if this is a String parameter (we may have extra stuff to do here)
-                    if (Variables.getVariableTypeFromName(nextArg) == ParameterStruct.ParamType.String) {
+                    if (variables.getVariableTypeFromName(nextArg) == ParameterStruct.ParamType.String) {
                         paramName = "$" + nextArg;
                     }
                 } else if (ix == 1 && paramName != null && nextArg.contentEquals("+=")) {
@@ -980,7 +1032,7 @@ public class ScriptCompile {
             ParameterStruct.ParamClass pClass = ParameterStruct.ParamClass.Discrete;
             if (nextArg.startsWith("$") || (bParamAssign && params.isEmpty())) {
                 pClass = ParameterStruct.ParamClass.Reference;
-                paramType = Variables.getVariableTypeFromName(nextArg);
+                paramType = variables.getVariableTypeFromName(nextArg);
             }
             
             arg = new ParameterStruct(nextArg, pClass, paramType);
@@ -1060,7 +1112,7 @@ public class ScriptCompile {
         // 1st entry should be the parameter name
         String paramName = getParamName (line);
         try {
-            Variables.checkValidVariable(Variables.VarCheck.SET, paramName);
+            variables.checkValidVariable(Variables.VarCheck.SET, paramName);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
@@ -1248,8 +1300,8 @@ public class ScriptCompile {
         if (! bCalc && ! bQuote) {
             // if neither of the above, let's determine if the entries are numeric or not.
             ParameterStruct.ParamType ctype1, ctype2;
-            ctype1 = ParameterStruct.classifyDataType(prefix);
-            ctype2 = ParameterStruct.classifyDataType(line);
+            ctype1 = paramStruct.classifyDataType(prefix);
+            ctype2 = paramStruct.classifyDataType(line);
             if (ctype1 == ParameterStruct.ParamType.Integer  ||
                 ctype1 == ParameterStruct.ParamType.Unsigned ||
                 ctype2 == ParameterStruct.ParamType.Integer  ||
