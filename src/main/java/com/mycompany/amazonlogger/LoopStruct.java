@@ -259,7 +259,7 @@ public class LoopStruct {
             }
 
             // make sure its not the name of a defined or reserved Variable
-            Variables variables = new Variables();
+            Variables variables = ScriptCompile.variables;
             Variables.VarClass type = variables.getVariableClass(name);
             if (type != Variables.VarClass.UNKNOWN && type != Variables.VarClass.LOOP) {
                 throw new ParserException(": using " + type.toString() + " Variable name: " + name);

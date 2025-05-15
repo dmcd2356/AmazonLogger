@@ -131,9 +131,14 @@ public class AmazonReader {
                 setRunMode (RunMode.COMPILE_ONLY);
             }
 
+            // do the Pre-compile operation
+            frame.outputInfoMsg(STATUS_COMPILE, "BEGINING PROGRAM PRE-COMPILE");
+            PreCompile preCompile = new PreCompile();
+            Variables variables = preCompile.compile(fname);
+            
             // compile the program
             frame.outputInfoMsg(STATUS_COMPILE, "BEGINING PROGRAM COMPILE");
-            ScriptCompile compiler = new ScriptCompile();
+            ScriptCompile compiler = new ScriptCompile(variables);
             ArrayList<CommandStruct> cmdList = compiler.compileProgram(fname);
 
             if (bRunExec) {

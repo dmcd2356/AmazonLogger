@@ -21,10 +21,10 @@ public class Variables {
     static final int NAME_MAXLEN = 20;  // the max # chars in a param name
 
             
+    public final VarGlobal   varGlobal   = new VarGlobal();
+    public final VarLocal    varLocal    = new VarLocal();
     public final VarReserved varReserved = new VarReserved();
     public final VarArray    varArray    = new VarArray();
-    public final VarLocal    varLocal    = new VarLocal();
-    public final VarGlobal   varGlobal   = new VarGlobal();
 
 
     public enum AccessType {
@@ -45,6 +45,9 @@ public class Variables {
         ALLOCATE,       // defining a Variable or loop parameter
         SET,            // setting a standard Variable value (left side of =)
         REFERENCE,      // referencing a Variable (standard, reserved or loop)
+    }
+
+    Variables () {
     }
     
     /**
@@ -276,7 +279,7 @@ public class Variables {
      * 
      * @throws ParserException 
      */
-    public static void checkReadAccess (String varName) throws ParserException {
+    public void checkReadAccess (String varName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // MAIN function variables are GLOBAL, so read from anywhere
@@ -285,8 +288,11 @@ public class Variables {
         }
         
         String curSub = Subroutine.getSubName();
-        VarLocal varLocal = new VarLocal();
         boolean bExists = varLocal.isDefined(curSub, varName);
+        if (bExists) {
+            return;
+        }
+        bExists = varGlobal.isDefined(varName);
         if (bExists) {
             return;
         }
@@ -300,7 +306,7 @@ public class Variables {
      * 
      * @throws ParserException 
      */
-    public static void checkWriteAccess (String varName) throws ParserException {
+    public void checkWriteAccess (String varName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // MAIN function variables are GLOBAL, so read from anywhere
@@ -309,8 +315,11 @@ public class Variables {
         }
         
         String curSub = Subroutine.getSubName();
-        VarLocal varLocal = new VarLocal();
         boolean bExists = varLocal.isDefined(curSub, varName);
+        if (bExists) {
+            return;
+        }
+        bExists = varGlobal.isDefined(varName);
         if (bExists) {
             return;
         }
@@ -346,12 +355,17 @@ public class Variables {
 
         ParameterStruct.ParamType ptype = ParameterStruct.checkParamType (dataType);
         if (ptype == null) {
-            throw new ParserException(functionId + "Invalid variable type: " + dataType);
+            throw new ParserException(functionId + "Invalid variable type for allocation of " + varName + ": " + dataType);
         }
         
         // allocate and set default value for the variable
-        // TODO: use the 'accStr' to specify the type. for nao, MAIN is GLOBAL & subs are LOCAL.
-        AccessType access = (subName.contentEquals("*MAIN*")) ? AccessType.GLOBAL : AccessType.LOCAL;
+        AccessType access;
+        switch (accStr) {
+            case "GLOBAL": access = AccessType.GLOBAL;  break;
+            case "LOCAL":  access = AccessType.LOCAL;   break;
+            default:
+                throw new ParserException(functionId + "Invalid access type for allocation of " + varName + ": " + accStr);
+        }
         if (access == AccessType.LOCAL) {
             varLocal.allocVar (varName, ptype);
         } else {

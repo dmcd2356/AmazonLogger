@@ -19,6 +19,8 @@ public class VariableInfo {
     private final BracketIx         indexmax;   // associated ending index for String, StrArray, IntArray params
     private final TraitInfo.Trait   trait;      // object after '.' demarcation
 
+    private static Variables variables = ScriptCompile.variables;
+    
     /**
      * this is only called by ParameterStruct() to init the variableRef entry.
      */
@@ -98,7 +100,6 @@ public class VariableInfo {
                 String varName = entry.getVariable();
                 int offset = varName.indexOf('.');
                 TraitInfo.Trait traitVal = null;
-                Variables variables = new Variables();
                 if (offset > 0 && varName.length() > offset + 1) {
                     // Trait included: split name into var name and trait name
                     String traitName = varName.substring(offset + 1);

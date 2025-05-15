@@ -24,9 +24,6 @@ public class VarArray {
     private static final HashMap<String, ArrayList<Long>>   intArrayParams = new HashMap<>();
     private static final HashMap<String, ArrayList<String>> strArrayParams = new HashMap<>();
     
-    // reserved static Variables
-    private static final ArrayList<String> strResponse = new ArrayList<>();    // responses from RUN commands
-
     // array filter info
     private static ArrayList<Boolean> ixFilter = null;
 
@@ -40,7 +37,6 @@ public class VarArray {
     public static void initVariables () {
         intArrayParams.clear();
         strArrayParams.clear();
-        strResponse.clear();
     }
 
     //==========================================    
@@ -115,33 +111,6 @@ public class VarArray {
     }
     
     /**
-     * gets the $RESPONSE Variable
-     * 
-     * @return the response Variable
-     */
-    public static ArrayList<String> getResponseValue () {
-        return strResponse;
-    }
-    
-    /**
-     * adds a String value to the $RESPONSE Variable
-     * 
-     * @param value - value to add to the response Variable
-     */
-    public static void putResponseValue (String value) {
-        strResponse.add(value);
-    }
-    
-    /**
-     * adds an array of values to the $RESPONSE Variable
-     * 
-     * @param value - value to add to the response Variable
-     */
-    public static void putResponseValue (ArrayList<String> value) {
-        strResponse.addAll(value);
-    }
-    
-    /**
      * creates a new entry in the Variable table and sets the initial value.
      * 
      * @param name  - Variable name
@@ -176,8 +145,8 @@ public class VarArray {
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
         }
-        if (name.contentEquals("RESPONSE")) {
-            return strResponse.size();
+        if (VarReserved.isArray(name)) {
+            return VarReserved.getArraySize(name);
         } else if (isIntArray(name)) {
             return getIntArray(name).size();
         } else if (isStrArray(name)) {
@@ -247,9 +216,9 @@ public class VarArray {
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
         }
-        if (name.contentEquals("RESPONSE")) {
-            int size = strResponse.size();
-            strResponse.clear();
+        if (VarReserved.isArray(name)) {
+            int size = VarReserved.getArraySize(name);
+            VarReserved.resetVar(name);
             frame.outputInfoMsg(STATUS_VARS, INDENT + "- Deleted " + size + " entries in Array param: " + name);
             return true;
         }

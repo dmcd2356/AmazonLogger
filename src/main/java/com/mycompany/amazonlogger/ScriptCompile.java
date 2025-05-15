@@ -25,13 +25,15 @@ public class ScriptCompile {
     // this handles the command line options via the RUN command
     private final CmdOptions cmdOptionParser;
     
-    private static final Variables variables = new Variables();
-    private static final VarLocal  varLocal  = new VarLocal();
     private static final ParameterStruct paramStruct = new ParameterStruct();
+    public static Variables variables;
+    private final VarLocal  varLocal;
 
-    ScriptCompile() {
+    ScriptCompile(Variables preVarLocal) {
         // create an instance of the command options parser for any RUN commands
         cmdOptionParser = new CmdOptions();
+        variables = preVarLocal;
+        varLocal = variables.varLocal;
     }
 
     /**
@@ -60,7 +62,7 @@ public class ScriptCompile {
         BufferedReader fileReader = new BufferedReader(fReader);
 
         // clear out the static Variable values
-        Variables.initVariables();
+//        Variables.initVariables();
 
         // access the Subroutine class to define them
         Subroutine subs = new Subroutine();
@@ -139,23 +141,19 @@ public class ScriptCompile {
                         break;
                     case ENDMAIN:
                         checkMaxArgs(0, cmdStruct);
-                        subs.compileEndOfMain (cmdIndex);
                         break;
                     case SUB:
                         // verify 1 String argument: name of subroutine
                         checkMaxArgs(1, cmdStruct);
-                        String subName = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
-                        subs.compileSubStart (subName, cmdIndex);
-                        varLocal.allocSubroutine(subName);
+                        checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case ENDSUB:
                         checkMaxArgs(0, cmdStruct);
-                        subs.compileSubEnd (cmdIndex);
                         break;
                     case GOSUB:
                         // verify 1 String argument: name of subroutine (and optionally a list of various args)
                         checkMaxArgs(1, cmdStruct);
-                        subName = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        String subName = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         subs.compileSubGosub (subName);
                         break;
                     case RETURN:
@@ -261,32 +259,7 @@ public class ScriptCompile {
                         break;
                         
                     case ALLOCATE:
-                        // must be a Data Type followed by a List of Variable name entries
-                        checkMaxArgs(3, cmdStruct);
-                        String access   = checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
-                        String dataType = checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
-                        checkArgType (2, ParameterStruct.ParamType.StrArray, cmdStruct.params);
-                        ParameterStruct list = cmdStruct.params.get(2);
-
-                        // get the data type and access type for the variable
-                        if (ParameterStruct.checkParamType (dataType) == null) {
-                            throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : invalid data type: " + dataType);
-                        }
-
-                        // get the current function name (Main or Subroutine).
-                        // The parameters can be accessed globally, but can only be set in the
-                        //   function that allocated them.
-                        subName = Subroutine.getSubName();
-                        
-                        // this defines the Variable names, and must be done prior to their use.
-                        // This Compile method will allocate them, so the Execute does not need
-                        //  to do anything with this command.
-                        // Multiple Variables can be defined on one line, with the names comma separated
-                        Variables var = new Variables();
-                        for (int ix = 0; ix < list.getStrArraySize(); ix++) {
-                            String pName = list.getStrArrayElement(ix);
-                            var.allocateVariable(access, dataType, pName, subName);
-                        }
+                        // This is handled during the Pre-Compile, so nothing to do here!
                         break;
                         
                     case CommandStruct.CommandTable.SET:
@@ -651,7 +624,7 @@ public class ScriptCompile {
      * 
      * @throws ParserException 
      */
-    private void verifyArgDataType (ParameterStruct.ParamType expType, ParameterStruct arg) throws ParserException {
+    private static void verifyArgDataType (ParameterStruct.ParamType expType, ParameterStruct arg) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         boolean bValid = true;
@@ -701,7 +674,7 @@ public class ScriptCompile {
      * 
      * @throws ParserException 
      */
-    private void checkMaxArgs (int count, CommandStruct cmdStruct) throws ParserException {
+    private static void checkMaxArgs (int count, CommandStruct cmdStruct) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (cmdStruct.params.size() > count) {
@@ -723,7 +696,7 @@ public class ScriptCompile {
      * 
      * @throws ParserException 
      */    
-    private ParameterStruct.ParamType checkVariableName (int index, ArrayList<ParameterStruct> parmList) throws ParserException {
+    private static ParameterStruct.ParamType checkVariableName (int index, ArrayList<ParameterStruct> parmList) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (parmList == null) {
@@ -816,7 +789,7 @@ public class ScriptCompile {
      * 
      * @throws ParserException 
      */    
-    private String checkArgType (int index, ParameterStruct.ParamType expType, ArrayList<ParameterStruct> parmList) throws ParserException {
+    public static String checkArgType (int index, ParameterStruct.ParamType expType, ArrayList<ParameterStruct> parmList) throws ParserException {
          String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (parmList == null) {
@@ -917,7 +890,7 @@ public class ScriptCompile {
      * 
      * @throws ParserException 
      */
-    private ArrayList<ParameterStruct> packParameters (String line, boolean bParamAssign) throws ParserException {
+    public static ArrayList<ParameterStruct> packParameters (String line, boolean bParamAssign) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         ArrayList<ParameterStruct> params = new ArrayList<>();

@@ -25,6 +25,8 @@ public class VariableExtract {
     private String  evaluation;     // evaluation on Right-side of '=' to set parameter to
     private boolean bRightSide;     // true if parameter is a reference and must be on right side of '='
 
+    private static final Variables variables = ScriptCompile.variables;
+    
     /**
      * extracts the Variable and any extensions from a command line.
      * 
@@ -155,7 +157,6 @@ public class VariableExtract {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         // check for bracketed index or trait extensions
-        Variables variables = new Variables();
         String field = name;
         String leftover = "";
         int offTrait  = field.indexOf('.');
@@ -228,7 +229,6 @@ public class VariableExtract {
             // must be a parameter, check if it exists
             // if it does, we don't care what type it is -that's a run-time thing
             entry = entry.substring(1);
-            Variables variables = new Variables();
             Variables.VarClass cls = variables.getVariableClass(entry);
             if (cls != Variables.VarClass.UNKNOWN) {
                 bIndex.setVariable(entry);

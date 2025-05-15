@@ -39,11 +39,13 @@ public class ScriptExecute {
     private static String fileName;
     private static String fileDir = Utils.getDefaultPath (Utils.PathType.Test);
 
-    private static VarLocal  localVars = new VarLocal();
-    private static Variables variables = new Variables();
+    public static Variables variables = ScriptCompile.variables;
 
     ScriptExecute () {
-        cmdOptionParser = new CmdOptions();
+        if (variables == null) {
+            variables = new Variables();
+        }
+        this.cmdOptionParser = new CmdOptions();
     }
 
     /**
@@ -307,9 +309,9 @@ public class ScriptExecute {
                 File[] list = file.listFiles();
                 for (File list1 : list) {
                     if ((filter.isEmpty() || filter.contentEquals("-d")) && list1.isDirectory()) {
-                        VarArray.putResponseValue(list1.getName());
+                        VarReserved.putResponseValue(list1.getName());
                     } else if ((filter.isEmpty() || filter.contentEquals("-f")) && list1.isFile()) {
-                        VarArray.putResponseValue(list1.getName());
+                        VarReserved.putResponseValue(list1.getName());
                     }
                 }
                 break;
@@ -465,7 +467,7 @@ public class ScriptExecute {
                         String line = fileReader.readLine();
                         if (line == null)
                             break;
-                        VarArray.putResponseValue(line);
+                        VarReserved.putResponseValue(line);
                     }
                 } catch (IOException ex) {
                     throw new IOException(exceptPreface + ex);
@@ -507,7 +509,7 @@ public class ScriptExecute {
                 }
                 
                 // make sure we have write access to the variable
-                Variables.checkWriteAccess (varName);
+                variables.checkWriteAccess (varName);
                 
                 // make sure we are converting to the type of the reference parameter
                 switch (type) {
@@ -551,7 +553,7 @@ public class ScriptExecute {
                 ParameterStruct.ParamType parmType = variables.getVariableTypeFromName (varName);
 
                 // make sure we have write access to the variable
-                Variables.checkWriteAccess (varName);
+                variables.checkWriteAccess (varName);
                 
                 String strValue;
                 switch (parmType) {
@@ -579,7 +581,7 @@ public class ScriptExecute {
                 parmType = variables.getVariableTypeFromName (varName);
 
                 // make sure we have write access to the variable
-                Variables.checkWriteAccess (varName);
+                variables.checkWriteAccess (varName);
                 
                 switch (parmType) {
                     case IntArray:
@@ -609,7 +611,7 @@ public class ScriptExecute {
                 int index = parmIndex.getIntegerValue().intValue();
 
                 // make sure we have write access to the variable
-                Variables.checkWriteAccess (varName);
+                variables.checkWriteAccess (varName);
                 
                 switch (parmType) {
                     case IntArray:
@@ -636,7 +638,7 @@ public class ScriptExecute {
                 index = parmIndex.getIntegerValue().intValue();
 
                 // make sure we have write access to the variable
-                Variables.checkWriteAccess (varName);
+                variables.checkWriteAccess (varName);
                 
                 bSuccess = varArray.arrayClearEntries (varName, index, 1);
                 if (!bSuccess) {
@@ -649,7 +651,7 @@ public class ScriptExecute {
                 varName = getArrayAssignment(parmRef);
 
                 // make sure we have write access to the variable
-                Variables.checkWriteAccess (varName);
+                variables.checkWriteAccess (varName);
                 
                 int size = varArray.getArraySize(varName);
                 int iCount = 1;
@@ -672,7 +674,7 @@ public class ScriptExecute {
                 varName = getArrayAssignment(parmRef);
 
                 // make sure we have write access to the variable
-                Variables.checkWriteAccess (varName);
+                variables.checkWriteAccess (varName);
                 
                 size = varArray.getArraySize(parmRef.getStringValue());
                 iCount = 1;
@@ -695,7 +697,7 @@ public class ScriptExecute {
                 varName = getArrayAssignment(parmRef);
 
                 // make sure we have write access to the variable
-                Variables.checkWriteAccess (varName);
+                variables.checkWriteAccess (varName);
                 
                 varArray.arrayClearAll(varName);
                 break;
@@ -708,7 +710,7 @@ public class ScriptExecute {
                     VarArray.arrayFilterReset();
                 } else {
                     // make sure we have write access to the variable
-                    Variables.checkWriteAccess (varName);
+                    variables.checkWriteAccess (varName);
                 
                     parmType = variables.getVariableTypeFromName (varName);
                     switch (parmType) {

@@ -43,24 +43,6 @@ public class VarLocal {
         frame.outputInfoMsg(STATUS_VARS, INDENT + "Local Variable allocation created for subroutine: " + subName);
     }
     
-//    /**
-//     * this frees up the local variable allocations when a subroutine exits.
-//     * This should be called when a subroutine exits during EXECUTION.
-//     * 
-//     * @param subName - name of the subroutine
-//     * 
-//     * @throws ParserException 
-//     */
-//    public void removeSubroutine (String subName) throws ParserException {
-//        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-//
-//        if (! locals.containsKey(subName)) {
-//            throw new ParserException(functionId + "Subroutine allocations not found: " + subName);
-//        }
-//        locals.remove(subName);
-//        frame.outputInfoMsg(STATUS_VARS, INDENT + "Local Variable allocation removed for subroutine: " + subName);
-//    }
-
     /**
      * determine if local variable exists for the current subroutine running.
      * 

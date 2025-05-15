@@ -31,8 +31,7 @@ public final class ParameterStruct {
     private ParamClass          paramClass;     // class of the parameter
     private ParamType           paramType;      // parameter classification
     private VariableInfo        variableRef;    // info if a referenced Variable is used instead of a value
-    
-    Variables variables = new Variables();
+
     
     public enum ParamClass {
         Discrete,       // a Hard-coded value
@@ -384,7 +383,7 @@ public final class ParameterStruct {
 
         ParameterStruct value = null;
         try {
-            value = variables.getVariableInfo (variableRef);
+            value = ScriptCompile.variables.getVariableInfo (variableRef);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
@@ -497,7 +496,7 @@ public final class ParameterStruct {
         ParamType varType;
         if (strValue.startsWith("$")) {
             // it's a parameter - determine its data type
-            varType = variables.getVariableTypeFromName (strValue);
+            varType = ScriptCompile.variables.getVariableTypeFromName (strValue);
             int iLBracket = strValue.indexOf('[');
             int iRBracket = strValue.indexOf(']');
             int iRange = strValue.indexOf('-');

@@ -7,6 +7,7 @@ package com.mycompany.amazonlogger;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Random;
 
@@ -19,10 +20,12 @@ public class VarReserved {
     private static final String CLASS_NAME = VarReserved.class.getSimpleName();
     
     // reserved static Variables
-    private static long    maxRandom = 1000000000; // for random values 0 - 999999999
-    private static boolean bStatus = false; // true/false status indications
+    private static final ArrayList<String> strResponse = new ArrayList<>(); // responses from RUN commands
     private static String  subRetValue;     // ret value from the last subroutine call
+    private static boolean bStatus = false; // true/false status indications
+    private static long    maxRandom = 1000000000; // for random values 0 - 999999999
 
+    
     public enum ReservedVars {
         RESPONSE,       // StrArray value from various commands
         RETVAL,         // String return value from subroutine call
@@ -62,6 +65,25 @@ public class VarReserved {
     public static void initVariables () {
         bStatus = false;
         subRetValue = "";
+        strResponse.clear();
+    }
+    
+    /**
+     * adds a String value to the $RESPONSE Variable
+     * 
+     * @param value - value to add to the response Variable
+     */
+    public static void putResponseValue (String value) {
+        strResponse.add(value);
+    }
+    
+    /**
+     * adds an array of values to the $RESPONSE Variable
+     * 
+     * @param value - value to add to the response Variable
+     */
+    public static void putResponseValue (ArrayList<String> value) {
+        strResponse.addAll(value);
     }
     
     /**
@@ -100,6 +122,70 @@ public class VarReserved {
     private static Long getRandomValue () {
         Random rand = new Random();
         return rand.nextLong(maxRandom);
+    }
+
+    /**
+     * resets the specified variable value.
+     * 
+     * @param varName - the reserved variable name
+     * 
+     * @throws ParserException 
+     */
+    public static void resetVar (String varName) throws ParserException {
+        ReservedVars reserved = isReservedName (varName);
+        if (reserved != null) {
+            switch (reserved) {
+                case RESPONSE:
+                    strResponse.clear();
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    /**
+     * determines if the specified variable is an array type.
+     * 
+     * @param varName - the reserved variable name
+     * 
+     * @return true if it is an array type
+     * 
+     * @throws ParserException 
+     */
+    public static boolean isArray (String varName) throws ParserException {
+        ReservedVars reserved = isReservedName (varName);
+        if (reserved != null) {
+            switch (reserved) {
+                case RESPONSE:
+                    return true;
+                default:
+                    break;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * gets the size of the specified array variable.
+     * 
+     * @param varName - the reserved variable name
+     * 
+     * @return the size if it is an array type, 0 if not
+     * 
+     * @throws ParserException 
+     */
+    public static int getArraySize (String varName) throws ParserException {
+        ReservedVars reserved = isReservedName (varName);
+        if (reserved != null) {
+            switch (reserved) {
+                case RESPONSE:
+                    return strResponse.size();
+                default:
+                    break;
+            }
+        }
+        return 0;
     }
     
     /**
@@ -169,7 +255,7 @@ public class VarReserved {
         ReservedVars reserved = isReservedName (varName);
         switch (reserved) {
             case RESPONSE:
-                paramValue.setStrArray(VarArray.getResponseValue());
+                paramValue.setStrArray(strResponse);
                 pType = ParameterStruct.ParamType.StrArray;
                 break;
             case STATUS:
@@ -222,8 +308,9 @@ public class VarReserved {
         if (reserved != null) {
             switch (reserved) {
                 case RESPONSE:
-                    String strValue = VarArray.getResponseValue().getFirst();
-                    iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+                    if (! strResponse.isEmpty()) {
+                        iValue = ParameterStruct.getLongOrUnsignedValue(strResponse.getFirst());
+                    }
                     break;
                 case STATUS:
                     iValue = bStatus ? 1L : 0;

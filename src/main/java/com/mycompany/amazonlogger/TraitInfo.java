@@ -21,6 +21,9 @@ public class TraitInfo {
     
     private static final String CLASS_NAME = TraitInfo.class.getSimpleName();
     
+    private static final Variables variables = ScriptCompile.variables;
+
+    
     // traits extensions
     // KEY: I = Integer, U = Unsigned, B = Boolean, S = String, L = StrArray, A = IntArray
     public enum Trait {
@@ -192,7 +195,6 @@ public class TraitInfo {
                 
             case FILTER:
                 // keep the Variable type
-                Variables variables = new Variables();
                 ptype = variables.getVariableTypeFromName (varName);
                 break;
 
@@ -240,7 +242,6 @@ public class TraitInfo {
         } else if (traitVal == Trait.SIZE) {
             switch (varType) {
                 case String:
-                    Variables variables = new Variables();
                     iValue = (long) variables.getStringSize(varName);
                     break;
                 case StrArray:

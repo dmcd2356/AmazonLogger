@@ -225,6 +225,30 @@ public class VarGlobal {
      * 
      * @throws ParserException 
      */
+    public boolean isDefined (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (varName == null) {
+            return false;
+        }
+        if (longParams.containsKey(varName)) return true;
+        if (uintParams.containsKey(varName)) return true;
+        if (strParams.containsKey(varName))  return true;
+        if (boolParams.containsKey(varName)) return true;
+        if (varArray.isIntArray(varName))   return true;
+        if (varArray.isStrArray(varName))   return true;
+        return false;
+    }
+    
+    /**
+     * determine if local variable exists for the current subroutine running.
+     * 
+     * @param varName - name of the variable
+     * 
+     * @return data type of variable if found
+     * 
+     * @throws ParserException 
+     */
     public ParameterStruct.ParamType getDataType (String varName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 

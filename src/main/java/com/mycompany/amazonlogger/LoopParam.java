@@ -22,7 +22,7 @@ public class LoopParam {
     Integer value;          // the current value of the loop parameter
     String  paramName;      // the name of the reference Variable (null if no ref param)
         
-    Variables variables = new Variables();
+    Variables variables = ScriptCompile.variables;
     
     // for loops, the loopParams will find the loop parameter for the loop at the
     // specified command index. In order to determine if we have a nested loop
