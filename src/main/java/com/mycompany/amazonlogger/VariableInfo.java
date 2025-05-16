@@ -18,8 +18,6 @@ public class VariableInfo {
     private final BracketIx         index;      // associated index [x] for String, StrArray, IntArray params
     private final BracketIx         indexmax;   // associated ending index for String, StrArray, IntArray params
     private final TraitInfo.Trait   trait;      // object after '.' demarcation
-
-    private static Variables variables = ScriptCompile.variables;
     
     /**
      * this is only called by ParameterStruct() to init the variableRef entry.
@@ -105,7 +103,7 @@ public class VariableInfo {
                     String traitName = varName.substring(offset + 1);
                     varName = varName.substring(0, offset);
                     // now get corresponding trait type & validate that it is a numeric
-                    ParameterStruct.ParamType ptype = variables.getVariableTypeFromName (varName);
+                    ParameterStruct.ParamType ptype = ScriptCompile.variables.getVariableTypeFromName (varName);
                     traitVal = TraitInfo.getTrait (traitName, varName, ptype);
                     ParameterStruct.ParamType traitTyp = TraitInfo.getTraitDataType (traitVal, varName, ptype);
                     switch (traitTyp) {
@@ -113,7 +111,7 @@ public class VariableInfo {
                         default -> throw new ParserException(functionId + "Specified Variable trait is not a numeric: " + traitName);
                     }
                 }
-                Long numValue = variables.getNumericValue(varName, traitVal, false);
+                Long numValue = ScriptCompile.variables.getNumericValue(varName, traitVal, false);
                 if (numValue == null) {
                     throw new ParserException(functionId + "reference Variable " + entry.getVariable() + " not found");
                 }

@@ -49,20 +49,6 @@ public class ScriptExecute {
     }
 
     /**
-     * cleanup upon exit.
-     * 
-     * @throws IOException 
-     */
-    public void close() throws IOException {
-        if (fileReader != null) {
-            fileReader.close();
-        } if (fileWriter != null) {
-            fileWriter.close();
-        }
-        frame.outputInfoMsg(STATUS_DEBUG, "Closed file: " + fileName);
-    }
-    
-    /**
      * displays the program line number if the command was issued from a program file.
      * 
      * @param cmd - the command being executed
@@ -209,6 +195,36 @@ public class ScriptExecute {
         return strValue;
     }
 
+    private boolean getComparison (ParameterStruct parm1, ParameterStruct parm2, ParameterStruct parm3) throws ParserException {
+        Boolean bValue;
+        if (parm2 == null) {
+            // simple assignment: VariableName = Boolean
+            bValue = parm1.getBooleanValue();
+        } else if (parm3 == null) {
+            // simple NOTted assignment: VariableName = Boolean !
+            bValue = ! parm1.getBooleanValue();
+        } else {
+            // Boolean comparison: VariableName = Calculation1 CompSign Calculation2
+            Comparison comp = new Comparison (parm1, parm3, parm2.getStringValue());
+            bValue = comp.getStatus();
+        }
+        return bValue;
+    }
+
+    /**
+     * cleanup upon exit.
+     * 
+     * @throws IOException 
+     */
+    public void close() throws IOException {
+        if (fileReader != null) {
+            fileReader.close();
+        } if (fileWriter != null) {
+            fileWriter.close();
+        }
+        frame.outputInfoMsg(STATUS_DEBUG, "Closed file: " + fileName);
+    }
+    
     /**
      * Executes a command from the list of CommandStruct entries created by the compileProgramCommand method.
      * 
@@ -892,19 +908,4 @@ public class ScriptExecute {
         return cmdIndex;
     }
 
-    private boolean getComparison (ParameterStruct parm1, ParameterStruct parm2, ParameterStruct parm3) throws ParserException {
-        Boolean bValue;
-        if (parm2 == null) {
-            // simple assignment: VariableName = Boolean
-            bValue = parm1.getBooleanValue();
-        } else if (parm3 == null) {
-            // simple NOTted assignment: VariableName = Boolean !
-            bValue = ! parm1.getBooleanValue();
-        } else {
-            // Boolean comparison: VariableName = Calculation1 CompSign Calculation2
-            Comparison comp = new Comparison (parm1, parm3, parm2.getStringValue());
-            bValue = comp.getStatus();
-        }
-        return bValue;
-    }
 }

@@ -35,7 +35,7 @@ public class PreCompile {
      * @throws ParserException
      * @throws IOException 
      */
-    public Variables compile (String fname) throws ParserException, IOException {
+    public Variables build (String fname) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         frame.outputInfoMsg(STATUS_COMPILE, "Pre-Compiling file: " + fname);
@@ -99,7 +99,7 @@ public class PreCompile {
                 ArrayList<ParameterStruct> params;
                 frame.outputInfoMsg(STATUS_COMPILE, lineInfo + command + " " + parmString);
                 boolean bParamAssign = (CommandStruct.CommandTable.SET == command);
-                params = ScriptCompile.packParameters (parmString, bParamAssign);
+                params = ParseScript.packParameters (parmString, bParamAssign);
 
                 // we're only handling allocations and subroutine definitions on this first pass, so that
                 //  we will know all the GLOBALS and subroutine names that may be referenced in
@@ -107,9 +107,9 @@ public class PreCompile {
                 switch (command) {
                     case ALLOCATE:
                         // must be a Data Type followed by a List of Variable name entries
-                        String access   = ScriptCompile.checkArgType (0, ParameterStruct.ParamType.String, params);
-                        String dataType = ScriptCompile.checkArgType (1, ParameterStruct.ParamType.String, params);
-                        ScriptCompile.checkArgType (2, ParameterStruct.ParamType.StrArray, params);
+                        String access   = ParseScript.checkArgType (0, ParameterStruct.ParamType.String, params);
+                        String dataType = ParseScript.checkArgType (1, ParameterStruct.ParamType.String, params);
+                        ParseScript.checkArgType (2, ParameterStruct.ParamType.StrArray, params);
                         ParameterStruct list = params.get(2);
 
                         // get the data type and access type for the variable

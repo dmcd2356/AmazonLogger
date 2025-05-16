@@ -485,7 +485,7 @@ public final class ParameterStruct {
      * 
      * @throws ParserException
      */
-    public ParamType classifyDataType (String strValue) throws ParserException {
+    public static ParamType classifyDataType (String strValue) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (strValue == null) {

@@ -3,17 +3,14 @@ KNOWN BUGS:
  - eliminate duplicate text data on OCR scan (not sure why this is occurring)
 
 TODO:
- - add check to make sure a RETURN command is included in each subroutine, or have the ENDSUB do it.
- - add check to FOR loop commands to make sure the NEXT, CONTINUE, ENDFOR are all in same subroutine (or MAIN)
- - add capability to read params passed to subroutine ($0 for subroutine name, $1, $2, $3... for args passed)
- - cleanup ScriptExecute on checking parameters
- - cleanup error handling messages.
+ - cleanup error handling messages and reporting errors with the stack trace.
  - More thorough error checking
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with
     certain debug messages enabled. Then capturing the debug output and comparing them to expected
     results.
 
-POSSIBILITIES:
+FUTURE:
+ - create a spreadsheet file (currently only allow opening one)
  - add -hyper option command to place a hypertext link in the cell of a spreadsheet
  - add DOUNTIL and DOWHILE commands (terminate in DONE)
  - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
@@ -45,4 +42,7 @@ TESTING PHASE:
  * add FILTER command and Trait to filter arrays.
  * Add ability to do OCR of scanned text documents and be able to read the text.
  * add ENDMAIN, SUB, ENDSUB, GOSUB, RETURN commands and $RETVAL return value from subroutine.
+ * add check to make sure a RETURN command is included in each subroutine, or have the ENDSUB do it.
+ * add check to FOR loop commands to make sure the NEXT, CONTINUE, ENDFOR are all in same subroutine (or MAIN)
+ * add capability to allocate variables as either GLOBAL or LOCAL to allow reuse of names in subroutines.
 
