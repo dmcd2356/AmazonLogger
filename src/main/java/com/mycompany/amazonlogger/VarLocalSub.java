@@ -88,12 +88,12 @@ public class VarLocalSub {
 
     public Long getUnsigned (String varName) throws ParserException {
         VarAccess local = checkLocalVar (varName, ParameterStruct.ParamType.Unsigned);
-        return local.getValueInteger();
+        return local.getValueUnsigned();
     }
         
     public void putUnsigned (String varName, Long value) throws ParserException {
         VarAccess local = checkLocalVar (varName, ParameterStruct.ParamType.Unsigned);
-        local.setValueInteger(value);
+        local.setValueUnsigned(value);
     }
         
     // =================== BOOLEAN var access ===================

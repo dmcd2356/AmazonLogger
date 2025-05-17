@@ -6,6 +6,7 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
@@ -18,11 +19,8 @@ public class VarGlobal {
     private static final String INDENT = "     ";
     
     // user-defined global static Variables
-    private static final HashMap<String, String>  strParams  = new HashMap<>();
-    private static final HashMap<String, Long>    longParams = new HashMap<>();
-    private static final HashMap<String, Long>    uintParams = new HashMap<>();
-    private static final HashMap<String, Boolean> boolParams = new HashMap<>();
-
+    private static final HashMap<String, VarAccess> globals  = new HashMap<>();
+    
     VarGlobal () {
     }
     
@@ -30,14 +28,63 @@ public class VarGlobal {
      * initializes the saved Variables
      */
     public static void initVariables () {
-        strParams.clear();
-        longParams.clear();
-        uintParams.clear();
-        boolParams.clear();
+        globals.clear();
     }
 
     /**
-     * returns the value of the String Variables.
+     * makes a global allocation for the given variable specs.
+     * 
+     * @param varName - name of the variable
+     * @param ptype   - parameter type of variable
+     * @param subName - subroutine it is defined in
+     * 
+     * @throws ParserException 
+     */
+    public static void allocVar (String varName, ParameterStruct.ParamType ptype, String subName) throws ParserException {
+        VarAccess var = new VarAccess(subName, varName, ptype, Variables.AccessType.GLOBAL);
+        globals.put(varName, var);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Allocated GLOBAL " + ptype + " variable: " + varName + " in " + subName);
+    }
+    
+    /**
+     * determine if local variable exists for the current subroutine running.
+     * 
+     * @param varName - name of the variable
+     * 
+     * @return data type of variable if found
+     * 
+     * @throws ParserException 
+     */
+    public static boolean isDefined (String varName) throws ParserException {
+        if (varName == null) {
+            return false;
+        }
+        return globals.containsKey(varName);
+    }
+    
+    /**
+     * determine if local variable exists for the current subroutine running.
+     * 
+     * @param varName - name of the variable
+     * 
+     * @return data type of variable if found
+     * 
+     * @throws ParserException 
+     */
+    public static ParameterStruct.ParamType getDataType (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (varName == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
+        VarAccess var = globals.get(varName);
+        if (var != null)
+            return var.getType();
+        return null;
+    }
+    
+    /**
+     * returns the value of the String Variable.
      * 
      * @param name  - Variable name
      * 
@@ -51,10 +98,11 @@ public class VarGlobal {
         if (name == null) {
             throw new ParserException(functionId + "Null input value");
         }
-        if (! strParams.containsKey(name)) {
+        VarAccess var = globals.get(name);
+        if (var == null) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
-        return strParams.get(name);
+        return var.getValueString();
     }
 
     /**
@@ -72,16 +120,17 @@ public class VarGlobal {
         if (name == null || value == null) {
             throw new ParserException(functionId + "Null input value");
         }
-        if (strParams.containsKey(name)) {
-            strParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified String param: " + name + " = " + value);
-        } else {
+        if (! globals.containsKey(name)) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
+        VarAccess var = globals.get(name);
+        var.setValueString(value);
+        globals.replace(name, var);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified String param: " + name + " = " + value);
     }
 
     /**
-     * returns the value of the Integer Variables.
+     * returns the value of the Integer Variable.
      * 
      * @param name  - Variable name
      * 
@@ -95,10 +144,11 @@ public class VarGlobal {
         if (name == null) {
             throw new ParserException(functionId + "Null input value");
         }
-        if (! longParams.containsKey(name)) {
+        VarAccess var = globals.get(name);
+        if (var == null) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
-        return longParams.get(name);
+        return var.getValueInteger();
     }
 
     /**
@@ -116,16 +166,17 @@ public class VarGlobal {
         if (name == null || value == null) {
             throw new ParserException(functionId + "Null input value");
         }
-        if (longParams.containsKey(name)) {
-            longParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified Integer param: " + name + " = " + value);
-        } else {
+        if (! globals.containsKey(name)) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
+        VarAccess var = globals.get(name);
+        var.setValueInteger(value);
+        globals.replace(name, var);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified Integer param: " + name + " = " + value);
     }
 
     /**
-     * returns the value of the Unsigned Variablee.
+     * returns the value of the Unsigned Variable.
      * 
      * @param name  - Variable name
      * 
@@ -139,10 +190,11 @@ public class VarGlobal {
         if (name == null) {
             throw new ParserException(functionId + "Null input value");
         }
-        if (! uintParams.containsKey(name)) {
+        VarAccess var = globals.get(name);
+        if (var == null) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
-        return uintParams.get(name);
+        return var.getValueUnsigned();
     }
 
     /**
@@ -160,21 +212,21 @@ public class VarGlobal {
         if (name == null || value == null) {
             throw new ParserException(functionId + "Null input value");
         }
-        if (! ParameterStruct.isUnsignedInt(value)) {
-            throw new ParserException(functionId + "value for Variable " + name + " exceeds limits for Unsigned: " + value);
-        }
         if (name.contentEquals("RANDOM")) {
             VarReserved.setMaxRandom(value);
-        } else if (uintParams.containsKey(name)) {
-            uintParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified Unsigned param: " + name + " = " + value);
-        } else {
+            return;
+        }
+        if (! globals.containsKey(name)) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
+        VarAccess var = globals.get(name);
+        var.setValueUnsigned(value);
+        globals.replace(name, var);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified Unsigned param: " + name + " = " + value);
     }
 
     /**
-     * returns the value of the Boolean Variablee.
+     * returns the value of the Boolean Variable.
      * 
      * @param name  - Variable name
      * 
@@ -188,10 +240,11 @@ public class VarGlobal {
         if (name == null) {
             throw new ParserException(functionId + "Null input value");
         }
-        if (! boolParams.containsKey(name)) {
+        VarAccess var = globals.get(name);
+        if (var == null) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
-        return boolParams.get(name);
+        return var.getValueBoolean();
     }
 
     /**
@@ -209,93 +262,97 @@ public class VarGlobal {
         if (name == null || value == null) {
             throw new ParserException(functionId + "Null input value");
         }
-        if (boolParams.containsKey(name)) {
-            boolParams.replace(name, value);
-            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified Boolean param: " + name + " = " + value);
-        } else {
+        if (! globals.containsKey(name)) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
+        VarAccess var = globals.get(name);
+        var.setValueBoolean(value);
+        globals.replace(name, var);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified Boolean param: " + name + " = " + value);
     }
 
     /**
-     * determine if local variable exists for the current subroutine running.
+     * returns the value of the StrArray Variable.
      * 
-     * @param varName - name of the variable
+     * @param name  - Variable name
      * 
-     * @return data type of variable if found
+     * @return variable value
      * 
-     * @throws ParserException 
+     * @throws ParserException
      */
-    public boolean isDefined (String varName) throws ParserException {
-        if (varName == null) {
-            return false;
-        }
-        if (longParams.containsKey(varName)) return true;
-        if (uintParams.containsKey(varName)) return true;
-        if (strParams.containsKey(varName))  return true;
-        if (boolParams.containsKey(varName)) return true;
-//        if (varArray.isIntArray(varName))   return true;
-//        if (varArray.isStrArray(varName))   return true;
-        return false;
-    }
-    
-    /**
-     * determine if local variable exists for the current subroutine running.
-     * 
-     * @param varName - name of the variable
-     * 
-     * @return data type of variable if found
-     * 
-     * @throws ParserException 
-     */
-    public ParameterStruct.ParamType getDataType (String varName) throws ParserException {
+    public static ArrayList<String> getStrArray (String name) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (varName == null) {
+        if (name == null) {
             throw new ParserException(functionId + "Null input value");
         }
-        if (longParams.containsKey(varName)) return ParameterStruct.ParamType.Integer;
-        if (uintParams.containsKey(varName)) return ParameterStruct.ParamType.Unsigned;
-        if (strParams.containsKey(varName))  return ParameterStruct.ParamType.String;
-        if (boolParams.containsKey(varName)) return ParameterStruct.ParamType.Boolean;
-//        if (varArray.isIntArray(varName))   return ParameterStruct.ParamType.IntArray;
-//        if (varArray.isStrArray(varName))   return ParameterStruct.ParamType.StrArray;
-        return null;
+        VarAccess var = globals.get(name);
+        if (var == null) {
+            throw new ParserException(functionId + "Variable " + name + " not found");
+        }
+        return var.getValueStrArray();
     }
     
     /**
-     * makes a global allocation for the given variable specs.
+     * modifies the value of an existing entry in the StrArray Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
      * 
-     * @param varName - name of the variable
-     * @param subName - subroutine it is defined in
-     * @param ptype   - parameter type of variable
+     * @param name  - Variable name
+     * @param value - Variable value
      * 
-     * @throws ParserException 
+     * @throws ParserException
      */
-    public void allocVar (String varName, String subName, ParameterStruct.ParamType ptype) throws ParserException {
+    public static void updateStrArray (String name, ArrayList<String> value) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        switch (ptype) {
-            case Integer:
-                longParams.put(varName, 0L);
-                break;
-            case Unsigned:
-                uintParams.put(varName, 0L);
-                break;
-            case Boolean:
-                boolParams.put(varName, false);
-                break;
-            case String:
-                strParams.put(varName, "");
-                break;
-//            case IntArray:
-//            case StrArray:
-//                varArray.allocateVariable(varName, ptype);
-//                break;
-            default:
-                throw new ParserException(functionId + "Invalid variable type: " + ptype);
+        if (name == null || value == null) {
+            throw new ParserException(functionId + "Null input value");
         }
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Allocated GLOBAL " + ptype + " variable: " + varName + " in " + subName);
+        VarAccess var = globals.get(name);
+        var.setValueStrArray(value);
+        globals.replace(name, var);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified StrArray param: " + name);
     }
     
+    /**
+     * returns the value of the IntArray Variable.
+     * 
+     * @param name  - Variable name
+     * 
+     * @return variable value
+     * 
+     * @throws ParserException
+     */
+    public static ArrayList<Long> getIntArray (String name) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (name == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
+        VarAccess var = globals.get(name);
+        if (var == null) {
+            throw new ParserException(functionId + "Variable " + name + " not found");
+        }
+        return var.getValueIntArray();
+    }
+
+    /**
+     * modifies the value of an existing entry in the IntArray Variable table.
+     * Indicates if the name was not found (does NOT create a new entry).
+     * 
+     * @param name  - Variable name
+     * @param value - Variable value
+     * 
+     * @throws ParserException
+     */
+    public static void updateIntArray (String name, ArrayList<Long> value) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        if (name == null || value == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
+        VarAccess var = globals.get(name);
+        var.setValueIntArray(value);
+        globals.replace(name, var);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified IntArray param: " + name);
+    }
+
 }

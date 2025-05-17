@@ -21,8 +21,7 @@ public class PreCompile {
     
     private static final String CLASS_NAME = PreCompile.class.getSimpleName();
 
-    private static final Variables var = new Variables();
-    private static final VarLocal varLocal = var.varLocal;
+    private static final Variables variables = new Variables();
 
     /**
      * compiles the external script file (when -f option used) into a series of
@@ -126,7 +125,7 @@ public class PreCompile {
                         // Multiple Variables can be defined on one line, with the names comma separated
                         for (int ix = 0; ix < list.getStrArraySize(); ix++) {
                             String pName = list.getStrArrayElement(ix);
-                            var.allocateVariable(access, dataType, pName, subName);
+                            variables.allocateVariable(access, dataType, pName, subName);
                         }
                         break;
                     case ENDMAIN:
@@ -139,7 +138,7 @@ public class PreCompile {
                         }
                         subName = params.get(0).getStringValue();
                         subs.compileSubStart (subName, lineNum);
-                        varLocal.allocSubroutine(subName);
+                        variables.varLocal.allocSubroutine(subName);
                         break;
                     case ENDSUB:
                         subs.compileSubEnd (lineNum);
@@ -159,7 +158,7 @@ public class PreCompile {
         }  // end of while loop
 
         fileReader.close();
-        return var;
+        return variables;
     }
         
 }

@@ -15,7 +15,7 @@ import java.util.ArrayList;
 public class VarAccess {
 
     private static final String CLASS_NAME = VarAccess.class.getSimpleName();
-    private static final String indent = "     ";
+    private static final String INDENT = "     ";
     
     private ParameterStruct.ParamType varType; // the variable data type
     private Variables.AccessType access;    // type of access permitted to variable
@@ -61,7 +61,7 @@ public class VarAccess {
                 this.intArray = new ArrayList<>();
                 break;
         }
-        frame.outputInfoMsg(STATUS_VARS, indent + "LOCAL " + varType + " Variable " + varName + " allocated for subroutine: " + this.owner);
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + varType + " Variable " + varName + " allocated for subroutine: " + this.owner);
     }
 
     private void checkType (ParameterStruct.ParamType callType) throws ParserException {
@@ -99,6 +99,17 @@ public class VarAccess {
         this.writeTime = UIFrame.elapsedTimerGet();
     }
         
+    public void setValueUnsigned (Long value) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        checkType (ParameterStruct.ParamType.Unsigned);
+        if (! ParameterStruct.isUnsignedInt(value)) {
+            throw new ParserException(functionId + "Invalid value for type Unsigned: " + value);
+        }
+        this.intValue = value;
+        this.writer = Subroutine.getCurrentIndex();
+        this.writeTime = UIFrame.elapsedTimerGet();
+    }
+        
     public void setValueBoolean (Boolean value) throws ParserException {
         checkType (ParameterStruct.ParamType.Boolean);
         this.boolValue = value;
@@ -129,6 +140,11 @@ public class VarAccess {
     public Long getValueInteger () throws ParserException {
         checkType (ParameterStruct.ParamType.Integer);
         return this.intValue;
+    }
+        
+    public Long getValueUnsigned () throws ParserException {
+        checkType (ParameterStruct.ParamType.Unsigned);
+        return this.intValue & 0xFFFFFFFFL;
     }
         
     public Boolean getValueBoolean () throws ParserException {

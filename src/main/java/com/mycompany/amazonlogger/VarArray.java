@@ -8,7 +8,6 @@ import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.ParameterStruct.getLongOrUnsignedValue;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Objects;
 
 /**
@@ -20,115 +19,43 @@ public class VarArray {
     private static final String CLASS_NAME = VarArray.class.getSimpleName();
     private static final String INDENT = "    ";
     
-    // array Variables
-    private static final HashMap<String, ArrayList<Long>>   intArrayParams = new HashMap<>();
-    private static final HashMap<String, ArrayList<String>> strArrayParams = new HashMap<>();
-    
     // array filter info
     private static ArrayList<Boolean> ixFilter = null;
 
- 
-    VarArray() {
-    }
-    
-    /**
-     * initializes the saved Variables
-     */
-    public static void initVariables () {
-        intArrayParams.clear();
-        strArrayParams.clear();
-    }
+    private final Variables  variables;
 
-    //==========================================    
-    // Putter functions
-    //==========================================
-    
-    public void allocStrArray (String name) throws ParserException {
-        strArrayParams.put(name, new ArrayList<>());
+    VarArray(Variables var) {
+        this.variables = var;
     }
     
-    public void allocIntArray (String name) throws ParserException {
-        intArrayParams.put(name, new ArrayList<>());
-    }
-
-    public void updateStrArray (String name, ArrayList<String> value) throws ParserException {
-        strArrayParams.replace(name, value);
+    private boolean isStrArray (String name) throws ParserException {
+        ParameterStruct.ParamType ptype = variables.getVariableTypeFromName(name);
+        return ptype == ParameterStruct.ParamType.StrArray;
     }
     
-    public void updateIntArray (String name, ArrayList<Long> value) throws ParserException {
-        intArrayParams.replace(name, value);
-    }
-
-    //==========================================    
-    // Getter functions
-    //==========================================
-    
-    public boolean isIntArray (String name) throws ParserException {
-        return intArrayParams.containsKey(name);
+    private boolean isIntArray (String name) throws ParserException {
+        ParameterStruct.ParamType ptype = variables.getVariableTypeFromName(name);
+        return ptype == ParameterStruct.ParamType.IntArray;
     }
     
-    public boolean isStrArray (String name) throws ParserException {
-        return strArrayParams.containsKey(name);
-    }
-    
-    public ArrayList<String> getStrArray (String name) throws ParserException {
-        return strArrayParams.get(name);
-    }
-    
-    public ArrayList<Long> getIntArray (String name) throws ParserException {
-        return intArrayParams.get(name);
-    }
-
     public String getStrArrayEntry (String name, int ix) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        int size = getStrArray(name).size();
+        int size = variables.getStrArray(name).size();
         if (ix >= size) {
             throw new ParserException(functionId + "Index exceeded max size of Array " + name + " (ix = " + ix + ", size = " + size + ")");
         }
-        return getStrArray(name).get(ix);
+        return variables.getStrArray(name).get(ix);
     }
     
     public Long getIntArrayEntry (String name, int ix) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        int size = getIntArray(name).size();
+        int size = variables.getIntArray(name).size();
         if (ix >= size) {
             throw new ParserException(functionId + "Index exceeded max size of Array " + name + " (ix = " + ix + ", size = " + size + ")");
         }
-        return getIntArray(name).get(ix);
+        return variables.getIntArray(name).get(ix);
     }
 
-    //==========================================    
-    // Reserved variable access functions
-    //==========================================
-    
-    /**
-     * gets the $FILTER Variable
-     * 
-     * @return the filter Variable
-     */
-    public static ArrayList<Boolean> getFilterArray () {
-        return ixFilter;
-    }
-    
-    /**
-     * creates a new entry in the Variable table and sets the initial value.
-     * 
-     * @param name  - Variable name
-     * @param type  - the type of parameter
-     */
-    public void allocateVariable (String name, ParameterStruct.ParamType type) throws ParserException {
-        switch (type) {
-            case ParameterStruct.ParamType.IntArray:
-                allocIntArray(name);
-                break;
-            case ParameterStruct.ParamType.StrArray:
-                allocStrArray(name);
-                break;
-            default:
-                break;
-        }
-    }
-    
     /**
      * get the number of elements in an existing Array Variable.
      * Indicates if the name was not found (does NOT create a new entry).
@@ -148,9 +75,9 @@ public class VarArray {
         if (VarReserved.isArray(name)) {
             return VarReserved.getArraySize(name);
         } else if (isIntArray(name)) {
-            return getIntArray(name).size();
+            return variables.getIntArray(name).size();
         } else if (isStrArray(name)) {
-            return getStrArray(name).size();
+            return variables.getStrArray(name).size();
         }
         throw new ParserException(functionId + "Array Variable " + name + " not found");
     }
@@ -173,7 +100,7 @@ public class VarArray {
         if (!isStrArray(name)) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
-        updateStrArray(name, value);
+        variables.setStrArray(name, value);
         frame.outputInfoMsg(STATUS_VARS, INDENT + "- Saved StrArray param: " + name);
     }
 
@@ -195,7 +122,7 @@ public class VarArray {
         if (!isIntArray(name)) {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
-        updateIntArray(name, value);
+        variables.setIntArray(name, value);
         frame.outputInfoMsg(STATUS_VARS, INDENT + "- Saved IntArray param: " + name);
     }
 
@@ -223,14 +150,14 @@ public class VarArray {
             return true;
         }
         else if (isIntArray(name)) {
-            ArrayList<Long> entry = getIntArray(name);
+            ArrayList<Long> entry = variables.getIntArray(name);
             int size = entry.size();
             entry.clear();
             frame.outputInfoMsg(STATUS_VARS, INDENT + "- Deleted " + size + " entries in Array param: " + name);
             return true;
         }
         else if (isStrArray(name)) {
-            ArrayList<String> entry = getStrArray(name);
+            ArrayList<String> entry = variables.getStrArray(name);
             int size = entry.size();
             entry.clear();
             frame.outputInfoMsg(STATUS_VARS, INDENT + "- Deleted " + size + " entries in List param: " + name);
@@ -264,7 +191,7 @@ public class VarArray {
         int size;
         String arrayContents;
         if (isIntArray(name)) {
-            ArrayList<Long> entry = getIntArray(name);
+            ArrayList<Long> entry = variables.getIntArray(name);
             size = entry.size();
             if (iStart + iCount > size) {
                 throw new ParserException(functionId + "Array Variable " + name + " index range exceeded: " + iStart + " to " + (iStart + iCount) + " (max " + entry.size() + ")");
@@ -278,7 +205,7 @@ public class VarArray {
             }
             arrayContents = entry.toString();
         } else if (isStrArray(name)) {
-            ArrayList<String> entry = getStrArray(name);
+            ArrayList<String> entry = variables.getStrArray(name);
             size = entry.size();
             if (iStart + iCount > size) {
                 throw new ParserException(functionId + "Array Variable " + name + " index range exceeded: " + iStart + " to " + (iStart + iCount) + " (max " + entry.size() + ")");
@@ -320,7 +247,7 @@ public class VarArray {
         try {
             String arrayContents;
             if (isIntArray(name)) {
-                ArrayList<Long> entry = getIntArray(name);
+                ArrayList<Long> entry = variables.getIntArray(name);
                 if (index >= entry.size()) {
                     throw new ParserException(functionId + "Array Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
@@ -329,7 +256,7 @@ public class VarArray {
                 arrayContents = entry.toString();
             }
             else if (isStrArray(name)) {
-                ArrayList<String> entry = getStrArray(name);
+                ArrayList<String> entry = variables.getStrArray(name);
                 if (index >= entry.size()) {
                     throw new ParserException(functionId + "List Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
@@ -368,7 +295,7 @@ public class VarArray {
         try {
             String arrayContents;
             if (isIntArray(name)) {
-                ArrayList<Long> entry = getIntArray(name);
+                ArrayList<Long> entry = variables.getIntArray(name);
                 Long longVal = getLongOrUnsignedValue (value);
                 if (index >= entry.size() || entry.isEmpty()) {
                     throw new ParserException(functionId + "Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
@@ -382,7 +309,7 @@ public class VarArray {
                 arrayContents = entry.toString();
             }
             else if (isStrArray(name)) {
-                ArrayList<String> entry = getStrArray(name);
+                ArrayList<String> entry = variables.getStrArray(name);
                 if (index >= entry.size() || entry.isEmpty()) {
                     throw new ParserException(functionId + "Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
@@ -423,7 +350,7 @@ public class VarArray {
         }
         String arrayContents;
         if (isIntArray(name)) {
-            ArrayList<Long> entry = getIntArray(name);
+            ArrayList<Long> entry = variables.getIntArray(name);
             try {
                 Long longVal = getLongOrUnsignedValue (value);
                 entry.addLast(longVal);
@@ -433,7 +360,7 @@ public class VarArray {
             }
         }
         else if (isStrArray(name)) {
-            ArrayList<String> entry = getStrArray(name);
+            ArrayList<String> entry = variables.getStrArray(name);
             entry.addLast(value);
             arrayContents = entry.toString();
         } else {
@@ -448,6 +375,19 @@ public class VarArray {
         return true;
     }
 
+    //==========================================    
+    // Array Filter methods
+    //==========================================
+    
+    /**
+     * gets the $FILTER Variable
+     * 
+     * @return the filter Variable
+     */
+    public static ArrayList<Boolean> getFilterArray () {
+        return ixFilter;
+    }
+    
     /**
      * resets the array filter.
      */
@@ -474,7 +414,7 @@ public class VarArray {
         if (! isStrArray(varName)) {
             throw new ParserException(functionId + "Array parameter not found: " + varName);
         }
-        ArrayList<String> var = getStrArray(varName);
+        ArrayList<String> var = variables.getStrArray(varName);
 
         // if this is 1st filter being performed, init entries to all true
         if (ixFilter == null) {
@@ -548,7 +488,7 @@ public class VarArray {
         if (! isIntArray(varName)) {
             throw new ParserException(functionId + "Array parameter not found: " + varName);
         }
-        ArrayList<Long> var = getIntArray(varName);
+        ArrayList<Long> var = variables.getIntArray(varName);
         for (int ix = 0; ix < var.size(); ix++) {
             Long entry = var.get(ix);
             boolean bMatch = false;

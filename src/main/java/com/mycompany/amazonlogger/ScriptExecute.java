@@ -39,12 +39,14 @@ public class ScriptExecute {
     private static String fileName;
     private static String fileDir = Utils.getDefaultPath (Utils.PathType.Test);
 
-    public static Variables variables = ScriptCompile.variables;
+    public  static Variables variables = ScriptCompile.variables;
+    public  static VarArray  varArray;
 
     ScriptExecute () {
         if (variables == null) {
             variables = new Variables();
         }
+        varArray = new VarArray(variables);
         this.cmdOptionParser = new CmdOptions();
     }
 
@@ -244,7 +246,6 @@ public class ScriptExecute {
         String exceptPreface = functionId + linePreface;
         String debugPreface = "    ";
         int newIndex = -1;
-        VarArray varArray = ScriptCompile.variables.varArray;
         
         // replace all program references in the command to their corresponding values.
         // (skip for SET command so as not to modify the parameter we are setting.
@@ -531,12 +532,12 @@ public class ScriptExecute {
                 switch (type) {
                     case ParameterStruct.ParamType.Integer:
                         Long result = getIntegerArg (parm1);
-                        variables.modifyIntegerVariable(varName, result);
+                        variables.setIntegerVariable(varName, result);
                         break;
                     case ParameterStruct.ParamType.Unsigned:
                         result = getIntegerArg (parm1);
                         result &= 0xFFFFFFFF;
-                        variables.modifyUnsignedVariable(varName, result);
+                        variables.setUnsignedVariable(varName, result);
                         break;
                     case ParameterStruct.ParamType.Boolean:
                         Boolean bResult = getComparison(parm1, parm2, parm3);
@@ -544,17 +545,17 @@ public class ScriptExecute {
                         break;
 
                     case ParameterStruct.ParamType.IntArray:
-                        varArray.setIntArrayVariable(varName, parm1.getIntArray());
+                        variables.setIntArray(varName, parm1.getIntArray());
                         break;
                     case ParameterStruct.ParamType.StrArray:
-                        varArray.setStrArrayVariable(varName, parm1.getStrArray());
+                        variables.setStrArray(varName, parm1.getStrArray());
                         break;
                     case ParameterStruct.ParamType.String:
                         // The entries should be a list of 1 or more Strings to concatenate into 1
                         // (any parameter references should have been converted to their appropriate value
                         //  at the begining of the execution phase)
                         String concat = getStringArg (cmdStruct.params, 2);
-                        variables.modifyStringVariable(varName, concat);
+                        variables.setStringVariable(varName, concat);
                         break;
                     default:
                         throw new ParserException(exceptPreface + varType + " Invalid data type: " + type);

@@ -23,7 +23,6 @@ public class Variables {
             
     public final VarGlobal   varGlobal   = new VarGlobal();
     public final VarLocal    varLocal    = new VarLocal();
-    public final VarArray    varArray    = new VarArray();
 
 
     public enum AccessType {
@@ -55,7 +54,6 @@ public class Variables {
     public static void initVariables () {
         VarReserved.initVariables();
         VarGlobal.initVariables();
-        VarArray.initVariables();
         LoopParam.initVariables();
     }
 
@@ -68,7 +66,7 @@ public class Variables {
      * 
      * @throws ParserException
      */
-    public void modifyStringVariable (String name, String value) throws ParserException {
+    public void setStringVariable (String name, String value) throws ParserException {
         switch (getVariableClass (name)) {
             case LOCAL:
                 varLocal.putString(name, value);
@@ -89,7 +87,7 @@ public class Variables {
      * 
      * @throws ParserException
      */
-    public void modifyIntegerVariable (String name, Long value) throws ParserException {
+    public void setIntegerVariable (String name, Long value) throws ParserException {
         switch (getVariableClass (name)) {
             case LOCAL:
                 varLocal.putInteger(name, value);
@@ -110,7 +108,7 @@ public class Variables {
      * 
      * @throws ParserException
      */
-    public void modifyUnsignedVariable (String name, Long value) throws ParserException {
+    public void setUnsignedVariable (String name, Long value) throws ParserException {
         switch (getVariableClass (name)) {
             case LOCAL:
                 varLocal.putUnsigned(name, value);
@@ -131,7 +129,7 @@ public class Variables {
      * 
      * @throws ParserException
      */
-    public void modifyBooleanVariable (String name, Boolean value) throws ParserException {
+    public void setBooleanVariable (String name, Boolean value) throws ParserException {
         switch (getVariableClass (name)) {
             case LOCAL:
                 varLocal.putBoolean(name, value);
@@ -139,6 +137,30 @@ public class Variables {
             default:
             case GLOBAL:
                 VarGlobal.putBooleanVariable(name, value);
+                break;
+        }
+    }
+    
+    public void setStrArray (String name, ArrayList<String> value) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                varLocal.updateStrArray(name, value);
+                break;
+            default:
+            case GLOBAL:
+                VarGlobal.updateStrArray(name, value);
+                break;
+        }
+    }
+    
+    public void setIntArray (String name, ArrayList<Long> value) throws ParserException {
+        switch (getVariableClass (name)) {
+            case LOCAL:
+                varLocal.updateIntArray(name, value);
+                break;
+            default:
+            case GLOBAL:
+                VarGlobal.updateIntArray(name, value);
                 break;
         }
     }
@@ -182,82 +204,14 @@ public class Variables {
                 return VarGlobal.getBooleanVariable(name);
         }
     }
-    
-    public void allocStrArray (String name) throws ParserException {
-        switch (getVariableClass (name)) {
-            case LOCAL:
-                varLocal.allocVar(name, ParameterStruct.ParamType.StrArray);
-                break;
-            default:
-            case GLOBAL:
-                varArray.allocStrArray(name);
-                break;
-        }
-    }
-    
-    public void allocIntArray (String name) throws ParserException {
-        switch (getVariableClass (name)) {
-            case LOCAL:
-                varLocal.allocVar(name, ParameterStruct.ParamType.IntArray);
-                break;
-            default:
-            case GLOBAL:
-                varArray.allocIntArray(name);
-                break;
-        }
-    }
 
-    public void updateStrArray (String name, ArrayList<String> value) throws ParserException {
-        switch (getVariableClass (name)) {
-            case LOCAL:
-                varLocal.updateStrArray(name, value);
-                break;
-            default:
-            case GLOBAL:
-                varArray.updateStrArray(name, value);
-                break;
-        }
-    }
-    
-    public void updateIntArray (String name, ArrayList<Long> value) throws ParserException {
-        switch (getVariableClass (name)) {
-            case LOCAL:
-                varLocal.updateIntArray(name, value);
-                break;
-            default:
-            case GLOBAL:
-                varArray.updateIntArray(name, value);
-                break;
-        }
-    }
-
-    public boolean isIntArray (String name) throws ParserException {
-        switch (getVariableClass (name)) {
-            case LOCAL:
-                return varLocal.isIntArray(name);
-            default:
-            case GLOBAL:
-                return varArray.isIntArray(name);
-        }
-    }
-    
-    public boolean isStrArray (String name) throws ParserException {
-        switch (getVariableClass (name)) {
-            case LOCAL:
-                return varLocal.isStrArray(name);
-            default:
-            case GLOBAL:
-                return varArray.isStrArray(name);
-        }
-    }
-    
     public ArrayList<String> getStrArray (String name) throws ParserException {
         switch (getVariableClass (name)) {
             case LOCAL:
                 return varLocal.getStrArray(name);
             default:
             case GLOBAL:
-                return varArray.getStrArray(name);
+                return VarGlobal.getStrArray(name);
         }
     }
     
@@ -267,10 +221,10 @@ public class Variables {
                 return varLocal.getIntArray(name);
             default:
             case GLOBAL:
-                return varArray.getIntArray(name);
+                return VarGlobal.getIntArray(name);
         }
     }
-
+    
     /**
      * checks whether specified variable has Read permission for current function.
      * 
@@ -289,14 +243,6 @@ public class Variables {
         String curSub = Subroutine.getSubName();
         boolean bExists;
         bExists = varGlobal.isDefined(varName);
-        if (bExists) {
-            return;
-        }
-        bExists = varArray.isIntArray(varName);
-        if (bExists) {
-            return;
-        }
-        bExists = varArray.isStrArray(varName);
         if (bExists) {
             return;
         }
@@ -326,14 +272,6 @@ public class Variables {
         boolean bExists;
 
         bExists = varGlobal.isDefined(varName);
-        if (bExists) {
-            return;
-        }
-        bExists = varArray.isIntArray(varName);
-        if (bExists) {
-            return;
-        }
-        bExists = varArray.isStrArray(varName);
         if (bExists) {
             return;
         }
@@ -387,15 +325,7 @@ public class Variables {
         if (access == AccessType.LOCAL) {
             varLocal.allocVar (varName, ptype);
         } else {
-            switch (ptype) {
-                case IntArray:
-                case StrArray:
-                    varArray.allocateVariable(varName, ptype);
-                    break;
-                default:
-                    varGlobal.allocVar (varName, subName, ptype);
-                    break;
-            }
+            varGlobal.allocVar (varName, ptype, subName);
         }
     }
 
@@ -610,13 +540,9 @@ public class Variables {
         else if (VarReserved.isReservedName (name) != null) {
             varClass = VarClass.RESERVED;
         }
-        else if (varGlobal.getDataType ( name) != null) {
+        else if (VarGlobal.getDataType ( name) != null) {
             varClass = VarClass.GLOBAL;
         }
-        else if (varArray.isIntArray(name))
-            varClass = VarClass.GLOBAL;
-        else if (varArray.isStrArray(name))
-            varClass = VarClass.GLOBAL;
         else if (varLocal.getDataType (name, null) != null) {
             varClass = VarClass.LOCAL;
         }
@@ -658,13 +584,7 @@ public class Variables {
             vartype = VarReserved.getVariableTypeFromName(name);
         }
         if (vartype == null) {
-            vartype = varGlobal.getDataType (name);
-        }
-        if (vartype == null) {
-            if (varArray.isIntArray(name))
-                vartype = ParameterStruct.ParamType.IntArray;
-            else if (varArray.isStrArray(name))
-                vartype = ParameterStruct.ParamType.StrArray;
+            vartype = VarGlobal.getDataType (name);
         }
         if (vartype == null) {
             vartype = varLocal.getDataType (name, null);
@@ -750,10 +670,10 @@ public class Variables {
                 refValue.setStringValue(VarGlobal.getStringVariable(varName));
                 break;
             case StrArray:
-                refValue.setStrArray(varArray.getStrArray(varName));
+                refValue.setStrArray(VarGlobal.getStrArray(varName));
                 break;
             case IntArray:
-                refValue.setIntArray(varArray.getIntArray(varName));
+                refValue.setIntArray(VarGlobal.getIntArray(varName));
                 break;
         }
         String value = refValue.getStringValue();

@@ -245,8 +245,10 @@ public class TraitInfo {
                     iValue = (long) variables.getStringSize(varName);
                     break;
                 case StrArray:
+                    iValue = (long) variables.getStrArray(varName).size();
+                    break;
                 case IntArray:
-                    iValue = (long) variables.varArray.getArraySize(varName);
+                    iValue = (long) variables.getIntArray(varName).size();
                     break;
                 default:
                     break;
