@@ -30,7 +30,7 @@ public final class ParameterStruct {
     
     private ParamClass          paramClass;     // class of the parameter
     private ParamType           paramType;      // parameter classification
-    private VariableInfo        variableRef;    // info if a referenced Variable is used instead of a value
+    private VarExtensions       variableRef;    // info if a referenced Variable is used instead of a value
 
     
     public enum ParamClass {
@@ -56,7 +56,7 @@ public final class ParameterStruct {
         strArrayParam = null;
         calcParam = null;
         paramClass = null;
-        variableRef = new VariableInfo();
+        variableRef = new VarExtensions();
         paramType = null;
     }
 
@@ -77,7 +77,7 @@ public final class ParameterStruct {
         String functionId = CLASS_NAME + " (new): ";
         String msgGap = "      ";
         
-        variableRef = new VariableInfo();
+        variableRef = new VarExtensions();
         calcParam = null;
         strParam = strValue;
         paramClass = pClass;
@@ -95,8 +95,8 @@ public final class ParameterStruct {
                 if (calc.getCalcCount() == 1) {
                     String paramName = calc.getCalcParam();
                     if (paramName != null) {
-                        VariableExtract paramInfo = new VariableExtract(paramName);
-                        variableRef = new VariableInfo(paramInfo);
+                        VarExtract paramInfo = new VarExtract(paramName);
+                        variableRef = new VarExtensions(paramInfo);
                         paramClass = ParamClass.Reference;
                         frame.outputInfoMsg(STATUS_DEBUG, msgGap + "Converted Calculation parameter to single Reference value: " + variableRef.getName());
                     } else {
@@ -115,8 +115,8 @@ public final class ParameterStruct {
             if (pClass == ParamClass.Reference) {
                 // VARIABLE REFERENCE ENTRY:
                 // extract any extension added to the Variable
-                VariableExtract paramInfo = new VariableExtract(strParam);
-                variableRef = new VariableInfo(paramInfo);
+                VarExtract paramInfo = new VarExtract(strParam);
+                variableRef = new VarExtensions(paramInfo);
                 frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Reference type " + paramType + " name: " + variableRef.getName());
                 return;
             }
@@ -214,7 +214,7 @@ public final class ParameterStruct {
         intArrayParam = value;
     }
     
-    public void setVariableRef (VariableInfo value) {
+    public void setVariableRef (VarExtensions value) {
         variableRef = value;
     }
     
@@ -301,7 +301,7 @@ public final class ParameterStruct {
      * 
      * @return the reference Variable name (null if parameter is not a reference)
      */
-    public VariableInfo getVariableRef () {
+    public VarExtensions getVariableRef () {
         return variableRef;
     }
        

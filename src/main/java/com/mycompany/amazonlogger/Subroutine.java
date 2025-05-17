@@ -38,8 +38,8 @@ public class Subroutine {
     private static final ArrayList<SubInfo> subCallList = new ArrayList<>();
     private static final ArrayList<String>  subUsed = new ArrayList<>();
     
-    // the current command index (valid for both COMPILE and EXECUTE)
-    private static Integer curCmdIndex = 0;
+    // the current script line number
+    private static Integer curLineNum  = 1;
 
     /**
      * this class is used for defining the bounds of the script file for the subroutines.
@@ -101,35 +101,69 @@ public class Subroutine {
     }
 
     Subroutine() {
-        curCmdIndex = 0;
+        curLineNum = 1;
     }
     
     /**
      * sets the current command index location during compile and execution.
      * 
-     * @param cmdIndex - the current command index
+     * @param lineNum - the current command index
      */
-    public static void setCurrentIndex (int cmdIndex) {
-        curCmdIndex = cmdIndex;
+    public static void setCurrentIndex (int lineNum) {
+        curLineNum = lineNum;
     }
 
     /**
-     * finds the subroutine name in the compiler info array.
+     * sets the current command index location during compile and execution.
      * 
-     * @param subName - name of subroutine to check
-     * 
-     * @return the index to the info (null if not found)
+     * @return the current command index
      */
-    private static Integer getCompileInfo (String subName) {
-        for (int ix = 0; ix < subCallList.size(); ix++) {
-            SubInfo info = subCallList.get(ix);
-            if (info.subName.contentEquals(subName)) {
-                return ix;
-            }
-        }
-        return null;
+    public static int getCurrentIndex () {
+        return curLineNum;
     }
 
+    /**
+     * determines if code is currently from the MAIN section of the script.
+     * 
+     * @return true if running in MAIN (or compiler is verifying the MAIN section)
+     */
+    public static boolean isMainFunction() {
+        return getSubName().contentEquals(MAIN_FCTN);
+    }
+
+    /**
+     * returns the subroutine name for the  current command index.
+     * This uses line numbers when in compile mode and the stack when executing.
+     * 
+     * @return the name of the current subroutine (or MAIN)
+     */
+    public static String getSubName () {
+        String subName = MAIN_FCTN;
+        if (AmazonReader.isRunModeCompile()) {
+            if (! subCallList.isEmpty()) {
+                for (int ix = subCallList.size() - 1; ix >= 0; ix--) {
+                    SubInfo info = subCallList.get(ix);
+                    if (curLineNum >= info.startIx  && info.startIx >= 0) {
+                        subName = info.subName;
+                        break;
+                    }
+                }
+            }
+        } else {
+            if (! subStack.empty()) {
+                SubCall info = subStack.peek();
+                if (info != null) {
+                    subName = info.getName();
+                }
+            }
+        }
+        return subName;
+    }
+
+    /****************************************
+    * THESE ARE PRE-COMPILER METHODS ONLY !
+    *****************************************/
+    
     /**
      * finds the subroutine name in the gosub array.
      * 
@@ -166,37 +200,53 @@ public class Subroutine {
     }
     
     /**
-     * returns the subroutine name for the  current command index.
+     * finds the subroutine name in the compiler info array.
      * 
-     * @return the name of the current subroutine (*MAIN* if not in a subroutine)
+     * @param subName - name of subroutine to check
+     * 
+     * @return the index to the info (null if not found)
      */
-    public static String getSubName () {
-        if (subCallList.isEmpty()) {
-            return MAIN_FCTN;
-        }
-        String subName = MAIN_FCTN;
-        for (int ix = subCallList.size() - 1; ix >= 0; ix--) {
+    private static Integer getCompileInfo (String subName) {
+        for (int ix = 0; ix < subCallList.size(); ix++) {
             SubInfo info = subCallList.get(ix);
-            if (curCmdIndex >= info.startIx  && info.startIx >= 0) {
-                subName = info.subName;
-                break;
+            if (info.subName.contentEquals(subName)) {
+                return ix;
             }
         }
-        return subName;
+        return null;
+    }
+
+     /**
+     * indicates if a subroutine name is found in the listing.
+     * 
+     * @param name  - the subroutine name
+     * 
+     * @return true if sub name found in list
+     * 
+     * @throws ParserException
+     */
+    private static boolean isValidSubName (String name) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (name == null || name.isBlank()) {
+            throw new ParserException(functionId + "Subroutine name is empty");
+        }
+        // first char must be a letter, the rest can be letter, number or _
+        if (! Character.isLetter(name.charAt(0))) {
+            return false;
+        }
+        for (int ix = 0; ix < name.length(); ix++) {
+            char curch = name.charAt(ix);
+            if ( (curch != '_') && ! Character.isLetterOrDigit(curch) ) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
-     * determines if code is currently from the MAIN section of the script.
-     * 
-     * @return true if running in MAIN (or compiler is verifying the MAIN section)
-     */
-    public static boolean isMainFunction() {
-        return getSubName().contentEquals(MAIN_FCTN);
-    }
-    
-    /**
      * checks if any subroutines were called that were not defined.
-     * This is done at the end of the COMPILE phase.
+     * This is done at the end of the PRE-COMPILE phase.
      * 
      * @throws ParserException 
      */
@@ -233,7 +283,33 @@ public class Subroutine {
     }
     
     /**
+     * adds a subroutine name to the list, along with the command index it resides at.
+     * Used during PRE-COMPILE stage only.
+     * 
+     * @param name  - the subroutine name
+     * @param cmdIx - the command index of the subroutine
+     * 
+     * @throws ParserException
+     */
+    private static void compileAddSubroutine (String name, int cmdIx) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (name == null || name.isBlank()) {
+            throw new ParserException(functionId + "Subroutine name is empty");
+        }
+        if (cmdIx < 0) {
+            throw new ParserException(functionId + "Invalid index value: " + cmdIx);
+        }
+        if (subroutines.containsKey(name)) {
+            throw new ParserException(functionId + "Subroutine already defined: " + name);
+        }
+        subroutines.put(name, cmdIx);
+        frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Added subroutine: " + name + " at location " + cmdIx);
+    }
+
+    /**
      * saves indication of end of MAIN routine (marked by ENDMAIN command).
+     * Used during PRE-COMPILE stage only.
      * 
      * @param cmdIx - command index of last line of MAIN
      * 
@@ -253,7 +329,7 @@ public class Subroutine {
 
     /**
      * saves info for marking start of subroutine in script.
-     * Used during COMPILE stage only.
+     * Used during PRE-COMPILE stage only.
      *
      * @param name    - name of subroutine
      * @param cmdIx   - command index of the SUB command
@@ -287,7 +363,6 @@ public class Subroutine {
             throw new ParserException(functionId + "Duplicate subroutine definition: " + name);
         }
         lastSubName = name;
-        addSubroutine (name, cmdIx);
     }
     
     /**
@@ -322,6 +397,31 @@ public class Subroutine {
         }
     }
 
+    /****************************************
+    * THESE ARE COMPILER METHODS ONLY !
+    *****************************************/
+    
+    /**
+     * saves EXECUTION info for marking start of subroutine in script.
+     * Used during COMPILE stage only (NOT PRE-COMPILE because it doesn't know command indeices).
+     *
+     * @param name    - name of subroutine
+     * @param cmdIx   - command index of the SUB command
+     * 
+     * @throws ParserException
+     */
+    public void compileSubStartCmdIx (String name, int cmdIx) throws ParserException {
+        compileAddSubroutine (name, cmdIx);
+    }
+    
+    /**
+     * saves info for subroutine name in script when GOSUB command found.
+     * Used during COMPILE stage only.
+     *
+     * @param name - name of subroutine
+     * 
+     * @throws ParserException
+     */
     public void compileSubGosub (String name) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
@@ -335,6 +435,12 @@ public class Subroutine {
         }
     }
     
+    /**
+     * checks if a previous SUB start command was defined when RETURN command found.
+     * Used during COMPILE stage only.
+     *
+     * @throws ParserException
+     */
     public void compileSubReturn () throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
@@ -343,30 +449,10 @@ public class Subroutine {
         }
     }
     
-    /**
-     * adds a subroutine name to the list, along with the command index it resides at.
-     * 
-     * @param name  - the subroutine name
-     * @param cmdIx - the command index of the subroutine
-     * 
-     * @throws ParserException
-     */
-    public static void addSubroutine (String name, int cmdIx) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (name == null || name.isBlank()) {
-            throw new ParserException(functionId + "Subroutine name is empty");
-        }
-        if (cmdIx < 0) {
-            throw new ParserException(functionId + "Invalid index value: " + cmdIx);
-        }
-        if (subroutines.containsKey(name)) {
-            throw new ParserException(functionId + "Subroutine already defined: " + name);
-        }
-        subroutines.put(name, cmdIx);
-        frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Added subroutine: " + name + " at location " + cmdIx);
-    }
-
+    /****************************************
+    * THESE ARE EXECUTION METHODS ONLY !
+    *****************************************/
+    
     /**
      * finds the subroutine listing and returns the command index it starts at.
      * 
@@ -428,34 +514,6 @@ public class Subroutine {
      */
     public static int getSubroutineLevel () {
         return subStack.size();
-    }
-
-     /**
-     * indicates if a subroutine name is found in the listing.
-     * 
-     * @param name  - the subroutine name
-     * 
-     * @return true if sub name found in list
-     * 
-     * @throws ParserException
-     */
-    public static boolean isValidSubName (String name) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (name == null || name.isBlank()) {
-            throw new ParserException(functionId + "Subroutine name is empty");
-        }
-        // first char must be a letter, the rest can be letter, number or _
-        if (! Character.isLetter(name.charAt(0))) {
-            return false;
-        }
-        for (int ix = 0; ix < name.length(); ix++) {
-            char curch = name.charAt(ix);
-            if ( (curch != '_') && ! Character.isLetterOrDigit(curch) ) {
-                return false;
-            }
-        }
-        return true;
     }
 
 }

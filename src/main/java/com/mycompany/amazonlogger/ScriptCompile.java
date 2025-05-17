@@ -83,7 +83,7 @@ public class ScriptCompile {
 
                 lineInfo = "LINE " + lineNum + ": ";
                 cmdIndex = cmdList.size(); // the command index
-                Subroutine.setCurrentIndex(cmdIndex);
+                Subroutine.setCurrentIndex(lineNum);
 
                 // first, extract the 1st word as the command keyword
                 String strCmd = line;
@@ -107,7 +107,7 @@ public class ScriptCompile {
                     command = CommandStruct.isValidCommand(strCmd);
                     if (command == null) {
                         // lastly, check for variable names in the case of an assignment statement
-                        VariableExtract parmInfo = new VariableExtract(line);
+                        VarExtract parmInfo = new VarExtract(line);
                         String parmName = parmInfo.getName();
                         String parmEqu  = parmInfo.getEquality();
                         String parmCalc = parmInfo.getEvaluation();
@@ -143,7 +143,8 @@ public class ScriptCompile {
                     case SUB:
                         // verify 1 String argument: name of subroutine
                         ParseScript.checkMaxArgs(1, cmdStruct);
-                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        String subName = ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        subs.compileSubStartCmdIx(subName, cmdIndex);
                         break;
                     case ENDSUB:
                         ParseScript.checkMaxArgs(0, cmdStruct);
@@ -151,7 +152,7 @@ public class ScriptCompile {
                     case GOSUB:
                         // verify 1 String argument: name of subroutine (and optionally a list of various args)
                         ParseScript.checkMaxArgs(1, cmdStruct);
-                        String subName = ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        subName = ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         subs.compileSubGosub (subName);
                         break;
                     case RETURN:

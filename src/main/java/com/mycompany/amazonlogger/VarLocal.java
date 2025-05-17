@@ -98,7 +98,7 @@ public class VarLocal {
 
         String subName = Subroutine.getSubName();
         if (! locals.containsKey(subName)) {
-            throw new ParserException(functionId + "Subroutine " + subName + " has no Local allocation mapping");
+            allocSubroutine (subName);
         }
         if (isAllocated (subName, varName)) {
             throw new ParserException(functionId + "Variable " + varName + " already defined for subroutine: " + subName);
@@ -236,9 +236,6 @@ public class VarLocal {
     private VarLocalSub getSubLocals (String subName, String varName, ParameterStruct.ParamType type) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (Subroutine.isMainFunction()) {
-            throw new ParserException(functionId + "Invalid subroutine name selection for: " + varName + " type " + type + " in subroutine: " + subName);
-        }
         VarLocalSub vars = locals.get(subName);
         if (vars == null) {
             throw new ParserException(functionId + "Variables not defined for subroutine: " + subName);
@@ -253,11 +250,6 @@ public class VarLocal {
     }
     
     private boolean isAllocated (String subName, String varName) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (Subroutine.isMainFunction()) {
-            throw new ParserException(functionId + "Invalid subroutine name selection for: " + varName);
-        }
         boolean bAllocated = false;
         VarLocalSub vars = locals.get(subName);
         if (vars != null) {

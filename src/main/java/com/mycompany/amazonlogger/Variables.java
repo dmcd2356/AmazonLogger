@@ -23,7 +23,6 @@ public class Variables {
             
     public final VarGlobal   varGlobal   = new VarGlobal();
     public final VarLocal    varLocal    = new VarLocal();
-    public final VarReserved varReserved = new VarReserved();
     public final VarArray    varArray    = new VarArray();
 
 
@@ -288,11 +287,20 @@ public class Variables {
         }
         
         String curSub = Subroutine.getSubName();
-        boolean bExists = varLocal.isDefined(curSub, varName);
+        boolean bExists;
+        bExists = varGlobal.isDefined(varName);
         if (bExists) {
             return;
         }
-        bExists = varGlobal.isDefined(varName);
+        bExists = varArray.isIntArray(varName);
+        if (bExists) {
+            return;
+        }
+        bExists = varArray.isStrArray(varName);
+        if (bExists) {
+            return;
+        }
+        bExists= varLocal.isDefined(curSub, varName);
         if (bExists) {
             return;
         }
@@ -315,11 +323,21 @@ public class Variables {
         }
         
         String curSub = Subroutine.getSubName();
-        boolean bExists = varLocal.isDefined(curSub, varName);
+        boolean bExists;
+
+        bExists = varGlobal.isDefined(varName);
         if (bExists) {
             return;
         }
-        bExists = varGlobal.isDefined(varName);
+        bExists = varArray.isIntArray(varName);
+        if (bExists) {
+            return;
+        }
+        bExists = varArray.isStrArray(varName);
+        if (bExists) {
+            return;
+        }
+        bExists = varLocal.isDefined(curSub, varName);
         if (bExists) {
             return;
         }
@@ -369,7 +387,15 @@ public class Variables {
         if (access == AccessType.LOCAL) {
             varLocal.allocVar (varName, ptype);
         } else {
-            varGlobal.allocVar (varName, subName, ptype);
+            switch (ptype) {
+                case IntArray:
+                case StrArray:
+                    varArray.allocateVariable(varName, ptype);
+                    break;
+                default:
+                    varGlobal.allocVar (varName, subName, ptype);
+                    break;
+            }
         }
     }
 
@@ -402,7 +428,7 @@ public class Variables {
     private static ParameterStruct applyBracketing (ParameterStruct paramValue) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        VariableInfo paramInfo = paramValue.getVariableRef();
+        VarExtensions paramInfo = paramValue.getVariableRef();
         if (paramInfo == null) {
             return paramValue;
         }
@@ -498,7 +524,7 @@ public class Variables {
      * 
      * @throws ParserException - if Variable not found
      */
-    public ParameterStruct getVariableInfo (VariableInfo paramInfo) throws ParserException {
+    public ParameterStruct getVariableInfo (VarExtensions paramInfo) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (paramInfo == null || paramInfo.getName() == null || paramInfo.getType() == null) {
@@ -518,7 +544,7 @@ public class Variables {
         switch (getVariableClass (name)) {
             // check the reserved params list
             case RESERVED:
-                paramValue = varReserved.getVariableInfo (paramInfo, name, pType);
+                paramValue = VarReserved.getVariableInfo (paramInfo, name, pType);
                 break;
             // next check for loop variables for name match
             case LOOP:
@@ -532,14 +558,14 @@ public class Variables {
             case GLOBAL:
             case LOCAL:
                 paramValue = getReferenceValue (name);
-                paramValue.setVariableRef(new VariableInfo (paramInfo));
+                paramValue.setVariableRef(new VarExtensions (paramInfo));
                 break;
             case UNKNOWN:
                 throw new ParserException(functionId + "- Variable Ref '" + name + "' was not found in any Variable database");
         }
 
         // save the variable info passed that contains Trait and Bracketing info
-        paramValue.setVariableRef(new VariableInfo (paramInfo));
+        paramValue.setVariableRef(new VarExtensions (paramInfo));
         
         // save the parameter type of the base parameter
         paramValue.setParamTypeDiscrete (pType);
@@ -578,17 +604,21 @@ public class Variables {
         }
         
         // classify the type
-        if (VarReserved.isReservedName (name) != null) {
-            varClass = VarClass.RESERVED;
+        if (LoopStruct.getCurrentLoopValue(name) != null) {
+            varClass = VarClass.LOOP;
         }
-        else if (varLocal.getDataType (name, null) != null) {
-            varClass = VarClass.LOCAL;
+        else if (VarReserved.isReservedName (name) != null) {
+            varClass = VarClass.RESERVED;
         }
         else if (varGlobal.getDataType ( name) != null) {
             varClass = VarClass.GLOBAL;
         }
-        else if (LoopStruct.getCurrentLoopValue(name) != null) {
-            varClass = VarClass.LOOP;
+        else if (varArray.isIntArray(name))
+            varClass = VarClass.GLOBAL;
+        else if (varArray.isStrArray(name))
+            varClass = VarClass.GLOBAL;
+        else if (varLocal.getDataType (name, null) != null) {
+            varClass = VarClass.LOCAL;
         }
         
         return varClass;
@@ -625,13 +655,19 @@ public class Variables {
             vartype = ParameterStruct.ParamType.Integer;
         }
         if (vartype == null) {
-            vartype = varReserved.getVariableTypeFromName(name);
-        }
-        if (vartype == null) {
-            vartype = varLocal.getDataType (name, null);
+            vartype = VarReserved.getVariableTypeFromName(name);
         }
         if (vartype == null) {
             vartype = varGlobal.getDataType (name);
+        }
+        if (vartype == null) {
+            if (varArray.isIntArray(name))
+                vartype = ParameterStruct.ParamType.IntArray;
+            else if (varArray.isStrArray(name))
+                vartype = ParameterStruct.ParamType.StrArray;
+        }
+        if (vartype == null) {
+            vartype = varLocal.getDataType (name, null);
         }
         if (vartype == null) {
             throw new ParserException(functionId + "Variable entry not found: " + name);
@@ -748,7 +784,7 @@ public class Variables {
         Long iValue = null;
         try {
             // first, check reserved values
-            iValue = varReserved.getNumericValue (name, traitVal);
+            iValue = VarReserved.getNumericValue (name, traitVal);
             if (iValue != null) {
                 return iValue;
             }

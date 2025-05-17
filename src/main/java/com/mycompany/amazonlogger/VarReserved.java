@@ -197,7 +197,7 @@ public class VarReserved {
      * 
      * @throws ParserException
      */    
-    public ParameterStruct.ParamType getVariableTypeFromName (String name) throws ParserException {
+    public static ParameterStruct.ParamType getVariableTypeFromName (String name) throws ParserException {
         ParameterStruct.ParamType vartype = null;
         ReservedVars reserved = isReservedName (name);
         if (reserved != null) {
@@ -246,7 +246,7 @@ public class VarReserved {
      * 
      * @throws ParserException - if Variable not found
      */
-    public ParameterStruct getVariableInfo (VariableInfo paramInfo, String varName, ParameterStruct.ParamType pType) throws ParserException {
+    public static ParameterStruct getVariableInfo (VarExtensions paramInfo, String varName, ParameterStruct.ParamType pType) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // create a new parameter with all null entries
@@ -302,7 +302,7 @@ public class VarReserved {
      * 
      * @throws ParserException
      */
-    public Long getNumericValue (String name, TraitInfo.Trait traitVal) throws ParserException {
+    public static Long getNumericValue (String name, TraitInfo.Trait traitVal) throws ParserException {
         Long iValue = null;
         ReservedVars reserved = isReservedName (name);
         if (reserved != null) {

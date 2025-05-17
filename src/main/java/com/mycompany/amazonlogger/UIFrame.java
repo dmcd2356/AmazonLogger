@@ -1106,7 +1106,7 @@ public final class UIFrame extends JFrame implements ActionListener {
      * 
      * @return the timestamp value reported as MM:SS.mmm
      */
-    private String elapsedTimerGet() {
+    public static String elapsedTimerGet() {
         if (!showElapsed) {
             return "";
         }

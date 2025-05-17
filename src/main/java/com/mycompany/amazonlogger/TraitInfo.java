@@ -246,8 +246,7 @@ public class TraitInfo {
                     break;
                 case StrArray:
                 case IntArray:
-                    VarArray varArray = new VarArray();
-                    iValue = (long) varArray.getArraySize(varName);
+                    iValue = (long) variables.varArray.getArraySize(varName);
                     break;
                 default:
                     break;
@@ -276,7 +275,7 @@ public class TraitInfo {
     public static ParameterStruct applyTraitValue (ParameterStruct paramValue) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        VariableInfo paramInfo = paramValue.getVariableRef();
+        VarExtensions paramInfo = paramValue.getVariableRef();
         if (paramInfo == null) {
             return paramValue;
         }

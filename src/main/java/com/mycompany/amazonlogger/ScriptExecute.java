@@ -244,7 +244,7 @@ public class ScriptExecute {
         String exceptPreface = functionId + linePreface;
         String debugPreface = "    ";
         int newIndex = -1;
-        VarArray varArray = new VarArray();
+        VarArray varArray = ScriptCompile.variables.varArray;
         
         // replace all program references in the command to their corresponding values.
         // (skip for SET command so as not to modify the parameter we are setting.

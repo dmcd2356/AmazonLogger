@@ -12,9 +12,9 @@ import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
  * @author dan
  */
 
-public class VariableExtract {
+public class VarExtract {
 
-    private static final String CLASS_NAME = VariableExtract.class.getSimpleName();
+    private static final String CLASS_NAME = VarExtract.class.getSimpleName();
     
     private String  name;           // Variable name (null if not found)
     private ParameterStruct.ParamType type; // type of parameter
@@ -56,7 +56,7 @@ public class VariableExtract {
      * 
      * @throws ParserException 
      */    
-    VariableExtract (String field) throws ParserException {
+    VarExtract (String field) throws ParserException {
         String functionId = CLASS_NAME + " (new): ";
         
         field = field.strip();

@@ -39,7 +39,6 @@ public class PreCompile {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         frame.outputInfoMsg(STATUS_COMPILE, "Pre-Compiling file: " + fname);
-        int cmdIndex = 0;
         String lineInfo = "";
 
         // open the file to compile and extract the commands from it
@@ -79,8 +78,7 @@ public class PreCompile {
                 if (command == null) {
                     continue;
                 }
-                cmdIndex++;
-                Subroutine.setCurrentIndex(cmdIndex);
+                Subroutine.setCurrentIndex(lineNum);
                 switch (command) {
                     case ALLOCATE:
                     case ENDMAIN:
@@ -132,7 +130,7 @@ public class PreCompile {
                         }
                         break;
                     case ENDMAIN:
-                        subs.compileEndOfMain (cmdIndex);
+                        subs.compileEndOfMain (lineNum);
                         break;
                     case SUB:
                         // verify 1 String argument: name of subroutine
@@ -140,17 +138,17 @@ public class PreCompile {
                             throw new ParserException(functionId + "Missing argument");
                         }
                         subName = params.get(0).getStringValue();
-                        subs.compileSubStart (subName, cmdIndex);
+                        subs.compileSubStart (subName, lineNum);
                         varLocal.allocSubroutine(subName);
                         break;
                     case ENDSUB:
-                        subs.compileSubEnd (cmdIndex);
+                        subs.compileSubEnd (lineNum);
                         break;
                     default:
                         break;
                 }
             } catch (ParserException exMsg) {
-                String errMsg = exMsg + "\n  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + line;
+                String errMsg = exMsg + "\n  -> " + functionId + lineInfo + line;
                 if (AmazonReader.isRunModeCompileOnly()) {
                     // if only running compiler, just log the messages but don't exit
                     frame.outputInfoMsg(STATUS_ERROR, errMsg);

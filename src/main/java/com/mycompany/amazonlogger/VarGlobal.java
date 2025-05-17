@@ -23,8 +23,9 @@ public class VarGlobal {
     private static final HashMap<String, Long>    uintParams = new HashMap<>();
     private static final HashMap<String, Boolean> boolParams = new HashMap<>();
 
-    private final VarArray varArray = new VarArray();
-
+    VarGlobal () {
+    }
+    
     /**
      * initializes the saved Variables
      */
@@ -226,8 +227,6 @@ public class VarGlobal {
      * @throws ParserException 
      */
     public boolean isDefined (String varName) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
         if (varName == null) {
             return false;
         }
@@ -235,8 +234,8 @@ public class VarGlobal {
         if (uintParams.containsKey(varName)) return true;
         if (strParams.containsKey(varName))  return true;
         if (boolParams.containsKey(varName)) return true;
-        if (varArray.isIntArray(varName))   return true;
-        if (varArray.isStrArray(varName))   return true;
+//        if (varArray.isIntArray(varName))   return true;
+//        if (varArray.isStrArray(varName))   return true;
         return false;
     }
     
@@ -259,8 +258,8 @@ public class VarGlobal {
         if (uintParams.containsKey(varName)) return ParameterStruct.ParamType.Unsigned;
         if (strParams.containsKey(varName))  return ParameterStruct.ParamType.String;
         if (boolParams.containsKey(varName)) return ParameterStruct.ParamType.Boolean;
-        if (varArray.isIntArray(varName))   return ParameterStruct.ParamType.IntArray;
-        if (varArray.isStrArray(varName))   return ParameterStruct.ParamType.StrArray;
+//        if (varArray.isIntArray(varName))   return ParameterStruct.ParamType.IntArray;
+//        if (varArray.isStrArray(varName))   return ParameterStruct.ParamType.StrArray;
         return null;
     }
     
@@ -289,10 +288,10 @@ public class VarGlobal {
             case String:
                 strParams.put(varName, "");
                 break;
-            case IntArray:
-            case StrArray:
-                varArray.allocateVariable(varName, ptype);
-                break;
+//            case IntArray:
+//            case StrArray:
+//                varArray.allocateVariable(varName, ptype);
+//                break;
             default:
                 throw new ParserException(functionId + "Invalid variable type: " + ptype);
         }

@@ -8,9 +8,9 @@ package com.mycompany.amazonlogger;
  *
  * @author dan
  */
-public class VariableInfo {
+public class VarExtensions {
     
-    private static final String CLASS_NAME = VariableInfo.class.getSimpleName();
+    private static final String CLASS_NAME = VarExtensions.class.getSimpleName();
     
     // this defines characteristics for a referenced Variable
     private String                  name;       // name of Variable
@@ -22,7 +22,7 @@ public class VariableInfo {
     /**
      * this is only called by ParameterStruct() to init the variableRef entry.
      */
-    VariableInfo () {
+    VarExtensions () {
         this.name     = null;
         this.type     = null;
         this.index    = null;
@@ -35,7 +35,7 @@ public class VariableInfo {
      * 
      * @param info 
      */
-    VariableInfo (VariableInfo info) {
+    VarExtensions (VarExtensions info) {
         this.name     = info.name;
         this.type     = info.type;
         this.index    = info.index;
@@ -50,7 +50,7 @@ public class VariableInfo {
      * 
      * @throws ParserException 
      */
-    VariableInfo (VariableExtract paramInfo) throws ParserException {
+    VarExtensions (VarExtract paramInfo) throws ParserException {
         this.name     = paramInfo.getName();
         this.type     = paramInfo.getType();
         this.index    = paramInfo.getIndex();
