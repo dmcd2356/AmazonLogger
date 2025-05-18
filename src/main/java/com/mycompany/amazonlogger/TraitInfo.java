@@ -27,22 +27,24 @@ public class TraitInfo {
     // traits extensions
     // KEY: I = Integer, U = Unsigned, B = Boolean, S = String, L = StrArray, A = IntArray
     public enum Trait {
-        HEX,                // UI -> S, A -> L: convert to hexadecimal String (or StrArray)
-        UPPER,              // S -> S: convert all chars to uppercase
-        LOWER,              // S -> S: convert all chars to lowercase
-        TOLINES,            // S -> L: convert to StrArray of lines of text
-        TOWORDS,            // S -> L: convert to StrArray of words
-        SORT,               // L -> L: sort from A-Z
-        REVERSE,            // L -> L: sort from A-Z
-        FILTER,             // L -> L, A -> A: filtered contents
-        SIZE,               // SLA -> I: number of chars for String, number of elements for Arrays
-        ISEMPTY,            // SLA -> B: check if item is zero-length
-        DOW,                // S -> I (DATE only): for day of week
-        DOM,                // S -> I (DATE only): for day of month
-        DOY,                // S -> I (DATE only): for day of year
-        MOY,                // S -> I (DATE only): for month of year
-        DAY,                // S -> S (DATE only): for Day of week
-        MONTH,              // S -> S (DATE only): for Month
+        HEX,                //  UI -> S, A -> L : convert to hexadecimal String (or StrArray)
+        UPPER,              //   S -> S : convert all chars to uppercase
+        LOWER,              //   S -> S : convert all chars to lowercase
+        TOLINES,            //   S -> L : convert to StrArray of lines of text
+        TOWORDS,            //   S -> L : convert to StrArray of words
+        SORT,               //   L -> L : sort from A-Z
+        REVERSE,            //   L -> L : sort from A-Z
+        FILTER,             //   L -> L, A -> A : filtered contents
+        SIZE,               // SLA -> I : number of chars for String, number of elements for Arrays
+        ISEMPTY,            // SLA -> B : check if item is zero-length
+        DOW,                //   S -> I : (DATE only): for day of week
+        DOM,                //   S -> I : (DATE only): for day of month
+        DOY,                //   S -> I : (DATE only): for day of year
+        MOY,                //   S -> I : (DATE only): for month of year
+        DAY,                //   S -> S : (DATE only): for Day of week
+        MONTH,              //   S -> S : (DATE only): for Month
+        WRITER,             // Any -> S : the function that last wrote the variable
+        WRITETIME,          // Any -> S : the timestamp when the variable was last written
     }
 
     /**
@@ -133,6 +135,15 @@ public class TraitInfo {
                     traitVal = null;
                 }
                 break;
+                
+            case WRITER:
+            case WRITETIME:
+                String subName = Subroutine.getSubName();
+                if (! VarGlobal.isDefined(varName) && ! variables.varLocal.isDefined(subName, varName)) {
+                    traitVal = null;
+                }
+                break;
+                
             default:
                 throw new ParserException(functionId + "Invalid Trait for " + varType + " Variable " + varName + ": " + traitName);
         }
@@ -197,6 +208,11 @@ public class TraitInfo {
                 // keep the Variable type
                 ptype = variables.getVariableTypeFromName (varName);
                 break;
+                
+            case WRITER:
+            case WRITETIME:
+                ptype = ParameterStruct.ParamType.String;
+                break;
 
             default:
                 throw new ParserException(functionId + "Invalid Trait: " + traitVal.toString());
@@ -259,6 +275,24 @@ public class TraitInfo {
         }
         return iValue;
     }
+
+    public static String getReferenceDetails (Trait trait, String varName) throws ParserException {
+        String strValue = null;
+        
+        // these apply to all data types (GLOBAL and LOCAL vars only)
+        switch (trait) {
+            case WRITER:
+                strValue = variables.getWriterIndex(varName);
+                break;
+            case WRITETIME:
+                strValue = variables.getWriterTime(varName);
+                break;
+            default:
+                break;
+        }
+
+        return strValue;
+    }
     
     /**
      * extracts and applies the Trait found for the parameter value.
@@ -290,6 +324,14 @@ public class TraitInfo {
             name = name.substring(1);
         }
 
+        String refInfo = getReferenceDetails(trait, name);
+        if (refInfo != null) {
+            // save the parameter type
+            paramValue.setStringValue(refInfo);
+            paramValue.setParamTypeDiscrete (ParameterStruct.ParamType.String);
+            return paramValue;
+        }
+        
         ParameterStruct.ParamType pType = paramValue.getParamType();
         switch (pType) {
             case Integer:

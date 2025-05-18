@@ -225,6 +225,39 @@ public class Variables {
         }
     }
     
+    // indicates if the variable has been written to since it was allocated
+    public boolean IsVarInit (String varName) throws ParserException {
+        switch (getVariableClass (varName)) {
+            case LOCAL:
+                return varLocal.isVarInit(varName);
+            default:
+            case GLOBAL:
+                return VarGlobal.isVarInit(varName);
+        }
+    }
+
+    // returns the line number of the script that was the last writer to the variable
+    public String getWriterIndex (String varName) throws ParserException {
+        switch (getVariableClass (varName)) {
+            case LOCAL:
+                return varLocal.getWriterIndex(varName);
+            default:
+            case GLOBAL:
+                return VarGlobal.getWriterIndex(varName);
+        }
+    }
+
+    // returns the timestamp when the last writer wrote to the variable
+    public String getWriterTime (String varName) throws ParserException {
+        switch (getVariableClass (varName)) {
+            case LOCAL:
+                return varLocal.getWriterTime(varName);
+            default:
+            case GLOBAL:
+                return VarGlobal.getWriterTime(varName);
+        }
+    }
+        
     /**
      * checks whether specified variable has Read permission for current function.
      * 

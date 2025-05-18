@@ -81,8 +81,6 @@ public class Subroutine {
      * The new SubCall is performed when the GOSUB command is executed.
      */
     private class SubCall {
-        private static final String CLASS_NAME = SubCall.class.getSimpleName();
-    
         private final int     cmdIndex;   // command index of return location
         private final String  name;       // name of current subroutine
         

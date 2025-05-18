@@ -62,6 +62,48 @@ public class VarLocal {
         return locals.get(subName).isDefined(varName);
     }
 
+    // indicates if the variable has been written to since it was allocated
+    public boolean isVarInit (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        String subName = Subroutine.getSubName();
+        VarLocalSub localSub = locals.get(subName);
+        if (localSub == null) {
+            throw new ParserException(functionId + "Subroutine allocations not found: " + subName);
+        }
+        if (! localSub.isDefined(varName)) {
+            throw new ParserException(functionId + "Variable " + varName + " not found");
+        }
+        return localSub.isVarInit(varName);
+    }
+
+    // returns the line number of the script that was the last writer to the variable
+    public String getWriterIndex (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        String subName = Subroutine.getSubName();
+        VarLocalSub localSub = locals.get(subName);
+        if (localSub == null) {
+            throw new ParserException(functionId + "Subroutine allocations not found: " + subName);
+        }
+        if (! localSub.isDefined(varName)) {
+            throw new ParserException(functionId + "Variable " + varName + " not found");
+        }
+        return localSub.getWriterIndex(varName);
+    }
+
+    // returns the timestamp when the last writer wrote to the variable
+    public String getWriterTime (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        String subName = Subroutine.getSubName();
+        VarLocalSub localSub = locals.get(subName);
+        if (localSub == null) {
+            throw new ParserException(functionId + "Subroutine allocations not found: " + subName);
+        }
+        if (! localSub.isDefined(varName)) {
+            throw new ParserException(functionId + "Variable " + varName + " not found");
+        }
+        return localSub.getWriterTime(varName);
+    }
+        
     /**
      * determine if local variable exists for the current subroutine running.
      * 

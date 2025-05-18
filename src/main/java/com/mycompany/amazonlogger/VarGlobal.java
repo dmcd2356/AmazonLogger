@@ -62,6 +62,49 @@ public class VarGlobal {
         return globals.containsKey(varName);
     }
     
+    // indicates if the variable has been written to since it was allocated
+    public static boolean isVarInit (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (varName == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
+        VarAccess varInfo = globals.get(varName);
+        if (varInfo == null) {
+            throw new ParserException(functionId + "Variable " + varName + " not found");
+        }
+        return varInfo.isVarInit();
+    }
+
+    // returns the line number of the script that was the last writer to the variable
+    public static String getWriterIndex (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (varName == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
+        VarAccess varInfo = globals.get(varName);
+        if (varInfo == null) {
+            throw new ParserException(functionId + "Variable " + varName + " not found");
+        }
+        Integer cmdIx = varInfo.getWriterIndex();
+        return "Index " + cmdIx;
+    }
+
+    // returns the timestamp when the last writer wrote to the variable
+    public static String getWriterTime (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (varName == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
+        VarAccess varInfo = globals.get(varName);
+        if (varInfo == null) {
+            throw new ParserException(functionId + "Variable " + varName + " not found");
+        }
+        return varInfo.getWriterTime();
+    }
+        
     /**
      * determine if local variable exists for the current subroutine running.
      * 

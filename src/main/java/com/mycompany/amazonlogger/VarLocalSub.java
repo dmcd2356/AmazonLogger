@@ -49,6 +49,37 @@ public class VarLocalSub {
         return localVar.get(varName).getOwner();
     }
         
+    // indicates if the variable has been written to since it was allocated
+    public boolean isVarInit (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        VarAccess varInfo = localVar.get(varName);
+        if (varInfo == null) {
+            throw new ParserException(functionId + "Local variable not found: " + varName);
+        }
+        return varInfo.isVarInit();
+    }
+
+    // returns the line number of the script that was the last writer to the variable
+    public String getWriterIndex (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        VarAccess varInfo = localVar.get(varName);
+        if (varInfo == null) {
+            throw new ParserException(functionId + "Local variable not found: " + varName);
+        }
+        Integer cmdIx = varInfo.getWriterIndex();
+        return "Index " + cmdIx;
+    }
+
+    // returns the timestamp when the last writer wrote to the variable
+    public String getWriterTime (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        VarAccess varInfo = localVar.get(varName);
+        if (varInfo == null) {
+            throw new ParserException(functionId + "Variable " + varName + " not found");
+        }
+        return varInfo.getWriterTime();
+    }
+        
     public boolean isDefined (String varName) {
         return localVar.get(varName) != null;
     }

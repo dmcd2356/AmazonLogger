@@ -75,6 +75,21 @@ public class VarAccess {
     public ParameterStruct.ParamType getType () {
         return this.varType;
     }
+
+    // indicates if the variable has been written to since it was allocated
+    public boolean isVarInit () {
+        return this.writer != null;
+    }
+
+    // returns the line number of the script that was the last writer to the variable
+    public Integer getWriterIndex () {
+        return this.writer;
+    }
+
+    // returns the timestamp when the last writer wrote to the variable
+    public String getWriterTime () {
+        return this.writeTime;
+    }
         
     public String getOwner () {
         return this.owner;
@@ -160,21 +175,6 @@ public class VarAccess {
     public ArrayList<Long> getValueIntArray () throws ParserException {
         checkType (ParameterStruct.ParamType.IntArray);
         return this.intArray;
-    }
-
-    // indicates if the variable has been written to since it was allocated
-    public boolean IsVarInit () {
-        return this.writer != null;
-    }
-
-    // returns the line number of the script that was the last writer to the variable
-    public Integer getWriterIndex () {
-        return this.writer;
-    }
-
-    // returns the timestamp when the last writer wrote to the variable
-    public String getWriterTime () {
-        return this.writeTime;
     }
     
 }

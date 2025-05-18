@@ -4,8 +4,6 @@ KNOWN BUGS:
 
 TODO:
  - check for possible recursive calls and either WARN or flag as ERROR.
- - modify GLOBAL variables to use the VarAccess class instead of discrete values (LOCALS do this).
- - add Traits for outputting WRITER and WRITETIME of variables.
  - print a WARN message if variable is read prior to being set (it uses the default value).
  - cleanup error handling messages and reporting errors with the stack trace.
  - More thorough error checking
@@ -49,4 +47,7 @@ TESTING PHASE:
  * add check to make sure a RETURN command is included in each subroutine, or have the ENDSUB do it.
  * add check to FOR loop commands to make sure the NEXT, CONTINUE, ENDFOR are all in same subroutine (or MAIN)
  * add capability to allocate variables as either GLOBAL or LOCAL to allow reuse of names in subroutines.
+ * modify GLOBAL variables to use the VarAccess class instead of discrete values (LOCALS do this).
+ * verify Traits and Bracketing work for both LOCALs and GLOBALs (and RESERVEDs), but not LOOPs.
+ * add Traits for outputting WRITER and WRITETIME of variables.
 
