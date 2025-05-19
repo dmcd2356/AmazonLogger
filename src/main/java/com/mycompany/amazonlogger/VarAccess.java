@@ -86,7 +86,10 @@ public class VarAccess {
 
     // returns the line number of the script that was the last writer to the variable
     public Integer getWriterIndex () {
-        return this.writer;
+        if (this.writer == null) {
+            return 0;
+        }
+        return ScriptCompile.getLineNumber(this.writer);
     }
 
     // returns the timestamp when the last writer wrote to the variable

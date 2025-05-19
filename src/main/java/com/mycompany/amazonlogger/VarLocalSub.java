@@ -67,7 +67,7 @@ public class VarLocalSub {
             throw new ParserException(functionId + "Local variable not found: " + varName);
         }
         Integer cmdIx = varInfo.getWriterIndex();
-        return "Index " + cmdIx;
+        return "" + cmdIx;
     }
 
     // returns the timestamp when the last writer wrote to the variable

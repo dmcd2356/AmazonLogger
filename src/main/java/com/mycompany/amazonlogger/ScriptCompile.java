@@ -24,6 +24,8 @@ public class ScriptCompile {
 
     // this handles the command line options via the RUN command
     private final CmdOptions cmdOptionParser;
+    // this contains the line numbers corresponding to each command index value
+    private static ArrayList<Integer> lineNumbers = new ArrayList<>();
     
     private final ParseScript parseScript = new ParseScript();
     public static Variables   variables;
@@ -32,8 +34,16 @@ public class ScriptCompile {
         // create an instance of the command options parser for any RUN commands
         cmdOptionParser = new CmdOptions();
         variables = preVars;
+
     }
 
+    public static int getLineNumber (int cmdIx) {
+        if (cmdIx >= lineNumbers.size() || cmdIx < 0) {
+            cmdIx = lineNumbers.size();
+        }
+        return lineNumbers.get(cmdIx);
+    }
+    
     /**
      * compiles the external script file (when -f option used) into a series of
      * CommandStruct entities to execute.
@@ -543,6 +553,7 @@ public class ScriptCompile {
                         }
                         
                         // add a token ENDFOR command following the NEXT, so we have a location to go to on exiting loop
+                        lineNumbers.add(lineNum);
                         cmdList.add(cmdStruct); // place the NEXT command here and queue up the ENDFOR command
                         cmdStruct = new CommandStruct(CommandStruct.CommandTable.ENDFOR, lineNum);
                         frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + (cmdIndex + 1) + "]: " + cmdStruct.command + " (added to follow NEXT)");
@@ -572,6 +583,7 @@ public class ScriptCompile {
 
                         // append all option commands on the line to the command list, 1 option per command line
                         while (! runList.isEmpty()) {
+                            lineNumbers.add(lineNum);
                             cmdList.add(runList.removeFirst());
                         }
                         cmdStruct = null; // clear this since we have copied all the commands from here
@@ -584,6 +596,7 @@ public class ScriptCompile {
                 // all good, add command to list
                 if (cmdStruct != null) {
                     ParameterStruct.showParamTypeList(cmdStruct.params);
+                    lineNumbers.add(lineNum);
                     cmdList.add(cmdStruct);
                 }
             } catch (ParserException exMsg) {

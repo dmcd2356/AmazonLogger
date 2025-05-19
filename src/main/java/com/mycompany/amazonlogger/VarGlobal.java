@@ -88,7 +88,7 @@ public class VarGlobal {
             throw new ParserException(functionId + "Variable " + varName + " not found");
         }
         Integer cmdIx = varInfo.getWriterIndex();
-        return "Index " + cmdIx;
+        return "" + cmdIx;
     }
 
     // returns the timestamp when the last writer wrote to the variable
