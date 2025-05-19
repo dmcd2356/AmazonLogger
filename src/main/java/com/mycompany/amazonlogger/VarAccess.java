@@ -6,6 +6,7 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.util.ArrayList;
 
 /**
@@ -17,6 +18,7 @@ public class VarAccess {
     private static final String CLASS_NAME = VarAccess.class.getSimpleName();
     private static final String INDENT = "     ";
     
+    private String      varName;            // name of variable
     private ParameterStruct.ParamType varType; // the variable data type
     private Variables.AccessType access;    // type of access permitted to variable
     private String      owner;              // owner (name of function that allocated)
@@ -30,6 +32,7 @@ public class VarAccess {
         
     // this is called during allocation to define the variable type and access info
     VarAccess (String owner, String varName, ParameterStruct.ParamType varType, Variables.AccessType access) {
+        this.varName   = varName;
         this.varType   = varType;
         this.access    = access;
         this.owner     = owner;
@@ -149,31 +152,55 @@ public class VarAccess {
     // these are the function to get the variable values
     public String getValueString () throws ParserException {
         checkType (ParameterStruct.ParamType.String);
+        if (! isVarInit()) {
+            String subName = Subroutine.getSubName();
+            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
+        }
         return this.strValue;
     }
         
     public Long getValueInteger () throws ParserException {
         checkType (ParameterStruct.ParamType.Integer);
+        if (! isVarInit()) {
+            String subName = Subroutine.getSubName();
+            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
+        }
         return this.intValue;
     }
         
     public Long getValueUnsigned () throws ParserException {
         checkType (ParameterStruct.ParamType.Unsigned);
+        if (! isVarInit()) {
+            String subName = Subroutine.getSubName();
+            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
+        }
         return this.intValue & 0xFFFFFFFFL;
     }
         
     public Boolean getValueBoolean () throws ParserException {
         checkType (ParameterStruct.ParamType.Boolean);
+        if (! isVarInit()) {
+            String subName = Subroutine.getSubName();
+            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
+        }
         return this.boolValue;
     }
         
     public ArrayList<String> getValueStrArray () throws ParserException {
         checkType (ParameterStruct.ParamType.StrArray);
+        if (! isVarInit()) {
+            String subName = Subroutine.getSubName();
+            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
+        }
         return this.strArray;
     }
         
     public ArrayList<Long> getValueIntArray () throws ParserException {
         checkType (ParameterStruct.ParamType.IntArray);
+        if (! isVarInit()) {
+            String subName = Subroutine.getSubName();
+            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
+        }
         return this.intArray;
     }
     

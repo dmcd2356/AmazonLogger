@@ -653,6 +653,7 @@ public class Variables {
         ParameterStruct refValue;
         ParameterStruct.ParamType varType;
         String subName = Subroutine.getSubName();
+        String value= "";
         try {
             varType = varLocal.getDataType(varName, subName);
             if (varType != null) {
@@ -661,24 +662,29 @@ public class Variables {
                 switch (varType) {
                     case Integer:
                         refValue.setIntegerValue(varLocal.getInteger(varName));
+                        value = refValue.getIntegerValue().toString();
                         break;
                     case Unsigned:
                         refValue.setIntegerValue(varLocal.getUnsigned(varName));
+                        value = refValue.getIntegerValue().toString();
                         break;
                     case Boolean:
                         refValue.setBooleanValue(varLocal.getBoolean(varName));
+                        value = refValue.getBooleanValue().toString();
                         break;
                     case String:
                         refValue.setStringValue(varLocal.getString(varName));
+                        value = refValue.getStringValue();
                         break;
                     case StrArray:
                         refValue.setStrArray(varLocal.getStrArray(varName));
+                        value = refValue.getStrArray().toString();
                         break;
                     case IntArray:
                         refValue.setIntArray(varLocal.getIntArray(varName));
+                        value = refValue.getIntArray().toString();
                         break;
                 }
-                String value = refValue.getStringValue();
                 frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + varType + " Variable " + varName + ": " + value);
                 return refValue;
             }
@@ -692,24 +698,29 @@ public class Variables {
         switch (varType) {
             case Integer:
                 refValue.setIntegerValue(VarGlobal.getIntegerVariable(varName));
+                value = refValue.getIntegerValue().toString();
                 break;
             case Unsigned:
                 refValue.setIntegerValue(VarGlobal.getUnsignedVariable(varName));
+                value = refValue.getIntegerValue().toString();
                 break;
             case Boolean:
                 refValue.setBooleanValue(VarGlobal.getBooleanVariable(varName));
+                value = refValue.getBooleanValue().toString();
                 break;
             case String:
                 refValue.setStringValue(VarGlobal.getStringVariable(varName));
+                value = refValue.getStringValue();
                 break;
             case StrArray:
                 refValue.setStrArray(VarGlobal.getStrArray(varName));
+                value = refValue.getStrArray().toString();
                 break;
             case IntArray:
                 refValue.setIntArray(VarGlobal.getIntArray(varName));
+                value = refValue.getIntArray().toString();
                 break;
         }
-        String value = refValue.getStringValue();
         frame.outputInfoMsg(STATUS_VARS, INDENT + "GLOBAL " + varType + " Variable " + varName + ": " + value);
         return refValue;
     }
