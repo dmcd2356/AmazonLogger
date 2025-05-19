@@ -3,8 +3,6 @@ KNOWN BUGS:
  - eliminate duplicate text data on OCR scan (not sure why this is occurring)
 
 TODO:
- - check for possible recursive calls and either WARN or flag as ERROR.
- - print a WARN message if variable is read prior to being set (it uses the default value).
  - cleanup error handling messages and reporting errors with the stack trace.
  - More thorough error checking
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with
@@ -50,4 +48,5 @@ TESTING PHASE:
  * modify GLOBAL variables to use the VarAccess class instead of discrete values (LOCALS do this).
  * verify Traits and Bracketing work for both LOCALs and GLOBALs (and RESERVEDs), but not LOOPs.
  * add Traits for outputting WRITER and WRITETIME of variables.
+ * print a WARN message if variable is read prior to being set (it uses the default value).
 
