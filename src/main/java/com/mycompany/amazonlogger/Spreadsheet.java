@@ -7,6 +7,10 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_INFO;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_SSHEET;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
+import static com.mycompany.amazonlogger.Utils.getDefaultPath;
 
 import java.awt.Color;
 import java.io.File;
@@ -24,6 +28,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableModel;
 import org.jopendocument.dom.spreadsheet.MutableCell;
 //import org.jopendocument.dom.OOUtils;
 //import org.jopendocument.dom.OOUtils;
@@ -42,7 +48,7 @@ public class Spreadsheet {
     private static final String SKIP_AMOUNT = "-";          // the value to use for Total amount if entry is omitted
     private static final String RETURN_DATE = "RETURN";     // the date value to use for Delivered if item was returned
 
-    private static final ArrayList<Sheet> sheetArray = new ArrayList<>(); // the list of sheets (tabs) loaded in memory
+    private static ArrayList<Sheet> sheetArray = new ArrayList<>(); // the list of sheets (tabs) loaded in memory
     private static Sheet    sheetSel = null;                // the current spreadsheet tab selection
     private static File     SpreadsheetFile;                // the spreadsheet file
     private static Integer  iSheetYear = null;              // the year value the spreadsheet is marked as
@@ -128,7 +134,7 @@ public class Spreadsheet {
             throw new ParserException(functionId + "No sheet selected");
         }
         if (! bHeader) {
-            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "No header check performed on spreadsheet");
+            frame.outputInfoMsg(STATUS_SSHEET, "No header check performed on spreadsheet");
             return;
         }
         
@@ -155,7 +161,7 @@ public class Spreadsheet {
         }
 
         // the first row for data will be the line following the header
-        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Found header on row: " + headerRow);
+        frame.outputInfoMsg(STATUS_SSHEET, "Found header on row: " + headerRow);
         firstRow = headerRow + 1;
         
         // now let's run through the header columns to assign each column a value
@@ -167,7 +173,7 @@ public class Spreadsheet {
             boolean bFound = false;
             Object object = sheetHeader.getCellAt(col,headerRow).getValue();
             if (object == null || object.toString().isBlank()) {
-                frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Header column " + col + " is empty");
+                frame.outputInfoMsg(STATUS_SSHEET, "Header column " + col + " is empty");
                 break;
             }
             String colHeader = strToEnum(object.toString());
@@ -178,7 +184,7 @@ public class Spreadsheet {
                     if (hmSheetColumns.containsKey(colEnum)) {
                         throw new ParserException(functionId + "Header column duplicate entry: " + colHeader);
                     }
-                    frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Found header column: " + col + " -> " + colHeader);
+                    frame.outputInfoMsg(STATUS_SSHEET, "Found header column: " + col + " -> " + colHeader);
                     hmSheetColumns.put(colEnum, col);
                     maxColValue = col;
                     bFound = true;
@@ -186,7 +192,7 @@ public class Spreadsheet {
                 }
             }
             if (! bFound) {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "Ignoring unknown header column entry: " + colHeader);
+                frame.outputInfoMsg(STATUS_WARN, functionId + "Ignoring unknown header column entry: " + colHeader);
             }
         }
         
@@ -195,7 +201,7 @@ public class Spreadsheet {
         // to see if we have all of the required.
         int count = hmSheetColumns.size();
         lastValidColumn = maxColValue;
-        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Total entries in header: " + count);
+        frame.outputInfoMsg(STATUS_SSHEET, "Total entries in header: " + count);
         if (hmSheetColumns.containsKey(Column.Seller)) count--;
         if (hmSheetColumns.containsKey(Column.PreTaxCost)) count--;
         if (hmSheetColumns.containsKey(Column.Tax)) count--;
@@ -203,7 +209,7 @@ public class Spreadsheet {
             throw new ParserException(functionId + "Header column missing required entry(ies): " + (12 - count));
         }
         
-        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Header columns successfully placed in columns");
+        frame.outputInfoMsg(STATUS_SSHEET, "Header columns successfully placed in columns");
     }
 
     /**
@@ -324,7 +330,7 @@ public class Spreadsheet {
         int iMult;
         switch (iDecShift) {
             default:
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "dec shift out of range: " + iDecShift);
+                frame.outputInfoMsg(STATUS_WARN, functionId + "dec shift out of range: " + iDecShift);
                 // fall through...
             case 0:
                 iMult = 1;
@@ -434,8 +440,8 @@ public class Spreadsheet {
             throw new ParserException(functionId + "Invalid date format found: " + date);
         }
         String strMonth = (iMonth < 10) ? "0" + Integer.toString(iMonth) : Integer.toString(iMonth);
-        frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "Cell formatted as date: " + date);
-        frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "Converted to: " + strYear + "-" + strMonth + "-" + strDay);
+        frame.outputInfoMsg(STATUS_WARN, functionId + "Cell formatted as date: " + date);
+        frame.outputInfoMsg(STATUS_WARN, functionId + "Converted to: " + strYear + "-" + strMonth + "-" + strDay);
         return strYear + "-" + strMonth + "-" + strDay;
     }
     
@@ -520,7 +526,7 @@ public class Spreadsheet {
         if (sheetSel.getCellAt(col, row).getValue() == null ||
             sheetSel.getCellAt(col, row).getValue().toString().isBlank() || bOverwrite) {
             sheetSel.getCellAt(col, row).setValue(strVal);
-            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + strVal);
+            frame.outputInfoMsg(STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + strVal);
         }
         return 1;
     }
@@ -567,7 +573,7 @@ public class Spreadsheet {
         if (sheetSel.getCellAt(col, row).getValue() == null ||
             sheetSel.getCellAt(col, row).getValue().toString().isBlank() || bOverwrite) {
             sheetSel.getCellAt(col, row).setValue(iVal);
-            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + iVal);
+            frame.outputInfoMsg(STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + iVal);
         }
         return 1;
     }
@@ -618,7 +624,7 @@ public class Spreadsheet {
         if (sheetSel.getCellAt(col, row).getValue() == null ||
             sheetSel.getCellAt(col, row).getValue().toString().isBlank() || bOverwrite) {
             sheetSel.getCellAt(col, row).setValue(bdVal);
-            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + strVal);
+            frame.outputInfoMsg(STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + strVal);
         }
         return 1;
     }
@@ -666,7 +672,7 @@ public class Spreadsheet {
         if (sheetSel.getCellAt(col,row).getValue() == null ||
             sheetSel.getCellAt(col,row).getValue().toString().isBlank() || bOverwrite) {
             sheetSel.getCellAt(col,row).setValue(strVal);
-            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + strVal);
+            frame.outputInfoMsg(STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + strVal);
         }
         return 1;
     }
@@ -710,7 +716,7 @@ public class Spreadsheet {
         if (! bOverwrite) {
             int iSpreadItems = getItemCount (strOrdNum);
             if (iItemCount != iSpreadItems) {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "# " + strOrdNum + " number of items passed (" +
+                frame.outputInfoMsg(STATUS_WARN, functionId + "# " + strOrdNum + " number of items passed (" +
                                     order.item.size() + ") != # in spreadsheet (" + iSpreadItems + ")");
                 if (iItemCount > iSpreadItems)
                     iItemCount = iSpreadItems;
@@ -718,7 +724,7 @@ public class Spreadsheet {
         }
 
         // output each item in the order to the spreadsheet
-        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "outputting to row " + startRow + " -> " + order.item.size() + " items");
+        frame.outputInfoMsg(STATUS_SSHEET, "outputting to row " + startRow + " -> " + order.item.size() + " items");
         for (int ix = 0; ix < iItemCount; ix++) {
             int row = startRow + ix;
                 
@@ -923,11 +929,11 @@ public class Spreadsheet {
             throw new ParserException(functionId + "selected sheet is null");
         }
         String ssNumber = "x";
-        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Searching for " + strOrderNum + " in rows " + firstRow + " to " + sheetSel.getRowCount());
+        frame.outputInfoMsg(STATUS_SSHEET, "Searching for " + strOrderNum + " in rows " + firstRow + " to " + sheetSel.getRowCount());
         for (int row = firstRow; row < sheetSel.getRowCount(); row++) {
             ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString();
             if (ssNumber.isBlank()) {
-                frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Order not found. Exiting at row " + row);
+                frame.outputInfoMsg(STATUS_SSHEET, "Order not found. Exiting at row " + row);
                 break;
             }
             if (ssNumber.contentEquals(strOrderNum)) {
@@ -959,7 +965,7 @@ public class Spreadsheet {
                 !sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getTextValue().isBlank(); row++) {
             String cellValue = sheetSel.getCellAt(getColumn(Column.CreditCard),row).getTextValue();
             if (cellValue != null && strPdfName.contentEquals(cellValue)) {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "'" + strPdfName +
+                frame.outputInfoMsg(STATUS_WARN, functionId + "'" + strPdfName +
                                                     "' was already balanced in the spreadsheet for " + sheetName);
                 return true;
             }
@@ -1002,7 +1008,10 @@ public class Spreadsheet {
         }
 
         sheetSel = sheetArray.get(sheetNum);
-        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Spreadsheet tab " + sheetNum + " selection: '" + sheetSel.getName() + "'");
+        if (sheetSel.getName() == null || sheetSel.getName().isEmpty()) {
+            sheetSel.setName(name);
+        }
+        frame.outputInfoMsg(STATUS_SSHEET, "Spreadsheet tab " + sheetNum + " selection: '" + sheetSel.getName() + "'");
         props.setPropertiesItem(Property.SpreadsheetTab, name);
     }
 
@@ -1038,7 +1047,7 @@ public class Spreadsheet {
         }
 
         String strVal = sheetSel.getCellAt(col,row).getTextValue();
-        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + strVal);
+        frame.outputInfoMsg(STATUS_SSHEET, "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + strVal);
         return strVal;
     }
 
@@ -1110,15 +1119,48 @@ public class Spreadsheet {
         String oldVal = sheetSel.getCellAt(col,row).getTextValue();
         if (strVal == null) {
             sheetSel.getCellAt(col, row).clearValue();
-            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "clear tab " + sheetSel.getName() + " row " + row + " col " + col);
+            frame.outputInfoMsg(STATUS_SSHEET, "clear tab " + sheetSel.getName() + " row " + row + " col " + col);
         }
         else {
             sheetSel.getCellAt(col, row).setValue(strVal);
-            frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "write tab " + sheetSel.getName() + " row " + row + " col " + col + " -> " + strVal);
+            frame.outputInfoMsg(STATUS_SSHEET, "write tab " + sheetSel.getName() + " row " + row + " col " + col + " -> " + strVal);
         }
         return oldVal;
     }
 
+    /**    
+     * writes the text data to the next row of the current spreadsheet tab.
+     * 
+     * @param listVal - the array of data to write to the row
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
+    public static void putSpreadsheetRow (ArrayList<String> listVal) throws ParserException, IOException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (listVal == null || listVal.isEmpty()) {
+            throw new ParserException(functionId + "selected sheet is null");
+        }
+        
+        // get current spreadsheet size
+        int row = getSpreadsheetRowSize();
+        int col = getSpreadsheetColSize();
+        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + col + ", rows = " + row);
+        
+        // resize the spreadsheet for the new row
+        if (listVal.size() != col) {
+            throw new ParserException(functionId + "Number of items in row " + listVal.size() + " does not match the columns defined: " + col);
+        }
+        row++;
+        setSpreadsheetSize (col, row);
+        
+        // now we can add the row of data
+        for (int ix = 0; ix < listVal.size(); ix++) {
+            putSpreadsheetCell (ix, row - 1, listVal.get(ix));
+        }
+    }
+    
     /**    
      * writes the text data to the specified row of the selected spreadsheet tab.
      * 
@@ -1277,7 +1319,7 @@ public class Spreadsheet {
         }
         sheetSel.getCellAt(col,row).setBackgroundColor(color);
         String hexColor = String.format("0x%06x", color.getRGB());
-        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "Setting cell color for tab " + tab + " row " + row + " col " + col + " RGB = " + hexColor);
+        frame.outputInfoMsg(STATUS_SSHEET, "Setting cell color for tab " + tab + " row " + row + " col " + col + " RGB = " + hexColor);
     }
 
     /**
@@ -1339,7 +1381,7 @@ public class Spreadsheet {
         }
         sheetSel.setColumnCount(col, -1, true);
         sheetSel.setRowCount(row, -1);
-        frame.outputInfoMsg(UIFrame.STATUS_SSHEET, "new size: row " + row + " col " + col);
+        frame.outputInfoMsg(STATUS_SSHEET, "new size: cols " + col + " rows " + row);
         saveSpreadsheetFile();
     }
     
@@ -1388,7 +1430,7 @@ public class Spreadsheet {
         if (!filePath.isEmpty()) {
             props.setPropertiesItem(Property.SpreadsheetPath, filePath);
             props.setPropertiesItem(Property.SpreadsheetFile, fnameRoot + fnameExt);
-            frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet Path name: " + filePath);
+            frame.outputInfoMsg(STATUS_INFO, "Spreadsheet Path name: " + filePath);
         } else {
             throw new ParserException(functionId + "Invalid path: " + filePath);
         }
@@ -1397,7 +1439,7 @@ public class Spreadsheet {
         if (!fnameExt.contentEquals(".ods")) {
             throw new ParserException(functionId + "Invalid filename: " + fnameRoot + fnameExt + " (must be XXX.ods)");
         }
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet File name: " + fnameRoot + fnameExt);
+        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet File name: " + fnameRoot + fnameExt);
         
         // enable the Update and Balance buttons
         frame.enableClipboardButton(true);
@@ -1415,7 +1457,7 @@ public class Spreadsheet {
     public static void loadSheets(int numSheets, boolean bCheckHeader) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        // load the first 2 tabs of the spreadsheet into memory
+        // load the specified number of tabs of the spreadsheet into memory
         sheetArray.clear();
         for (int ix = 0; ix < numSheets; ix++) {
             Sheet newSheet;
@@ -1426,10 +1468,10 @@ public class Spreadsheet {
                 if (bCheckHeader || ix == 0) {
                     throw new ParserException(functionId + "Spreadsheet tab " + ix + " was unable to be loaded");
                 }
-                frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet tab " + ix + " was unable to be loaded");
+                frame.outputInfoMsg(STATUS_INFO, "Spreadsheet tab " + ix + " was unable to be loaded");
                 break;
             }
-            frame.outputInfoMsg(UIFrame.STATUS_INFO, "Loaded sheet " + ix + " '"
+            frame.outputInfoMsg(STATUS_INFO, "Loaded sheet " + ix + " '"
                                         + newSheet.getName() + "' into memory: "
                                         + newSheet.getRowCount() + " rows, "
                                         + newSheet.getColumnCount() + " cols");
@@ -1456,7 +1498,7 @@ public class Spreadsheet {
                 }
             }
             iSheetYear = iYear;
-            frame.outputInfoMsg(UIFrame.STATUS_INFO, "Spreadsheet year: " + iSheetYear);
+            frame.outputInfoMsg(STATUS_INFO, "Spreadsheet year: " + iSheetYear);
         }
 
         // get the name of the file to store debug info to (if defined)
@@ -1471,7 +1513,7 @@ public class Spreadsheet {
         sheetArray.clear();
         for (int ix = 0; ix < numSheets; ix++) {
             sheetArray.add(SpreadSheet.createFromFile(SpreadsheetFile).getSheet(ix));
-            frame.outputInfoMsg(UIFrame.STATUS_INFO, "Reloaded sheet " + ix + " into memory");
+            frame.outputInfoMsg(STATUS_INFO, "Reloaded sheet " + ix + " into memory");
         }
     }
     
@@ -1481,13 +1523,52 @@ public class Spreadsheet {
      * @throws IOException 
      */
     public static void saveSpreadsheetFile() throws IOException {
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Saving sheet '" + sheetSel.getName() + "' to spreadsheet file");
+        frame.outputInfoMsg(STATUS_INFO, "Saving sheet '" + sheetSel.getName() + "' to spreadsheet file");
         sheetSel.getSpreadSheet().saveAs(SpreadsheetFile);
         
         // reload the spreadsheet sheets into memory, or we lose the info for one of the tabs
         reloadSpreadsheetFile ();
     }
 
+    /**
+     * creates a spreadsheet file that has the specified column header.
+     * 
+     * @param fname   - name of the file (referenced from base path)
+     * @param arrList - the list of column names to place
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
+    public static void fileCreate (String fname, ArrayList<String> arrList) throws ParserException, IOException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (fname == null || fname.isBlank()) {
+            throw new ParserException(functionId + "Filename is blank");
+        }
+        fname = getDefaultPath(Utils.PathType.Spreadsheet) + "/" + fname;
+        File scriptFile = new File(fname);
+        if (scriptFile.exists()) {
+            throw new ParserException(functionId + "File already exists: " + scriptFile.getAbsolutePath());
+        }
+        
+        // create the spreadsheet image
+        SpreadsheetFile = scriptFile;
+        TableModel model = new DefaultTableModel(null, arrList.toArray());
+        SpreadSheet sSheet = SpreadSheet.createEmpty(model);
+        sheetArray.clear();
+        sheetArray.add(sSheet.getSheet(0));
+
+        // select the tab index
+        selectSpreadsheetTab ("0");
+
+        // save the initial spreadsheet file
+        saveSpreadsheetFile();
+        
+        int rows = getSpreadsheetRowSize();
+        int cols = getSpreadsheetColSize();
+        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + cols + ", rows = " + rows);
+    }
+    
 //    /**
 //     * saves the modified spreadsheet to the file and then opens the file.
 //     */
@@ -1517,9 +1598,9 @@ public class Spreadsheet {
         String fnameExt  = Utils.getFileExtension(SpreadsheetFile);
 
         // make a backup copy of the current file before saving.
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Path to spreadsheet file: " + filePath);
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Name of spreadsheet file: " + fnameRoot + fnameExt);
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Creating backup of spreadsheet as: " + fnameRoot + backupId + fnameExt);
+        frame.outputInfoMsg(STATUS_INFO, "Path to spreadsheet file: " + filePath);
+        frame.outputInfoMsg(STATUS_INFO, "Name of spreadsheet file: " + fnameRoot + fnameExt);
+        frame.outputInfoMsg(STATUS_INFO, "Creating backup of spreadsheet as: " + fnameRoot + backupId + fnameExt);
 
         Path srcPath = FileSystems.getDefault().getPath(filePath, fnameRoot + fnameExt);
         Path dstPath = FileSystems.getDefault().getPath(filePath, fnameRoot + backupId + fnameExt);

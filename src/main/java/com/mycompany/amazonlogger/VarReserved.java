@@ -206,7 +206,7 @@ public class VarReserved {
                     vartype = ParameterStruct.ParamType.StrArray;
                     break;
                 case STATUS:
-                    vartype = ParameterStruct.ParamType.Integer;
+                    vartype = ParameterStruct.ParamType.Boolean;
                     break;
                 case RANDOM:
                     vartype = ParameterStruct.ParamType.Unsigned;

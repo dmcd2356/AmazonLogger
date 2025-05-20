@@ -10,7 +10,6 @@ TODO:
     results.
 
 FUTURE:
- - create a spreadsheet file (currently only allow opening one)
  - add -hyper option command to place a hypertext link in the cell of a spreadsheet
  - add DOUNTIL and DOWHILE commands (terminate in DONE)
  - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
@@ -49,4 +48,5 @@ TESTING PHASE:
  * verify Traits and Bracketing work for both LOCALs and GLOBALs (and RESERVEDs), but not LOOPs.
  * add Traits for outputting WRITER and WRITETIME of variables.
  * print a WARN message if variable is read prior to being set (it uses the default value).
+ * create a spreadsheet file (currently only allow opening one)
 

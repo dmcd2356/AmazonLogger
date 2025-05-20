@@ -31,6 +31,8 @@ public class CmdOptions {
         new OptionList ("-help"     , ""),
         new OptionList ("-debug"    , "U"),
         new OptionList ("-sfile"    , "S"),
+        new OptionList ("-snew"     , "SL"),
+        new OptionList ("-sadd"     , "L"),
         new OptionList ("-load"     , "UB"),
         new OptionList ("-tab"      , "U"),
         new OptionList ("-cfile"    , "S"),
@@ -428,8 +430,9 @@ public class CmdOptions {
         String option = cmdLine.option;
         PdfReader pdfReader = null;
         ArrayList<ParameterStruct> params = cmdLine.params;
+        ArrayList<String> arrList;
 
-        cmdLine.showCommand("");
+        frame.outputInfoMsg(STATUS_PROGRAM, "    Executing option: " + cmdLine.option);
 
         String argTypes = getOptionArgs(cmdLine.option);
         if (argTypes == null) {
@@ -455,6 +458,27 @@ public class CmdOptions {
                     }
                     File ssheetFile = Utils.checkFilename (fname, ".ods", pathtype, true);
                     Spreadsheet.selectSpreadsheet(ssheetFile);
+                    break;
+                case "-snew":
+                    pathtype = Utils.PathType.Spreadsheet;
+                    fname = params.get(0).getStringValue();
+                    absPath = getPathFromFilename (fname);
+                    if (! absPath.isEmpty() && fname.length() > absPath.length() + 1) {
+                        Utils.setDefaultPath(pathtype, absPath);
+                        fname = fname.substring(absPath.length() + 1);
+                    }
+                    arrList = params.get(1).getStrArray();
+                    if (arrList == null) {
+                        throw new ParserException(functionId + "Invalid array value: strArray is null");
+                    }
+                    Spreadsheet.fileCreate (fname, arrList);
+                    break;
+                case "-sadd":
+                    arrList = params.get(0).getStrArray();
+                    if (arrList == null) {
+                        throw new ParserException(functionId + "Invalid array value: strArray is null");
+                    }
+                    Spreadsheet.putSpreadsheetRow(arrList);
                     break;
                 case "-load":
                     Integer numTabs = getUnsignedValue(params, 0);
@@ -690,7 +714,6 @@ public class CmdOptions {
                     response.addAll(arrValue);
                     break;
                 case "-rowput":
-                    ArrayList<String> arrList;
                     iCol    = getUnsignedValue(params, 0);
                     iRow    = getUnsignedValue(params, 1);
                     arrList = params.get(2).getStrArray();
