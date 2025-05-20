@@ -6,6 +6,7 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
+import static com.mycompany.amazonlogger.ParameterStruct.getLongOrUnsignedValue;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_INFO;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_SSHEET;
@@ -1122,7 +1123,17 @@ public class Spreadsheet {
             frame.outputInfoMsg(STATUS_SSHEET, "clear tab " + sheetSel.getName() + " row " + row + " col " + col);
         }
         else {
-            sheetSel.getCellAt(col, row).setValue(strVal);
+            // write entry as numeric if it is, else as a string
+            try {
+                Long IValue = ParameterStruct.getLongOrUnsignedValue(strVal);
+                sheetSel.getCellAt(col, row).setValue(IValue);
+            } catch (ParserException exMsg) {
+                // if value enclosed in quotes, remove them
+                if (strVal.charAt(0) == '"' && strVal.charAt(strVal.length()-1) == '"') {
+                    strVal = strVal.substring(1, strVal.length()-1);
+                }
+                sheetSel.getCellAt(col, row).setValue(strVal);
+            }
             frame.outputInfoMsg(STATUS_SSHEET, "write tab " + sheetSel.getName() + " row " + row + " col " + col + " -> " + strVal);
         }
         return oldVal;
@@ -1534,12 +1545,13 @@ public class Spreadsheet {
      * creates a spreadsheet file that has the specified column header.
      * 
      * @param fname   - name of the file (referenced from base path)
+     * @param tabName - name to call tab selection
      * @param arrList - the list of column names to place
      * 
      * @throws ParserException
      * @throws IOException
      */
-    public static void fileCreate (String fname, ArrayList<String> arrList) throws ParserException, IOException {
+    public static void fileCreate (String fname, String tabName, ArrayList<String> arrList) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (fname == null || fname.isBlank()) {
@@ -1558,8 +1570,9 @@ public class Spreadsheet {
         sheetArray.clear();
         sheetArray.add(sSheet.getSheet(0));
 
-        // select the tab index
-        selectSpreadsheetTab ("0");
+        // select the tab index and give it a name
+        sheetSel = sheetArray.get(0);
+        sheetSel.setName(tabName);
 
         // save the initial spreadsheet file
         saveSpreadsheetFile();

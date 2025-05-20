@@ -155,22 +155,25 @@ public final class ParameterStruct {
                     // first transfer the array entries to the String Array param
                     strArrayParam = new ArrayList<>(Arrays.asList(strParam.split(",")));
                     intArrayParam = new ArrayList<>();
-                    for (int ix = 0; ix < strArrayParam.size(); ix++) {
+                    boolean bAllInts = true;
+                    for (int ix = 0; ix < strArrayParam.size() && bAllInts; ix++) {
                         try {
                             // now check if all entries were Integer, even if it was String Array
                             String cleanStr = strArrayParam.get(ix).strip();
                             strArrayParam.set(ix, cleanStr); // remove leading & trailing spaces
                             longParam = getLongOrUnsignedValue(cleanStr);
                             intArrayParam.add(longParam);
-                            if (paramType == ParamType.StrArray) {
-                                // if it was a String Array but was all Integers, reclassify it
-                                paramType = ParamType.IntArray;
-                            }
                         } catch (ParserException ex) {
+                            bAllInts = false;
                             if (paramType == ParamType.IntArray) {
                                 throw new ParserException(functionId + invalidMsg);
                             }
                         }
+                    }
+                    // if it was a String Array but was all Integers, reclassify it
+                    if (paramType == ParamType.StrArray && bAllInts) {
+                        paramType = ParamType.IntArray;
+                        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "Reclassified StrArray as IntArray: " + variableRef.getName());
                     }
                     if (paramType == ParamType.IntArray) {
                         frame.outputInfoMsg(STATUS_DEBUG, msgGap + "new " + paramType + " size " + intArrayParam.size());

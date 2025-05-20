@@ -31,7 +31,7 @@ public class CmdOptions {
         new OptionList ("-help"     , ""),
         new OptionList ("-debug"    , "U"),
         new OptionList ("-sfile"    , "S"),
-        new OptionList ("-snew"     , "SL"),
+        new OptionList ("-snew"     , "SSL"),
         new OptionList ("-sadd"     , "L"),
         new OptionList ("-load"     , "UB"),
         new OptionList ("-tab"      , "U"),
@@ -462,16 +462,17 @@ public class CmdOptions {
                 case "-snew":
                     pathtype = Utils.PathType.Spreadsheet;
                     fname = params.get(0).getStringValue();
+                    String tabName = params.get(1).getStringValue();
                     absPath = getPathFromFilename (fname);
                     if (! absPath.isEmpty() && fname.length() > absPath.length() + 1) {
                         Utils.setDefaultPath(pathtype, absPath);
                         fname = fname.substring(absPath.length() + 1);
                     }
-                    arrList = params.get(1).getStrArray();
+                    arrList = params.get(2).getStrArray();
                     if (arrList == null) {
                         throw new ParserException(functionId + "Invalid array value: strArray is null");
                     }
-                    Spreadsheet.fileCreate (fname, arrList);
+                    Spreadsheet.fileCreate (fname, tabName, arrList);
                     break;
                 case "-sadd":
                     arrList = params.get(0).getStrArray();
