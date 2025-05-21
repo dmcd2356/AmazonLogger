@@ -156,7 +156,7 @@ public final class ParameterStruct {
                     strArrayParam = new ArrayList<>(Arrays.asList(strParam.split(",")));
                     intArrayParam = new ArrayList<>();
                     boolean bAllInts = true;
-                    for (int ix = 0; ix < strArrayParam.size() && bAllInts; ix++) {
+                    for (int ix = 0; ix < strArrayParam.size(); ix++) {
                         try {
                             // now check if all entries were Integer, even if it was String Array
                             String cleanStr = strArrayParam.get(ix).strip();

@@ -1159,14 +1159,11 @@ public class Spreadsheet {
         int col = getSpreadsheetColSize();
         frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + col + ", rows = " + row);
         
-        // resize the spreadsheet for the new row
-        if (listVal.size() != col) {
-            throw new ParserException(functionId + "Number of items in row " + listVal.size() + " does not match the columns defined: " + col);
-        }
+        // allocate another row of data
         row++;
         setSpreadsheetSize (col, row);
         
-        // now we can add the row of data
+        // now we can add data to the row
         for (int ix = 0; ix < listVal.size(); ix++) {
             putSpreadsheetCell (ix, row - 1, listVal.get(ix));
         }
@@ -1517,14 +1514,16 @@ public class Spreadsheet {
     }
 
     private static void reloadSpreadsheetFile () throws IOException {
-        if (SpreadsheetFile == null || sheetSel == null || sheetArray.isEmpty()) {
+        if (SpreadsheetFile == null) {
             return;
         }
         int numSheets = sheetArray.size();
         sheetArray.clear();
         for (int ix = 0; ix < numSheets; ix++) {
-            sheetArray.add(SpreadSheet.createFromFile(SpreadsheetFile).getSheet(ix));
-            frame.outputInfoMsg(STATUS_INFO, "Reloaded sheet " + ix + " into memory");
+            SpreadSheet spreadsheet = SpreadSheet.createFromFile(SpreadsheetFile);
+            Sheet sheet = spreadsheet.getSheet(ix);
+            sheetArray.add(sheet);
+            frame.outputInfoMsg(STATUS_INFO, "Reloaded sheet " + ix + " '" + sheet.getName() + "' into memory");
         }
     }
     
@@ -1534,8 +1533,14 @@ public class Spreadsheet {
      * @throws IOException 
      */
     public static void saveSpreadsheetFile() throws IOException {
-        frame.outputInfoMsg(STATUS_INFO, "Saving sheet '" + sheetSel.getName() + "' to spreadsheet file");
-        sheetSel.getSpreadSheet().saveAs(SpreadsheetFile);
+        if (SpreadsheetFile == null) {
+            return;
+        }
+        for (int ix = 0; ix < sheetArray.size(); ix++) {
+            Sheet sheet = sheetArray.get(ix);
+            frame.outputInfoMsg(STATUS_INFO, "Saving sheet " + ix + " '" + sheet.getName() + "' to spreadsheet file");
+            sheet.getSpreadSheet().saveAs(SpreadsheetFile);
+        }
         
         // reload the spreadsheet sheets into memory, or we lose the info for one of the tabs
         reloadSpreadsheetFile ();
@@ -1557,6 +1562,9 @@ public class Spreadsheet {
         if (fname == null || fname.isBlank()) {
             throw new ParserException(functionId + "Filename is blank");
         }
+        if (tabName == null || tabName.isBlank()) {
+            throw new ParserException(functionId + "Tab name is blank");
+        }
         fname = getDefaultPath(Utils.PathType.Spreadsheet) + "/" + fname;
         File scriptFile = new File(fname);
         if (scriptFile.exists()) {
@@ -1573,6 +1581,48 @@ public class Spreadsheet {
         // select the tab index and give it a name
         sheetSel = sheetArray.get(0);
         sheetSel.setName(tabName);
+
+        // save the initial spreadsheet file
+        saveSpreadsheetFile();
+        
+        int rows = getSpreadsheetRowSize();
+        int cols = getSpreadsheetColSize();
+        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + cols + ", rows = " + rows);
+    }
+    
+    /**
+     * adds a new tab to the current spreadsheet file with the specified column header.
+     * 
+     * @param tabName - name to call tab selection
+     * @param arrList - the list of column names to place
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
+    public static void addTab (String tabName, ArrayList<String> arrList) throws ParserException, IOException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (tabName == null || tabName.isBlank()) {
+            throw new ParserException(functionId + "Tab name is blank");
+        }
+        if (SpreadsheetFile == null || ! SpreadsheetFile.isFile()) {
+            throw new ParserException(functionId + "No spreadsheet file selection");
+        }
+
+//        // make sure we have loaded all current sheets into sheet array
+//        reloadSpreadsheetFile();
+        
+        // create a new tab for the current spreadsheet image
+        SpreadSheet sSheet = sheetSel.getSpreadSheet();
+        sheetSel = sSheet.addSheet(tabName);
+        sheetSel.setName(tabName);
+        sheetArray.add(sheetSel);
+        
+        // make sure we set our current sheet selection to the one we just created
+        // and add the initial column data.
+//        sheetSel = newSheet;
+        setSpreadsheetSize (arrList.size(), 0);
+        putSpreadsheetRow (arrList);
 
         // save the initial spreadsheet file
         saveSpreadsheetFile();

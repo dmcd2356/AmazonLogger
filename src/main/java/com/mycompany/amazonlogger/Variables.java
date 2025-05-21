@@ -21,7 +21,6 @@ public class Variables {
     static final int NAME_MAXLEN = 20;  // the max # chars in a param name
 
             
-    public final VarGlobal   varGlobal   = new VarGlobal();
     public final VarLocal    varLocal    = new VarLocal();
 
 
@@ -275,7 +274,7 @@ public class Variables {
         
         String curSub = Subroutine.getSubName();
         boolean bExists;
-        bExists = varGlobal.isDefined(varName);
+        bExists = VarGlobal.isDefined(varName);
         if (bExists) {
             return;
         }
@@ -304,7 +303,7 @@ public class Variables {
         String curSub = Subroutine.getSubName();
         boolean bExists;
 
-        bExists = varGlobal.isDefined(varName);
+        bExists = VarGlobal.isDefined(varName);
         if (bExists) {
             return;
         }
@@ -358,7 +357,7 @@ public class Variables {
         if (access == AccessType.LOCAL) {
             varLocal.allocVar (varName, ptype);
         } else {
-            varGlobal.allocVar (varName, ptype, subName);
+            VarGlobal.allocVar (varName, ptype, subName);
         }
     }
 
@@ -829,6 +828,7 @@ public class Variables {
             throw new ParserException(functionId + "Null input value");
         }
         try {
+            name = name.strip();
             if (name.startsWith("$") && use == VarCheck.REFERENCE) {
                 name = name.substring(1);
             }

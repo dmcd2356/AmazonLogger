@@ -578,15 +578,18 @@ public class ScriptCompile {
                         // verify the option command and its parameters
                         // NOTE: when we place the command in cmdStruct, we remove the RUN label,
                         //       so executeProgramCommand does not need to check for it.
-                        ArrayList<String> optCmd = new ArrayList<>(Arrays.asList(parmString.split(" ")));
-                        ArrayList<CommandStruct> runList = cmdOptionParser.formatCmdOptions (optCmd, lineNum);
-
-                        // append all option commands on the line to the command list, 1 option per command line
-                        while (! runList.isEmpty()) {
-                            lineNumbers.add(lineNum);
-                            cmdList.add(runList.removeFirst());
-                        }
-                        cmdStruct = null; // clear this since we have copied all the commands from here
+                        cmdStruct.option = cmdStruct.params.getFirst().getStringValue();
+                        cmdStruct.params.removeFirst();
+                        cmdOptionParser.checkCmdOptions(cmdStruct.option, cmdStruct.params, lineNum);
+//                        ArrayList<String> optCmd = new ArrayList<>(Arrays.asList(parmString.split(" ")));
+//                        ArrayList<CommandStruct> runList = cmdOptionParser.formatCmdOptions (optCmd, lineNum);
+//
+//                        // append all option commands on the line to the command list, 1 option per command line
+//                        while (! runList.isEmpty()) {
+//                            lineNumbers.add(lineNum);
+//                            cmdList.add(runList.removeFirst());
+//                        }
+//                        cmdStruct = null; // clear this since we have copied all the commands from here
                         break;
 
                     default:

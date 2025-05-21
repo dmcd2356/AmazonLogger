@@ -188,7 +188,7 @@ public class ParseScript {
      * checks if the specified argument compiles with the specified data type.
      * 
      * @param index      - the index of the argument in the arg list
-     * @param exptype    - the type of variable the command is expecting
+     * @param expType    - the type of variable the command is expecting
      * @param parmList   - the list of args
      * 
      * @return the value of the String argument (it should always be valid)

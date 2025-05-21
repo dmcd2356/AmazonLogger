@@ -32,7 +32,8 @@ public class CmdOptions {
         new OptionList ("-debug"    , "U"),
         new OptionList ("-sfile"    , "S"),
         new OptionList ("-snew"     , "SSL"),
-        new OptionList ("-sadd"     , "L"),
+        new OptionList ("-saddtab"  , "SL"),
+        new OptionList ("-saddrow"  , "L"),
         new OptionList ("-load"     , "UB"),
         new OptionList ("-tab"      , "U"),
         new OptionList ("-cfile"    , "S"),
@@ -84,7 +85,7 @@ public class CmdOptions {
      * @return the corresponding ParameterType value
      */
     public static ParameterStruct.ParamType getParameterType (char dataType) {
-        switch(dataType) {
+        switch(Character.toUpperCase(dataType)) {
             case 'I':   return ParameterStruct.ParamType.Integer;
             case 'U':   return ParameterStruct.ParamType.Unsigned;
             case 'B':   return ParameterStruct.ParamType.Boolean;
@@ -269,7 +270,8 @@ public class CmdOptions {
         int maxArgs = (optInfo.argTypes == null || optInfo.argTypes.isEmpty()) ? 0 : optInfo.argTypes.length();
         for (int off = 0; off < maxArgs; off++) {
             // uppercase letters are required, which will indicate the min mumber
-            if (optInfo.argTypes.charAt(off) >= 'A' && optInfo.argTypes.charAt(off) <= 'Z') {
+            char nextChar = optInfo.argTypes.charAt(off);
+            if (Character.isUpperCase(nextChar)) {
                 minArgs++;
             }
         }
@@ -342,6 +344,79 @@ public class CmdOptions {
         commands.add(newCommand);
         frame.outputInfoMsg(STATUS_COMPILE, commands.size() + " options found");
         return commands;
+    }
+
+    /**
+     * creates a list of CommandStruct entries from the command line options.
+     * Does some verification of the command line and splits it into multiple
+     * lines if more than 1 option command is present on the line.
+     * 
+     * NOTE: that these are 'option' commands only, not the program commands
+     * that can direct program flow and assign parameter values.
+     *
+     * @param command - the command to run
+     * @param argList - the command line arguments expressed as a list of Strings
+     * @param lineNum - the program file source line number for the option command(s)
+     * 
+     * @throws ParserException 
+     */
+    public void checkCmdOptions (String command, ArrayList<ParameterStruct> argList, int lineNum) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": " + showLineNumberInfo(lineNum);
+
+        if (argList == null || command == null) {
+            throw new ParserException(functionId + showLineNumberInfo(lineNum) + "Null command line");
+        }
+
+        // get the argument types for the specified command
+        OptionList optInfo = null;
+        for (OptionList tblEntry : OptionTable) {
+            if (tblEntry.optName.contentEquals(command)) {
+                optInfo = tblEntry;
+                break;
+            }
+        }
+        if (optInfo == null) {
+            throw new ParserException(functionId + "Cmd option is not valid: " + command);
+        }
+        if (optInfo.argTypes.isEmpty()) {
+            frame.outputInfoMsg(STATUS_COMPILE, "  Cmd option: " + command + " (no args)");
+        } else {
+            frame.outputInfoMsg(STATUS_COMPILE, "  Cmd option: " + command + " (arglist: " + optInfo.argTypes + ")");
+        }
+        
+        // determine the min and max args allowed
+        int minArgs = 0;
+        int maxArgs = (optInfo.argTypes == null || optInfo.argTypes.isEmpty()) ? 0 : optInfo.argTypes.length();
+        for (int off = 0; off < maxArgs; off++) {
+            // uppercase letters are required, which will indicate the min mumber
+            char nextChar = optInfo.argTypes.charAt(off);
+            if (Character.isUpperCase(nextChar)) {
+                minArgs++;
+            }
+        }
+
+        int argCount = argList.size();
+        if (argCount < minArgs) {
+            throw new ParserException(functionId + "Cmd option " + command + " missing args. Expected " + minArgs + ", found " + argCount);
+        }
+        if (argCount > maxArgs) {
+            throw new ParserException(functionId + "Cmd option " + command + " too many args. Expected " + maxArgs + ", found " + argCount);
+        }
+        
+        // remove entries 1 at a time starting with the command option and then
+        //  adding each of its args to 'newCommand' until either another command option is found
+        //  or the max number of args has been read. check for too few or too many args were
+        //  found for the option.
+        // Then, place this complete command into the array of commands in 'command'.
+        for (int ix = 0; ix < argCount; ix++) {
+            char argType = optInfo.argTypes.charAt(ix);
+            ParameterStruct.ParamType ptype = getParameterType(argType);
+            ParameterStruct argValue = argList.get(ix);
+            ParameterStruct.ParamType actType = argValue.getParamType();
+            if (actType != ptype) {
+                throw new ParserException(functionId + "Cmd option " + command + " arg " + ix + ": " + ptype + " (" + argType + ") is actually " + actType);
+            }
+        }
     }
 
     /**
@@ -474,7 +549,15 @@ public class CmdOptions {
                     }
                     Spreadsheet.fileCreate (fname, tabName, arrList);
                     break;
-                case "-sadd":
+                case "-saddtab":
+                    tabName = params.get(0).getStringValue();
+                    arrList = params.get(1).getStrArray();
+                    if (arrList == null) {
+                        throw new ParserException(functionId + "Invalid array value: strArray is null");
+                    }
+                    Spreadsheet.addTab(tabName, arrList);
+                    break;
+                case "-saddrow":
                     arrList = params.get(0).getStrArray();
                     if (arrList == null) {
                         throw new ParserException(functionId + "Invalid array value: strArray is null");

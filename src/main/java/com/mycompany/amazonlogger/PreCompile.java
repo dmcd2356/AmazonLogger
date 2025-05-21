@@ -124,7 +124,7 @@ public class PreCompile {
                         //  to do anything with this command.
                         // Multiple Variables can be defined on one line, with the names comma separated
                         for (int ix = 0; ix < list.getStrArraySize(); ix++) {
-                            String pName = list.getStrArrayElement(ix);
+                            String pName = list.getStrArrayElement(ix).strip();
                             variables.allocateVariable(access, dataType, pName, subName);
                         }
                         break;
