@@ -6,7 +6,6 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
-import static com.mycompany.amazonlogger.ParameterStruct.getLongOrUnsignedValue;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_INFO;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_SSHEET;
@@ -49,7 +48,7 @@ public class Spreadsheet {
     private static final String SKIP_AMOUNT = "-";          // the value to use for Total amount if entry is omitted
     private static final String RETURN_DATE = "RETURN";     // the date value to use for Delivered if item was returned
 
-    private static ArrayList<Sheet> sheetArray = new ArrayList<>(); // the list of sheets (tabs) loaded in memory
+    private static final ArrayList<Sheet> sheetArray = new ArrayList<>(); // the list of sheets (tabs) loaded in memory
     private static Sheet    sheetSel = null;                // the current spreadsheet tab selection
     private static File     SpreadsheetFile;                // the spreadsheet file
     private static Integer  iSheetYear = null;              // the year value the spreadsheet is marked as
@@ -1140,37 +1139,8 @@ public class Spreadsheet {
     }
 
     /**    
-     * writes the text data to the next row of the current spreadsheet tab.
-     * 
-     * @param listVal - the array of data to write to the row
-     * 
-     * @throws ParserException
-     * @throws IOException
-     */
-    public static void putSpreadsheetRow (ArrayList<String> listVal) throws ParserException, IOException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (listVal == null || listVal.isEmpty()) {
-            throw new ParserException(functionId + "selected sheet is null");
-        }
-        
-        // get current spreadsheet size
-        int row = getSpreadsheetRowSize();
-        int col = getSpreadsheetColSize();
-        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + col + ", rows = " + row);
-        
-        // allocate another row of data
-        row++;
-        setSpreadsheetSize (col, row);
-        
-        // now we can add data to the row
-        for (int ix = 0; ix < listVal.size(); ix++) {
-            putSpreadsheetCell (ix, row - 1, listVal.get(ix));
-        }
-    }
-    
-    /**    
      * writes the text data to the specified row of the selected spreadsheet tab.
+     * Resizes the spreadsheet image if necessary to accommodate the new data.
      * 
      * @param col  - the starting column of the spreadsheet
      * @param row  - the row of the spreadsheet
@@ -1185,6 +1155,26 @@ public class Spreadsheet {
         if (listVal == null || listVal.isEmpty()) {
             throw new ParserException(functionId + "selected sheet is null");
         }
+        
+        // get current spreadsheet size
+        frame.outputInfoMsg(STATUS_INFO, "Adding array of size " + listVal.size() + " to row " + row + " of sheet " + sheetSel.getName());
+        int rowsize = getSpreadsheetRowSize();
+        int colsize = getSpreadsheetColSize();
+        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + colsize + ", rows = " + rowsize);
+        
+        // resize the spreadsheet image if it isn't large enough for the data
+        int colLength = listVal.size();
+        if (rowsize < row + 1 || colsize < col + colLength) {
+            if (rowsize < row + 1) {
+                rowsize = row + 1;
+            }
+            if (colsize < col + colLength) {
+                colsize = col + colLength;
+            }
+            setSpreadsheetSize (colsize, rowsize);
+        }
+        
+        // add the data
         for (int ix = 0; ix < listVal.size(); ix++) {
             putSpreadsheetCell (col + ix, row, listVal.get(ix));
         }
@@ -1192,6 +1182,7 @@ public class Spreadsheet {
     
     /**    
      * writes the text data to the specified column of the selected spreadsheet tab.
+     * Resizes the spreadsheet image if necessary to accommodate the new data.
      * 
      * @param col  - the column of the spreadsheet
      * @param row  - the starting row of the spreadsheet
@@ -1206,6 +1197,26 @@ public class Spreadsheet {
         if (listVal == null || listVal.isEmpty()) {
             throw new ParserException(functionId + "selected sheet is null");
         }
+
+        // get current spreadsheet size
+        frame.outputInfoMsg(STATUS_INFO, "Adding array of size " + listVal.size() + " to col " + col + " of sheet " + sheetSel.getName());
+        int rowsize = getSpreadsheetRowSize();
+        int colsize = getSpreadsheetColSize();
+        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + colsize + ", rows = " + rowsize);
+        
+        // resize the spreadsheet image if it isn't large enough for the data
+        int rowLength = listVal.size();
+        if (rowsize < row + rowLength || colsize < col + 1) {
+            if (rowsize < row + rowLength) {
+                rowsize = row + rowLength;
+            }
+            if (colsize < col + 1) {
+                colsize = col + 1;
+            }
+            setSpreadsheetSize (colsize, rowsize);
+        }
+        
+        // add the data
         for (int ix = 0; ix < listVal.size(); ix++) {
             putSpreadsheetCell (col, row + ix, listVal.get(ix));
         }
@@ -1573,14 +1584,17 @@ public class Spreadsheet {
         
         // create the spreadsheet image
         SpreadsheetFile = scriptFile;
-        TableModel model = new DefaultTableModel(null, arrList.toArray());
+        String[] headerRow = null;
+        if (arrList != null)
+            headerRow = arrList.toArray(String[]::new);
+        TableModel model = new DefaultTableModel(null, headerRow);
         SpreadSheet sSheet = SpreadSheet.createEmpty(model);
-        sheetArray.clear();
-        sheetArray.add(sSheet.getSheet(0));
-
-        // select the tab index and give it a name
-        sheetSel = sheetArray.get(0);
+        sheetSel = sSheet.getSheet(0);
         sheetSel.setName(tabName);
+
+        // save the entry in our array of sheets
+        sheetArray.clear();
+        sheetArray.add(sheetSel);
 
         // save the initial spreadsheet file
         saveSpreadsheetFile();
@@ -1609,20 +1623,19 @@ public class Spreadsheet {
             throw new ParserException(functionId + "No spreadsheet file selection");
         }
 
-//        // make sure we have loaded all current sheets into sheet array
-//        reloadSpreadsheetFile();
-        
         // create a new tab for the current spreadsheet image
         SpreadSheet sSheet = sheetSel.getSpreadSheet();
         sheetSel = sSheet.addSheet(tabName);
         sheetSel.setName(tabName);
+        
+        // save the entry in our array of sheets
         sheetArray.add(sheetSel);
         
-        // make sure we set our current sheet selection to the one we just created
+        // set the initial size of our spreadsheet to the size of the array and add the data
         // and add the initial column data.
-//        sheetSel = newSheet;
-        setSpreadsheetSize (arrList.size(), 0);
-        putSpreadsheetRow (arrList);
+        if (arrList != null && ! arrList.isEmpty()) {
+            putSpreadsheetRow (0, 0, arrList);
+        }
 
         // save the initial spreadsheet file
         saveSpreadsheetFile();

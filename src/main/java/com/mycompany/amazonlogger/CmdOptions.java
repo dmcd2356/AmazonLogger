@@ -31,9 +31,8 @@ public class CmdOptions {
         new OptionList ("-help"     , ""),
         new OptionList ("-debug"    , "U"),
         new OptionList ("-sfile"    , "S"),
-        new OptionList ("-snew"     , "SSL"),
-        new OptionList ("-saddtab"  , "SL"),
-        new OptionList ("-saddrow"  , "L"),
+        new OptionList ("-snew"     , "SSl"),
+        new OptionList ("-saddtab"  , "Sl"),
         new OptionList ("-load"     , "UB"),
         new OptionList ("-tab"      , "U"),
         new OptionList ("-cfile"    , "S"),
@@ -506,6 +505,7 @@ public class CmdOptions {
         PdfReader pdfReader = null;
         ArrayList<ParameterStruct> params = cmdLine.params;
         ArrayList<String> arrList;
+        Integer iRow, iCol;
 
         frame.outputInfoMsg(STATUS_PROGRAM, "    Executing option: " + cmdLine.option);
 
@@ -543,26 +543,19 @@ public class CmdOptions {
                         Utils.setDefaultPath(pathtype, absPath);
                         fname = fname.substring(absPath.length() + 1);
                     }
-                    arrList = params.get(2).getStrArray();
-                    if (arrList == null) {
-                        throw new ParserException(functionId + "Invalid array value: strArray is null");
-                    }
+                    if (params.size() > 2)
+                        arrList = params.get(2).getStrArray();
+                    else
+                        arrList = null;
                     Spreadsheet.fileCreate (fname, tabName, arrList);
                     break;
                 case "-saddtab":
                     tabName = params.get(0).getStringValue();
-                    arrList = params.get(1).getStrArray();
-                    if (arrList == null) {
-                        throw new ParserException(functionId + "Invalid array value: strArray is null");
-                    }
+                    if (params.size() > 1)
+                        arrList = params.get(1).getStrArray();
+                    else
+                        arrList = null;
                     Spreadsheet.addTab(tabName, arrList);
-                    break;
-                case "-saddrow":
-                    arrList = params.get(0).getStrArray();
-                    if (arrList == null) {
-                        throw new ParserException(functionId + "Invalid array value: strArray is null");
-                    }
-                    Spreadsheet.putSpreadsheetRow(arrList);
                     break;
                 case "-load":
                     Integer numTabs = getUnsignedValue(params, 0);
@@ -689,18 +682,18 @@ public class CmdOptions {
                     Spreadsheet.selectSpreadsheetTab (strTab);
                     break;
                 case "-maxcol":
-                    Integer iCol = Spreadsheet.getSpreadsheetColSize ();
+                    iCol = Spreadsheet.getSpreadsheetColSize ();
                     response.add("" + iCol);
                     break;
                 case "-maxrow":
-                    Integer iRow = Spreadsheet.getSpreadsheetRowSize ();
+                    iRow = Spreadsheet.getSpreadsheetRowSize ();
                     response.add("" + iRow);
                     break;
                 case "-setsize":
                     iCol = getUnsignedValue(params, 0);
                     iRow = getUnsignedValue(params, 1);
                     if (iCol == null || iRow == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     Spreadsheet.setSpreadsheetSize (iCol, iRow);
                     break;
@@ -713,7 +706,7 @@ public class CmdOptions {
                     iCol = getUnsignedValue(params, 0);
                     iRow = getUnsignedValue(params, 1);
                     if (iCol == null || iRow == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     String strValue = Spreadsheet.getSpreadsheetCellClass(iCol, iRow);
                     response.add("" + strValue);
@@ -724,7 +717,7 @@ public class CmdOptions {
                     iRow   = getUnsignedValue(params, 1);
                     iColor = getUnsignedValue(params, 2);
                     if (iCol == null || iRow == null || iColor == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", color = " + iColor);
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColorOfTheMonth(iColor));
                     break;
@@ -734,7 +727,7 @@ public class CmdOptions {
                     iRow = getUnsignedValue(params, 1);
                     iRGB = getUnsignedValue(params, 2);
                     if (iCol == null || iRow == null || iRGB == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", RGB = " + iRGB);
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("RGB", iRGB));
                     break;
@@ -744,7 +737,7 @@ public class CmdOptions {
                     iRow = getUnsignedValue(params, 1);
                     iHSB = getUnsignedValue(params, 2);
                     if (iCol == null || iRow == null || iHSB == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", HSB = " + iHSB);
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("HSB", iHSB));
                     break;
@@ -752,7 +745,7 @@ public class CmdOptions {
                     iCol = getUnsignedValue(params, 0);
                     iRow = getUnsignedValue(params, 1);
                     if (iCol == null || iRow == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     String cellValue = Spreadsheet.getSpreadsheetCell(iCol, iRow);
                     response.add(cellValue);
@@ -761,7 +754,7 @@ public class CmdOptions {
                     iCol = getUnsignedValue(params, 0);
                     iRow = getUnsignedValue(params, 1);
                     if (iCol == null || iRow == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     cellValue = Spreadsheet.putSpreadsheetCell(iCol, iRow, null);
                     response.add(cellValue);
@@ -771,7 +764,7 @@ public class CmdOptions {
                     iRow = getUnsignedValue(params, 1);
                     String strText = params.get(2).getStringValue();
                     if (iCol == null || iRow == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     cellValue = Spreadsheet.putSpreadsheetCell(iCol, iRow, strText);
                     response.add(cellValue);
@@ -782,7 +775,7 @@ public class CmdOptions {
                     iRow   = getUnsignedValue(params, 1);
                     iCount = getUnsignedValue(params, 2);
                     if (iCol == null || iRow == null || iCount == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", count = " + iCount);
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     ArrayList<String> arrValue = Spreadsheet.getSpreadsheetRow(iCol, iRow, iCount);
                     response.addAll(arrValue);
@@ -792,7 +785,7 @@ public class CmdOptions {
                     iRow   = getUnsignedValue(params, 1);
                     iCount = getUnsignedValue(params, 2);
                     if (iCol == null || iRow == null || iCount == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow + ", count = " + iCount);
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     arrValue = Spreadsheet.getSpreadsheetCol(iCol, iRow, iCount);
                     response.addAll(arrValue);
@@ -801,11 +794,8 @@ public class CmdOptions {
                     iCol    = getUnsignedValue(params, 0);
                     iRow    = getUnsignedValue(params, 1);
                     arrList = params.get(2).getStrArray();
-                    if (iCol == null || iRow == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
-                    }
-                    if (arrList == null) {
-                        throw new ParserException(functionId + "Invalid array value: strArray is null");
+                    if (iCol == null || iRow == null || arrList == null) {
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     Spreadsheet.putSpreadsheetRow(iCol, iRow, arrList);
                     break;
@@ -813,11 +803,8 @@ public class CmdOptions {
                     iCol    = getUnsignedValue(params, 0);
                     iRow    = getUnsignedValue(params, 1);
                     arrList = params.get(2).getStrArray();
-                    if (iCol == null || iRow == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
-                    }
-                    if (arrList == null) {
-                        throw new ParserException(functionId + "Invalid array value: strArray is null");
+                    if (iCol == null || iRow == null || arrList == null) {
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     Spreadsheet.putSpreadsheetCol(iCol, iRow, arrList);
                     break;
@@ -826,11 +813,8 @@ public class CmdOptions {
                     iCol    = getUnsignedValue(params, 0);
                     iRow    = getUnsignedValue(params, 1);
                     arrLong  = params.get(2).getIntArray();
-                    if (iCol == null || iRow == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
-                    }
-                    if (arrLong == null) {
-                        throw new ParserException(functionId + "Invalid array value: intArray is null");
+                    if (iCol == null || iRow == null || arrLong == null) {
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     Spreadsheet.putSpreadsheetColorRow(iCol, iRow, arrLong);
                     break;
@@ -839,10 +823,7 @@ public class CmdOptions {
                     iRow    = getUnsignedValue(params, 1);
                     arrLong  = params.get(2).getIntArray();
                     if (iCol == null || iRow == null || arrLong == null) {
-                        throw new ParserException(functionId + "Invalid values: col = " + iCol + ", row = " + iRow);
-                    }
-                    if (arrLong == null) {
-                        throw new ParserException(functionId + "Invalid array value: intArray is null");
+                        throw new ParserException(functionId + "Null argument value");
                     }
                     Spreadsheet.putSpreadsheetColorCol(iCol, iRow, arrLong);
                     break;
