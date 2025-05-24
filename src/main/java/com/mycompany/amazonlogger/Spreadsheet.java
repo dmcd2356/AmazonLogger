@@ -28,13 +28,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableModel;
-import org.jopendocument.dom.spreadsheet.MutableCell;
-//import org.jopendocument.dom.OOUtils;
-//import org.jopendocument.dom.OOUtils;
-import org.jopendocument.dom.spreadsheet.Sheet;
-import org.jopendocument.dom.spreadsheet.SpreadSheet;
 
 /**
  * This class defines the interface to accessing the spreadsheet
@@ -48,9 +41,6 @@ public class Spreadsheet {
     private static final String SKIP_AMOUNT = "-";          // the value to use for Total amount if entry is omitted
     private static final String RETURN_DATE = "RETURN";     // the date value to use for Delivered if item was returned
 
-    private static final ArrayList<Sheet> sheetArray = new ArrayList<>(); // the list of sheets (tabs) loaded in memory
-    private static Sheet    sheetSel = null;                // the current spreadsheet tab selection
-    private static File     SpreadsheetFile;                // the spreadsheet file
     private static Integer  iSheetYear = null;              // the year value the spreadsheet is marked as
     private static int      firstRow = -1;                  // the first row following the header
     private static int      lastValidColumn = 0;            // the column index of the last valid entry
@@ -126,13 +116,10 @@ public class Spreadsheet {
      * 
      * @throws ParserException
      */
-    private static void setupColumns (boolean bHeader, Sheet sheetHeader) throws ParserException {
+    private static void setupColumns (boolean bHeader) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         hmSheetColumns.clear();
-        if (sheetHeader == null) {
-            throw new ParserException(functionId + "No sheet selected");
-        }
         if (! bHeader) {
             frame.outputInfoMsg(STATUS_SSHEET, "No header check performed on spreadsheet");
             return;
@@ -141,11 +128,11 @@ public class Spreadsheet {
         // search the first column in the first 5 rows of the spreadsheet for
         // one of the column names (only need to search 1st 4 columns)
         int headerRow = -1;
-        for (int row = 0; row < 5 && row < sheetHeader.getRowCount() && headerRow < 0; row++) {
+        for (int row = 0; row < 5 && row < OpenDoc.getRowSize() && headerRow < 0; row++) {
             String strSpreadsheet = "";
-            Object object = sheetHeader.getCellAt(0,row).getValue();
-            if (object != null)
-                strSpreadsheet = strToEnum(object.toString());
+            String cellValue = OpenDoc.getCellTextValue(0,row);
+            if (cellValue != null)
+                strSpreadsheet = strToEnum(cellValue);
             if (! strSpreadsheet.isBlank()) {
                 for (Column colEnum : Column.values()) { 
                     String strName = colEnum.name();
@@ -167,16 +154,16 @@ public class Spreadsheet {
         // now let's run through the header columns to assign each column a value
         // (add 5 to the count in case we had some extra columns added that aren't in our list)
         int maxColValue = 0;
-        int maxLen = sheetHeader.getColumnCount();
+        int maxLen = OpenDoc.getColSize();
         maxLen = (maxLen > Column.values().length + 5) ? Column.values().length + 5 : maxLen;
         for (int col = 0; col < maxLen; col++) {
             boolean bFound = false;
-            Object object = sheetHeader.getCellAt(col,headerRow).getValue();
-            if (object == null || object.toString().isBlank()) {
+            String cellValue = OpenDoc.getCellTextValue(col,headerRow);
+            if (cellValue == null || cellValue.isBlank()) {
                 frame.outputInfoMsg(STATUS_SSHEET, "Header column " + col + " is empty");
                 break;
             }
-            String colHeader = strToEnum(object.toString());
+            String colHeader = strToEnum(cellValue);
             for (Column colEnum : Column.values()) { 
                 String strName = colEnum.name();
                 if (colHeader.equalsIgnoreCase(strName)) {
@@ -227,79 +214,16 @@ public class Spreadsheet {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         String strValue = "";
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
+        int rowSize = OpenDoc.getRowSize();
+        if (row >= rowSize) {
+            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
         }
         Integer col = getColumn(colEnum);
         if (col != null) {
-            Object object = sheetSel.getCellAt(col,row).getValue();
-            if (object != null) {
-                strValue = object.toString();
-            }
+            strValue = OpenDoc.getCellTextValue(col,row);
         }
         
         return strValue;
-    }
-    
-    /**
-     * gets a Double value for the specified column and row.
-     * The Object type returned from a 'Numeric', 'Percent', 'Currency', 'Scientific',
-     * and 'Fraction' formatted cell should be a BigDecimal.
-     * However, we will also accept a String format as long as the value is numeric.
-     * 
-     * Note: for types that are not 'Numeric', if the object is read as a String
-     *   they will have the following formats (the same as what is displayed in
-     *   the spreadsheet). If you want them expressed this way, read them using
-     *   getStringValue() instead:
-     * 
-     *   'Percent' types will have the numeric followed by a '%' char
-     *   'Currency' types will be preceded with a '$' char
-     *   'Fraction' types will be reported as a fraction (e.g. "1/4" instead of 0.25
-     *   'Scientific' types will be reported in the form 2.56E+04
-     * 
-     * @param colEnum - the name of the column
-     * @param row     - the row in the spreadsheet
-     * 
-     * @return the corresponding Double value from the cell (null if blank)
-     * 
-     * @throws ParserException
-     */
-    private static Double getDoubleValue (Column colEnum, int row) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        Double dValue = null;
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
-        }
-        Integer col = getColumn(colEnum);
-        if (col != null) {
-            Object object = sheetSel.getCellAt(col,row).getValue();
-            if (object != null) {
-                Class oClass = object.getClass();
-                switch (oClass.toString()) {
-                    case "class java.math.BigDecimal":
-                        BigDecimal bdValue = (BigDecimal) object;
-                        dValue = bdValue.doubleValue();
-                        break;
-                    case "class java.lang.String":
-                        String strValue = object.toString();
-                        try {
-                            // if it was String formatted but was representing currency,
-                            // there may be a '$' char preceeding the value.
-                            if (strValue.startsWith("$")) {
-                                strValue = strValue.substring(1);
-                            }
-                            dValue = Double.valueOf(strValue);
-                        } catch (NumberFormatException ex) {
-                            dValue = null;
-                        }   break;
-                    default:
-                        throw new ParserException(functionId + "row " + row + " has non-numeric cell format: " + oClass.toString());
-                }
-            }
-        }
-        
-        return dValue;
     }
     
     /**
@@ -321,8 +245,9 @@ public class Spreadsheet {
 
         Integer iValue = 0;
         Integer col = getColumn(colEnum);
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
+        int rowSize = OpenDoc.getRowSize();
+        if (row >= rowSize) {
+            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
         }
         
         // get the multiplier value (if any)
@@ -330,7 +255,7 @@ public class Spreadsheet {
         int iMult;
         switch (iDecShift) {
             default:
-                frame.outputInfoMsg(STATUS_WARN, functionId + "dec shift out of range: " + iDecShift);
+                frame.outputInfoMsg(STATUS_WARN, functionId + "dec shift out of range: " + iDecShift + " (limit = { 0 - 3 }");
                 // fall through...
             case 0:
                 iMult = 1;
@@ -352,18 +277,17 @@ public class Spreadsheet {
         }
 
         if (col != null) {
-            Object object = sheetSel.getCellAt(col,row).getValue();
-            if (object != null) {
-                Class oClass = object.getClass();
-                switch (oClass.toString()) {
-                    case "class java.math.BigDecimal":
-                        BigDecimal bdValue = (BigDecimal) object;
+            String type = OpenDoc.getCellObjectType(col,row);
+            if (type != null) {
+                switch (type) {
+                    case "BigDecimal":
+                        BigDecimal bdValue = OpenDoc.getCellNumericValue(col, row);
                         if (bdMult != null)
                             bdValue = bdValue.multiply(bdMult);
                         iValue = bdValue.intValue();
                         break;
-                    case "class java.lang.String":
-                        String strValue = object.toString();
+                    case "String":
+                        String strValue = OpenDoc.getCellTextValue(col, row);
                         try {
                             // if it was String formatted but was representing currency,
                             // there may be a '$' char preceeding the value.
@@ -382,7 +306,7 @@ public class Spreadsheet {
                             iValue = null;
                         }   break;
                     default:
-                        throw new ParserException(functionId + "row " + row + " has non-numeric cell format: " + oClass.toString());
+                        throw new ParserException(functionId + "row " + row + " has non-numeric cell format: " + type);
                 }
             }
         }
@@ -390,19 +314,6 @@ public class Spreadsheet {
         return iValue;
     }
 
-    /**
-     * This returns the order number for the specified row of the spreadsheet.
-     * 
-     * @param row - the specified row
-     * 
-     * @return the order number found
-     * 
-     * @throws ParserException
-     */
-    public static String getOrderNumber (int row) throws ParserException {
-        return getStringValue (Column.OrderNumber, row);
-    }
-    
     /**
      * This returns the order date for the specified row of the spreadsheet.
      * 
@@ -415,8 +326,9 @@ public class Spreadsheet {
     public static String getDateOrdered (int row) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
+        int rowSize = OpenDoc.getRowSize();
+        if (row >= rowSize) {
+            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
         }
         String date = getStringValue (Column.DateOrdered, row);
         if (date.length() <= 10) {
@@ -443,6 +355,19 @@ public class Spreadsheet {
         frame.outputInfoMsg(STATUS_WARN, functionId + "Cell formatted as date: " + date);
         frame.outputInfoMsg(STATUS_WARN, functionId + "Converted to: " + strYear + "-" + strMonth + "-" + strDay);
         return strYear + "-" + strMonth + "-" + strDay;
+    }
+    
+    /**
+     * This returns the order number for the specified row of the spreadsheet.
+     * 
+     * @param row - the specified row
+     * 
+     * @return the order number found
+     * 
+     * @throws ParserException
+     */
+    public static String getOrderNumber (int row) throws ParserException {
+        return getStringValue (Column.OrderNumber, row);
     }
     
     /**
@@ -506,8 +431,9 @@ public class Spreadsheet {
         if (strVal == null)
             return 0;
 
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
+        int rowSize = OpenDoc.getRowSize();
+        if (row >= rowSize) {
+            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
         }
         // if column not found, exit - report error if it was a required column
         Integer col = getColumn(colEnum);
@@ -523,10 +449,9 @@ public class Spreadsheet {
 
         // value passed is defined, but only write it if the spreadsheet currently has
         //  no value posted to it, or the overwrite flag was set.
-        if (sheetSel.getCellAt(col, row).getValue() == null ||
-            sheetSel.getCellAt(col, row).getValue().toString().isBlank() || bOverwrite) {
-            sheetSel.getCellAt(col, row).setValue(strVal);
-            frame.outputInfoMsg(STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + strVal);
+        String curValue = OpenDoc.getCellTextValue(col, row);
+        if (curValue == null || curValue.isBlank() || bOverwrite) {
+            OpenDoc.setCellValue(col, row, strVal);
         }
         return 1;
     }
@@ -552,8 +477,9 @@ public class Spreadsheet {
         // value not defined, just exit
         if (iVal == null)
             return 0;
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
+        int rowSize = OpenDoc.getRowSize();
+        if (row >= rowSize) {
+            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
         }
 
         // if column not found, exit - report error if it was a required column
@@ -570,10 +496,9 @@ public class Spreadsheet {
 
         // value passed is defined, but only write it if the spreadsheet currently has
         //  no value posted to it, or the overwrite flag was set.
-        if (sheetSel.getCellAt(col, row).getValue() == null ||
-            sheetSel.getCellAt(col, row).getValue().toString().isBlank() || bOverwrite) {
-            sheetSel.getCellAt(col, row).setValue(iVal);
-            frame.outputInfoMsg(STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + iVal);
+        String curValue = OpenDoc.getCellTextValue(col, row);
+        if (curValue == null || curValue.isBlank() || bOverwrite) {
+            OpenDoc.setCellValue(col, row, iVal);
         }
         return 1;
     }
@@ -599,8 +524,9 @@ public class Spreadsheet {
         // value not defined, just exit
         if (iVal == null)
             return 0;
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
+        int rowSize = OpenDoc.getRowSize();
+        if (row >= rowSize) {
+            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
         }
 
         // if column not found, exit - report error if it was a required column
@@ -617,14 +543,12 @@ public class Spreadsheet {
 
         // value passed is defined, but only write it if the spreadsheet currently has
         //  no value posted to it, or the overwrite flag was set.
-        String strVal = Utils.cvtAmountToString(iVal);
         BigDecimal bdVal = BigDecimal.valueOf(iVal);
         BigDecimal bd100 = BigDecimal.valueOf(100);
         bdVal = bdVal.divide(bd100, 2, RoundingMode.HALF_UP);
-        if (sheetSel.getCellAt(col, row).getValue() == null ||
-            sheetSel.getCellAt(col, row).getValue().toString().isBlank() || bOverwrite) {
-            sheetSel.getCellAt(col, row).setValue(bdVal);
-            frame.outputInfoMsg(STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + strVal);
+        String curValue = OpenDoc.getCellTextValue(col, row);
+        if (curValue == null || curValue.isBlank() || bOverwrite) {
+            OpenDoc.setCellValue(col, row, bdVal);
         }
         return 1;
     }
@@ -650,8 +574,9 @@ public class Spreadsheet {
         // value not defined, just exit
         if (date == null)
             return 0;
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
+        int rowSize = OpenDoc.getRowSize();
+        if (row >= rowSize) {
+            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
         }
 
         // if column not found, exit - report error if it was a required column
@@ -669,10 +594,9 @@ public class Spreadsheet {
         // value passed is defined, but only write it if the spreadsheet currently has
         //  no value posted to it, or the overwrite flag was set.
         String strVal = DateFormat.convertDateToString(date, false);
-        if (sheetSel.getCellAt(col,row).getValue() == null ||
-            sheetSel.getCellAt(col,row).getValue().toString().isBlank() || bOverwrite) {
-            sheetSel.getCellAt(col,row).setValue(strVal);
-            frame.outputInfoMsg(STATUS_SSHEET, "  output to row " + row + ",\tcol " + colEnum.name() + ":\t" + strVal);
+        String curValue = OpenDoc.getCellTextValue(col, row);
+        if (curValue == null || curValue.isBlank() || bOverwrite) {
+            OpenDoc.setCellValue(col, row, strVal);
         }
         return 1;
     }
@@ -698,8 +622,9 @@ public class Spreadsheet {
             return 0;
         }
         int iItemCount = order.item.size();
-        if (startRow + iItemCount - 1 >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + (startRow + iItemCount - 1) + " exceeds max: " + sheetSel.getRowCount());
+        int rowSize = OpenDoc.getRowSize();
+        if (startRow + iItemCount - 1 >= rowSize) {
+            throw new ParserException(functionId + "row " + (startRow + iItemCount - 1) + " exceeds max: " + rowSize);
         }
         
         // get the order number of the order to see if it is valid
@@ -824,62 +749,67 @@ public class Spreadsheet {
     public static void highlightOrderInfo (int row, boolean bPayment, boolean bRemaining, Color colorOfMonth) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
+        int rowSize = OpenDoc.getRowSize();
+        if (row >= rowSize) {
+            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
         }
         // check if item is marked as returned
-        boolean bReturn = sheetSel.getCellAt(getColumn(Column.DateDelivered),row).getTextValue().contentEquals(RETURN_DATE);
+        int col = getColumn(Column.DateDelivered);
+        String strVal = OpenDoc.getCellTextValue(col, row);
+        boolean bReturn = strVal.contentEquals(RETURN_DATE);
 
         if (bPayment) {
             // for a payment entry...
-            for (int col = 0; col <= lastValidColumn; col++) {
+            for (col = 0; col <= lastValidColumn; col++) {
                 if (col == getColumn(Column.Refund) && bReturn) {
                     // skip highlighting the Refund column if item is marked as a return.
                     // this will be filled in when the refund is found in the card ledger.
                 } else if (col == getColumn(Column.Pending) && bRemaining) {
                     // skip highlighting the Pending column if the total amount did not match
                 } else {
-                    MutableCell cell = sheetSel.getCellAt(col,row);
-                    if (cell != null) {
-                        cell.setBackgroundColor(colorOfMonth);
+                    if (! OpenDoc.isCellEmpty(col, row)) {
+                        OpenDoc.setCellColor(col, row, colorOfMonth);
                     }
                 }
             }
         } else {
             // for refunds, always mark the refund column as done
-            sheetSel.getCellAt(getColumn(Column.Refund),row).setBackgroundColor(colorOfMonth);
+            col = getColumn(Column.Refund);
+            OpenDoc.setCellColor(col, row, colorOfMonth);
         }
     }
     
     /**
      * returns the first empty row in the spreadsheet data can be written to.
      * 
-     * @return the next available row to write to
+     * @return the next available row to write to (-1 if max rows are all filled)
      * 
      * @throws ParserException
      */
     public static int getLastRowIndex () throws ParserException {
-        // find the last row in the current sheet
-        int row = -1;
-        if (sheetSel != null) {
-            for (row = firstRow; row < sheetSel.getRowCount() &&
-                    ! sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString().isBlank(); row++) {}
+        // find the first row in the current sheet that has a blank OrderNumber column
+        int rowSize = OpenDoc.getRowSize();
+        int col = getColumn(Column.OrderNumber);
+        for (int row = firstRow; row < rowSize; row++) {
+            String strVal = OpenDoc.getCellTextValue(col, row);
+            if (strVal.isBlank()) {
+                return row;
+            }
         }
-        return row;
+        return -1;
     }
 
     /**
-     * indicates if the selected sheet of the spreadsheet is empty (header info only).
+     * indicates if the selected sheet of the spreadsheet is empty.
+     * (excluding the header info)
      * 
      * @return true if the sheet has no user data in it
      * 
      * @throws ParserException
      */
     public static boolean isSheetEmpty() throws ParserException {
-        if (sheetSel != null) {
-            return sheetSel.getCellAt(getColumn(Column.OrderNumber),firstRow).getValue().toString().isBlank();
-        }
-        return true;
+        int col = getColumn(Column.OrderNumber);
+        return OpenDoc.getCellTextValue(col, firstRow).isBlank();
     }
     
     /**
@@ -892,20 +822,17 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static int getItemCount (String strOrderNum) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "selected sheet is null");
-        }
         int count = -1;
+        int rowSize = OpenDoc.getRowSize();
+        int col = getColumn(Column.OrderNumber);
         String ssNumber = "x";
-        for (int row = firstRow; row < sheetSel.getRowCount() && ! ssNumber.isBlank(); row++) {
-            ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString();
+        for (int row = firstRow; row < rowSize && ! ssNumber.isBlank(); row++) {
+            ssNumber = OpenDoc.getCellTextValue(col, row);
             if (ssNumber.contentEquals(strOrderNum)) {
                 count = 0;
                 while (ssNumber.contentEquals(strOrderNum)) {
                     count++;
-                    ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row + count).getValue().toString();
+                    ssNumber = OpenDoc.getCellTextValue(col, row + count);
                 }
                 break;
             }
@@ -923,20 +850,15 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static int findItemNumber (String strOrderNum) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "selected sheet is null");
-        }
-        String ssNumber = "x";
-        frame.outputInfoMsg(STATUS_SSHEET, "Searching for " + strOrderNum + " in rows " + firstRow + " to " + sheetSel.getRowCount());
-        for (int row = firstRow; row < sheetSel.getRowCount(); row++) {
-            ssNumber = sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getValue().toString();
-            if (ssNumber.isBlank()) {
+        int rowSize = OpenDoc.getRowSize();
+        frame.outputInfoMsg(STATUS_SSHEET, "Searching for " + strOrderNum + " in rows " + firstRow + " to " + rowSize);
+        for (int row = firstRow; row < rowSize; row++) {
+            String cellOrder = OpenDoc.getCellTextValue(getColumn(Column.OrderNumber),row);
+            if (cellOrder.isBlank()) {
                 frame.outputInfoMsg(STATUS_SSHEET, "Order not found. Exiting at row " + row);
                 break;
             }
-            if (ssNumber.contentEquals(strOrderNum)) {
+            if (cellOrder.contentEquals(strOrderNum)) {
                 return row;
             }
         }
@@ -961,9 +883,13 @@ public class Spreadsheet {
         selectSpreadsheetTab (sheetName);
 
         // find the last row in each sheet
-        for (int row = firstRow; row < sheetSel.getRowCount() &&
-                !sheetSel.getCellAt(getColumn(Column.OrderNumber),row).getTextValue().isBlank(); row++) {
-            String cellValue = sheetSel.getCellAt(getColumn(Column.CreditCard),row).getTextValue();
+        int rowSize = OpenDoc.getRowSize();
+        for (int row = firstRow; row < rowSize; row++) {
+            String cellValue = OpenDoc.getCellTextValue(getColumn(Column.CreditCard),row);
+            String cellOrder = OpenDoc.getCellTextValue(getColumn(Column.OrderNumber),row);
+            if (cellOrder.isBlank()) {
+                break;
+            }
             if (cellValue != null && strPdfName.contentEquals(cellValue)) {
                 frame.outputInfoMsg(STATUS_WARN, functionId + "'" + strPdfName +
                                                     "' was already balanced in the spreadsheet for " + sheetName);
@@ -986,156 +912,25 @@ public class Spreadsheet {
         if (name == null) {
             throw new ParserException(functionId + "spreadsheet tab selection is null");
         }
-        if (sheetArray.isEmpty()) {
-            throw new ParserException(functionId + "no sheet tabs loaded from spreadsheet");
-        }
-        int sheetNum = -1;
-        if (name.length() == 1 && name.charAt(0) >= '0' && name.charAt(0) <= '9') {
-            sheetNum = name.charAt(0) - '0';
-        } else {
-            for (int ix = 0; ix < sheetArray.size(); ix++) {
-                if (name.contentEquals(sheetArray.get(ix).getName())) {
-                    sheetNum = ix;
-                    break;
-                }
-            }
-            if (sheetNum < 0) {
+
+        // first, check to see see if 'name' is a tab name
+        int sheetNum = OpenDoc.findSheetByName (name);
+        if (sheetNum < 0) {
+            // not found - now see if it is a numeric index of the tab selection
+            try {
+                // check if it even is a number
+                sheetNum = Utils.getIntValue(name).intValue();
+            } catch (ParserException exMsg) {
+                // not a number and not in list of tab names
                 throw new ParserException(functionId + "tab selection not found: " + name);
             }
-       }
-        if (sheetNum >= sheetArray.size()) {
-            throw new ParserException(functionId + "tab index " + sheetNum + " exceeds max tabs: " + sheetArray.size());
+            if (sheetNum < 0) {
+                throw new ParserException(functionId + "tab selection must be either a tab name or a non-negative value: " + name);
+            }
         }
+        OpenDoc.setSheetSelection(sheetNum);
 
-        sheetSel = sheetArray.get(sheetNum);
-        if (sheetSel.getName() == null || sheetSel.getName().isEmpty()) {
-            sheetSel.setName(name);
-        }
-        frame.outputInfoMsg(STATUS_SSHEET, "Spreadsheet tab " + sheetNum + " selection: '" + sheetSel.getName() + "'");
         props.setPropertiesItem(Property.SpreadsheetTab, name);
-    }
-
-    /**    
-     * gets the text data at the specified column and row of the selected spreadsheet tab.
-     * 
-     * @param col - the column of the spreadsheet
-     * @param row - the row of the spreadsheet
-     * 
-     * @return text value at the specified location in the spreadsheet
-     * @throws ParserException
-     */
-    public static String getSpreadsheetCell (int col, int row) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "selected sheet is null");
-        }
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
-        }
-        if (col >= sheetSel.getColumnCount()) {
-            throw new ParserException(functionId + "col " + col + " exceeds max: " + sheetSel.getColumnCount());
-        }
-        if (SpreadsheetFile == null) {
-            throw new ParserException(functionId + "no spreadsheet file loaded");
-        } else if (sheetSel == null) {
-            String tab = props.getPropertiesItem(Property.SpreadsheetTab, "");
-            if (tab == null || tab.isEmpty()) {
-                throw new ParserException(functionId + "missing tab selection value");
-            }
-            selectSpreadsheetTab (tab);
-        }
-
-        String strVal = sheetSel.getCellAt(col,row).getTextValue();
-        frame.outputInfoMsg(STATUS_SSHEET, "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + strVal);
-        return strVal;
-    }
-
-    /**    
-     * gets the class of the specified column and row of the spreadsheet.
-     * 
-     * @param col - the column of the spreadsheet
-     * @param row - the row of the spreadsheet
-     * 
-     * @return text value at the specified location in the spreadsheet
-     * 
-     * @throws ParserException
-     */
-    public static String getSpreadsheetCellClass (int col, int row) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "selected sheet is null");
-        }
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
-        }
-        if (col >= sheetSel.getColumnCount()) {
-            throw new ParserException(functionId + "col " + col + " exceeds max: " + sheetSel.getColumnCount());
-        }
-        String strVal = "null";
-        Object object = sheetSel.getCellAt(col,row).getValue();
-        if (object != null) {
-            Class oClass = object.getClass();
-            strVal = oClass.getName();
-        }
-        return strVal;
-    }
-    
-    /**    
-     * writes the text data to the specified column and row of the selected spreadsheet tab.
-     * 
-     * @param col  - the column of the spreadsheet
-     * @param row  - the row of the spreadsheet
-     * @param strVal - the data to write to the cell (null to erase)
-     * 
-     * @return text value at the specified location in the spreadsheet
-     * 
-     * @throws ParserException
-     * @throws IOException
-     */
-    public static String putSpreadsheetCell (int col, int row, String strVal) throws ParserException, IOException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "selected sheet is null");
-        }
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
-        }
-        if (col >= sheetSel.getColumnCount()) {
-            throw new ParserException(functionId + "col " + col + " exceeds max: " + sheetSel.getColumnCount());
-        }
-        if (SpreadsheetFile == null) {
-            throw new ParserException(functionId + "no spreadsheet file loaded");
-        } else if (sheetSel == null) {
-            String tab = props.getPropertiesItem(Property.SpreadsheetTab, "");
-            if (tab == null || tab.isEmpty()) {
-                throw new ParserException(functionId + "missing tab selection value");
-            }
-            selectSpreadsheetTab (tab);
-        }
-
-        String oldVal = sheetSel.getCellAt(col,row).getTextValue();
-        if (strVal == null) {
-            sheetSel.getCellAt(col, row).clearValue();
-            frame.outputInfoMsg(STATUS_SSHEET, "clear tab " + sheetSel.getName() + " row " + row + " col " + col);
-        }
-        else {
-            // write entry as numeric if it is, else as a string
-            try {
-                Long IValue = ParameterStruct.getLongOrUnsignedValue(strVal);
-                sheetSel.getCellAt(col, row).setValue(IValue);
-            } catch (ParserException exMsg) {
-                // if value enclosed in quotes, remove them
-                if (strVal.charAt(0) == '"' && strVal.charAt(strVal.length()-1) == '"') {
-                    strVal = strVal.substring(1, strVal.length()-1);
-                }
-                sheetSel.getCellAt(col, row).setValue(strVal);
-            }
-            frame.outputInfoMsg(STATUS_SSHEET, "write tab " + sheetSel.getName() + " row " + row + " col " + col + " -> " + strVal);
-        }
-        return oldVal;
     }
 
     /**    
@@ -1157,9 +952,9 @@ public class Spreadsheet {
         }
         
         // get current spreadsheet size
-        frame.outputInfoMsg(STATUS_INFO, "Adding array of size " + listVal.size() + " to row " + row + " of sheet " + sheetSel.getName());
-        int rowsize = getSpreadsheetRowSize();
-        int colsize = getSpreadsheetColSize();
+        frame.outputInfoMsg(STATUS_INFO, "Adding array of size " + listVal.size() + " to row " + row + " of sheet " + OpenDoc.getSheetName());
+        int rowsize = OpenDoc.getRowSize();
+        int colsize = OpenDoc.getColSize();
         frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + colsize + ", rows = " + rowsize);
         
         // resize the spreadsheet image if it isn't large enough for the data
@@ -1171,12 +966,13 @@ public class Spreadsheet {
             if (colsize < col + colLength) {
                 colsize = col + colLength;
             }
-            setSpreadsheetSize (colsize, rowsize);
+            OpenDoc.setSize(colsize, rowsize);
+            OpenDoc.saveToFile();
         }
         
         // add the data
         for (int ix = 0; ix < listVal.size(); ix++) {
-            putSpreadsheetCell (col + ix, row, listVal.get(ix));
+            OpenDoc.setCellValue (col + ix, row, listVal.get(ix));
         }
     }
     
@@ -1199,9 +995,9 @@ public class Spreadsheet {
         }
 
         // get current spreadsheet size
-        frame.outputInfoMsg(STATUS_INFO, "Adding array of size " + listVal.size() + " to col " + col + " of sheet " + sheetSel.getName());
-        int rowsize = getSpreadsheetRowSize();
-        int colsize = getSpreadsheetColSize();
+        frame.outputInfoMsg(STATUS_INFO, "Adding array of size " + listVal.size() + " to col " + col + " of sheet " + OpenDoc.getSheetName());
+        int rowsize = OpenDoc.getRowSize();
+        int colsize = OpenDoc.getColSize();
         frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + colsize + ", rows = " + rowsize);
         
         // resize the spreadsheet image if it isn't large enough for the data
@@ -1213,12 +1009,13 @@ public class Spreadsheet {
             if (colsize < col + 1) {
                 colsize = col + 1;
             }
-            setSpreadsheetSize (colsize, rowsize);
+            OpenDoc.setSize(colsize, rowsize);
+            OpenDoc.saveToFile();
         }
         
         // add the data
         for (int ix = 0; ix < listVal.size(); ix++) {
-            putSpreadsheetCell (col, row + ix, listVal.get(ix));
+            OpenDoc.setCellValue (col, row + ix, listVal.get(ix));
         }
     }
     
@@ -1241,7 +1038,7 @@ public class Spreadsheet {
         for (int ix = 0; ix < listVal.size(); ix++) {
             int rgb = listVal.get(ix).intValue();
             Color cellColor = Utils.getColor("RGB", rgb);
-            setSpreadsheetCellColor (col + ix, row, cellColor);
+            OpenDoc.setCellColor (col + ix, row, cellColor);
         }
     }
     
@@ -1264,7 +1061,7 @@ public class Spreadsheet {
         for (int ix = 0; ix < listVal.size(); ix++) {
             int rgb = listVal.get(ix).intValue();
             Color cellColor = Utils.getColor("RGB", rgb);
-            setSpreadsheetCellColor (col, row + ix, cellColor);
+            OpenDoc.setCellColor (col, row + ix, cellColor);
         }
     }
     
@@ -1282,7 +1079,7 @@ public class Spreadsheet {
     public static ArrayList<String> getSpreadsheetRow (int col, int row, int count) throws ParserException, IOException {
         ArrayList<String> listVal = new ArrayList<>();
         for (int ix = 0; ix < count; ix++) {
-            listVal.add(getSpreadsheetCell (col + ix, row));
+            listVal.add(OpenDoc.getCellTextValue (col + ix, row));
         }
         
         return listVal;
@@ -1302,106 +1099,10 @@ public class Spreadsheet {
     public static ArrayList<String> getSpreadsheetCol (int col, int row, int count) throws ParserException, IOException {
         ArrayList<String> listVal = new ArrayList<>();
         for (int ix = 0; ix < count; ix++) {
-            listVal.add(getSpreadsheetCell (col, row + ix));
+            listVal.add(OpenDoc.getCellTextValue (col, row + ix));
         }
         
         return listVal;
-    }
-    
-    /**    
-     * sets the background color of the specified column and row of the selected spreadsheet tab.
-     * 
-     * @param col   - the column of the spreadsheet
-     * @param row   - the row of the spreadsheet
-     * @param color - the color to write to cell background
-     * 
-     * @throws ParserException
-     * @throws IOException
-     */
-    public static void setSpreadsheetCellColor (int col, int row, Color color) throws ParserException, IOException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "selected sheet is null");
-        }
-        if (row >= sheetSel.getRowCount()) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + sheetSel.getRowCount());
-        }
-        if (col >= sheetSel.getColumnCount()) {
-            throw new ParserException(functionId + "col " + col + " exceeds max: " + sheetSel.getColumnCount());
-        }
-        String tab = props.getPropertiesItem(Property.SpreadsheetTab, "");
-        if (SpreadsheetFile == null) {
-            throw new ParserException(functionId + "no spreadsheet file loaded");
-        } else if (tab == null) {
-            throw new ParserException(functionId + "missing tab selection value");
-        }
-        sheetSel.getCellAt(col,row).setBackgroundColor(color);
-        String hexColor = String.format("0x%06x", color.getRGB());
-        frame.outputInfoMsg(STATUS_SSHEET, "Setting cell color for tab " + tab + " row " + row + " col " + col + " RGB = " + hexColor);
-    }
-
-    /**
-     * Returns the year associated with the spreadsheet.
-     * 
-     * @return the year designated for the spreadsheet (null if invalid spreadsheet)
-     */
-    public static Integer getSpreadsheetYear () {
-        return iSheetYear;
-    }
-
-    /**
-     * returns the current number of columns defined for the selected sheet.
-     * 
-     * @return the number of valid columns
-     * 
-     * @throws ParserException 
-     */    
-    public static int getSpreadsheetColSize () throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "no sheet selected");
-        }
-        return sheetSel.getColumnCount();
-    }
-    
-    /**
-     * returns the current number of rows defined for the selected sheet.
-     * 
-     * @return the number of valid rows
-     * 
-     * @throws ParserException 
-     */    
-    public static int getSpreadsheetRowSize () throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "no sheet selected");
-        }
-        return sheetSel.getRowCount();
-    }
-
-    /**
-     * resizes the loaded sheet to the specified size.
-     * If the new size if larger than the previous, it will add new empty cells.
-     * 
-     * @param col
-     * @param row
-     * 
-     * @throws ParserException
-     * @throws IOException
-     */    
-    public static void setSpreadsheetSize (int col, int row) throws ParserException, IOException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "no sheet selected");
-        }
-        sheetSel.setColumnCount(col, -1, true);
-        sheetSel.setRowCount(row, -1);
-        frame.outputInfoMsg(STATUS_SSHEET, "new size: cols " + col + " rows " + row);
-        saveSpreadsheetFile();
     }
     
     /**
@@ -1414,9 +1115,7 @@ public class Spreadsheet {
     public static void selectSpreadsheet(File ssFile) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (ssFile != null) {
-            SpreadsheetFile = ssFile;
-        } else {
+        if (ssFile == null) {
             // see if we have a properties file that has a previously saved spreadsheet directory
             // if so, let's start the file selection process from there
             String ssPath = Utils.getPathFromPropertiesFile(Property.SpreadsheetPath);
@@ -1436,14 +1135,15 @@ public class Spreadsheet {
                 throw new ParserException(functionId + "No file chosen");
             }
 
-            SpreadsheetFile = new File(filename.getAbsolutePath());
+            ssFile = new File(filename.getAbsolutePath());
         }
+        OpenDoc.setFileSelection(ssFile);
 
         // check the properties of the spreadsheet file chosen
-        frame.setSpreadsheetSelection(SpreadsheetFile.getAbsolutePath());
-        String filePath  = Utils.getFilePath(SpreadsheetFile);
-        String fnameRoot = Utils.getFileRootname(SpreadsheetFile);
-        String fnameExt  = Utils.getFileExtension(SpreadsheetFile);
+        frame.setSpreadsheetSelection(ssFile.getAbsolutePath());
+        String filePath  = Utils.getFilePath(ssFile);
+        String fnameRoot = Utils.getFileRootname(ssFile);
+        String fnameExt  = Utils.getFileExtension(ssFile);
 
         // update the spreadsheet path in the properties file
         if (!filePath.isEmpty()) {
@@ -1466,6 +1166,15 @@ public class Spreadsheet {
     }
 
     /**
+     * Returns the year associated with the spreadsheet.
+     * 
+     * @return the year designated for the spreadsheet (null if invalid spreadsheet)
+     */
+    public static Integer getSpreadsheetYear () {
+        return iSheetYear;
+    }
+
+    /**
      * reads the specified number of spreadsheet tabs into memory for accessing the data.
      * 
      * @param numSheets    - number of sheets (tabs) to load into memory
@@ -1477,40 +1186,22 @@ public class Spreadsheet {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // load the specified number of tabs of the spreadsheet into memory
-        sheetArray.clear();
-        for (int ix = 0; ix < numSheets; ix++) {
-            Sheet newSheet;
-            try {
-                newSheet = SpreadSheet.createFromFile(SpreadsheetFile).getSheet(ix);
-                sheetArray.add(newSheet);
-            } catch (IOException ex) {
-                if (bCheckHeader || ix == 0) {
-                    throw new ParserException(functionId + "Spreadsheet tab " + ix + " was unable to be loaded");
-                }
-                frame.outputInfoMsg(STATUS_INFO, "Spreadsheet tab " + ix + " was unable to be loaded");
-                break;
-            }
-            frame.outputInfoMsg(STATUS_INFO, "Loaded sheet " + ix + " '"
-                                        + newSheet.getName() + "' into memory: "
-                                        + newSheet.getRowCount() + " rows, "
-                                        + newSheet.getColumnCount() + " cols");
-        }
+        OpenDoc.loadFromFile (numSheets);
 
         // check if spreadsheet header is valid and setup column selections if so
-        setupColumns(bCheckHeader, sheetArray.get(0));
+        setupColumns(bCheckHeader);
         
         // check to see what year this spreadsheet is for (we will only add entries for that year)
         if (bCheckHeader) {
-            Object oYear = sheetArray.get(0).getCellAt(0,0).getValue();
+            String strYear = OpenDoc.getCellTextValue(0, 0);
             Integer iYear = null;
-            if (oYear == null) {
+            if (strYear == null) {
                 throw new ParserException(functionId + "Invalid spreadsheet format - header missing year");
             } else {
                 try {
-                    iYear = Utils.getIntFromString (oYear.toString(), 0, 4);
+                    iYear = Utils.getIntFromString (strYear, 0, 4);
                 } catch (ParserException exMsg) {
-                    throw new ParserException(exMsg + "\n  -> " + functionId + "Invalid spreadsheet format - header years invalid: "
-                            + oYear.toString() + ", " + oYear.toString());
+                    throw new ParserException(exMsg + "\n  -> " + functionId + "Invalid spreadsheet format - header year invalid: " + strYear);
                 }
                 if (iYear < 2020 || iYear > 2040) {
                     throw new ParserException(functionId + "Invalid spreadsheet format - header year out of range: " + iYear);
@@ -1524,45 +1215,12 @@ public class Spreadsheet {
         frame.setDebugOutputFile(props.getPropertiesItem(Property.DebugFileOut, ""));
     }
 
-    private static void reloadSpreadsheetFile () throws IOException {
-        if (SpreadsheetFile == null) {
-            return;
-        }
-        int numSheets = sheetArray.size();
-        sheetArray.clear();
-        for (int ix = 0; ix < numSheets; ix++) {
-            SpreadSheet spreadsheet = SpreadSheet.createFromFile(SpreadsheetFile);
-            Sheet sheet = spreadsheet.getSheet(ix);
-            sheetArray.add(sheet);
-            frame.outputInfoMsg(STATUS_INFO, "Reloaded sheet " + ix + " '" + sheet.getName() + "' into memory");
-        }
-    }
-    
-    /**
-     * saves the modified spreadsheet data written to the spreadsheet file.
-     * 
-     * @throws IOException 
-     */
-    public static void saveSpreadsheetFile() throws IOException {
-        if (SpreadsheetFile == null) {
-            return;
-        }
-        for (int ix = 0; ix < sheetArray.size(); ix++) {
-            Sheet sheet = sheetArray.get(ix);
-            frame.outputInfoMsg(STATUS_INFO, "Saving sheet " + ix + " '" + sheet.getName() + "' to spreadsheet file");
-            sheet.getSpreadSheet().saveAs(SpreadsheetFile);
-        }
-        
-        // reload the spreadsheet sheets into memory, or we lose the info for one of the tabs
-        reloadSpreadsheetFile ();
-    }
-
     /**
      * creates a spreadsheet file that has the specified column header.
      * 
      * @param fname   - name of the file (referenced from base path)
-     * @param tabName - name to call tab selection
-     * @param arrList - the list of column names to place
+     * @param tabName - name of tab
+     * @param arrList - the list of column names for the sheet
      * 
      * @throws ParserException
      * @throws IOException
@@ -1573,35 +1231,15 @@ public class Spreadsheet {
         if (fname == null || fname.isBlank()) {
             throw new ParserException(functionId + "Filename is blank");
         }
-        if (tabName == null || tabName.isBlank()) {
-            throw new ParserException(functionId + "Tab name is blank");
-        }
         fname = getDefaultPath(Utils.PathType.Spreadsheet) + "/" + fname;
-        File scriptFile = new File(fname);
-        if (scriptFile.exists()) {
-            throw new ParserException(functionId + "File already exists: " + scriptFile.getAbsolutePath());
+        File file = new File(fname);
+        if (file.exists()) {
+            throw new ParserException(functionId + "File already exists: " + file.getAbsolutePath());
         }
         
-        // create the spreadsheet image
-        SpreadsheetFile = scriptFile;
-        String[] headerRow = null;
-        if (arrList != null)
-            headerRow = arrList.toArray(String[]::new);
-        TableModel model = new DefaultTableModel(null, headerRow);
-        SpreadSheet sSheet = SpreadSheet.createEmpty(model);
-        sheetSel = sSheet.getSheet(0);
-        sheetSel.setName(tabName);
-
-        // save the entry in our array of sheets
-        sheetArray.clear();
-        sheetArray.add(sheetSel);
-
-        // save the initial spreadsheet file
-        saveSpreadsheetFile();
-        
-        int rows = getSpreadsheetRowSize();
-        int cols = getSpreadsheetColSize();
-        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + cols + ", rows = " + rows);
+        // create the spreadsheet image and save sheets in our memory image of the sheets
+        OpenDoc.fileCreate(file, tabName, arrList);
+//        OpenDoc.fileCreate(file, colSize, rowSize, tabList);
     }
     
     /**
@@ -1619,17 +1257,9 @@ public class Spreadsheet {
         if (tabName == null || tabName.isBlank()) {
             throw new ParserException(functionId + "Tab name is blank");
         }
-        if (SpreadsheetFile == null || ! SpreadsheetFile.isFile()) {
-            throw new ParserException(functionId + "No spreadsheet file selection");
-        }
 
         // create a new tab for the current spreadsheet image
-        SpreadSheet sSheet = sheetSel.getSpreadSheet();
-        sheetSel = sSheet.addSheet(tabName);
-        sheetSel.setName(tabName);
-        
-        // save the entry in our array of sheets
-        sheetArray.add(sheetSel);
+        OpenDoc.addTab(tabName);
         
         // set the initial size of our spreadsheet to the size of the array and add the data
         // and add the initial column data.
@@ -1638,29 +1268,13 @@ public class Spreadsheet {
         }
 
         // save the initial spreadsheet file
-        saveSpreadsheetFile();
+        OpenDoc.saveToFile();
         
-        int rows = getSpreadsheetRowSize();
-        int cols = getSpreadsheetColSize();
+        int rows = OpenDoc.getRowSize();
+        int cols = OpenDoc.getColSize();
         frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + cols + ", rows = " + rows);
     }
     
-//    /**
-//     * saves the modified spreadsheet to the file and then opens the file.
-//     */
-//    public static void updateSpreadsheet() throws IOException {
-//        OOUtils.open(sheetSel.getSpreadSheet().saveAs(SpreadsheetFile));
-//    }
-
-//    /**
-//     * opens the spreadsheet file.
-//     * 
-//     * @throws IOException 
-//     */
-//    public static void openSpreadsheetFile() throws IOException {
-//        OOUtils.open(SpreadsheetFile);
-//    }
-
     /**
      * creates a backup copy of the current spreadsheet file selection.
      * 
@@ -1669,9 +1283,10 @@ public class Spreadsheet {
      * @throws IOException 
      */
     public static void makeBackupCopy(String backupId) throws IOException {
-        String filePath  = Utils.getFilePath(SpreadsheetFile);
-        String fnameRoot = Utils.getFileRootname(SpreadsheetFile);
-        String fnameExt  = Utils.getFileExtension(SpreadsheetFile);
+        File ssFile = OpenDoc.getFileSelection();
+        String filePath  = Utils.getFilePath(ssFile);
+        String fnameRoot = Utils.getFileRootname(ssFile);
+        String fnameExt  = Utils.getFileExtension(ssFile);
 
         // make a backup copy of the current file before saving.
         frame.outputInfoMsg(STATUS_INFO, "Path to spreadsheet file: " + filePath);

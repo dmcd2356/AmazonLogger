@@ -155,10 +155,6 @@ public class VarAccess {
     // these are the function to get the variable values
     public String getValueString () throws ParserException {
         checkType (ParameterStruct.ParamType.String);
-        if (! isVarInit()) {
-            String subName = Subroutine.getSubName();
-            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
-        }
         return this.strValue;
     }
         
@@ -191,19 +187,11 @@ public class VarAccess {
         
     public ArrayList<String> getValueStrArray () throws ParserException {
         checkType (ParameterStruct.ParamType.StrArray);
-        if (! isVarInit()) {
-            String subName = Subroutine.getSubName();
-            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
-        }
         return this.strArray;
     }
         
     public ArrayList<Long> getValueIntArray () throws ParserException {
         checkType (ParameterStruct.ParamType.IntArray);
-        if (! isVarInit()) {
-            String subName = Subroutine.getSubName();
-            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
-        }
         return this.intArray;
     }
     

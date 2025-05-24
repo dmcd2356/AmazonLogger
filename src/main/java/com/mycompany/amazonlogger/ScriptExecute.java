@@ -250,6 +250,7 @@ public class ScriptExecute {
         // replace all program references in the command to their corresponding values.
         // (skip for SET command so as not to modify the parameter we are setting.
         //  the conversion for this will be done in Calculation)
+        cmdStruct.showCommand(linePreface);
         for (int ix = 0; ix < cmdStruct.params.size(); ix++) {
             if (ix > 0 || cmdStruct.command != CommandStruct.CommandTable.SET) {
                 ParameterStruct param = cmdStruct.params.get(ix);
@@ -260,7 +261,6 @@ public class ScriptExecute {
                 }
             }
         }
-        cmdStruct.showCommand(linePreface);
         Subroutine subroutine = new Subroutine();
         Subroutine.setCurrentIndex(cmdIndex);
 

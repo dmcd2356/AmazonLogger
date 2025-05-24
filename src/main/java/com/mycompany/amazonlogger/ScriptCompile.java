@@ -12,7 +12,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 /**
  *
@@ -25,7 +24,7 @@ public class ScriptCompile {
     // this handles the command line options via the RUN command
     private final CmdOptions cmdOptionParser;
     // this contains the line numbers corresponding to each command index value
-    private static ArrayList<Integer> lineNumbers = new ArrayList<>();
+    private static final ArrayList<Integer> lineNumbers = new ArrayList<>();
     
     private final ParseScript parseScript = new ParseScript();
     public static Variables   variables;

@@ -488,7 +488,7 @@ public class PdfReader {
         }
 
         // save the data to the spreadsheet file
-        Spreadsheet.saveSpreadsheetFile();
+        OpenDoc.saveToFile();
     }
 
 }

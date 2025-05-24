@@ -31,7 +31,8 @@ public class CmdOptions {
         new OptionList ("-help"     , ""),
         new OptionList ("-debug"    , "U"),
         new OptionList ("-sfile"    , "S"),
-        new OptionList ("-snew"     , "SSl"),
+        new OptionList ("-snew"     , "SSL"),
+//        new OptionList ("-snew"     , "SUUL"),
         new OptionList ("-saddtab"  , "Sl"),
         new OptionList ("-load"     , "UB"),
         new OptionList ("-tab"      , "U"),
@@ -409,12 +410,13 @@ public class CmdOptions {
         // Then, place this complete command into the array of commands in 'command'.
         for (int ix = 0; ix < argCount; ix++) {
             char argType = optInfo.argTypes.charAt(ix);
-            ParameterStruct.ParamType ptype = getParameterType(argType);
-            ParameterStruct argValue = argList.get(ix);
-            ParameterStruct.ParamType actType = argValue.getParamType();
-            if (actType != ptype) {
-                throw new ParserException(functionId + "Cmd option " + command + " arg " + ix + ": " + ptype + " (" + argType + ") is actually " + actType);
-            }
+            ParameterStruct.ParamType expType = getParameterType(argType);
+            ParseScript.checkArgType (ix, expType, argList);
+//            ParameterStruct argValue = argList.get(ix);
+//            ParameterStruct.ParamType actType = argValue.getParamType();
+//            if (actType != expType) {
+//                throw new ParserException(functionId + "Cmd option " + command + " arg " + ix + ": " + expType + " (" + argType + ") is actually " + actType);
+//            }
         }
     }
 
@@ -536,17 +538,27 @@ public class CmdOptions {
                     break;
                 case "-snew":
                     pathtype = Utils.PathType.Spreadsheet;
-                    fname = params.get(0).getStringValue();
-                    String tabName = params.get(1).getStringValue();
+                    String tabName;
+                    fname   = params.get(0).getStringValue();
+                    tabName = params.get(1).getStringValue();
+                    arrList = params.get(2).getStrArray();
+                    if (tabName == null || arrList == null) {
+                        throw new ParserException(functionId + "Null argument value");
+                    }
+//                    Integer colSize = getUnsignedValue(params, 1);
+//                    Integer rowSize = getUnsignedValue(params, 2);
+//                    arrList = params.get(3).getStrArray();
+//                    if (colSize == null || rowSize == null || arrList == null) {
+//                        throw new ParserException(functionId + "Null argument value");
+//                    }
+//                    if (colSize < 1 || rowSize < 1) {
+//                        throw new ParserException(functionId + "Column and row counts must be > 0: colSize = " + colSize + ", rowSize = " + rowSize);
+//                    }
                     absPath = getPathFromFilename (fname);
                     if (! absPath.isEmpty() && fname.length() > absPath.length() + 1) {
                         Utils.setDefaultPath(pathtype, absPath);
                         fname = fname.substring(absPath.length() + 1);
                     }
-                    if (params.size() > 2)
-                        arrList = params.get(2).getStrArray();
-                    else
-                        arrList = null;
                     Spreadsheet.fileCreate (fname, tabName, arrList);
                     break;
                 case "-saddtab":
@@ -645,7 +657,7 @@ public class CmdOptions {
                     break;
                 case "-save":
                     // save the spreadsheet and reload so another spreadsheet change can be made
-                    Spreadsheet.saveSpreadsheetFile();
+                    OpenDoc.saveToFile();
                     break;
                 case "-date":
                     String strDate = params.get(0).getStringValue();
@@ -682,11 +694,11 @@ public class CmdOptions {
                     Spreadsheet.selectSpreadsheetTab (strTab);
                     break;
                 case "-maxcol":
-                    iCol = Spreadsheet.getSpreadsheetColSize ();
+                    iCol = OpenDoc.getColSize ();
                     response.add("" + iCol);
                     break;
                 case "-maxrow":
-                    iRow = Spreadsheet.getSpreadsheetRowSize ();
+                    iRow = OpenDoc.getRowSize ();
                     response.add("" + iRow);
                     break;
                 case "-setsize":
@@ -695,7 +707,8 @@ public class CmdOptions {
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
-                    Spreadsheet.setSpreadsheetSize (iCol, iRow);
+                    OpenDoc.setSize(iCol, iRow);
+                    OpenDoc.saveToFile();
                     break;
                 case "-find":
                     String order = params.get(0).getStringValue();
@@ -708,7 +721,7 @@ public class CmdOptions {
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
-                    String strValue = Spreadsheet.getSpreadsheetCellClass(iCol, iRow);
+                    String strValue = OpenDoc.getCellObjectType(iCol, iRow);
                     response.add("" + strValue);
                     break;
                 case "-color":
@@ -719,7 +732,7 @@ public class CmdOptions {
                     if (iCol == null || iRow == null || iColor == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
-                    Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColorOfTheMonth(iColor));
+                    OpenDoc.setCellColor(iCol, iRow, Utils.getColorOfTheMonth(iColor));
                     break;
                 case "-RGB":
                     Integer iRGB;
@@ -729,7 +742,7 @@ public class CmdOptions {
                     if (iCol == null || iRow == null || iRGB == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
-                    Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("RGB", iRGB));
+                    OpenDoc.setCellColor(iCol, iRow, Utils.getColor("RGB", iRGB));
                     break;
                 case "-HSB":
                     Integer iHSB;
@@ -739,7 +752,7 @@ public class CmdOptions {
                     if (iCol == null || iRow == null || iHSB == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
-                    Spreadsheet.setSpreadsheetCellColor(iCol, iRow, Utils.getColor("HSB", iHSB));
+                    OpenDoc.setCellColor(iCol, iRow, Utils.getColor("HSB", iHSB));
                     break;
                 case "-cellget":
                     iCol = getUnsignedValue(params, 0);
@@ -747,7 +760,7 @@ public class CmdOptions {
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
-                    String cellValue = Spreadsheet.getSpreadsheetCell(iCol, iRow);
+                    String cellValue = OpenDoc.getCellTextValue(iCol, iRow);
                     response.add(cellValue);
                     break;
                 case "-cellclr":
@@ -756,7 +769,8 @@ public class CmdOptions {
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
-                    cellValue = Spreadsheet.putSpreadsheetCell(iCol, iRow, null);
+                    cellValue = OpenDoc.getCellTextValue (iCol, iRow);
+                    OpenDoc.setCellValue(iCol, iRow, null);
                     response.add(cellValue);
                     break;
                 case "-cellput":
@@ -766,7 +780,8 @@ public class CmdOptions {
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
-                    cellValue = Spreadsheet.putSpreadsheetCell(iCol, iRow, strText);
+                    cellValue = OpenDoc.getCellTextValue (iCol, iRow);
+                    OpenDoc.setCellValue(iCol, iRow, strText);
                     response.add(cellValue);
                     break;
                 case "-rowget":

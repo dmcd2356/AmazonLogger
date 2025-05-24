@@ -297,7 +297,7 @@ public class AmazonParser {
 
             // output changes to file, if any
             if (bUpdate) {
-                Spreadsheet.saveSpreadsheetFile();
+                OpenDoc.saveToFile();
             }
 
             // erase the update button until we read in more data
