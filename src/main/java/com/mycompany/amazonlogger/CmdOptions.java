@@ -8,6 +8,7 @@ import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import static com.mycompany.amazonlogger.Utils.getDefaultPath;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
@@ -32,10 +33,10 @@ public class CmdOptions {
         new OptionList ("-debug"    , "U"),
         new OptionList ("-sfile"    , "S"),
         new OptionList ("-snew"     , "SSL"),
-//        new OptionList ("-snew"     , "SUUL"),
+        new OptionList ("-stest"    , "SLL"),
         new OptionList ("-saddtab"  , "Sl"),
         new OptionList ("-load"     , "UB"),
-        new OptionList ("-tab"      , "U"),
+        new OptionList ("-tab"      , "S"),
         new OptionList ("-cfile"    , "S"),
         new OptionList ("-clip"     , "b"),
         new OptionList ("-pfile"    , "S"),
@@ -537,29 +538,49 @@ public class CmdOptions {
                     Spreadsheet.selectSpreadsheet(ssheetFile);
                     break;
                 case "-snew":
-                    pathtype = Utils.PathType.Spreadsheet;
                     String tabName;
+                    pathtype = Utils.PathType.Spreadsheet;
                     fname   = params.get(0).getStringValue();
                     tabName = params.get(1).getStringValue();
                     arrList = params.get(2).getStrArray();
                     if (tabName == null || arrList == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
-//                    Integer colSize = getUnsignedValue(params, 1);
-//                    Integer rowSize = getUnsignedValue(params, 2);
-//                    arrList = params.get(3).getStrArray();
-//                    if (colSize == null || rowSize == null || arrList == null) {
-//                        throw new ParserException(functionId + "Null argument value");
-//                    }
-//                    if (colSize < 1 || rowSize < 1) {
-//                        throw new ParserException(functionId + "Column and row counts must be > 0: colSize = " + colSize + ", rowSize = " + rowSize);
-//                    }
+                    if (fname == null || fname.isBlank()) {
+                        throw new ParserException(functionId + "Filename is blank");
+                    }
                     absPath = getPathFromFilename (fname);
                     if (! absPath.isEmpty() && fname.length() > absPath.length() + 1) {
                         Utils.setDefaultPath(pathtype, absPath);
                         fname = fname.substring(absPath.length() + 1);
                     }
-                    Spreadsheet.fileCreate (fname, tabName, arrList);
+                    fname = getDefaultPath(pathtype) + "/" + fname;
+                    File file = new File(fname);
+                    if (file.exists()) {
+                        throw new ParserException(functionId + "File already exists: " + file.getAbsolutePath());
+                    }
+                    OpenDoc.fileCreate (file, tabName, arrList);
+                    break;
+                case "-stest":
+                    pathtype = Utils.PathType.Spreadsheet;
+                    ArrayList<String> tabList, headList;
+                    fname    = params.get(0).getStringValue();
+                    tabList  = params.get(1).getStrArray();
+                    headList = params.get(2).getStrArray();
+                    if (fname == null || fname.isBlank()) {
+                        throw new ParserException(functionId + "Filename is blank");
+                    }
+                    absPath = getPathFromFilename (fname);
+                    if (! absPath.isEmpty() && fname.length() > absPath.length() + 1) {
+                        Utils.setDefaultPath(pathtype, absPath);
+                        fname = fname.substring(absPath.length() + 1);
+                    }
+                    fname = Utils.getDefaultPath(pathtype) + "/" + fname;
+                    file = new File(fname);
+                    if (file.exists()) {
+                        throw new ParserException(functionId + "File already exists: " + file.getAbsolutePath());
+                    }
+                    OpenDoc.fileCreate (file, tabList, headList);
                     break;
                 case "-saddtab":
                     tabName = params.get(0).getStringValue();
@@ -578,8 +599,8 @@ public class CmdOptions {
                     Spreadsheet.loadSheets(numTabs, bCheckHeader);
                     break;
                 case "-tab":
-                    Integer tab = getUnsignedValue(params, 0);
-                    Spreadsheet.selectSpreadsheetTab (tab.toString());
+                    String tab = params.get(0).getStringValue();
+                    Spreadsheet.selectSpreadsheetTab (tab);
                     break;
                 case "-cfile":
                     // clipbaord uses the Test path for its base dir

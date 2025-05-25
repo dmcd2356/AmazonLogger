@@ -1216,33 +1216,6 @@ public class Spreadsheet {
     }
 
     /**
-     * creates a spreadsheet file that has the specified column header.
-     * 
-     * @param fname   - name of the file (referenced from base path)
-     * @param tabName - name of tab
-     * @param arrList - the list of column names for the sheet
-     * 
-     * @throws ParserException
-     * @throws IOException
-     */
-    public static void fileCreate (String fname, String tabName, ArrayList<String> arrList) throws ParserException, IOException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        
-        if (fname == null || fname.isBlank()) {
-            throw new ParserException(functionId + "Filename is blank");
-        }
-        fname = getDefaultPath(Utils.PathType.Spreadsheet) + "/" + fname;
-        File file = new File(fname);
-        if (file.exists()) {
-            throw new ParserException(functionId + "File already exists: " + file.getAbsolutePath());
-        }
-        
-        // create the spreadsheet image and save sheets in our memory image of the sheets
-        OpenDoc.fileCreate(file, tabName, arrList);
-//        OpenDoc.fileCreate(file, colSize, rowSize, tabList);
-    }
-    
-    /**
      * adds a new tab to the current spreadsheet file with the specified column header.
      * 
      * @param tabName - name to call tab selection

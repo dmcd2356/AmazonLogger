@@ -82,6 +82,8 @@ public class OpenDoc {
         }
         sheetSel.setColumnCount(col, -1, true);
         sheetSel.setRowCount(row, -1);
+        sheetSel.ensureColumnCount(col);
+        sheetSel.ensureRowCount(row);
         frame.outputInfoMsg(STATUS_SSHEET, INDENT + "sheet '" + getSheetName() + "' new size: cols " + col + " rows " + row);
     }
     
@@ -502,49 +504,57 @@ public class OpenDoc {
      * THIS VERSION DEFINES MULTIPLE TABS CORRECTLY, BUT DOES NOT ALLOW EXPANSIOM OF
      * ROWS OR COLUMNS AND DOES NOT PLACE ANY CONTENT IN THE CELLS.
      * 
-     * @param file    - the file to create as a spreadsheet
-     * @param colSize - number of columns to define
-     * @param rowSize - number of rows to define
-     * @param arrList - the list of names for the tabs
+     * @param file       - the file to create as a spreadsheet
+     * @param tabList    - the list of names for the tabs
+     * @param headerList - the header to place as 1st row in sheet (defines the column size)
      * 
      * @throws ParserException
      * @throws IOException
      */
-/*
-    public static void fileCreate (File file, int colSize, int rowSize, ArrayList<String> arrList) throws ParserException, IOException {
+    public static void fileCreate (File file, ArrayList<String> tabList, ArrayList<String> headerList) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (file == null) {
             throw new ParserException(functionId + "Spreadsheet file is not defined");
         }
-        if (arrList == null || arrList.isEmpty()) {
-            throw new ParserException(functionId + "Array list is blank");
+        if (tabList == null || tabList.isEmpty()) {
+            throw new ParserException(functionId + "Tab list is blank");
+        }
+        if (headerList == null || headerList.isEmpty()) {
+            throw new ParserException(functionId + "Header list is blank");
         }
         
         // save the file selection
         setFileSelection (file);
         
         // create the spreadsheet image and save sheets in our memory image of the sheets (sheetArray)
-        sheetArray.clear();
-        rowSize = 200;
-        SpreadSheet sSheet = SpreadSheet.create(arrList.size(), colSize, rowSize);
-        for (int ix = 0; ix < arrList.size(); ix++) {
-            Sheet nextSheet = sSheet.getSheet(ix);
-            nextSheet.setName(arrList.get(ix));
-            sheetArray.add(nextSheet);
-        }
-
-        // make 1st tab the current selection
+        TableModel model = new DefaultTableModel(null, headerList.toArray());
+        SpreadSheet sSheet = SpreadSheet.createEmpty(model);
+        
+        // make this sheet the current selection and set its name
         sheetSel = sSheet.getSheet(0);
+        sheetSel.setName(tabList.getFirst());
+        setSize (headerList.size(), 1000);
+        
+        // save the array of sheets
+        Sheet nextSheet;
+        sheetArray.clear();
+        for (int ix = 0; ix < tabList.size(); ix++) {
+            if (ix == 0) {
+                nextSheet = sheetSel;
+            } else {
+                nextSheet = sheetSel.copy(ix, tabList.get(ix));
+            }
+            sheetArray.add(nextSheet);
+        
+            int rows = getRowSize();
+            int cols = getColSize();
+            frame.outputInfoMsg(STATUS_INFO, INDENT + "sheet[" + ix + "] '" + nextSheet.getName() + "' size: cols = " + cols + ", rows = " + rows);
+        }
         
         // save the initial spreadsheet file
         saveToFile();
-        
-        int rows = getRowSize();
-        int cols = getColSize();
-        frame.outputInfoMsg(STATUS_INFO, INDENT + "Spreadsheet size: cols = " + cols + ", rows = " + rows);
     }
-*/
     
     /**
      * adds a new tab to the current spreadsheet file.

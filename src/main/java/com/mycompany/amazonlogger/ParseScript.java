@@ -307,8 +307,10 @@ public class ParseScript {
         for (int ix = 0; ! line.isEmpty(); ix++) {
             // read next entry
             ParameterStruct.ParamType paramType = ParameterStruct.ParamType.String;
+            line = line.strip();
             String nextArg = getNextWord (line);
             line = line.substring(nextArg.length());
+            nextArg = nextArg.strip();
 
             // if this is the 1st parameter of a parameter assignment, the 1st param
             // must be the parameter name. verify it is valid.
@@ -514,23 +516,12 @@ public class ParseScript {
             case Boolean:
                 String nextArg = getNextWord (line);
                 line = line.substring(nextArg.length()).strip();
-                String newOp = "";
+                String newOp = nextArg.substring(0, nextArg.length() - 1);
+                nextArg = nextArg.strip();
                 switch (nextArg) {
-                    case "=":
-                        break;
-                    case "+=":
-                    case "-=":
-                    case "*=":
-                    case "/=":
-                    case "%=":
-                    case "AND=":
-                    case "OR=":
-                    case "XOR=":
-                        int opLen = nextArg.length() - 1;
-                        newOp = nextArg.substring(0, opLen);
-                        break;
-                    default:
-                        throw new ParserException(functionId + "invalid equality sign: " + nextArg);
+                    case "=", "+=", "-=", "*=", "/=", "%=", "AND=", "OR=", "XOR=" -> {
+                    }
+                    default -> throw new ParserException(functionId + "invalid equality sign: " + nextArg);
                 }
 
                 // bitwise ops are only allowed for Unsigned type
@@ -558,6 +549,7 @@ public class ParseScript {
                     line = "$" + paramName + " " + newOp + " (" + line + ")";
                 }
                 break;
+
             default:
                 break;
         }
@@ -779,8 +771,7 @@ public class ParseScript {
      * 
      * @return the next word in the line (empty string if no more words)
      */
-    public static String getNextWord (String line) {
-        line = line.strip();
+    private static String getNextWord (String line) {
         if (line.isBlank()) {
             return "";
         }
@@ -788,7 +779,7 @@ public class ParseScript {
         if (offset <= 0) {
             return line;
         }
-        return line.substring(0, offset).strip();
+        return line.substring(0, offset);
     }
 
     /**
