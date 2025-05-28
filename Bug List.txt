@@ -3,6 +3,7 @@ KNOWN BUGS:
  - BUG: sometimes the description is not correct - there is a numeric value that it reads in place of it.
      (demonstrated when using file Sample_Your_Orders_Connie.txt as clipboard on Test-list.ods - it read a 2 as the description
       for item 111-9093528-3857063 because it thought the '?' was the rating, and took the next line ('2') as the description)
+ - BUG: the -snew and -saddtab commands doen't work properly
  - BUG: get rid of the OCR data that is output when it is run (not sure why this is occurring)
  - BUG: eliminate duplicate text data on OCR scan (not sure why this is occurring)
 
@@ -14,14 +15,14 @@ TODO:
     results.
 
 FUTURE:
- - update doc about new -snew and -saddtab commands
  - add -hyper option command to place a hypertext link in the cell of a spreadsheet
- - add DOUNTIL and DOWHILE commands (terminate in DONE)
  - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
  - When updating Order Details, make sure on multi-item orders to match the descriptions with the
     current entry item before copying the data.
  - After spreadsheet is loaded, show the last (most recent entry) in Dan and Connie tab to make it
     easier to find the next page to load without having to look at the spreadsheet directly.
+ - add ability to read from port when running in background so commands can be sent from external program
+    that sends commands to port. It could then allow stepping through the program and display current status.
 
 TESTING PHASE:
  * modify RESPONSE to be a StrArray instead of a String to access each element
@@ -54,4 +55,7 @@ TESTING PHASE:
  * add Traits for outputting WRITER and WRITETIME of variables.
  * print a WARN message if variable is read prior to being set (it uses the default value).
  * create a spreadsheet file (currently only allow opening one) and allow adding tabs
+ * add FOR EVER command (no termination except BREAK) and a BREAKIF and SKIPIF command
+ * add max loops for a FOR EVER loop for safety exit
+ * allow LENGTH to be used instead of SIZE for Traits.
 

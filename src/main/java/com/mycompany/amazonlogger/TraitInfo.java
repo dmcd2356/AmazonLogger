@@ -36,6 +36,7 @@ public class TraitInfo {
         REVERSE,            //   L -> L : sort from A-Z
         FILTER,             //   L -> L, A -> A : filtered contents
         SIZE,               // SLA -> I : number of chars for String, number of elements for Arrays
+        LENGTH,             // SLA -> I : (this is the same as SIZE)
         ISEMPTY,            // SLA -> B : check if item is zero-length
         DOW,                //   S -> I : (DATE only): for day of week
         DOM,                //   S -> I : (DATE only): for day of month
@@ -127,6 +128,7 @@ public class TraitInfo {
                 break;
                     
             case SIZE:
+            case LENGTH:
             case ISEMPTY:
                 // these are allowed for Strings and Arrays
                 if (varType != ParameterStruct.ParamType.StrArray &&
@@ -175,6 +177,7 @@ public class TraitInfo {
             case DOY:
             case MOY:
             case SIZE:
+            case LENGTH:
                 ptype = ParameterStruct.ParamType.Unsigned;
                 break;
 
@@ -255,7 +258,7 @@ public class TraitInfo {
             if (iValue != null) {
                 frame.outputInfoMsg(STATUS_DEBUG, "Extracted " + traitVal + " of DATE as: " + iValue);
             }
-        } else if (traitVal == Trait.SIZE) {
+        } else if (traitVal == Trait.SIZE || traitVal == Trait.LENGTH) {
             switch (varType) {
                 case String:
                     iValue = (long) variables.getStringSize(varName);
@@ -359,6 +362,7 @@ public class TraitInfo {
                 Boolean bEmpty = paramValue.isIntArrayEmpty();
                 switch (trait) {
                     case SIZE:
+                    case LENGTH:
                         paramValue.setIntegerValue(psize);
                         paramValue.setStringValue(psize.toString());
                         pType = ParameterStruct.ParamType.Integer;
@@ -413,6 +417,7 @@ public class TraitInfo {
                         if (strValue.length() > 20) strValue = strValue.substring(0, 20) + "...";
                         break;
                     case SIZE:
+                    case LENGTH:
                         paramValue.setIntegerValue(psize);
                         strValue = psize.toString();
                         pType = ParameterStruct.ParamType.Integer;
@@ -483,6 +488,7 @@ public class TraitInfo {
                         paramValue.setStrArray(strList);
                         break;
                     case SIZE:
+                    case LENGTH:
                         paramValue.setIntegerValue((long)paramValue.getStringValue().length());
                         strValue = paramValue.getIntegerValue().toString();
                         pType = ParameterStruct.ParamType.Integer;
