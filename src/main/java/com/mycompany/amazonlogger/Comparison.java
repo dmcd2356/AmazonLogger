@@ -86,6 +86,23 @@ public class Comparison {
             frame.outputInfoMsg(STATUS_PROGRAM, "    String Compare: " + strval1 + " " + compSign + " " + strval2 + " => " + bStatus);
             return;
         }
+
+        if ((matchType & INTEGER) != 0) {
+            Long calc1, calc2;
+            if (value1.isCalculation()) {
+                calc1 = value1.getCalculationValue(ParameterStruct.ParamType.Integer);
+            } else {
+                calc1 = value1.getIntegerValue();
+            }
+            if (value2.isCalculation()) {
+                calc2 = value2.getCalculationValue(ParameterStruct.ParamType.Integer);
+            } else {
+                calc2 = value2.getIntegerValue();
+            }
+            bStatus = Utils.compareParameterValues (calc1, calc2, compSign);
+            frame.outputInfoMsg(STATUS_PROGRAM, "    Numeric Compare: " + calc1 + " " + compSign + " " + calc2 + " => " + bStatus);
+            return;
+        }
         
         if ((matchType & BOOLEAN) != 0) {
             if (! compSign.contentEquals("==") && ! compSign.contentEquals("!=")) {

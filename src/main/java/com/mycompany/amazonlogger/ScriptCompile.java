@@ -152,7 +152,7 @@ public class ScriptCompile {
                     case SUB:
                         // verify 1 String argument: name of subroutine
                         ParseScript.checkMaxArgs(1, cmdStruct);
-                        String subName = ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        String subName = ParseScript.checkArgTypeString (0, cmdStruct.params);
                         subs.compileSubStartCmdIx(subName, cmdIndex);
                         break;
                     case ENDSUB:
@@ -161,14 +161,14 @@ public class ScriptCompile {
                     case GOSUB:
                         // verify 1 String argument: name of subroutine (and optionally a list of various args)
                         ParseScript.checkMaxArgs(1, cmdStruct);
-                        subName = ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        subName = ParseScript.checkArgTypeString (0, cmdStruct.params);
                         subs.compileSubGosub (subName);
                         break;
                     case RETURN:
                         // optional String argument returned
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         if (!cmdStruct.params.isEmpty()) {
-                            ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                            ParseScript.checkArgTypeString (0, cmdStruct.params);
                         }
                         subs.compileSubReturn ();
                         break;
@@ -270,7 +270,7 @@ public class ScriptCompile {
                         // This is handled during the Pre-Compile, so nothing to do here!
                         break;
                         
-                    case CommandStruct.CommandTable.SET:
+                    case SET:
                         if (cmdStruct.params.size() < 3) {
                             throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing value to set variable to");
                         }
@@ -286,7 +286,7 @@ public class ScriptCompile {
                             default -> 
                                 throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing required '=' following variable name");
                         }
-                        if (cmdStruct.params.size() == 3) {
+                        if (cmdStruct.params.size() == 3 && option.contentEquals("=")) {
                             // if it's a single arg, verify it is an acceptable type for the variable
                             ParseScript.checkArgType (2, vartype, cmdStruct.params);
                         } else {
@@ -309,8 +309,8 @@ public class ScriptCompile {
                         break;
 
                     // these are the Array-only commands
-                    case CommandStruct.CommandTable.INSERT:
-                    case CommandStruct.CommandTable.APPEND:
+                    case INSERT:
+                    case APPEND:
                         // VarName, Data Value
                         // arg 0 should be the Array variable name
                         vartype = ParseScript.checkVariableName (0, cmdStruct.params);
@@ -331,7 +331,7 @@ public class ScriptCompile {
                         }
                         break;
 
-                    case CommandStruct.CommandTable.MODIFY:
+                    case MODIFY:
                         // VarName, Index, Data Value
                         ParseScript.checkMaxArgs(3, cmdStruct);
                         // arg 0 should be the Array variable name
@@ -349,7 +349,7 @@ public class ScriptCompile {
                         ParseScript.checkArgType (2, argType, cmdStruct.params);
                         break;
 
-                    case CommandStruct.CommandTable.REMOVE:
+                    case REMOVE:
                         // VarName, Index
                         ParseScript.checkMaxArgs(2, cmdStruct);
                         // arg 0 should be the Array variable name
@@ -358,8 +358,8 @@ public class ScriptCompile {
                         ParseScript.checkArgType (1, ParameterStruct.ParamType.Integer, cmdStruct.params);
                         break;
 
-                    case CommandStruct.CommandTable.TRUNCATE:
-                    case CommandStruct.CommandTable.POP:
+                    case TRUNCATE:
+                    case POP:
                         // VarName, Index (optional)
                         ParseScript.checkMaxArgs(2, cmdStruct);
                         // arg 0 should be the Array variable name
@@ -399,7 +399,7 @@ public class ScriptCompile {
                         }
                         break;
 
-                    case CommandStruct.CommandTable.IF:
+                    case IF:
                         // verify number and type of arguments
                         cmdStruct.params = parseScript.packComparison (parmString);
 
@@ -423,7 +423,7 @@ public class ScriptCompile {
                         IFStruct.stackPush(cmdIndex);
                         frame.outputInfoMsg(STATUS_COMPILE, "   - new IF level " + IFStruct.getStackSize() + " Variable " + ifName);
                         break;
-                    case CommandStruct.CommandTable.ELSE:
+                    case ELSE:
                         ParseScript.checkMaxArgs(0, cmdStruct);
                         if (IFStruct.isIfListEnpty()) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
@@ -436,7 +436,7 @@ public class ScriptCompile {
                         ifInfo.setElseIndex(cmdIndex, false, LoopStruct.getStackSize());
                         frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
                         break;
-                    case CommandStruct.CommandTable.ELSEIF:
+                    case ELSEIF:
                         if (IFStruct.isIfStackEnpty()) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
                         }
@@ -454,7 +454,7 @@ public class ScriptCompile {
                         ifInfo.setElseIndex(cmdIndex, true, LoopStruct.getStackSize());
                         frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " Variable " + ifName);
                         break;
-                    case CommandStruct.CommandTable.ENDIF:
+                    case ENDIF:
                         ParseScript.checkMaxArgs(0, cmdStruct);
                         if (IFStruct.isIfStackEnpty()) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
@@ -468,83 +468,114 @@ public class ScriptCompile {
                         IFStruct.stackPop();
                         frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
                         break;
-                    case CommandStruct.CommandTable.FOR:
-                        // read the arguments passed
+                    case FOR:
                         // assumed format is: FOR VarName [=] StartIx TO EndIx [STEP StepVal]
-                        ParseScript.checkMaxArgs(7, cmdStruct);
-                        String loopName, loopStart, loopEnd, strVal;
-                        String loopStep = "1";
-                        // arg 0 should be the Loop variable name
-                        loopName = ParseScript.checkArgType (0, ParameterStruct.ParamType.String,  cmdStruct.params);
-                        // check for optional '=' sign and eliminate if found
-                        strVal   = ParseScript.checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
-                        if (strVal.contentEquals("=")) {
-                            cmdStruct.params.remove(1);
-                        }
-                        boolean bValid = true;
-                        if (cmdStruct.params.size() != 4 && cmdStruct.params.size() != 6) {
-                            bValid = false;
-                        } else {
-                            // this checks the required start and end loop index values
-                            boolean bInclEnd = false;
-                            loopStart = ParseScript.checkArgType (1, ParameterStruct.ParamType.Integer, cmdStruct.params);
-                            strVal    = ParseScript.checkArgType (2, ParameterStruct.ParamType.String,  cmdStruct.params);
-                            loopEnd   = ParseScript.checkArgType (3, ParameterStruct.ParamType.Integer, cmdStruct.params);
-                            if (! strVal.contentEquals("TO") && ! strVal.contentEquals("UPTO")) {
-                                bValid = false;
+                        // the other format is: "FOR EVER" - check for single argument of "EVER"
+                        String loopName, strVal;
+                        ParameterStruct loopStart = null;
+                        ParameterStruct loopEnd   = null;
+                        ParameterStruct loopStep  = null;
+                        boolean bInclEnd = false;
+                        ParameterStruct nameParam = cmdStruct.params.get(0);
+                        ParseScript.checkMinArgs(1, cmdStruct);
+                        if (cmdStruct.params.size() <= 2 && nameParam.getStringValue().contentEquals("EVER")) {
+                            Integer maxLoops = null;
+                            if (cmdStruct.params.size() == 2) {
+                                maxLoops = cmdStruct.params.get(1).getIntegerValue().intValue();
                             }
-                            else if (cmdStruct.params.size() == 6) {
-                                if (strVal.contentEquals("TO")) {
-                                    bInclEnd = true;
-                                }
-                                // this checks the optional loop index step value
-                                strVal   = ParseScript.checkArgType (4, ParameterStruct.ParamType.String,  cmdStruct.params);
-                                loopStep = ParseScript.checkArgType (5, ParameterStruct.ParamType.Integer, cmdStruct.params);
-                                if (! strVal.contentEquals("STEP")) {
-                                    bValid = false;
-                                }
-                            }
-                            // create a new loop ID (name + command index) for the entry and add it
-                            // to the list of IDs for the loop parameter name
-                            LoopId loopId = new LoopId(loopName, cmdIndex);
+                            // create loop forever structure
                             try {
-                                LoopStruct loopInfo = new LoopStruct (loopName, loopStart, loopEnd, loopStep,
-                                                bInclEnd, cmdIndex, IFStruct.getStackSize());
-                                LoopParam.saveLoopParameter (loopName, loopId, loopInfo);
+                                LoopStruct loopInfo = new LoopStruct (maxLoops, cmdIndex, IFStruct.getStackSize());
+                                LoopParam.saveLoopParameter (loopInfo);
+                                String newLoopName = loopInfo.getLoopName(); // the name gets changed to make it unique from user defined names
+                                nameParam.setStringValue(newLoopName);
+                                frame.outputInfoMsg(STATUS_COMPILE, "   - new FOR EVER Loop level " + LoopStruct.getStackSize() +
+                                        " " + newLoopName + " index @ " + cmdIndex);
                             } catch (ParserException exMsg) {
                                 throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
                             }
+                        } else {
+                            // verify the arguments passed
+                            ParseScript.checkMaxArgs(7, cmdStruct);
+                            ParseScript.checkMinArgs(5, cmdStruct);
+                            // arg 0 should be the Loop variable name
+                            loopName = ParseScript.checkArgTypeString (0, cmdStruct.params);
+                            // check for optional '=' sign and eliminate if found
+                            strVal   = ParseScript.checkArgTypeString (1, cmdStruct.params);
+                            if (strVal.contentEquals("=")) {
+                                cmdStruct.params.remove(1);
+                            }
+                            boolean bValid = true;
+                            if (cmdStruct.params.size() != 4 && cmdStruct.params.size() != 6) {
+                                bValid = false;
+                            } else {
+                                // this checks the required start and end loop index values
+                                loopStart = cmdStruct.params.get(1);
+                                strVal    = ParseScript.checkArgTypeString  (2, cmdStruct.params);
+                                loopEnd   = cmdStruct.params.get(3);
+                                if (! strVal.contentEquals("TO") && ! strVal.contentEquals("UPTO")) {
+                                    bValid = false;
+                                }
+                                else if (cmdStruct.params.size() == 6) {
+                                    if (strVal.contentEquals("TO")) {
+                                        bInclEnd = true;
+                                    }
+                                    // this checks the optional loop index step value
+                                    strVal   = ParseScript.checkArgTypeString  (4, cmdStruct.params);
+                                    loopStep = cmdStruct.params.get(5);
+                                    if (! strVal.contentEquals("STEP")) {
+                                        bValid = false;
+                                    }
+                                }
+                            }
+                            if (! bValid) {
+                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " invalid command format" +
+                                        ": should be of form VarName [=] StartIx TO | UPTO EndIx [STEP StepIx]");
+                            }
 
-                            // add entry to the current loop stack
-                            LoopStruct.pushStack(loopId);
+                            // create a new loop ID (name + command index) for the entry and add it
+                            // to the list of IDs for the loop parameter name
+                            try {
+                                LoopStruct loopInfo = new LoopStruct (loopName, loopStart, loopEnd, loopStep,
+                                                bInclEnd, cmdIndex, IFStruct.getStackSize());
+                                LoopParam.saveLoopParameter (loopInfo);
+                            } catch (ParserException exMsg) {
+                                throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
+                            }
                             frame.outputInfoMsg(STATUS_COMPILE, "   - new FOR Loop level " + LoopStruct.getStackSize() + " Variable " + loopName + " index @ " + cmdIndex);
                         }
-                        if (! bValid) {
-                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " invalid command format" +
-                                    ": should be of form VarName [=] StartIx TO EndIx [STEP StepIx]");
-                        }
                         break;
-                    case CommandStruct.CommandTable.BREAK:
+                    case BREAK:
                         ParseScript.checkMaxArgs(0, cmdStruct);
                         // make sure we are in a FOR ... NEXT loop
                         if (LoopStruct.getStackSize() == 0) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                         }
-                        // verify the IF loop level hasn't been exceeded
-                        LoopId curLoop = LoopStruct.peekStack();
-                        LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
                         break;
-                    case CommandStruct.CommandTable.CONTINUE:
+                    case CONTINUE:
                         ParseScript.checkMaxArgs(0, cmdStruct);
                         // make sure we are in a FOR ... NEXT loop
                         if (LoopStruct.getStackSize() == 0) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                         }
-                        // verify the IF loop level hasn't been exceeded
-                        curLoop = LoopStruct.peekStack();
-                        LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
                         break;
-                    case CommandStruct.CommandTable.NEXT:
+                    case BREAKIF:
+                        // verify number and type of arguments
+                        cmdStruct.params = parseScript.packComparison (parmString);
+                        // make sure we are in a FOR ... NEXT loop
+                        if (LoopStruct.getStackSize() == 0) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
+                        }
+                        break;
+                    case SKIPIF:
+                        // verify number and type of arguments
+                        cmdStruct.params = parseScript.packComparison (parmString);
+                        // make sure we are in a FOR ... NEXT loop
+                        if (LoopStruct.getStackSize() == 0) {
+                            throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
+                        }
+                        break;
+                    case NEXT:
                         ParseScript.checkMaxArgs(0, cmdStruct);
                         // make sure we are in a FOR ... NEXT loop
                         if (LoopStruct.getStackSize() == 0) {
@@ -559,8 +590,8 @@ public class ScriptCompile {
                         // (this will be added at the end of this switch statement)
 
                         // verify the IF loop level hasn't been exceeded
-                        curLoop = LoopStruct.peekStack();
-                        LoopParam.checkLoopIfLevel (cmdStruct.command, IFStruct.getStackSize(), curLoop);
+                        LoopId curLoop = LoopStruct.peekStack();
+                        LoopParam.checkLoopIfLevel (cmdStruct.command.toString(), IFStruct.getStackSize(), curLoop);
 
                         // set the added ENDFOR command to be the location to go to upon completion
                         curLoop = LoopStruct.peekStack();
@@ -569,11 +600,11 @@ public class ScriptCompile {
                         // remove entry from loop stack
                         LoopStruct.popStack();
                         break;
-                    case CommandStruct.CommandTable.ENDFOR:
+                    case ENDFOR:
                         ParseScript.checkMaxArgs(0, cmdStruct);
                         // ignore the user entry of this command - we place our own ENDFOR when the NEXT command is found.
                         continue;
-                    case CommandStruct.CommandTable.RUN:
+                    case RUN:
                         // verify the option command and its parameters
                         // NOTE: when we place the command in cmdStruct, we remove the RUN label,
                         //       so executeProgramCommand does not need to check for it.

@@ -4,6 +4,9 @@
  */
 package com.mycompany.amazonlogger;
 
+import static com.mycompany.amazonlogger.AmazonReader.frame;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.util.Stack;
 
 /**
@@ -15,6 +18,8 @@ public class LoopStruct {
 
     private static final String CLASS_NAME = LoopStruct.class.getSimpleName();
     
+    private static final String LOOP_FOREVER = "#FOREVER#";
+    
     private final String    name;       // parameter name for the loop
     private       Integer   value;      // current parameter value
     private final LoopParam valStart;   // loop start value
@@ -25,10 +30,45 @@ public class LoopStruct {
     private final Integer   ixBegin;    // command index of start of loop (where it returns to)
     private       Integer   ixEnd;      // command index of ENDFOR (end of loop or break reached)
     private       Integer   ifLevel;    // IF nest level (to make sure loop def doesn't exceed the boundaries)
+    private       LoopId    loopId;     // the loop ID value
+    private       Integer   maxLoops;   // the max number of loops to run in FOREVER mode (null if no safety)
 
     // loop stack for keeping track of current nesting of loops as program runs
     private static final Stack<LoopId> loopStack = new Stack<>();
 
+
+    /**
+     * Initializes the loop structure.
+     * This is called when the the FOR EVER command is first parsed during compile.
+     * 
+     * @param maxLoops - the max number of loops to run before terminating program (safety switch - null to omit)
+     * @param index - the index of the command list to return to on each loop (index of FOR)
+     * @param ifLev - the IF nest level at start of LOOP def
+     * 
+     * @throws ParserException
+     */
+    LoopStruct (Integer maxLoops, int index, int ifLev) throws ParserException {
+        String functionId = CLASS_NAME + " (new FOREVER): ";
+       
+        this.name     = LOOP_FOREVER;
+        this.loopId   = new LoopId(name, index);
+        this.valStart = new LoopParam(0L);
+        this.valEnd   = new LoopParam(0L);
+        this.valStep  = new LoopParam(1L);
+        this.bInclEnd = false;
+        this.value    = 0;
+        this.ixBegin  = index;
+        this.ixEnd    = null;
+        this.ifLevel  = ifLev;
+        this.maxLoops = maxLoops;
+        if (maxLoops == null) {
+            frame.outputInfoMsg(STATUS_WARN, functionId + "Loop " + name + " @" + index + " level " + LoopStruct.getStackSize() + " is run without safety limit");
+        }
+
+        // add entry to the current loop stack
+        LoopStruct.pushStack(this.loopId);
+        frame.outputInfoMsg(STATUS_DEBUG, functionId + "Loop " + name + " @" + index + " level " + LoopStruct.getStackSize() + " starts with IF level " + ifLev);
+    }
 
     /**
      * Initializes the loop structure.
@@ -43,33 +83,114 @@ public class LoopStruct {
      * 
      * @throws ParserException
      */
-    LoopStruct (String name, String start, String end, String step, boolean bIncl, int index, int ifLev) throws ParserException {
+    LoopStruct (String name, ParameterStruct start, ParameterStruct end, ParameterStruct step, boolean bIncl, int index, int ifLev) throws ParserException {
         String functionId = CLASS_NAME + " (new): ";
        
         // check for invalid input
         if (name  == null) throw new ParserException(functionId + "FOR param @ " + index + ": 'name' entry is null");
         if (start == null) throw new ParserException(functionId + "FOR param @ " + index + ": 'start' entry is null");
         if (end   == null) throw new ParserException(functionId + "FOR param @ " + index + ": 'end' entry is null");
-        if (step  == null) throw new ParserException(functionId + "FOR param @ " + index + ": 'step' entry is null");
         try {
             isValidLoopName(name, index);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId + " [FOR param @ " + index + "]");
         }
 
+        // now verify types of params and check whether they are discreet or reference
         try {
-            this.name     = name;
-            this.valStart = new LoopParam (start);
-            this.valEnd   = new LoopParam (end);
-            this.valStep  = new LoopParam (step);
-            this.bInclEnd = bIncl;
-            this.value    = valStart.getIntValue(); // set to the current start value if this is a ref param
-            this.ixBegin  = index;
-            this .ixEnd   = null;
-            this.ifLevel  = ifLev;
+            if (checkIfValidInteger ("START", start))
+                this.valStart = new LoopParam (start.getIntegerValue());
+            else
+                this.valStart = new LoopParam (start.getStringValue());
+
+            if (checkIfValidInteger ("END", end))
+                this.valEnd = new LoopParam (end.getIntegerValue());
+            else
+                this.valEnd = new LoopParam (end.getStringValue());
+
+            if (step != null) {
+                if (checkIfValidInteger ("STEP", step))
+                    this.valStep = new LoopParam (step.getIntegerValue());
+                else
+                    this.valStep = new LoopParam (step.getStringValue());
+            } else {
+                this.valStep = new LoopParam (1L); // set to default value
+            }
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
+        
+        this.name     = name;
+        this.loopId   = new LoopId(name, index);
+        this.bInclEnd = bIncl;
+        this.value    = 0; // this is called during compile, so if the tsrat param is a ref, we don't know the value
+        this.ixBegin  = index;
+        this.ixEnd    = null;
+        this.ifLevel  = ifLev;
+        
+        // add entry to the current loop stack
+        LoopStruct.pushStack(this.loopId);
+        frame.outputInfoMsg(STATUS_DEBUG, functionId + "Loop " + name + " @" + index + " level " + LoopStruct.getStackSize() + " starts with IF level " + ifLev);
+    }
+
+    /**
+     * checks if the loop index values are valid integers or variable references.
+     * 
+     * @param which - name of the loop parameter setting (START, END, STEP)
+     * @param param - the parameter value
+     * 
+     * @return true if value is a discreet integer value
+     * 
+     * @throws ParserException 
+     */
+    private static boolean checkIfValidInteger (String which, ParameterStruct param) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+       
+        ParameterStruct.ParamClass refType = param.getParamClass();
+        switch (refType) {
+            case Discrete:
+                ParameterStruct.ParamType type = param.getParamType();
+                Long value = param.getIntegerValue();
+                if (value == null) {
+                    throw new ParserException(functionId + "Invalid entry for " + which + " loop - type: " + type + " (value = " + param.getStringValue());
+                }
+                return true;
+            case Reference:
+                String refName = param.getVariableRefName();
+                if (refName == null) {
+                    throw new ParserException(functionId + "Invalid reference for " + which + " loop - name: " + param.getStringValue());
+                }
+                return false;
+            default:
+                throw new ParserException(functionId + "Invalid class of parameter for loop: " + refType);
+        }
+    }
+    
+    /**
+     * returns the loop name for the loop structure.
+     * 
+     * @return variable name associated with the loop
+     */
+    public String getLoopName () {
+        return this.name;
+    }
+    
+    /**
+     * returns the loop ID for the loop structure.
+     * 
+     * @return unique loop ID associated with the loop
+     */
+    public LoopId getLoopId () {
+        return this.loopId;
+    }
+    
+    /**
+     * determines if the loop parameter indicates it is looping forever.
+     * 
+     * @return true if name indicates loop forever
+     */
+    public boolean isForever () {
+        return LOOP_FOREVER.contentEquals(this.name);
     }
     
     /**
@@ -92,9 +213,9 @@ public class LoopStruct {
     }
     
     /**
-     * indicates if the loop has been completely defined (matching ENDFOR found)
+     * gets the current loop index value.
      * 
-     * @return true if the loop has been fully defined (FOR and ENDFOR have been parsed)
+     * @return the current loop index value
      */
     public Integer getLoopValue () {
         return value;
@@ -105,12 +226,17 @@ public class LoopStruct {
      * This should be called when any of the commands NEXT, BREAK, ENDFOR are called
      * during compile.
      * 
-     * @param level - the current level of the instruction
+     * @param command - the FOR loop command executed
+     * @param level   - the current level of the instruction
      * 
-     * @return true if the loop is fully defined within same IF block (or not within IF at all
+     * @throws ParserException
      */
-    public boolean isLoopIfLevelValid (int level) {
-        return ifLevel == level;
+    public void checkLoopIfLevelValid (String command, int level) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (level != this.ifLevel) {
+            throw new ParserException(functionId + command + " exceeded bounds of enclosing IF block: IF level = " + level + ", should be: " + this.ifLevel);
+        }
     }
     
     /**
@@ -125,6 +251,11 @@ public class LoopStruct {
      */
     public int startLoop (int index) throws ParserException {
         value = valStart.getIntValue();
+        
+        // if we are looping without end, we always proceed to the next command
+        if (isForever()) {
+            return index + 1;
+        }
         
         // just in case the loop is set to not run, perform the exit comparison
         if (valStep.getIntValue() >= 1) {
@@ -161,12 +292,20 @@ public class LoopStruct {
      * @throws ParserException
      */
     public int loopNext () throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
         // increment param by the step value and check if we have completed
         value += valStep.getIntValue();
+        frame.outputInfoMsg(STATUS_DEBUG, "     LOOP " + name + "@" + loopId.index + " value = " + value);
         
-        boolean bResult = Utils.compareParameterValues (value, valEnd.getIntValue(), comparator);
-        if (! bResult) {
-            return ixEnd;   // loop completed
+        // skip checking for exit if running forever
+        if (! isForever()) {
+            boolean bResult = Utils.compareParameterValues (value, valEnd.getIntValue(), comparator);
+            if (! bResult) {
+                return ixEnd;   // loop completed
+            }
+        } else if (maxLoops != null && value >= maxLoops) {
+            throw new ParserException(functionId + "SAFETY CHECK ON LOOP: MAX LOOPS EXCEEDED!");
         }
 
         // not done yet, start on the line following the FOR command
@@ -242,7 +381,7 @@ public class LoopStruct {
      * 
      * @throws ParserException - if not valid
      */
-    public static void isValidLoopName (String name, int index) throws ParserException {
+    private static void isValidLoopName (String name, int index) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         try {

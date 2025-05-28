@@ -861,6 +861,44 @@ public class ScriptExecute {
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 break;
+            case BREAKIF:
+                loopSize = LoopStruct.getStackSize();
+                if (loopSize == 0 || curLoopId == null) {
+                    throw new ParserException(exceptPreface + "Received when not in a FOR loop");
+                }
+                // check status to see if true of false.
+                parm1 = cmdStruct.params.get(0);
+                parm2 = cmdStruct.params.size() > 1 ? cmdStruct.params.get(1) : null;
+                parm3 = cmdStruct.params.size() > 2 ? cmdStruct.params.get(2) : null;
+                bResult = getComparison(parm1, parm2, parm3);
+
+                if (! bResult) {
+                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "BREAKIF not TRUE - remain in loop");
+                } else {
+                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "BREAKIF is TRUE - exit loop");
+                    newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
+                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
+                }
+                break;
+            case SKIPIF:
+                loopSize = LoopStruct.getStackSize();
+                if (loopSize == 0 || curLoopId == null) {
+                    throw new ParserException(exceptPreface + "Received when not in a FOR loop");
+                }
+                // check status to see if true of false.
+                parm1 = cmdStruct.params.get(0);
+                parm2 = cmdStruct.params.size() > 1 ? cmdStruct.params.get(1) : null;
+                parm3 = cmdStruct.params.size() > 2 ? cmdStruct.params.get(2) : null;
+                bResult = getComparison(parm1, parm2, parm3);
+
+                if (! bResult) {
+                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "SKIPIF not TRUE - do nothing");
+                } else {
+                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "SKIPIF is TRUE - skip to next iteration");
+                    newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
+                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
+                }
+                break;
             case NEXT:
                 loopSize = LoopStruct.getStackSize();
                 if (loopSize == 0 || curLoopId == null) {

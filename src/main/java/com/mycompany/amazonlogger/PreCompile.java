@@ -104,10 +104,17 @@ public class PreCompile {
                 switch (command) {
                     case ALLOCATE:
                         // must be a Data Type followed by a List of Variable name entries
-                        String access   = ParseScript.checkArgType (0, ParameterStruct.ParamType.String, params);
-                        String dataType = ParseScript.checkArgType (1, ParameterStruct.ParamType.String, params);
-                        ParseScript.checkArgType (2, ParameterStruct.ParamType.StrArray, params);
-                        ParameterStruct list = params.get(2);
+                        String access   = ParseScript.checkArgTypeString (0, params);
+                        String dataType = ParseScript.checkArgTypeString (1, params);
+                        ArrayList<String> strArray = ParseScript.checkArgTypeStrArray (2, params);
+                        // if a single entry was made instead of list enclosed in braces, the entry
+                        // will be in the String section, so copy it over from there
+                        if (strArray == null) {
+                            strArray = new ArrayList<>();
+                        }
+                        if (strArray.isEmpty()) {
+                            strArray.add(params.get(2).getStringValue());
+                        }
 
                         // get the data type and access type for the variable
                         if (ParameterStruct.checkParamType (dataType) == null) {
@@ -123,8 +130,8 @@ public class PreCompile {
                         // This Compile method will allocate them, so the Execute does not need
                         //  to do anything with this command.
                         // Multiple Variables can be defined on one line, with the names comma separated
-                        for (int ix = 0; ix < list.getStrArraySize(); ix++) {
-                            String pName = list.getStrArrayElement(ix).strip();
+                        for (int ix = 0; ix < strArray.size(); ix++) {
+                            String pName = strArray.get(ix).strip();
                             variables.allocateVariable(access, dataType, pName, subName);
                         }
                         break;

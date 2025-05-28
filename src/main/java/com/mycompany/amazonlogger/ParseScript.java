@@ -62,9 +62,11 @@ public class ParseScript {
 
                 case String:
                 case StrArray:
-                default:
                     // allow anything
                     break;
+
+                default:
+                    throw new ParserException(functionId + "Undefined expected type: " + expType);
             }
             if (! bValid) {
                 throw new ParserException(functionId + "Mismatched data type for reference Variable. Expected " + expType + ", got: " + argtype);
@@ -87,8 +89,24 @@ public class ParseScript {
             if (count == 0) {
                 throw new ParserException(functionId + "No arguments permitted for this command");
             } else {
-                throw new ParserException(functionId + "Too many arguments for this command. (max = " + count + ")");
+                throw new ParserException(functionId + "Too many arguments for this command. (max = " + count + ", found " + cmdStruct.params.size() + ")");
             }
+        }
+    }
+    
+    /**
+     * checks the min args are met for the command.
+     * 
+     * @param count     - the min args allowed
+     * @param cmdStruct - the command list
+     * 
+     * @throws ParserException 
+     */
+    public static void checkMinArgs (int count, CommandStruct cmdStruct) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (cmdStruct.params.size() < count) {
+            throw new ParserException(functionId + "Missing arguments for this command. (min = " + count + ", found " + cmdStruct.params.size() + ")");
         }
     }
     
@@ -191,12 +209,10 @@ public class ParseScript {
      * @param expType    - the type of variable the command is expecting
      * @param parmList   - the list of args
      * 
-     * @return the value of the String argument (it should always be valid)
-     * 
      * @throws ParserException 
      */    
-    public static String checkArgType (int index, ParameterStruct.ParamType expType, ArrayList<ParameterStruct> parmList) throws ParserException {
-         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+    public static void checkArgType (int index, ParameterStruct.ParamType expType, ArrayList<ParameterStruct> parmList) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (parmList == null) {
             throw new ParserException(functionId + "Null parameter list");
@@ -205,9 +221,52 @@ public class ParseScript {
             throw new ParserException(functionId + "Missing arguments in list - number found: " + parmList.size());
         }
         verifyArgDataType (expType, parmList.get(index));
+    }
+
+    /**
+     * checks if the specified argument is a String and returns the value.
+     * 
+     * @param index      - the index of the argument in the arg list
+     * @param parmList   - the list of args
+     * 
+     * @return the value of the String argument (it should always be valid)
+     * 
+     * @throws ParserException 
+     */    
+    public static String checkArgTypeString (int index, ArrayList<ParameterStruct> parmList) throws ParserException {
+        checkArgType (index, ParameterStruct.ParamType.String, parmList);
         return parmList.get(index).getStringValue();
     }
 
+    /**
+     * checks if the specified argument is an Integer (or Unsigned) and returns the value.
+     * 
+     * @param index      - the index of the argument in the arg list
+     * @param parmList   - the list of args
+     * 
+     * @return the value of the Integer argument (it should always be valid)
+     * 
+     * @throws ParserException 
+     */    
+    public static Long checkArgTypeInteger (int index, ArrayList<ParameterStruct> parmList) throws ParserException {
+        checkArgType (index, ParameterStruct.ParamType.Integer, parmList);
+        return parmList.get(index).getIntegerValue();
+    }
+
+    /**
+     * checks if the specified argument is a StrArray and returns the value.
+     * 
+     * @param index      - the index of the argument in the arg list
+     * @param parmList   - the list of args
+     * 
+     * @return the value of the StrArray argument (it should always be valid)
+     * 
+     * @throws ParserException 
+     */    
+    public static ArrayList<String> checkArgTypeStrArray (int index, ArrayList<ParameterStruct> parmList) throws ParserException {
+        checkArgType (index, ParameterStruct.ParamType.StrArray, parmList);
+        return parmList.get(index).getStrArray();
+    }
     /**
      * checks if the specified argument compiles with the Array Filter type.
      * 

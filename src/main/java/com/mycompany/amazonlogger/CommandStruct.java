@@ -47,6 +47,8 @@ public class CommandStruct {
         ENDIF,      //  "       "       "
         FOR,        // these handle the FOR loop
         BREAK,      //  "       "       "
+        BREAKIF,    //  "       "       "
+        SKIPIF,     //  "       "       "
         CONTINUE,   //  "       "       "
         NEXT,       //  "       "       "
         ENDFOR,     // (not a user command, but inserted by compiler)

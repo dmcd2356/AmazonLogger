@@ -258,6 +258,10 @@ public final class ParameterStruct {
         return paramType;
     }
 
+    public ParamClass getParamClass () {
+        return paramClass;
+    }
+
     public String getStrArrayElement (int index) {
         if (strArrayParam == null || index >= strArrayParam.size())
             return null;
@@ -710,12 +714,16 @@ public final class ParameterStruct {
         switch (paramType) {
             case Integer:
                 strParam = longParam.toString();
-                boolParam = longParam != 0;
+                if (longParam == 0L || longParam == 1L) {
+                    boolParam = longParam != 0L;
+                }
                 frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case Unsigned:
                 strParam = longParam.toString();
-                boolParam = longParam != 0;
+                if (longParam == 0L || longParam == 1L) {
+                    boolParam = longParam != 0L;
+                }
                 frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case Boolean:
@@ -740,7 +748,9 @@ public final class ParameterStruct {
                             } else {
                                 paramType = ParamType.Integer;
                             }
-                            boolParam = longParam != 0;
+                            if (longParam == 0L || longParam == 1L) {
+                                boolParam = longParam != 0L;
+                            }
                         } catch (ParserException ex) {
                             // keep param as String type and we can't do any conversions
                         }
@@ -750,23 +760,19 @@ public final class ParameterStruct {
                 break;
             case IntArray:
                 if (intArrayParam.isEmpty()) {
-                    strParam = "";
                     longParam = 0L;
-                    boolParam = true;
+                    strParam = "";
                 } else {
-                    strParam = intArrayParam.getFirst().toString();
                     longParam = intArrayParam.getFirst();
-                    boolParam = false;
+                    strParam = longParam.toString();
                 }
                 frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case StrArray:  // String List type
                 if (strArrayParam.isEmpty()) {
                     strParam = "";
-                    boolParam = true;
                 } else {
                     strParam = strArrayParam.getFirst();
-                    boolParam = false;
                 }
                 frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;

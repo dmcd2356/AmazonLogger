@@ -37,8 +37,8 @@ public class LoopParam {
     private static final HashMap<String, ArrayList<LoopId>> loopNames = new HashMap<>();
 
     
-    public LoopParam (Integer value) {
-        this.value = value;
+    public LoopParam (Long value) {
+        this.value = value.intValue();
         this.paramName = null;
     }
         
@@ -164,16 +164,14 @@ public class LoopParam {
      * 
      * @throws ParserException 
      */    
-    public static void checkLoopIfLevel (CommandStruct.CommandTable command, int level, LoopId loopId) throws ParserException {
+    public static void checkLoopIfLevel (String command, int level, LoopId loopId) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         LoopStruct loopInfo = getLoopStruct (loopId);
         if (loopInfo == null) {
             throw new ParserException(functionId + "FOR Loop " + loopId.name + " @ " + loopId.index + " not found");
         }
-        if (! loopInfo.isLoopIfLevelValid(level)) {
-            throw new ParserException(functionId + command + "exceeded bounds of enclosing IF block: IF level = " + level);
-        }
+        loopInfo.checkLoopIfLevelValid(command, level);
     }
         
     /**
@@ -196,9 +194,8 @@ public class LoopParam {
         
     /**
      * gets the next command index based on the loop command specified for current loop.
-     * This should be called by 'CommandParser.executeProgramCommand' when a FOR
-     * loop is in progress and one of the loop commands was found that may change
-     * the next location to execute from.
+     * This should be called in EXECUTION mode when a FOR loop is in progress and
+     * one of the loop commands was found that may change the next location to execute from.
      * 
      * @param command - the loop command to execute
      * @param index   - the current command index
@@ -225,11 +222,13 @@ public class LoopParam {
                 action = "starting";
                 break;
             case CommandStruct.CommandTable.BREAK:
+            case CommandStruct.CommandTable.BREAKIF:
                 nextIndex = loopInfo.loopBreak();
                 action = "exiting";
                 break;
             case CommandStruct.CommandTable.NEXT:
             case CommandStruct.CommandTable.CONTINUE:
+            case CommandStruct.CommandTable.SKIPIF:
                 nextIndex = loopInfo.loopNext();
                 if (nextIndex < index)
                     action = "restarting";
@@ -249,15 +248,18 @@ public class LoopParam {
      * This should only be called by 'CommandParser.compileProgram' when stepping
      * through the commands to verify and create the compiled list of commands.
      * 
-     * @param name     - loop Variable name
-     * @param loopId   - loop name-index combination to uniquely identify the loop param
      * @param loopInfo - the loop Variable to add
      */
-    public static void saveLoopParameter (String name, LoopId loopId, LoopStruct loopInfo) {
+    public static void saveLoopParameter (LoopStruct loopInfo) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (loopInfo == null) {
+            throw new ParserException(functionId + "FOR Loop structure not found");
+        }
         
         // create a new loop ID (name + command index) for the entry and add it
         // to the list of IDs for the loop parameter name
+        String name = loopInfo.getLoopName();
         ArrayList<LoopId> loopList;
         if (loopNames.isEmpty()) {
             // first loop defined, create an empty array list and add it to the list of names for this name.
@@ -271,6 +273,7 @@ public class LoopParam {
                 loopNames.put(name, loopList);
             }
         }
+        LoopId loopId = loopInfo.getLoopId();
         loopList.add(loopId);
         frame.outputInfoMsg(STATUS_DEBUG, functionId + "Number of loops with name " + name + ": " + loopList.size());
         
