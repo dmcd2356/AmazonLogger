@@ -78,6 +78,23 @@ public final class ParameterStruct {
     }
 
     /**
+     * Creates a Discrete Integer parameter.
+     * 
+     * @param iValue   - the parameter value to use
+     */
+    public ParameterStruct (Long iValue) {
+        strParam = iValue.toString();
+        longParam = iValue;
+        boolParam = null;
+        intArrayParam = null;
+        strArrayParam = null;
+        calcParam = null;
+        paramClass = ParamClass.Discrete;
+        variableRef = new VarExtensions();
+        paramType = ParamType.Integer;
+    }
+
+    /**
      * Creates a parameter having the specified characteristics.
      * This is only used in the Compilation phase, so we are creating the parameter
      *   entry and verifying the type is valid, but if it is a Variable reference,

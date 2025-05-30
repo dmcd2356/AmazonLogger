@@ -25,6 +25,8 @@ public class CommandStruct {
         
     public static enum CommandTable {
         EXIT,       // this command is added automatically by the compiler
+        STARTUP,    // begining of startup commands that run during pre-compile
+        ENDSTARTUP, // end of startup commands
         RUN,        // this command is for running the command-line commands
         PRINT,      // outputs text to console
         DIRECTORY,  // text file access functions
@@ -48,8 +50,8 @@ public class CommandStruct {
         FOR,        // these handle the FOR loop
         BREAK,      //  "       "       "
         BREAKIF,    //  "       "       "
+        SKIP,       //  "       "       "
         SKIPIF,     //  "       "       "
-        CONTINUE,   //  "       "       "
         NEXT,       //  "       "       "
         ENDFOR,     // (not a user command, but inserted by compiler)
         ENDMAIN,    // marks end of MAIN program so subroutines can be defined

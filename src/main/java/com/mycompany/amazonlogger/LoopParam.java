@@ -217,18 +217,18 @@ public class LoopParam {
         
         String action = "";
         switch (command) {
-            case CommandStruct.CommandTable.FOR:
+            case FOR:
                 nextIndex = loopInfo.startLoop(index);
                 action = "starting";
                 break;
-            case CommandStruct.CommandTable.BREAK:
-            case CommandStruct.CommandTable.BREAKIF:
+            case BREAK:
+            case BREAKIF:
                 nextIndex = loopInfo.loopBreak();
                 action = "exiting";
                 break;
-            case CommandStruct.CommandTable.NEXT:
-            case CommandStruct.CommandTable.CONTINUE:
-            case CommandStruct.CommandTable.SKIPIF:
+            case NEXT:
+            case SKIP:
+            case SKIPIF:
                 nextIndex = loopInfo.loopNext();
                 if (nextIndex < index)
                     action = "restarting";

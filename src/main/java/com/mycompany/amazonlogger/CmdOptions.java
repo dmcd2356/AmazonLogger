@@ -173,7 +173,7 @@ public class CmdOptions {
             throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + parm.size());
         }
         ParameterStruct parmVal = parm.get(index);
-        ParameterStruct param = ParameterStruct.verifyArgEntry (parmVal, ParameterStruct.ParamType.Unsigned);
+        ParameterStruct param = ParameterStruct.verifyArgEntry (parmVal, ParameterStruct.ParamType.Boolean);
         return param.getBooleanValue();
     }
         

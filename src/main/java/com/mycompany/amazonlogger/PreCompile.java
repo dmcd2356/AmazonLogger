@@ -12,6 +12,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import org.apache.tika.exception.TikaException;
+import org.xml.sax.SAXException;
 
 /**
  *
@@ -32,9 +35,11 @@ public class PreCompile {
      * @return the Global & Local Variables that have been setup
      * 
      * @throws ParserException
-     * @throws IOException 
+     * @throws IOException
+     * @throws SAXException
+     * @throws TikaException
      */
-    public Variables build (String fname) throws ParserException, IOException {
+    public Variables build (String fname) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         frame.outputInfoMsg(STATUS_COMPILE, "Pre-Compiling file: " + fname);
@@ -51,11 +56,13 @@ public class PreCompile {
         // read the program and compile into ArrayList 'cmdList'
         int lineNum = 0;
         String line;
+        boolean bEnableSetup = false;
+        CmdOptions cmdOptionParser = new CmdOptions();
         while ((line = fileReader.readLine()) != null) {
             try {
                 lineNum++;
                 line = line.strip();
-                if (line.isBlank() || line.charAt(0) == '#' || line.charAt(0) == '-') {
+                if (line.isBlank() || line.charAt(0) == '#') {
                     continue;
                 }
 
@@ -75,10 +82,57 @@ public class PreCompile {
                 boolean bValid = false;
                 CommandStruct.CommandTable command = CommandStruct.isValidCommand(strCmd);
                 if (command == null) {
-                    continue;
+                    if (! bEnableSetup) {
+                        continue;
+                    } else {
+                        // all of these commands should be simple command options that have discrete string arguments
+                        if (parmString.isEmpty()) {
+                            throw new ParserException(functionId + lineInfo + "invalid Pre-compiler command: " + line);
+                        }
+                        // these are the only setup commands that are allowed in the pre-compiler
+                        CommandStruct cmdStruct = new CommandStruct(strCmd, lineNum);
+                        switch (strCmd) {
+                            case "-tpath":
+                            case "-spath":
+                            case "-ppath":
+                            case "-ofile":
+                            case "-sfile":
+                                cmdStruct.params.add(new ParameterStruct(parmString));
+                                cmdOptionParser.runCmdOption (cmdStruct);
+                                break;
+                            case "-debug":
+                                Long longVal;
+                                try {
+                                    Integer iVal = Utils.getHexValue (parmString);
+                                    if (iVal == null) {
+                                        longVal = Utils.getIntValue (parmString);
+                                    } else {
+                                        longVal = iVal.longValue();
+                                    }
+                                } catch (ParserException exMsg) {
+                                    throw new ParserException(functionId + lineInfo + "invalid Pre-compiler command: " + line);
+                                }
+                                cmdStruct.params.add(new ParameterStruct(longVal));
+                                cmdOptionParser.runCmdOption (cmdStruct);
+                                break;
+                            default:
+                                throw new ParserException(functionId + lineInfo + "invalid Pre-compiler command: " + strCmd);
+                        }
+                        continue;
+                    }
                 }
                 Subroutine.setCurrentIndex(lineNum);
                 switch (command) {
+                    case STARTUP:
+                        // THIS ALLOWS A SECTION TO BE CREATED THAT IS ONLY RUN DURING PRE-COMPILE,
+                        // AND SHOULD ONLY INVOLVE COMMAND OPTIONS THAT WILL SET UP PATHS, ETC.
+                        bEnableSetup = true;
+                        frame.outputInfoMsg(STATUS_COMPILE, lineInfo + command + " - Begining STARTUP code");
+                        continue;
+                    case ENDSTARTUP:
+                        bEnableSetup = false;
+                        frame.outputInfoMsg(STATUS_COMPILE, lineInfo + command + " - Ending STARTUP code");
+                        continue;
                     case ALLOCATE:
                     case ENDMAIN:
                     case SUB:

@@ -77,6 +77,7 @@ public class ScriptCompile {
         // read the program and compile into ArrayList 'cmdList'
         int lineNum = 0;
         String line;
+        boolean bStartup = false;
         while ((line = fileReader.readLine()) != null) {
             try {
                 lineNum++;
@@ -130,19 +131,35 @@ public class ScriptCompile {
                 if (command == null) {
                     throw new ParserException(functionId + lineInfo + "Invalid command " + strCmd);
                 }
+                
+                // THIS ALLOWS A SECTION TO BE CREATED THAT IS ONLY RUN DURING PRE-COMPILE,
+                // AND SHOULD ONLY INVOLVE COMMAND OPTIONS THAT WILL SET UP PATHS, ETC.
+                if (command == CommandStruct.CommandTable.ENDSTARTUP) {
+                    bStartup = false;
+                    frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + command + " - STARTUP commands completed");
+                    continue;
+                }
+                if (command == CommandStruct.CommandTable.STARTUP) {
+                    bStartup = true;
+                    frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + command + " - Ignoring STARTUP commands");
+                    continue;
+                }
+                if (bStartup) {
+                    continue;
+                }
 
                 // 'parmString' is a string containing the arguments following the command
                 // 'cmdStruct'  will receive the command, with the arguments yet to be placed.
                 cmdStruct = new CommandStruct(command, lineNum);
 
                 // extract the arguments to pass to the command
-                frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + cmdStruct.command + " " + parmString);
+                frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + command + " " + parmString);
                 boolean bParamAssign = (CommandStruct.CommandTable.SET == command);
                 cmdStruct.params = ParseScript.packParameters (parmString, bParamAssign);
 
                 // now let's check for valid command keywords and extract the arguments
                 //  into the cmdStruct structure.
-                switch (cmdStruct.command) {
+                switch (command) {
                     case EXIT:
                         ParseScript.checkMaxArgs(0, cmdStruct);
                         break;
@@ -556,7 +573,7 @@ public class ScriptCompile {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                         }
                         break;
-                    case CONTINUE:
+                    case SKIP:
                         ParseScript.checkMaxArgs(0, cmdStruct);
                         // make sure we are in a FOR ... NEXT loop
                         if (LoopStruct.getStackSize() == 0) {
