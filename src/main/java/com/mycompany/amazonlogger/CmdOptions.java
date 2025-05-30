@@ -32,6 +32,7 @@ public class CmdOptions {
         new OptionList ("-help"     , ""),
         new OptionList ("-debug"    , "U"),
         new OptionList ("-sfile"    , "S"),
+        new OptionList ("-spath"    , "S"),
         new OptionList ("-snew"     , "SSL"),
         new OptionList ("-stest"    , "SLL"),
         new OptionList ("-saddtab"  , "Sl"),
@@ -39,6 +40,7 @@ public class CmdOptions {
         new OptionList ("-tab"      , "S"),
         new OptionList ("-cfile"    , "S"),
         new OptionList ("-clip"     , "b"),
+        new OptionList ("-ppath"    , "S"),
         new OptionList ("-pfile"    , "S"),
         new OptionList ("-prun"     , ""),
         new OptionList ("-update"   , ""),
@@ -610,10 +612,27 @@ public class CmdOptions {
                 case "-debug":
                     frame.setMessageFlags(getUnsignedValue(params, 0));
                     break;
+                case "-tpath":
+                    String path;
+                    if (params.isEmpty()) {
+                        path = System.getProperty("user.dir");
+                        frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to current running directory: " + path);
+                    } else {
+                        path = getStringValue(params, 0);
+                        frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to: " + path);
+                    }
+                    Utils.setDefaultPath(Utils.PathType.Test, path);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to: " + path);
+                    break;
+                case "-spath":
+                    String absPath = getStringValue(params, 0);
+                    Utils.setDefaultPath(Utils.PathType.Spreadsheet, absPath);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  set Spreadsheet path to: " + absPath);
+                    break;
                 case "-sfile":
                     pathtype = Utils.PathType.Spreadsheet;
                     fname = getStringValue(params, 0);
-                    String absPath = getPathFromFilename (fname);
+                    absPath = getPathFromFilename (fname);
                     if (! absPath.isEmpty() && fname.length() > absPath.length() + 1) {
                         Utils.setDefaultPath(pathtype, absPath);
                         fname = fname.substring(absPath.length() + 1);
@@ -696,6 +715,11 @@ public class CmdOptions {
                     frame.outputInfoMsg(STATUS_PROGRAM, "  Updating spreadsheet from clipboards");
                     AmazonParser.updateSpreadsheet();
                     break;
+                case "-ppath":
+                    absPath = getStringValue(params, 0);
+                    Utils.setDefaultPath(Utils.PathType.PDF, absPath);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "  set PDF path to: " + absPath);
+                    break;
                 case "-pfile":
                     pathtype = Utils.PathType.PDF;
                     fname = getStringValue(params, 0);
@@ -734,18 +758,6 @@ public class CmdOptions {
                         }
                         response.add(line);
                     }
-                    break;
-                case "-tpath":
-                    String path;
-                    if (params.isEmpty()) {
-                        path = System.getProperty("user.dir");
-                        frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to current running directory: " + path);
-                    } else {
-                        path = getStringValue(params, 0);
-                        frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to: " + path);
-                    }
-                    Utils.setDefaultPath(Utils.PathType.Test, path);
-                    frame.setTestOutputFile(path);
                     break;
                 case "-ofile":
                     if (params.isEmpty()) {

@@ -173,7 +173,11 @@ public class ScriptCompile {
                         subs.compileSubReturn ();
                         break;
                     case PRINT:
-                        // we print anything, so no checking
+                        // if no params, we will print a blank line
+                        // if more than 1 parameter, check for a quoted string or concatenated string
+                        if (cmdStruct.params.size() > 1) {
+                            cmdStruct.params = parseScript.packStringConcat (cmdStruct.params, 2);
+                        }
                         break;
                     case DIRECTORY:
                         // verify 1 String argument: directory & 1 optional String -d or -f

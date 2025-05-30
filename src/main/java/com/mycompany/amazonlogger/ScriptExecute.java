@@ -70,8 +70,7 @@ public class ScriptExecute {
      * A single '.' will represent the current directory and '~' indicates
      *  the root directory for testing: the Test default directory.
      *  If the path does not start with a '/' char, it is a relative path.
-     *  Absolute paths are not supported to prevent exceeding the confines
-     *  of the Test path.
+     *  Absolute paths are only supported if it resides within the User path bounds.
      * 
      * @param path - the path of the dir or file
      * 
@@ -96,7 +95,10 @@ public class ScriptExecute {
             // if missing the leading '/' char, it is a path relative to current dir
             path = fileDir + "/" + path;
         } else {
-            throw new ParserException(functionId + "Absolute path not supported: " + path);
+            String userPath = System.getProperty("user.dir");
+            if (! path.startsWith(userPath)) {
+                throw new ParserException(functionId + "Absolute path outside of User space (" + userPath + ") boundaries: " + path);
+            }
         }
         File file = new File(path);
         return (file);
@@ -108,8 +110,7 @@ public class ScriptExecute {
      * A single '.' will represent the current directory and '~' indicates
      *  the root directory for testing: the Test default directory.
      *  If the path does not start with a '/' char, it is a relative path.
-     *  Absolute paths are not supported to prevent exceeding the confines
-     *  of the Test path.
+     *  Absolute paths are only supported if it resides within the User path bounds.
      * 
      * @param path - the path of the dir or file
      * 
@@ -133,7 +134,11 @@ public class ScriptExecute {
             // if missing the leading '/' char, it is a path relative to current dir
             fileDir = fileDir + "/" + path;
         } else {
-            throw new ParserException(functionId + "Absolute path not supported: " + path);
+            String userPath = System.getProperty("user.dir");
+            if (! path.startsWith(userPath)) {
+                throw new ParserException(functionId + "Absolute path outside of User space (" + userPath + ") boundaries: " + path);
+            }
+            fileDir = path;
         }
         File file = new File(fileDir);
         if (! file.exists() || ! file.isDirectory()) {
@@ -289,15 +294,13 @@ public class ScriptExecute {
                 break;
             case PRINT:
                 // arg 0: text to output
-                String text;
-                if (cmdStruct.params.get(0).getParamType() == ParameterStruct.ParamType.StrArray) {
-                    ArrayList<String> list = cmdStruct.params.get(0).getStrArray();
-                    for (int ix = 0; ix < list.size(); ix++) {
-                        text = list.get(ix);
-                        System.out.println(text);
-                    }
+                if (cmdStruct.params.isEmpty()) {
+                    // treat no arguments as outputting an empty newline
+                    System.out.println();
                 } else if (cmdStruct.params.size() > 1) {
-                    text = "";
+                    // if multiple arguments, must be a concatenated string.
+                    //  pull the pieces together and print
+                    String text = "";
                     for (int ix = 0; ix < cmdStruct.params.size(); ix++) {
                         String entry = cmdStruct.params.get(ix).getStringValue();
                         if (! entry.contentEquals("+")) {
@@ -305,9 +308,21 @@ public class ScriptExecute {
                         }
                     }
                     System.out.println(text);
+                } else if (cmdStruct.params.get(0).getParamType() == ParameterStruct.ParamType.StrArray) {
+                    // if entry is a string array, print each entry on a new line
+                    ArrayList<String> list = cmdStruct.params.get(0).getStrArray();
+                    for (int ix = 0; ix < list.size(); ix++) {
+                        System.out.println(list.get(ix));
+                    }
+                } else if (cmdStruct.params.get(0).getParamType() == ParameterStruct.ParamType.IntArray) {
+                    // if entry is a string array, print each entry on a new line
+                    ArrayList<Long> list = cmdStruct.params.get(0).getIntArray();
+                    for (int ix = 0; ix < list.size(); ix++) {
+                        System.out.println(list.get(ix).toString());
+                    }
                 } else {
-                    text = cmdStruct.params.get(0).getStringValue();
-                    System.out.println(text);
+                    // otherwise, just print the single entry
+                    System.out.println(cmdStruct.params.get(0).getStringValue());
                 }
                 break;
             case DIRECTORY:
@@ -492,7 +507,7 @@ public class ScriptExecute {
                 break;
             case FWRITE:
                 // arg 0: text to write
-                text = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                String text = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
                 if (fileWriter == null) {
                     throw new ParserException(exceptPreface + "Write file not open");
@@ -572,21 +587,36 @@ public class ScriptExecute {
                 // make sure we have write access to the variable
                 variables.checkWriteAccess (varName);
                 
+                boolean bSuccess = false;
                 String strValue;
                 switch (parmType) {
                     case IntArray:
-                        Long result = getIntegerArg (parmValue);
-                        strValue = result.toString();
+                        if (parmValue.getIntArray() != null && parmValue.getParamType() == ParameterStruct.ParamType.IntArray) {
+                            for (int ix = parmValue.getIntArray().size() - 1; ix >= 0; ix--) {
+                                strValue = parmValue.getIntArrayElement(ix).toString();
+                                bSuccess = varArray.arrayInsertEntry (varName, 0, strValue);
+                            }
+                        } else {
+                            strValue = getIntegerArg (parmValue).toString();
+                            bSuccess = varArray.arrayInsertEntry (varName, 0, strValue);
+                        }
                         break;
                     case StrArray:
                     case String:
-                        strValue = getStringArg (cmdStruct.params, 1);
+                        if (parmValue.getStrArray() != null && parmValue.getParamType() == ParameterStruct.ParamType.StrArray) {
+                            for (int ix = parmValue.getStrArray().size() - 1; ix >= 0; ix--) {
+                                strValue = parmValue.getStrArrayElement(ix);
+                                bSuccess = varArray.arrayInsertEntry (varName, 0, strValue);
+                            }
+                        } else {
+                            strValue = getStringArg (cmdStruct.params, 1);
+                            bSuccess = varArray.arrayInsertEntry (varName, 0, strValue);
+                        }
                         break;
                     default:
                         throw new ParserException(exceptPreface + "Invalid parameter type: " + parmRef.getParamType());
                 }
 
-                boolean bSuccess = varArray.arrayInsertEntry (varName, 0, strValue);
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
@@ -600,19 +630,34 @@ public class ScriptExecute {
                 // make sure we have write access to the variable
                 variables.checkWriteAccess (varName);
                 
+                bSuccess = false;
                 switch (parmType) {
                     case IntArray:
-                        Long result = getIntegerArg (parmValue);
-                        strValue = result.toString();
+                        if (parmValue.getIntArray() != null && parmValue.getParamType() == ParameterStruct.ParamType.IntArray) {
+                            for (int ix = 0; ix < parmValue.getIntArray().size(); ix++) {
+                                strValue = parmValue.getIntArrayElement(ix).toString();
+                                bSuccess = varArray.arrayAppendEntry (varName, strValue);
+                            }
+                        } else {
+                            strValue = getIntegerArg (parmValue).toString();
+                            bSuccess = varArray.arrayAppendEntry (varName, strValue);
+                        }
                         break;
                     case StrArray:
-                        strValue = getStringArg (cmdStruct.params, 1);
+                        if (parmValue.getStrArray() != null && parmValue.getParamType() == ParameterStruct.ParamType.StrArray) {
+                            for (int ix = 0; ix < parmValue.getStrArray().size(); ix++) {
+                                strValue = parmValue.getStrArrayElement(ix);
+                                bSuccess = varArray.arrayAppendEntry (varName, strValue);
+                            }
+                        } else {
+                            strValue = getStringArg (cmdStruct.params, 1);
+                            bSuccess = varArray.arrayAppendEntry (varName, strValue);
+                        }
                         break;
                     default:
                         throw new ParserException(exceptPreface + "Invalid parameter type: " + parmType);
                 }
 
-                bSuccess = varArray.arrayAppendEntry (varName, strValue);
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }

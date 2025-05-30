@@ -507,6 +507,16 @@ public class Variables {
             // check the reserved params list
             case RESERVED:
                 paramValue = VarReserved.getVariableInfo (paramInfo, name, pType);
+                if (paramValue == null) {
+                    PropertiesFile props = new PropertiesFile();
+                    PropertiesFile.Property propItem = PropertiesFile.isValidProperty(name);
+                    String entry = props.getPropertiesItem(propItem, "");
+                    if (! entry.isEmpty()) {
+                        paramValue = new ParameterStruct (entry);
+                    } else {
+                        throw new ParserException(functionId + "- Reserved Ref '" + name + "' was not a valid Reserved name");
+                    }
+                }
                 break;
             // next check for loop variables for name match
             case LOOP:
@@ -572,6 +582,9 @@ public class Variables {
         else if (VarReserved.isReservedName (name) != null) {
             varClass = VarClass.RESERVED;
         }
+        else if (PropertiesFile.isValidProperty (name) != null) {
+            varClass = VarClass.RESERVED;
+        }
         else if (VarGlobal.getDataType ( name) != null) {
             varClass = VarClass.GLOBAL;
         }
@@ -614,6 +627,9 @@ public class Variables {
         }
         if (vartype == null) {
             vartype = VarReserved.getVariableTypeFromName(name);
+        }
+        if (PropertiesFile.isValidProperty (name) != null) {
+            vartype = ParameterStruct.ParamType.String;
         }
         if (vartype == null) {
             vartype = VarGlobal.getDataType (name);
@@ -810,11 +826,24 @@ public class Variables {
 
     /**
      * checks if a name is valid to use for assigning to.
+     * 
+     * There are 3 types of uses: ALLOCATE, SET and REFERENCE.
+     * In all cases the following apply:
      *   - name must begin with an alpha character
      *   - name must be only alphanumeric or '_' chars,
      *   - cannot be a command name or an operation name
-     *   - cannot be a Loop Variable name.
-     *   - must be either a Variable that is defined or a reserved Variable.
+     * When ALLOCATing a parameter, it also cannot be:
+     *   - a reserved variable name
+     *   - a Loop Variable name
+     *   - a previously defined Variable name unless the name was LOCAL to a subroutine
+     * When SETting a parameter, it cannot be:
+     *   - a reserved variable name
+     *   - a Loop Variable name
+     *   - BUT MUSTE BE: a previously defined Variable name either GLOBAL or LOCAL to the subroutine
+     * When REFERENCEing a parameter, it MUST BE one of:
+     *   - a reserved variable name
+     *   - a Loop Variable name
+     *   - a previously defined Variable name unless the name was LOCAL to a subroutine
      * 
      * @param use  - how the variable is being used
      * @param name - the name to check
@@ -843,10 +872,6 @@ public class Variables {
                 throw new ParserException(functionId + "using Reserved command name: " + name);
             }
 
-            // get the access info for the specified variable and determine what function we are in
-//            checkWriteAccess (name);
-            String curSub = Subroutine.getSubName();
-            
             // check for variable lists
             VarClass varClass;
             try {

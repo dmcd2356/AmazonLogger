@@ -60,6 +60,22 @@ public class PropertiesFile {
     };
 
     /**
+     * checks if a string is one of the reserved Property values
+     * 
+     * @param strValue - the string to check
+     * 
+     * @return corresponding enum value
+     */
+    public static Property isValidProperty (String strValue) {
+        for(Property entry : Property.values()){
+            if( entry.toString().equals(strValue)){
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Constructor - opens the file for read/write and creates the file if one does not exist.
      */
     PropertiesFile () {

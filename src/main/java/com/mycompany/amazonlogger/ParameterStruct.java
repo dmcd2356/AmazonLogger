@@ -61,6 +61,23 @@ public final class ParameterStruct {
     }
 
     /**
+     * Creates a Discrete String parameter.
+     * 
+     * @param strValue   - the parameter value to use
+     */
+    public ParameterStruct (String strValue) {
+        strParam = strValue;
+        longParam = null;
+        boolParam = null;
+        intArrayParam = null;
+        strArrayParam = null;
+        calcParam = null;
+        paramClass = ParamClass.Discrete;
+        variableRef = new VarExtensions();
+        paramType = ParamType.String;
+    }
+
+    /**
      * Creates a parameter having the specified characteristics.
      * This is only used in the Compilation phase, so we are creating the parameter
      *   entry and verifying the type is valid, but if it is a Variable reference,

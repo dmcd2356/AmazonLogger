@@ -813,13 +813,18 @@ public final class UIFrame extends JFrame implements ActionListener {
                 this.testFile.println(time + "[DEBUG ] UIFrame.setTestOutputFile: No change in output file setting");
                 return;
             }
+            
+            // update the properties file status if we were successful
+            props.setPropertiesItem(Property.TestFileOut, fname);
             testFname = absPath;
-            try {
-                this.testFile = new PrintWriter(new FileWriter(absPath, true));
-                this.testFile.println("=== " + getCurrentDateTime() + " ============================================================");
 
-                // update the properties file status if we were successful
-                props.setPropertiesItem(Property.TestFileOut, fname);
+            // if a file isn't already open, do it now
+            try {
+                if (this.testFile != null) {
+                    this.testFile.close();
+                }
+                this.testFile = new PrintWriter(new FileWriter(absPath, true));
+                this.testFile.println("\n=== " + getCurrentDateTime() + " ============================================================");
             } catch (IOException ex) {
                 System.out.println("UIFrame.setTestOutputFile: on creating file: " + absPath + ", " + ex);
                 this.testFile = null;

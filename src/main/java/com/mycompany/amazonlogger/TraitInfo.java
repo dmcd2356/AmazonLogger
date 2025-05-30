@@ -38,6 +38,7 @@ public class TraitInfo {
         SIZE,               // SLA -> I : number of chars for String, number of elements for Arrays
         LENGTH,             // SLA -> I : (this is the same as SIZE)
         ISEMPTY,            // SLA -> B : check if item is zero-length
+        TOSTRING,           // SLA -> S : convert Array entries to a String
         DOW,                //   S -> I : (DATE only): for day of week
         DOM,                //   S -> I : (DATE only): for day of month
         DOY,                //   S -> I : (DATE only): for day of year
@@ -120,6 +121,7 @@ public class TraitInfo {
                 break;
 
             case FILTER:
+            case TOSTRING:
                 // these are only valid for StrArray and IntArray types
                 if (varType != ParameterStruct.ParamType.StrArray &&
                     varType != ParameterStruct.ParamType.IntArray)   {
@@ -185,6 +187,7 @@ public class TraitInfo {
             case MONTH:
             case LOWER:
             case UPPER:
+            case TOSTRING:
                 ptype = ParameterStruct.ParamType.String;
                 break;
 
@@ -224,8 +227,9 @@ public class TraitInfo {
     }
 
     /**
-     * returns Trait values that are Integer values.This is used in the Execution stage for Loop parameters and Index values
-  in an Array bracket.
+     * returns Trait values that are Integer values.
+     * This is used in the Execution stage for Loop parameters and Index values
+     *  in an Array bracket.
      * 
      * @param traitVal - the Trait selection
      * @param varName  - the name of the variable
@@ -279,6 +283,16 @@ public class TraitInfo {
         return iValue;
     }
 
+    /**
+     * returns Trait info about the variable itself.
+     * 
+     * @param trait   - the trait that applies to a feature of all variables
+     * @param varName - the name of the variable
+     * 
+     * @return the feature of the variable (as a String response)
+     * 
+     * @throws ParserException 
+     */
     public static String getReferenceDetails (Trait trait, String varName) throws ParserException {
         String strValue = null;
         
@@ -360,16 +374,19 @@ public class TraitInfo {
             case IntArray:
                 Long psize = (long) paramValue.getIntArraySize();
                 Boolean bEmpty = paramValue.isIntArrayEmpty();
+                String strValue = "";
                 switch (trait) {
                     case SIZE:
                     case LENGTH:
                         paramValue.setIntegerValue(psize);
                         paramValue.setStringValue(psize.toString());
+                        strValue = paramValue.getStringValue();
                         pType = ParameterStruct.ParamType.Integer;
                         break;
                     case ISEMPTY:
                         paramValue.setBooleanValue(bEmpty);
                         paramValue.setStringValue(bEmpty.toString());
+                        strValue = paramValue.getStringValue();
                         pType = ParameterStruct.ParamType.Boolean;
                         break;
                     case HEX:
@@ -379,6 +396,10 @@ public class TraitInfo {
                             strArray.add(Long.toHexString(iValue));
                         }
                         paramValue.setStrArray(strArray);
+                        strValue = paramValue.getStrArray().toString();
+                        if (strValue.length() > 50) {
+                            strValue = strValue.substring(0, 50) + "...";
+                        }
                         pType = ParameterStruct.ParamType.StrArray;
                         break;
                     case FILTER:
@@ -394,17 +415,29 @@ public class TraitInfo {
                                 paramValue.getIntArray().remove(ix);
                             }
                         }
+                        strValue = paramValue.getIntArray().toString();
+                        if (strValue.length() > 50) {
+                            strValue = strValue.substring(0, 50) + "...";
+                        }
+                        break;
+                    case TOSTRING:
+                        strValue = paramValue.getIntArray().toString();
+                        paramValue.setStringValue(strValue);
+                        if (strValue.length() > 50) {
+                            strValue = strValue.substring(0, 50) + "...";
+                        }
+                        pType = ParameterStruct.ParamType.String;
                         break;
                     default:
                         throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);
                 }
-                frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type " + pType + ": " + paramValue.getStringValue());
+                frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type " + pType + ": " + strValue);
                 break;
                 
             case StrArray:
                 psize = (long) paramValue.getStrArraySize();
                 bEmpty = paramValue.isStrArrayEmpty();
-                String strValue = "";
+                strValue = "";
                 switch (trait) {
                     case SORT:
                         Collections.sort(paramValue.getStrArray().subList(0, psize.intValue()));
@@ -440,6 +473,14 @@ public class TraitInfo {
                                 paramValue.getStrArray().remove(ix);
                             }
                         }
+                        break;
+                    case TOSTRING:
+                        strValue = paramValue.getStrArray().toString();
+                        paramValue.setStringValue(strValue);
+                        if (strValue.length() > 50) {
+                            strValue = strValue.substring(0, 50) + "...";
+                        }
+                        pType = ParameterStruct.ParamType.String;
                         break;
                     default:
                         throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);

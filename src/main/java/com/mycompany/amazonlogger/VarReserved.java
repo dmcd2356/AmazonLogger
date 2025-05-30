@@ -242,7 +242,7 @@ public class VarReserved {
      * @param varName    - reference variable name
      * @param pType      - data type of variable
      * 
-     * @return the Variable value
+     * @return the Variable value (null if not found)
      * 
      * @throws ParserException - if Variable not found
      */
@@ -253,6 +253,9 @@ public class VarReserved {
         ParameterStruct paramValue = new ParameterStruct();
 
         ReservedVars reserved = isReservedName (varName);
+        if (reserved == null) {
+            return null;
+        }
         switch (reserved) {
             case RESPONSE:
                 paramValue.setStrArray(strResponse);
@@ -286,6 +289,7 @@ public class VarReserved {
                 paramValue.setStringValue(ocrText);
                 break;
             default:
+                paramValue = null;
                 break;
         }
         
