@@ -424,7 +424,7 @@ public final class ParameterStruct {
 
         ParameterStruct value = null;
         try {
-            value = ScriptCompile.variables.getVariableInfo (variableRef);
+            value = PreCompile.variables.getVariableInfo (variableRef);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
@@ -537,7 +537,7 @@ public final class ParameterStruct {
         ParamType varType;
         if (strValue.startsWith("$")) {
             // it's a parameter - determine its data type
-            varType = ScriptCompile.variables.getVariableTypeFromName (strValue);
+            varType = PreCompile.variables.getVariableTypeFromName (strValue);
             int iLBracket = strValue.indexOf('[');
             int iRBracket = strValue.indexOf(']');
             int iRange = strValue.indexOf('-');

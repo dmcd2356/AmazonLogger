@@ -30,8 +30,10 @@ public class CommandStruct {
         RUN,        // this command is for running the command-line commands
         PRINT,      // outputs text to console
         DIRECTORY,  // text file access functions
-        CD,         //  "       "       "
         FEXISTS,    //  "       "       "
+        CD,         //  "       "       "
+        MKDIR,      //  "       "       "
+        RMDIR,      //  "       "       "
         FDELETE,    //  "       "       "
         FCREATER,   //  "       "       "
         FCREATEW,   //  "       "       "

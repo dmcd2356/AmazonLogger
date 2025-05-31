@@ -145,7 +145,7 @@ public class CmdOptions {
      * 
      * @throws ParserException if not value Unsigned value
      */
-    public Integer getUnsignedValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
+    private Integer getUnsignedValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (index > parm.size()) {
@@ -166,7 +166,7 @@ public class CmdOptions {
      * 
      * @throws ParserException if not value Unsigned value
      */
-    public Boolean getBooleanValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
+    private Boolean getBooleanValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (index > parm.size()) {
@@ -187,7 +187,7 @@ public class CmdOptions {
      * 
      * @throws ParserException if not value Unsigned value
      */
-    public String getStringValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
+    private String getStringValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (index > parm.size()) {
@@ -195,6 +195,10 @@ public class CmdOptions {
         }
         ParameterStruct parmVal = parm.get(index);
         ParameterStruct param = ParameterStruct.verifyArgEntry (parmVal, ParameterStruct.ParamType.String);
+        String strValue = ScriptExecute.extractEmbeddedVar(param);
+        if (strValue != null) {
+            return strValue;
+        }
         return param.getStringValue();
     }
         
@@ -208,7 +212,7 @@ public class CmdOptions {
      * 
      * @throws ParserException if not value Unsigned value
      */
-    public ArrayList<String> getStringArray (ArrayList<ParameterStruct> parm, int index) throws ParserException {
+    private ArrayList<String> getStringArray (ArrayList<ParameterStruct> parm, int index) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (index > parm.size()) {
@@ -229,7 +233,7 @@ public class CmdOptions {
      * 
      * @throws ParserException if not value Unsigned value
      */
-    public ArrayList<Long> getIntegerArray (ArrayList<ParameterStruct> parm, int index) throws ParserException {
+    private ArrayList<Long> getIntegerArray (ArrayList<ParameterStruct> parm, int index) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (index > parm.size()) {

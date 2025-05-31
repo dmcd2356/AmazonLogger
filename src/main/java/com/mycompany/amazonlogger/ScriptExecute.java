@@ -8,6 +8,7 @@ import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.CommandStruct.CommandTable.OCRSCAN;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -15,6 +16,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import org.apache.commons.io.FileUtils;
 import org.apache.tika.exception.TikaException;
 import org.xml.sax.SAXException;
 
@@ -39,17 +41,15 @@ public class ScriptExecute {
     private static String fileName;
     private static String fileDir = Utils.getDefaultPath (Utils.PathType.Test);
 
-    public  static Variables variables = ScriptCompile.variables;
-    public  static VarArray  varArray;
 
     ScriptExecute () {
-        if (variables == null) {
-            variables = new Variables();
-        }
-        varArray = new VarArray(variables);
         this.cmdOptionParser = new CmdOptions();
     }
 
+    public static String getCurrentFilePath() {
+        return fileDir;
+    }
+    
     /**
      * displays the program line number if the command was issued from a program file.
      * 
@@ -64,6 +64,43 @@ public class ScriptExecute {
         return "";
     }
 
+    /**
+     * backs up to previous path in the chain.
+     * 
+     * This is called when a ".." entry is found in the directory path, which
+     *  indicates to backup to the directory above this one. Note that is will not
+     *  go beyond the user home directory.
+     * 
+     * @param curpath - the current path
+     * 
+     * @return the path above the current one
+     */
+    private String backupPath (String curpath) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        // if there is a '/' char at end of path, remove it
+        if (curpath.charAt(curpath.length()-1) == '/') {
+            curpath = curpath.substring(0, curpath.length()-1);
+        }
+        // first make sure we are in the user home path
+        String userPath = System.getProperty("user.dir");
+        if (! curpath.startsWith(userPath)) {
+            throw new ParserException(functionId + "Path is not within user home path: " + curpath);
+        }
+        // now make sure we aren't alreay at the base home directory (won't go any further)
+        if (curpath.contentEquals(userPath)) {
+            frame.outputInfoMsg(STATUS_WARN, "Path isalready at user home base path: " + curpath);
+            return curpath;
+        }
+        int offset = curpath.lastIndexOf('/');
+        if (offset <= 0) {
+            throw new ParserException(functionId + "Path is invalid: " + curpath);
+        }
+        curpath = curpath.substring(0, offset);
+        frame.outputInfoMsg(STATUS_PROGRAM, "Backed up to directory above: " + curpath);
+        return curpath;
+    }
+    
     /**
      * gets the file or directory specified by the given path.
      * 
@@ -82,8 +119,22 @@ public class ScriptExecute {
         if (path.contentEquals(".")) {
             // the '.' indicates the current directory
             path = fileDir;
-        } else if (path.contains("..")) {
-            throw new ParserException(functionId + "Path using .. not supported: " + path);
+        } else if (path.startsWith("..")) {
+            String newpath = fileDir;
+            while (! path.isEmpty() && path.startsWith("..")) {
+                newpath = backupPath (newpath);
+                path = path.substring(2);
+                if (! path.isEmpty()) {
+                    if (path.charAt(0) != '/') {
+                        throw new ParserException(functionId + "Invalid path format following .. : " + path);
+                    }
+                    path = path.substring(1);
+                }
+            }
+            if (! path.isEmpty()) {
+                newpath = fileDir + "/" + path;
+            }
+            path = newpath;
         } else if (path.startsWith("~")) {
             // a leading '~' refers to the base Test path
             if (path.length() > 1) {
@@ -101,6 +152,7 @@ public class ScriptExecute {
             }
         }
         File file = new File(path);
+        frame.outputInfoMsg(STATUS_PROGRAM, "    Path selection: " + path);
         return (file);
     }
     
@@ -121,8 +173,20 @@ public class ScriptExecute {
 
         if (path.contentEquals(".")) {
             // the '.' indicates the current directory, so no change needed
-        } else if (path.contains("..")) {
-            throw new ParserException(functionId + "Path using .. not supported: " + path);
+        } else if (path.startsWith("..")) {
+            while (! path.isEmpty() && path.startsWith("..")) {
+                fileDir = backupPath (fileDir);
+                path = path.substring(2);
+                if (! path.isEmpty()) {
+                    if (path.charAt(0) != '/') {
+                        throw new ParserException(functionId + "Invalid path format following .. : " + path);
+                    }
+                    path = path.substring(1);
+                }
+            }
+            if (! path.isEmpty()) {
+                fileDir = fileDir + "/" + path;
+            }
         } else if (path.startsWith("~")) {
             // a leading '~' refers to the base Test path
             if (path.length() > 1) {
@@ -231,6 +295,57 @@ public class ScriptExecute {
         }
         frame.outputInfoMsg(STATUS_DEBUG, "Closed file: " + fileName);
     }
+
+    /**
+     * replaces an embedded reference value in String parameter with its current value .
+     * 
+     * @param param - the parameter to check
+     * 
+     * @return String with the reference string replaced by the its current value
+     * 
+     * @throws ParserException 
+     */
+    public static String extractEmbeddedVar (ParameterStruct param) throws ParserException {
+        // exit if argument is not a discrete String
+        if (param.getParamType() != ParameterStruct.ParamType.String ||
+            param.getParamClass() != ParameterStruct.ParamClass.Discrete ||
+            param.getStringValue() == null) {
+            return null;
+        }
+        // return if we don't see an embedded reference name in the String
+        String strValue = param.getStringValue();
+        int offset = strValue.indexOf("\\$");
+        if (offset < 0 || offset >= strValue.length() - 5) {
+            return null;
+        }
+        int offset2 = strValue.substring(offset+2).indexOf("$");
+        if (offset2 < 0) {
+            return null;
+        }
+        
+        // seperate into pre and post Strings and the variable reference name
+        offset2 += offset + 2;
+        String prefix  = strValue.substring(0, offset);
+        String varname = strValue.substring(offset+2, offset2);
+        String postfix = "";
+        if (offset2 < strValue.length() - 1) {
+            postfix = strValue.substring(offset2 + 1);
+        }
+
+        // exit if the variable reference is not valid
+        PreCompile.variables.checkValidVariable(Variables.VarCheck.REFERENCE, varname);
+        
+        // get the value for the reference
+        ParameterStruct arg = new ParameterStruct (varname,
+                ParameterStruct.ParamClass.Reference, ParameterStruct.ParamType.String);
+        arg.updateFromReference();
+        String refval = arg.getStringValue();
+        
+        // return the value with the pre and post values attached
+        String response = prefix + refval + postfix;
+        frame.outputInfoMsg(STATUS_PROGRAM, "    Replaced arg value with expanded value: " + response);
+        return response;
+    }
     
     /**
      * Executes a command from the list of CommandStruct entries created by the compileProgramCommand method.
@@ -263,6 +378,11 @@ public class ScriptExecute {
                     param.updateFromReference();
                 } catch (ParserException exMsg) {
                     throw new ParserException(exMsg + "\n  -> " + exceptPreface + " - replacing reference: " + param.getVariableRefName());
+                }
+                // see if there are any variable references embedded in any of the parameters
+                String strVal = extractEmbeddedVar(param);
+                if (strVal != null) {
+                    param.setStringValue(strVal);
                 }
             }
         }
@@ -383,6 +503,31 @@ public class ScriptExecute {
                 }
                 VarReserved.putStatusValue(value);
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "File " + file + " exists = " + value);
+                break;
+            case MKDIR:
+                // arg 0: dir name
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
+                file = getFilePath(fname);
+                if (file.exists()) {
+                    if (file.isDirectory()) {
+                        throw new ParserException(exceptPreface + "Directory already exists: " + fname);
+                    } else {
+                        throw new ParserException(exceptPreface + "File already exists with that name: " + fname);
+                    }
+                }
+                file.mkdirs();
+                //new File(fname).mkdirs();
+                break;
+            case RMDIR:
+                // arg 0: dir name
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
+                file = getFilePath(fname);
+                if (! file.isDirectory()) {
+                    throw new ParserException(exceptPreface + "Directory not found: " + fname);
+                }
+                FileUtils.deleteDirectory(file); // new File(fname)
                 break;
             case FDELETE:
                 // arg 0: filename
@@ -541,18 +686,18 @@ public class ScriptExecute {
                 }
                 
                 // make sure we have write access to the variable
-                variables.checkWriteAccess (varName);
+                PreCompile.variables.checkWriteAccess (varName);
                 
                 // make sure we are converting to the type of the reference parameter
                 switch (type) {
                     case ParameterStruct.ParamType.Integer:
                         Long result = getIntegerArg (parm1);
-                        variables.setIntegerVariable(varName, result);
+                        PreCompile.variables.setIntegerVariable(varName, result);
                         break;
                     case ParameterStruct.ParamType.Unsigned:
                         result = getIntegerArg (parm1);
                         result &= 0xFFFFFFFF;
-                        variables.setUnsignedVariable(varName, result);
+                        PreCompile.variables.setUnsignedVariable(varName, result);
                         break;
                     case ParameterStruct.ParamType.Boolean:
                         Boolean bResult = getComparison(parm1, parm2, parm3);
@@ -560,17 +705,17 @@ public class ScriptExecute {
                         break;
 
                     case ParameterStruct.ParamType.IntArray:
-                        variables.setIntArray(varName, parm1.getIntArray());
+                        PreCompile.variables.setIntArray(varName, parm1.getIntArray());
                         break;
                     case ParameterStruct.ParamType.StrArray:
-                        variables.setStrArray(varName, parm1.getStrArray());
+                        PreCompile.variables.setStrArray(varName, parm1.getStrArray());
                         break;
                     case ParameterStruct.ParamType.String:
                         // The entries should be a list of 1 or more Strings to concatenate into 1
                         // (any parameter references should have been converted to their appropriate value
                         //  at the begining of the execution phase)
                         String concat = getStringArg (cmdStruct.params, 2);
-                        variables.setStringVariable(varName, concat);
+                        PreCompile.variables.setStringVariable(varName, concat);
                         break;
                     default:
                         throw new ParserException(exceptPreface + varType + " Invalid data type: " + type);
@@ -582,10 +727,10 @@ public class ScriptExecute {
                 parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be appended to
                 parmValue = cmdStruct.params.get(1); // element 1 is the value being appended
                 varName = getArrayAssignment(parmRef);
-                ParameterStruct.ParamType parmType = variables.getVariableTypeFromName (varName);
+                ParameterStruct.ParamType parmType = PreCompile.variables.getVariableTypeFromName (varName);
 
                 // make sure we have write access to the variable
-                variables.checkWriteAccess (varName);
+                PreCompile.variables.checkWriteAccess (varName);
                 
                 boolean bSuccess = false;
                 String strValue;
@@ -594,11 +739,11 @@ public class ScriptExecute {
                         if (parmValue.getIntArray() != null && parmValue.getParamType() == ParameterStruct.ParamType.IntArray) {
                             for (int ix = parmValue.getIntArray().size() - 1; ix >= 0; ix--) {
                                 strValue = parmValue.getIntArrayElement(ix).toString();
-                                bSuccess = varArray.arrayInsertEntry (varName, 0, strValue);
+                                bSuccess = VarArray.arrayInsertEntry (varName, 0, strValue);
                             }
                         } else {
                             strValue = getIntegerArg (parmValue).toString();
-                            bSuccess = varArray.arrayInsertEntry (varName, 0, strValue);
+                            bSuccess = VarArray.arrayInsertEntry (varName, 0, strValue);
                         }
                         break;
                     case StrArray:
@@ -606,11 +751,11 @@ public class ScriptExecute {
                         if (parmValue.getStrArray() != null && parmValue.getParamType() == ParameterStruct.ParamType.StrArray) {
                             for (int ix = parmValue.getStrArray().size() - 1; ix >= 0; ix--) {
                                 strValue = parmValue.getStrArrayElement(ix);
-                                bSuccess = varArray.arrayInsertEntry (varName, 0, strValue);
+                                bSuccess = VarArray.arrayInsertEntry (varName, 0, strValue);
                             }
                         } else {
                             strValue = getStringArg (cmdStruct.params, 1);
-                            bSuccess = varArray.arrayInsertEntry (varName, 0, strValue);
+                            bSuccess = VarArray.arrayInsertEntry (varName, 0, strValue);
                         }
                         break;
                     default:
@@ -625,10 +770,10 @@ public class ScriptExecute {
                 parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be appended to
                 parmValue = cmdStruct.params.get(1); // element 1 is the value being appended
                 varName = getArrayAssignment(parmRef);
-                parmType = variables.getVariableTypeFromName (varName);
+                parmType = PreCompile.variables.getVariableTypeFromName (varName);
 
                 // make sure we have write access to the variable
-                variables.checkWriteAccess (varName);
+                PreCompile.variables.checkWriteAccess (varName);
                 
                 bSuccess = false;
                 switch (parmType) {
@@ -636,22 +781,22 @@ public class ScriptExecute {
                         if (parmValue.getIntArray() != null && parmValue.getParamType() == ParameterStruct.ParamType.IntArray) {
                             for (int ix = 0; ix < parmValue.getIntArray().size(); ix++) {
                                 strValue = parmValue.getIntArrayElement(ix).toString();
-                                bSuccess = varArray.arrayAppendEntry (varName, strValue);
+                                bSuccess = VarArray.arrayAppendEntry (varName, strValue);
                             }
                         } else {
                             strValue = getIntegerArg (parmValue).toString();
-                            bSuccess = varArray.arrayAppendEntry (varName, strValue);
+                            bSuccess = VarArray.arrayAppendEntry (varName, strValue);
                         }
                         break;
                     case StrArray:
                         if (parmValue.getStrArray() != null && parmValue.getParamType() == ParameterStruct.ParamType.StrArray) {
                             for (int ix = 0; ix < parmValue.getStrArray().size(); ix++) {
                                 strValue = parmValue.getStrArrayElement(ix);
-                                bSuccess = varArray.arrayAppendEntry (varName, strValue);
+                                bSuccess = VarArray.arrayAppendEntry (varName, strValue);
                             }
                         } else {
                             strValue = getStringArg (cmdStruct.params, 1);
-                            bSuccess = varArray.arrayAppendEntry (varName, strValue);
+                            bSuccess = VarArray.arrayAppendEntry (varName, strValue);
                         }
                         break;
                     default:
@@ -669,11 +814,11 @@ public class ScriptExecute {
                 parmIndex = cmdStruct.params.get(1); // element 1 is the index element being modified
                 parmValue = cmdStruct.params.get(2); // element 2 is the value to set the entry to
                 varName  = getArrayAssignment(parmRef);
-                parmType  = variables.getVariableTypeFromName (varName);
+                parmType  = PreCompile.variables.getVariableTypeFromName (varName);
                 int index = parmIndex.getIntegerValue().intValue();
 
                 // make sure we have write access to the variable
-                variables.checkWriteAccess (varName);
+                PreCompile.variables.checkWriteAccess (varName);
                 
                 switch (parmType) {
                     case IntArray:
@@ -687,7 +832,7 @@ public class ScriptExecute {
                         throw new ParserException(exceptPreface + "Invalid parameter type: " + parmRef.getParamType());
                 }
                 
-                bSuccess = varArray.arrayModifyEntry (varName, index, strValue);
+                bSuccess = VarArray.arrayModifyEntry (varName, index, strValue);
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
@@ -700,9 +845,9 @@ public class ScriptExecute {
                 index = parmIndex.getIntegerValue().intValue();
 
                 // make sure we have write access to the variable
-                variables.checkWriteAccess (varName);
+                PreCompile.variables.checkWriteAccess (varName);
                 
-                bSuccess = varArray.arrayClearEntries (varName, index, 1);
+                bSuccess = VarArray.arrayClearEntries (varName, index, 1);
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
@@ -713,9 +858,9 @@ public class ScriptExecute {
                 varName = getArrayAssignment(parmRef);
 
                 // make sure we have write access to the variable
-                variables.checkWriteAccess (varName);
+                PreCompile.variables.checkWriteAccess (varName);
                 
-                int size = varArray.getArraySize(varName);
+                int size = VarArray.getArraySize(varName);
                 int iCount = 1;
                 if (cmdStruct.params.size() > 1) {
                     parmIndex = cmdStruct.params.get(1); // element 1 is the (optional) number of entries being removed
@@ -725,7 +870,7 @@ public class ScriptExecute {
                     }
                 }
                 int iStart = size - iCount;
-                bSuccess = varArray.arrayClearEntries (varName, iStart, iCount);
+                bSuccess = VarArray.arrayClearEntries (varName, iStart, iCount);
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
@@ -736,9 +881,9 @@ public class ScriptExecute {
                 varName = getArrayAssignment(parmRef);
 
                 // make sure we have write access to the variable
-                variables.checkWriteAccess (varName);
+                PreCompile.variables.checkWriteAccess (varName);
                 
-                size = varArray.getArraySize(parmRef.getStringValue());
+                size = VarArray.getArraySize(parmRef.getStringValue());
                 iCount = 1;
                 iStart = 0;
                 if (cmdStruct.params.size() > 1) {
@@ -748,7 +893,7 @@ public class ScriptExecute {
                         throw new ParserException(exceptPreface + "item count " + iCount + " exceeds size of " + varName);
                     }
                 }
-                bSuccess = varArray.arrayClearEntries (varName, iStart, iCount);
+                bSuccess = VarArray.arrayClearEntries (varName, iStart, iCount);
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
@@ -759,9 +904,9 @@ public class ScriptExecute {
                 varName = getArrayAssignment(parmRef);
 
                 // make sure we have write access to the variable
-                variables.checkWriteAccess (varName);
+                PreCompile.variables.checkWriteAccess (varName);
                 
-                varArray.arrayClearAll(varName);
+                VarArray.arrayClearAll(varName);
                 break;
                 
             case FILTER:
@@ -772,9 +917,9 @@ public class ScriptExecute {
                     VarArray.arrayFilterReset();
                 } else {
                     // make sure we have write access to the variable
-                    variables.checkWriteAccess (varName);
+                    PreCompile.variables.checkWriteAccess (varName);
                 
-                    parmType = variables.getVariableTypeFromName (varName);
+                    parmType = PreCompile.variables.getVariableTypeFromName (varName);
                     switch (parmType) {
                         case StrArray:
                             filter = cmdStruct.params.get(1).getStringValue();
@@ -782,12 +927,12 @@ public class ScriptExecute {
                             if (cmdStruct.params.size() == 3) {
                                 opts = cmdStruct.params.get(2).getStringValue();
                             }
-                            varArray.arrayFilterString(varName, filter, opts);
+                            VarArray.arrayFilterString(varName, filter, opts);
                             break;
                         case IntArray:
                             String compSign = cmdStruct.params.get(1).getStringValue();
                             Long iValue = cmdStruct.params.get(2).getIntegerValue();
-                            varArray.arrayFilterInt(varName, compSign, iValue);
+                            VarArray.arrayFilterInt(varName, compSign, iValue);
                             break;
                         default:
                             throw new ParserException(exceptPreface + "Invalid data type for FILTER: " + parmType);

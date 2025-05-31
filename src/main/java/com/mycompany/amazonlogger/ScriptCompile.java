@@ -27,13 +27,10 @@ public class ScriptCompile {
     private static final ArrayList<Integer> lineNumbers = new ArrayList<>();
     
     private final ParseScript parseScript = new ParseScript();
-    public static Variables   variables;
 
     ScriptCompile (Variables preVars) {
         // create an instance of the command options parser for any RUN commands
         cmdOptionParser = new CmdOptions();
-        variables = preVars;
-
     }
 
     public static int getLineNumber (int cmdIx) {
@@ -231,6 +228,16 @@ public class ScriptCompile {
                                 default -> throw new ParserException(functionId + "option is not valid: " + option);
                             }
                         }
+                        break;
+                    case MKDIR:
+                        // verify 1 String argument: dir name
+                        ParseScript.checkMaxArgs(1, cmdStruct);
+                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        break;
+                    case RMDIR:
+                        // verify 1 String argument: dir name
+                        ParseScript.checkMaxArgs(1, cmdStruct);
+                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FDELETE:
                         // verify 1 String argument: file name

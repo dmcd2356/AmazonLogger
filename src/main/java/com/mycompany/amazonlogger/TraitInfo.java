@@ -20,8 +20,6 @@ import java.util.List;
 public class TraitInfo {
     
     private static final String CLASS_NAME = TraitInfo.class.getSimpleName();
-    
-    private static final Variables variables = ScriptCompile.variables;
 
     
     // traits extensions
@@ -143,7 +141,7 @@ public class TraitInfo {
             case WRITER:
             case WRITETIME:
                 String subName = Subroutine.getSubName();
-                if (! VarGlobal.isDefined(varName) && ! variables.varLocal.isDefined(subName, varName)) {
+                if (! VarGlobal.isDefined(varName) && ! PreCompile.variables.varLocal.isDefined(subName, varName)) {
                     traitVal = null;
                 }
                 break;
@@ -212,7 +210,7 @@ public class TraitInfo {
                 
             case FILTER:
                 // keep the Variable type
-                ptype = variables.getVariableTypeFromName (varName);
+                ptype = PreCompile.variables.getVariableTypeFromName (varName);
                 break;
                 
             case WRITER:
@@ -265,13 +263,13 @@ public class TraitInfo {
         } else if (traitVal == Trait.SIZE || traitVal == Trait.LENGTH) {
             switch (varType) {
                 case String:
-                    iValue = (long) variables.getStringSize(varName);
+                    iValue = (long) PreCompile.variables.getStringSize(varName);
                     break;
                 case StrArray:
-                    iValue = (long) variables.getStrArray(varName).size();
+                    iValue = (long) PreCompile.variables.getStrArray(varName).size();
                     break;
                 case IntArray:
-                    iValue = (long) variables.getIntArray(varName).size();
+                    iValue = (long) PreCompile.variables.getIntArray(varName).size();
                     break;
                 default:
                     break;
@@ -299,10 +297,10 @@ public class TraitInfo {
         // these apply to all data types (GLOBAL and LOCAL vars only)
         switch (trait) {
             case WRITER:
-                strValue = variables.getWriterIndex(varName);
+                strValue = PreCompile.variables.getWriterIndex(varName);
                 break;
             case WRITETIME:
-                strValue = variables.getWriterTime(varName);
+                strValue = PreCompile.variables.getWriterTime(varName);
                 break;
             default:
                 break;

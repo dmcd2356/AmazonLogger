@@ -3,7 +3,6 @@ KNOWN BUGS:
  - BUG: sometimes the description is not correct - there is a numeric value that it reads in place of it.
      (demonstrated when using file Sample_Your_Orders_Connie.txt as clipboard on Test-list.ods - it read a 2 as the description
       for item 111-9093528-3857063 because it thought the '?' was the rating, and took the next line ('2') as the description)
- - BUG: the -snew and -saddtab commands doen't work properly
  - BUG: get rid of the OCR data that is output when it is run (not sure why this is occurring)
  - BUG: eliminate duplicate text data on OCR scan (not sure why this is occurring)
 
@@ -23,39 +22,4 @@ FUTURE:
     easier to find the next page to load without having to look at the spreadsheet directly.
  - add ability to read from port when running in background so commands can be sent from external program
     that sends commands to port. It could then allow stepping through the program and display current status.
-
-TESTING PHASE:
- * modify RESPONSE to be a StrArray instead of a String to access each element
- * add the ability to use '+=' for a String param
- * add the ability to use an operation prior to the '=' in a Calculation
- * add functionality for the Array commands
- * add command to output text to the console
- * add commands to open, read, write, and close a file
- * add command to read a row of data from the Spreadsheet into a StrArray
- * add command to read a column of data from the Spreadsheet into a StrArray
- * add command to clear the contents of the RESPONSE array
- * add command to read the PDF file into a StrArray that is accessible
- * add command to read the clipboard into a StrArray that is accessible Clipboard.
- * allow setting Boolean param to the result of a Comparison
- * Fix Boolean Comparison of String param to discreet String - the discreet value includes the quotes.
- * add WRITABLE, READABLE and DIRECTORY options to FEXISTS command for checking if file is readable or writable or is a directory
- * add DIRECTORY command for retrieving a list of dirs or files
- * add reserved response variables of $RANDOM, $TIME, $DATE
- * add .DAY and .MONTH String traits for $DATE and .DOW, .DOM, .DOY and .MOY Unsigned traits for $DATE
- * allow setting the RANDOM variable that sets the range of random values
- * add CD command to change directory within the Testpath base
- * add FILTER command and Trait to filter arrays.
- * Add ability to do OCR of scanned text documents and be able to read the text.
- * add ENDMAIN, SUB, ENDSUB, GOSUB, RETURN commands and $RETVAL return value from subroutine.
- * add check to make sure a RETURN command is included in each subroutine, or have the ENDSUB do it.
- * add check to FOR loop commands to make sure the NEXT, CONTINUE, ENDFOR are all in same subroutine (or MAIN)
- * add capability to allocate variables as either GLOBAL or LOCAL to allow reuse of names in subroutines.
- * modify GLOBAL variables to use the VarAccess class instead of discrete values (LOCALS do this).
- * verify Traits and Bracketing work for both LOCALs and GLOBALs (and RESERVEDs), but not LOOPs.
- * add Traits for outputting WRITER and WRITETIME of variables.
- * print a WARN message if variable is read prior to being set (it uses the default value).
- * create a spreadsheet file (currently only allow opening one) and allow adding tabs
- * add FOR EVER command (no termination except BREAK) and a BREAKIF and SKIPIF command
- * add max loops for a FOR EVER loop for safety exit
- * allow LENGTH to be used instead of SIZE for Traits.
 

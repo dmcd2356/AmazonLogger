@@ -12,7 +12,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import org.apache.tika.exception.TikaException;
 import org.xml.sax.SAXException;
 
@@ -24,7 +23,7 @@ public class PreCompile {
     
     private static final String CLASS_NAME = PreCompile.class.getSimpleName();
 
-    private static final Variables variables = new Variables();
+    public static final Variables variables = new Variables();
 
     /**
      * compiles the external script file (when -f option used) into a series of

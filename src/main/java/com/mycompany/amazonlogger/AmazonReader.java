@@ -24,6 +24,7 @@ public class AmazonReader {
     public  static PropertiesFile props;
     
     private static RunMode opMode;
+    private static String  scriptName = "";
 
     public enum RunMode {
         COMPILE_ONLY,
@@ -41,6 +42,10 @@ public class AmazonReader {
     
     public static boolean isRunModeCompileOnly () {
         return opMode == RunMode.COMPILE_ONLY;
+    }
+    
+    public static String getScriptName() {
+        return scriptName;
     }
     
     // Main driver method
@@ -119,6 +124,15 @@ public class AmazonReader {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         frame.outputInfoMsg(STATUS_COMPILE, "Running from script: " + fname);
+        scriptName = fname;
+        int offset = scriptName.lastIndexOf('/');
+        if (offset >= 0 && offset < scriptName.length()) {
+            scriptName = scriptName.substring(offset + 1);
+        }
+        offset = scriptName.indexOf('.');
+        if (offset > 0) {
+            scriptName = scriptName.substring(0, offset);
+        }
 
         // enable timestamp on log messages
         frame.elapsedTimerEnable();

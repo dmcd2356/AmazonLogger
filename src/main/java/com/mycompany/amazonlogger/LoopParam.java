@@ -22,8 +22,6 @@ public class LoopParam {
     Integer value;          // the current value of the loop parameter
     String  paramName;      // the name of the reference Variable (null if no ref param)
         
-    Variables variables = ScriptCompile.variables;
-    
     // for loops, the loopParams will find the loop parameter for the loop at the
     // specified command index. In order to determine if we have a nested loop
     // using the same param name, we use loopNames that contains an array of
@@ -54,7 +52,7 @@ public class LoopParam {
             this.paramName = null;
         } catch (ParserException ex) {
             try {
-                variables.checkValidVariable(Variables.VarCheck.REFERENCE, name);
+                PreCompile.variables.checkValidVariable(Variables.VarCheck.REFERENCE, name);
             } catch (ParserException exMsg) {
                 throw new ParserException(exMsg + "\n  -> " + functionId);
             }
@@ -75,7 +73,7 @@ public class LoopParam {
        
         if (paramName != null) {
             // it is a Variable, get the current value
-            Long numValue = variables.getNumericValue(paramName, null, true);
+            Long numValue = PreCompile.variables.getNumericValue(paramName, null, true);
             if (numValue == null) {
                 throw new ParserException(functionId + "reference Variable " + paramName + " is not an Integer: " + paramName);
             }

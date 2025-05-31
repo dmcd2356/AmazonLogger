@@ -25,8 +25,6 @@ public class VarExtract {
     private String  evaluation;     // evaluation on Right-side of '=' to set parameter to
     private boolean bRightSide;     // true if parameter is a reference and must be on right side of '='
 
-    private static final Variables variables = ScriptCompile.variables;
-    
     /**
      * extracts the Variable and any extensions from a command line.
      * 
@@ -179,7 +177,7 @@ public class VarExtract {
                 throw new ParserException(functionId + "Brackets only allowed for Right-side Variable usage: " + field + evaluation);
             }
             // we have an index associated with the param
-            type = variables.getVariableTypeFromName (name);
+            type = PreCompile.variables.getVariableTypeFromName (name);
             leftover = field.substring(offLeftB + 1, offRightB);
 
             // now see if we have a single entry or a range
@@ -202,7 +200,7 @@ public class VarExtract {
             }
             // we have a trait combined with the param name
             name = field.substring(0, offTrait);
-            type = variables.getVariableTypeFromName (name);
+            type = PreCompile.variables.getVariableTypeFromName (name);
             if (field.length() > offTrait + 1) {
                 leftover = field.substring(offTrait + 1);
             }
@@ -210,12 +208,12 @@ public class VarExtract {
         } else {
             // no additional entries, the param name must be by itself
             name = field;
-            type = variables.getVariableTypeFromName (name);
+            type = PreCompile.variables.getVariableTypeFromName (name);
         }
         
         // verify Variable name is valid
         try {
-            variables.checkValidVariable(Variables.VarCheck.REFERENCE, name);
+            PreCompile.variables.checkValidVariable(Variables.VarCheck.REFERENCE, name);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
@@ -229,7 +227,7 @@ public class VarExtract {
             // must be a parameter, check if it exists
             // if it does, we don't care what type it is -that's a run-time thing
             entry = entry.substring(1);
-            Variables.VarClass cls = variables.getVariableClass(entry);
+            Variables.VarClass cls = PreCompile.variables.getVariableClass(entry);
             if (cls != Variables.VarClass.UNKNOWN) {
                 bIndex.setVariable(entry);
             } else {

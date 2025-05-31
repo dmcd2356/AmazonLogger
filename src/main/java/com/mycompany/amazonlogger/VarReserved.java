@@ -34,6 +34,8 @@ public class VarReserved {
         DATE,           // String current date (or Integer if Traits are added)
         TIME,           // String current time
         OCRTEXT,        // String output of OCRSCAN command
+        CURDIR,         // String the current directory for file i/o
+        SCRIPTNAME,     // name of the current script that is running
     }
     
     /**
@@ -212,15 +214,11 @@ public class VarReserved {
                     vartype = ParameterStruct.ParamType.Unsigned;
                     break;
                 case RETVAL:
-                    vartype = ParameterStruct.ParamType.String;
-                    break;
-                case DATE:
-                    vartype = ParameterStruct.ParamType.String;  // can also be Unsigned
-                    break;
+                case DATE:  // can also be Unsigned
                 case TIME:
-                    vartype = ParameterStruct.ParamType.String;
-                    break;
                 case OCRTEXT:
+                case CURDIR:
+                case SCRIPTNAME:
                     vartype = ParameterStruct.ParamType.String;
                     break;
                 default:
@@ -288,6 +286,12 @@ public class VarReserved {
                 String ocrText = OCRReader.getContent();
                 paramValue.setStringValue(ocrText);
                 break;
+            case CURDIR:
+                paramValue.setStringValue(ScriptExecute.getCurrentFilePath());
+                break;
+            case SCRIPTNAME:
+                paramValue.setStringValue(AmazonReader.getScriptName());
+                break;
             default:
                 paramValue = null;
                 break;
@@ -329,8 +333,6 @@ public class VarReserved {
                     iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.String);
                     break;
                 default:
-                case TIME:
-                case OCRTEXT:
                     // these can't be converted to Integer
                     break;
                 }

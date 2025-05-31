@@ -10,7 +10,6 @@ import static com.mycompany.amazonlogger.ParameterStruct.ParamType.IntArray;
 import static com.mycompany.amazonlogger.ParameterStruct.ParamType.Integer;
 import static com.mycompany.amazonlogger.ParameterStruct.ParamType.StrArray;
 import static com.mycompany.amazonlogger.ParameterStruct.ParamType.Unsigned;
-import static com.mycompany.amazonlogger.ScriptCompile.variables;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
 import java.util.ArrayList;
 
@@ -135,10 +134,10 @@ public class ParseScript {
         }
 
         // verify the parameter name is valid for assigning a value to
-        variables.checkValidVariable(Variables.VarCheck.SET, varName);
+        PreCompile.variables.checkValidVariable(Variables.VarCheck.SET, varName);
         
         // return the datatype
-        ParameterStruct.ParamType vtype = variables.getVariableTypeFromName(varName);
+        ParameterStruct.ParamType vtype = PreCompile.variables.getVariableTypeFromName(varName);
         return vtype;
     }
 
@@ -292,7 +291,7 @@ public class ParseScript {
             case StrArray:
                 // String array just requires whether we are filtering left or right side and if inverting the filter
                 if (arg.isVariableRef()) {
-                    ParameterStruct.ParamType vtype = variables.getVariableTypeFromName(argValue);
+                    ParameterStruct.ParamType vtype = PreCompile.variables.getVariableTypeFromName(argValue);
                     if (vtype == null || (vtype != ParameterStruct.ParamType.String && vtype != ParameterStruct.ParamType.StrArray)) {
                         throw new ParserException(functionId + "Invalid variable type " + vtype + " for " + vartype + " Filter argument: " + argValue);
                     }
@@ -317,7 +316,7 @@ public class ParseScript {
                 
                 // this 1st arg is the comparison type to use for filtering
                 if (arg.isVariableRef()) {
-                    ParameterStruct.ParamType vtype = variables.getVariableTypeFromName(argValue);
+                    ParameterStruct.ParamType vtype = PreCompile.variables.getVariableTypeFromName(argValue);
                     if (vtype == null || (vtype != ParameterStruct.ParamType.String && vtype != ParameterStruct.ParamType.StrArray)) {
                         throw new ParserException(functionId + "Invalid Filter argument for " + vartype + " type: " + argValue);
                     }
@@ -375,12 +374,12 @@ public class ParseScript {
             // must be the parameter name. verify it is valid.
             if (bParamAssign) {
                 if (ix == 0) {
-                    variables.checkValidVariable(Variables.VarCheck.SET, nextArg);
+                    PreCompile.variables.checkValidVariable(Variables.VarCheck.SET, nextArg);
                     if (line.isEmpty()) {
                         throw new ParserException(functionId + "no arguments following Variable name: " + nextArg);
                     }
                     // check if this is a String parameter (we may have extra stuff to do here)
-                    if (variables.getVariableTypeFromName(nextArg) == ParameterStruct.ParamType.String) {
+                    if (PreCompile.variables.getVariableTypeFromName(nextArg) == ParameterStruct.ParamType.String) {
                         paramName = "$" + nextArg;
                     }
                 } else if (ix == 1 && paramName != null && nextArg.contentEquals("+=")) {
@@ -472,7 +471,7 @@ public class ParseScript {
             ParameterStruct.ParamClass pClass = ParameterStruct.ParamClass.Discrete;
             if (nextArg.startsWith("$") || (bParamAssign && params.isEmpty())) {
                 pClass = ParameterStruct.ParamClass.Reference;
-                paramType = variables.getVariableTypeFromName(nextArg);
+                paramType = PreCompile.variables.getVariableTypeFromName(nextArg);
             }
             
             arg = new ParameterStruct(nextArg, pClass, paramType);
@@ -552,7 +551,7 @@ public class ParseScript {
         // 1st entry should be the parameter name
         String paramName = getParamName (line);
         try {
-            variables.checkValidVariable(Variables.VarCheck.SET, paramName);
+            PreCompile.variables.checkValidVariable(Variables.VarCheck.SET, paramName);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }

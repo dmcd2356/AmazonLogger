@@ -103,7 +103,7 @@ public class VarExtensions {
                     String traitName = varName.substring(offset + 1);
                     varName = varName.substring(0, offset);
                     // now get corresponding trait type & validate that it is a numeric
-                    ParameterStruct.ParamType ptype = ScriptCompile.variables.getVariableTypeFromName (varName);
+                    ParameterStruct.ParamType ptype = PreCompile.variables.getVariableTypeFromName (varName);
                     traitVal = TraitInfo.getTrait (traitName, varName, ptype);
                     ParameterStruct.ParamType traitTyp = TraitInfo.getTraitDataType (traitVal, varName, ptype);
                     switch (traitTyp) {
@@ -111,7 +111,7 @@ public class VarExtensions {
                         default -> throw new ParserException(functionId + "Specified Variable trait is not a numeric: " + traitName);
                     }
                 }
-                Long numValue = ScriptCompile.variables.getNumericValue(varName, traitVal, false);
+                Long numValue = PreCompile.variables.getNumericValue(varName, traitVal, false);
                 if (numValue == null) {
                     throw new ParserException(functionId + "reference Variable " + entry.getVariable() + " not found");
                 }
