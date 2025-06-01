@@ -95,7 +95,6 @@ public class PreCompile {
                             case "-spath":
                             case "-ppath":
                             case "-ofile":
-                            case "-sfile":
                                 cmdStruct.params.add(new ParameterStruct(parmString));
                                 cmdOptionParser.runCmdOption (cmdStruct);
                                 break;

@@ -65,6 +65,31 @@ public class ScriptExecute {
     }
 
     /**
+     * puts the file/directory names from the specified path into the $RESPONSE param.
+     * 
+     * @param path - the path to check
+     * @param type - -f for files only, -d for directories only, blank for files and directories
+     * 
+     * @throws ParserException
+     */
+    public static void getDirFileList (String path, String type) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        File file = getFilePath(path);
+        if (! file.isDirectory()) {
+            throw new ParserException(functionId + "Invalid directory selection: " + file.getAbsolutePath());
+        }
+        File[] list = file.listFiles();
+        for (File list1 : list) {
+            if ((type.isEmpty() ||
+                (type.contentEquals("-d")) && list1.isDirectory()) ||
+                (type.contentEquals("-f")) && list1.isFile())    {
+                VarReserved.putResponseValue(list1.getName());
+            }
+        }
+    }
+
+    /**
      * backs up to previous path in the chain.
      * 
      * This is called when a ".." entry is found in the directory path, which
@@ -75,7 +100,7 @@ public class ScriptExecute {
      * 
      * @return the path above the current one
      */
-    private String backupPath (String curpath) throws ParserException {
+    private static String backupPath (String curpath) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // if there is a '/' char at end of path, remove it
@@ -113,7 +138,7 @@ public class ScriptExecute {
      * 
      * @return a file of the path specified
      */
-    private File getFilePath (String path) throws ParserException {
+    private static File getFilePath (String path) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (path.contentEquals(".")) {
@@ -168,7 +193,7 @@ public class ScriptExecute {
      * 
      * @return a file of the path specified
      */
-    private void setFilePath (String path) throws ParserException {
+    private static void setFilePath (String path) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (path.contentEquals(".")) {
@@ -211,7 +236,16 @@ public class ScriptExecute {
         frame.outputInfoMsg(STATUS_PROGRAM, "    File path changed to: " + fileDir);
     }
 
-    private String getArrayAssignment (ParameterStruct parmRef) throws ParserException {
+    /**
+     * returns the name of the array variable specified by the parameter.
+     * 
+     * @param parmRef the parameter (should specify an array variable)
+     * 
+     * @return the array variable name
+     * 
+     * @throws ParserException if variable reference name not found
+     */
+    private static String getArrayAssignment (ParameterStruct parmRef) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         String name =  parmRef.getVariableRefName();
@@ -391,19 +425,18 @@ public class ScriptExecute {
 
         try {
         switch (cmdStruct.command) {
-            case EXIT:
             case ENDMAIN:
+            case EXIT:
                 return -1; // this will terminate the program
             case SUB:
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Subroutine entered at level: " + Subroutine.getSubroutineLevel());
-                break;
-            case ENDSUB:
                 break;
             case GOSUB:
                 String subName = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                            ParameterStruct.ParamType.String).getStringValue();
                 newIndex = subroutine.subBegin(subName, cmdIndex + 1);
                 break;
+            case ENDSUB:
             case RETURN:
                 String retArg = "";
                 if (! cmdStruct.params.isEmpty()) {
@@ -454,18 +487,7 @@ public class ScriptExecute {
                     filter = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
                        ParameterStruct.ParamType.String).getStringValue();
                 }
-                File file = getFilePath(fname);
-                if (! file.isDirectory()) {
-                    throw new ParserException(exceptPreface + "Invalid directory selection: " + file.getAbsolutePath());
-                }
-                File[] list = file.listFiles();
-                for (File list1 : list) {
-                    if ((filter.isEmpty() || filter.contentEquals("-d")) && list1.isDirectory()) {
-                        VarReserved.putResponseValue(list1.getName());
-                    } else if ((filter.isEmpty() || filter.contentEquals("-f")) && list1.isFile()) {
-                        VarReserved.putResponseValue(list1.getName());
-                    }
-                }
+                getDirFileList (fname, filter);
                 break;
             case CD:
                 // arg 0: directory path
@@ -477,7 +499,7 @@ public class ScriptExecute {
                 // arg 0: filename, optional arg 1: type of check on file
                 fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                file = getFilePath(fname);
+                File file = getFilePath(fname);
 
                 boolean value;
                 String strCheck = "EXISTS";

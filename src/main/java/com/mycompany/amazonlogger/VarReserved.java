@@ -35,7 +35,7 @@ public class VarReserved {
         TIME,           // String current time
         OCRTEXT,        // String output of OCRSCAN command
         CURDIR,         // String the current directory for file i/o
-        SCRIPTNAME,     // name of the current script that is running
+        SCRIPTNAME,     // String name of the current script that is running
     }
     
     /**
