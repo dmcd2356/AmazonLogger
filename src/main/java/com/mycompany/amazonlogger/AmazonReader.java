@@ -77,9 +77,8 @@ public class AmazonReader {
             } catch (ParserException | IOException | SAXException | TikaException ex) {
                 frame.outputInfoMsg (STATUS_ERROR, ex.getMessage() + "\n  -> " + functionId);
                 setRunMode (RunMode.EXECUTE);
-                ScriptExecute exec = new ScriptExecute();
                 try {
-                    exec.close();
+                    ScriptExecute.exit();
                 } catch (IOException exIO) {
                     frame.outputInfoMsg (STATUS_ERROR, exIO.getMessage() + "\n  -> " + functionId);
                 }

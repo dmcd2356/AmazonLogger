@@ -287,7 +287,7 @@ public class VarReserved {
                 paramValue.setStringValue(ocrText);
                 break;
             case CURDIR:
-                paramValue.setStringValue(ScriptExecute.getCurrentFilePath());
+                paramValue.setStringValue(FileIO.getCurrentFilePath());
                 break;
             case SCRIPTNAME:
                 paramValue.setStringValue(AmazonReader.getScriptName());

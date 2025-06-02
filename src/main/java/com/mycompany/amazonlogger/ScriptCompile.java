@@ -211,11 +211,6 @@ public class ScriptCompile {
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
-                    case FCREATER:
-                        // verify 1 String argument: file name
-                        ParseScript.checkMaxArgs(1, cmdStruct);
-                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
-                        break;
                     case FEXISTS:
                         // verify 1 String argument: file name & 1 optional argument String: READABLE / WRITABLE / DIRECTORY
                         ParseScript.checkMaxArgs(2, cmdStruct);
@@ -235,31 +230,59 @@ public class ScriptCompile {
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case RMDIR:
-                        // verify 1 String argument: dir name
+                        // verify 1 String argument: dir name & 1 optional argument String: FORCE (if dir is not empty)
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        if (cmdStruct.params.size() > 1) {
+                            ParseScript.checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
+                            String option = cmdStruct.params.get(1).getStringValue();
+                            if (! option.contentEquals("FORCE")) {
+                                throw new ParserException(functionId + "option is not valid: " + option);
+                            }
+                        }
                         break;
                     case FDELETE:
                         // verify 1 String argument: file name
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
-                    case FCREATEW:
-                        // verify 1 String argument: file name
-                        ParseScript.checkMaxArgs(1, cmdStruct);
+                    case FCREATE:
+                        // verify 1 String argument: file name & 1 optional argument String: type = READ/WRITE
+                        ParseScript.checkMaxArgs(2, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        if (cmdStruct.params.size() > 1) {
+                            ParseScript.checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
+                            String option = cmdStruct.params.get(1).getStringValue();
+                            switch (option) {
+                                case "READ", "WRITE" -> {  }
+                                default -> throw new ParserException(functionId + "option is not valid: " + option);
+                            }
+                        }
                         break;
-                    case FOPENR:
-                        // verify 1 String argument: file name
-                        ParseScript.checkMaxArgs(1, cmdStruct);
+                    case FOPEN:
+                        // verify 1 String argument: file name & 1 optional argument String: type = READ/WRITE
+                        ParseScript.checkMaxArgs(2, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
-                        break;
-                    case FOPENW:
-                        // verify 1 String argument: file name
-                        ParseScript.checkMaxArgs(1, cmdStruct);
-                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        if (cmdStruct.params.size() > 1) {
+                            ParseScript.checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
+                            String option = cmdStruct.params.get(1).getStringValue();
+                            switch (option) {
+                                case "READ", "WRITE" -> {  }
+                                default -> throw new ParserException(functionId + "option is not valid: " + option);
+                            }
+                        }
                         break;
                     case FCLOSE:
+                        // verify 1 String argument: file name
+                        ParseScript.checkMaxArgs(1, cmdStruct);
+                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        break;
+                    case FGETSIZE:
+                        // verify 1 String argument: file name
+                        ParseScript.checkMaxArgs(1, cmdStruct);
+                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                        break;
+                    case FGETLINES:
                         // verify 1 String argument: file name
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
@@ -267,13 +290,7 @@ public class ScriptCompile {
                     case FREAD:
                         // verify 1 optional number of lines to read
                         ParseScript.checkMaxArgs(1, cmdStruct);
-                        if (cmdStruct.params.isEmpty()) {
-                            // argument is missing, supply the default value
-                            ParameterStruct lines = new ParameterStruct("1",
-                                                    ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.Unsigned);
-                            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + cmdStruct.params.size() + "]: type Unsigned value: 1");
-                            cmdStruct.params.add(lines);
-                        } else {
+                        if (! cmdStruct.params.isEmpty()) {
                             ParseScript.checkArgType (0, ParameterStruct.ParamType.Integer, cmdStruct.params);
                             ParameterStruct arg0 = cmdStruct.params.get(0);
                             Long count = arg0.getIntegerValue();

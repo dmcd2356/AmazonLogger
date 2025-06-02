@@ -35,13 +35,13 @@ public class CommandStruct {
         MKDIR,      //  "       "       "
         RMDIR,      //  "       "       "
         FDELETE,    //  "       "       "
-        FCREATER,   //  "       "       "
-        FCREATEW,   //  "       "       "
-        FOPENR,     //  "       "       "
-        FOPENW,     //  "       "       "
+        FCREATE,    //  "       "       "
+        FOPEN,      //  "       "       "
         FCLOSE,     //  "       "       "
         FREAD,      //  "       "       "
         FWRITE,     //  "       "       "
+        FGETSIZE,   //  "       "       "
+        FGETLINES,  //  "       "       "
         OCRSCAN,    // this does an OCR scan of the specified PDF file
         ALLOCATE,   // this allocates the parameters used by the program
         SET,        // this sets the value of the parameters

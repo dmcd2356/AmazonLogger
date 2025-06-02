@@ -8,15 +8,9 @@ import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.CommandStruct.CommandTable.OCRSCAN;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
-import org.apache.commons.io.FileUtils;
 import org.apache.tika.exception.TikaException;
 import org.xml.sax.SAXException;
 
@@ -34,20 +28,18 @@ public class ScriptExecute {
     // identifies the current loopStack entry.
     private static LoopId curLoopId = null;
     
-    // the map of column names to column indices in the sheet
-    // for now, we only allow 1 file open at a time (either a read or a write file)
-    private static BufferedReader fileReader = null;
-    private static PrintWriter    fileWriter = null;
-    private static String fileName;
-    private static String fileDir = Utils.getDefaultPath (Utils.PathType.Test);
-
 
     ScriptExecute () {
         this.cmdOptionParser = new CmdOptions();
     }
 
-    public static String getCurrentFilePath() {
-        return fileDir;
+    /**
+     * cleanup of any open resources.
+     * 
+     * @throws IOException 
+     */
+    public static void exit() throws IOException {
+        FileIO.exit();
     }
     
     /**
@@ -62,178 +54,6 @@ public class ScriptExecute {
             return "(line " + lineNum + ") ";
         }
         return "";
-    }
-
-    /**
-     * puts the file/directory names from the specified path into the $RESPONSE param.
-     * 
-     * @param path - the path to check
-     * @param type - -f for files only, -d for directories only, blank for files and directories
-     * 
-     * @throws ParserException
-     */
-    public static void getDirFileList (String path, String type) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        File file = getFilePath(path);
-        if (! file.isDirectory()) {
-            throw new ParserException(functionId + "Invalid directory selection: " + file.getAbsolutePath());
-        }
-        File[] list = file.listFiles();
-        for (File list1 : list) {
-            if ((type.isEmpty() ||
-                (type.contentEquals("-d")) && list1.isDirectory()) ||
-                (type.contentEquals("-f")) && list1.isFile())    {
-                VarReserved.putResponseValue(list1.getName());
-            }
-        }
-    }
-
-    /**
-     * backs up to previous path in the chain.
-     * 
-     * This is called when a ".." entry is found in the directory path, which
-     *  indicates to backup to the directory above this one. Note that is will not
-     *  go beyond the user home directory.
-     * 
-     * @param curpath - the current path
-     * 
-     * @return the path above the current one
-     */
-    private static String backupPath (String curpath) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        // if there is a '/' char at end of path, remove it
-        if (curpath.charAt(curpath.length()-1) == '/') {
-            curpath = curpath.substring(0, curpath.length()-1);
-        }
-        // first make sure we are in the user home path
-        String userPath = System.getProperty("user.dir");
-        if (! curpath.startsWith(userPath)) {
-            throw new ParserException(functionId + "Path is not within user home path: " + curpath);
-        }
-        // now make sure we aren't alreay at the base home directory (won't go any further)
-        if (curpath.contentEquals(userPath)) {
-            frame.outputInfoMsg(STATUS_WARN, "Path isalready at user home base path: " + curpath);
-            return curpath;
-        }
-        int offset = curpath.lastIndexOf('/');
-        if (offset <= 0) {
-            throw new ParserException(functionId + "Path is invalid: " + curpath);
-        }
-        curpath = curpath.substring(0, offset);
-        frame.outputInfoMsg(STATUS_PROGRAM, "Backed up to directory above: " + curpath);
-        return curpath;
-    }
-    
-    /**
-     * gets the file or directory specified by the given path.
-     * 
-     * A single '.' will represent the current directory and '~' indicates
-     *  the root directory for testing: the Test default directory.
-     *  If the path does not start with a '/' char, it is a relative path.
-     *  Absolute paths are only supported if it resides within the User path bounds.
-     * 
-     * @param path - the path of the dir or file
-     * 
-     * @return a file of the path specified
-     */
-    private static File getFilePath (String path) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (path.contentEquals(".")) {
-            // the '.' indicates the current directory
-            path = fileDir;
-        } else if (path.startsWith("..")) {
-            String newpath = fileDir;
-            while (! path.isEmpty() && path.startsWith("..")) {
-                newpath = backupPath (newpath);
-                path = path.substring(2);
-                if (! path.isEmpty()) {
-                    if (path.charAt(0) != '/') {
-                        throw new ParserException(functionId + "Invalid path format following .. : " + path);
-                    }
-                    path = path.substring(1);
-                }
-            }
-            if (! path.isEmpty()) {
-                newpath = fileDir + "/" + path;
-            }
-            path = newpath;
-        } else if (path.startsWith("~")) {
-            // a leading '~' refers to the base Test path
-            if (path.length() > 1) {
-                path = Utils.getDefaultPath (Utils.PathType.Test) + path.substring(1);
-            } else {
-                path = Utils.getDefaultPath (Utils.PathType.Test);
-            }
-        } else if (! path.startsWith("/")) {
-            // if missing the leading '/' char, it is a path relative to current dir
-            path = fileDir + "/" + path;
-        } else {
-            String userPath = System.getProperty("user.dir");
-            if (! path.startsWith(userPath)) {
-                throw new ParserException(functionId + "Absolute path outside of User space (" + userPath + ") boundaries: " + path);
-            }
-        }
-        File file = new File(path);
-        frame.outputInfoMsg(STATUS_PROGRAM, "    Path selection: " + path);
-        return (file);
-    }
-    
-    /**
-     * gets the file or directory specified by the given path.
-     * 
-     * A single '.' will represent the current directory and '~' indicates
-     *  the root directory for testing: the Test default directory.
-     *  If the path does not start with a '/' char, it is a relative path.
-     *  Absolute paths are only supported if it resides within the User path bounds.
-     * 
-     * @param path - the path of the dir or file
-     * 
-     * @return a file of the path specified
-     */
-    private static void setFilePath (String path) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (path.contentEquals(".")) {
-            // the '.' indicates the current directory, so no change needed
-        } else if (path.startsWith("..")) {
-            while (! path.isEmpty() && path.startsWith("..")) {
-                fileDir = backupPath (fileDir);
-                path = path.substring(2);
-                if (! path.isEmpty()) {
-                    if (path.charAt(0) != '/') {
-                        throw new ParserException(functionId + "Invalid path format following .. : " + path);
-                    }
-                    path = path.substring(1);
-                }
-            }
-            if (! path.isEmpty()) {
-                fileDir = fileDir + "/" + path;
-            }
-        } else if (path.startsWith("~")) {
-            // a leading '~' refers to the base Test path
-            if (path.length() > 1) {
-                fileDir = Utils.getDefaultPath (Utils.PathType.Test) + path.substring(1);
-            } else {
-                fileDir = Utils.getDefaultPath (Utils.PathType.Test);
-            }
-        } else if (! path.startsWith("/")) {
-            // if missing the leading '/' char, it is a path relative to current dir
-            fileDir = fileDir + "/" + path;
-        } else {
-            String userPath = System.getProperty("user.dir");
-            if (! path.startsWith(userPath)) {
-                throw new ParserException(functionId + "Absolute path outside of User space (" + userPath + ") boundaries: " + path);
-            }
-            fileDir = path;
-        }
-        File file = new File(fileDir);
-        if (! file.exists() || ! file.isDirectory()) {
-            throw new ParserException(functionId + "Invalid directory selection: " + fileDir);
-        }
-        frame.outputInfoMsg(STATUS_PROGRAM, "    File path changed to: " + fileDir);
     }
 
     /**
@@ -314,20 +134,6 @@ public class ScriptExecute {
             bValue = comp.getStatus();
         }
         return bValue;
-    }
-
-    /**
-     * cleanup upon exit.
-     * 
-     * @throws IOException 
-     */
-    public void close() throws IOException {
-        if (fileReader != null) {
-            fileReader.close();
-        } if (fileWriter != null) {
-            fileWriter.close();
-        }
-        frame.outputInfoMsg(STATUS_DEBUG, "Closed file: " + fileName);
     }
 
     /**
@@ -487,19 +293,19 @@ public class ScriptExecute {
                     filter = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
                        ParameterStruct.ParamType.String).getStringValue();
                 }
-                getDirFileList (fname, filter);
+                FileIO.getDirFileList (fname, filter);
                 break;
             case CD:
                 // arg 0: directory path
                 fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                setFilePath (fname);
+                FileIO.setFilePath (fname);
                 break;
             case FEXISTS:
                 // arg 0: filename, optional arg 1: type of check on file
                 fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                File file = getFilePath(fname);
+                File file = FileIO.getFilePath(fname);
 
                 boolean value;
                 String strCheck = "EXISTS";
@@ -526,160 +332,88 @@ public class ScriptExecute {
                 VarReserved.putStatusValue(value);
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "File " + file + " exists = " + value);
                 break;
+            case FGETSIZE:
+                // arg 0: filename
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
+                Long fsize = FileIO.fileGetSize(fname);
+                VarReserved.putResponseValue(fsize.toString());
+                break;
+            case FGETLINES:
+                // arg 0: filename
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                  ParameterStruct.ParamType.String).getStringValue();
+                Integer lines = FileIO.fileGetLines(fname);
+                VarReserved.putResponseValue(lines.toString());
+                break;
             case MKDIR:
                 // arg 0: dir name
                 fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                file = getFilePath(fname);
-                if (file.exists()) {
-                    if (file.isDirectory()) {
-                        throw new ParserException(exceptPreface + "Directory already exists: " + fname);
-                    } else {
-                        throw new ParserException(exceptPreface + "File already exists with that name: " + fname);
-                    }
-                }
-                file.mkdirs();
-                //new File(fname).mkdirs();
+                FileIO.createDir(fname);
                 break;
             case RMDIR:
                 // arg 0: dir name
                 fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                file = getFilePath(fname);
-                if (! file.isDirectory()) {
-                    throw new ParserException(exceptPreface + "Directory not found: " + fname);
+                boolean bForce = false;
+                if (cmdStruct.params.size() > 1 && cmdStruct.params.get(1).getStringValue().contentEquals("FORCE")) {
+                    bForce = true;
                 }
-                FileUtils.deleteDirectory(file); // new File(fname)
+                FileIO.removeDir(fname, bForce);
                 break;
             case FDELETE:
                 // arg 0: filename
                 fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                file = getFilePath(fname);
-                if (! file.isFile()) {
-                    throw new ParserException(exceptPreface + "File not found: " + fname);
-                }
-                if (fileReader != null || fileWriter != null) {
-                    throw new ParserException(exceptPreface + "File is currently open: " + fileName);
-                }
-                file.delete();
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "File deleted: " + file);
+                FileIO.delete(fname);
                 break;
-            case FCREATER:
+            case FCREATE:
                 // arg 0: filename
+                // arg 1: type (optional)
                 fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                if (fileReader != null || fileWriter != null) {
-                    throw new ParserException(exceptPreface + "File already open: " + fileName);
+                boolean writable = false;
+                if (cmdStruct.params.size() > 1) {
+                    String ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                      ParameterStruct.ParamType.String).getStringValue();
+                    writable = ftype.contentEquals("WRITE");
                 }
-                file = getFilePath(fname);
-                if (file.exists()) {
-                    throw new ParserException(exceptPreface + "File already exists: " + fname);
-                }
-                file.createNewFile();
-                fileReader = new BufferedReader(new FileReader(file));
-                fileName = fname;
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "File created for reading: " + fname);
+                FileIO.createFile(fname, writable);
                 break;
-            case FCREATEW:
+            case FOPEN:
                 // arg 0: filename
+                // arg 1: type
                 fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                if (fileReader != null || fileWriter != null) {
-                    throw new ParserException(exceptPreface + "File already open: " + fileName);
+                writable = false;
+                if (cmdStruct.params.size() > 1) {
+                    String ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                      ParameterStruct.ParamType.String).getStringValue();
+                    writable = ftype.contentEquals("WRITE");
                 }
-                file = getFilePath(fname);
-                if (file.exists()) {
-                    throw new ParserException(exceptPreface + "File already exists: " + fname);
-                }
-                file.createNewFile();
-                file.setWritable(true);
-                fileWriter = new PrintWriter(new FileWriter(fname, true));
-                fileName = fname;
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "File created for writing: " + fname);
-                break;
-            case FOPENR:
-                // arg 0: filename
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
-                  ParameterStruct.ParamType.String).getStringValue();
-                if (fileReader != null || fileWriter != null) {
-                    throw new ParserException(exceptPreface + "File already open: " + fileName);
-                }
-                file = getFilePath(fname);
-                if (! file.isFile()) {
-                    throw new ParserException(exceptPreface + "File not found: " + fname);
-                }
-                if (! file.canRead()) {
-                    throw new ParserException(exceptPreface + "Invalid file - no read access: " + fname);
-                }
-                fileReader = new BufferedReader(new FileReader(file));
-                fileName = fname;
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "File opened for reading: " + fname);
-                break;
-            case FOPENW:
-                // arg 0: filename
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
-                  ParameterStruct.ParamType.String).getStringValue();
-                if (fileReader != null || fileWriter != null) {
-                    throw new ParserException(exceptPreface + "File already open: " + fileName);
-                }
-                file = getFilePath(fname);
-                if (! file.isFile()) {
-                    throw new ParserException(exceptPreface + "File not found: " + fname);
-                }
-                if (! file.canWrite()) {
-                    throw new ParserException(exceptPreface + "Invalid file - no write access: " + fname);
-                }
-                fileWriter = new PrintWriter(new FileWriter(fname, true));
-                fileName = fname;
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "File opened for writing: " + fname);
+                FileIO.openFile(fname, writable);
                 break;
             case FCLOSE:
                 // arg 0: filename
                 fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                if (fileName == null) {
-                    throw new ParserException(exceptPreface + "Filename not found: " + fname);
-                }
-                fileName = null;
-                // close the open file
-                if (fileReader != null) {
-                    fileReader.close();
-                    fileReader = null;
-                } else if (fileWriter != null) {
-                    fileWriter.close();
-                    fileWriter = null;
-                } else {
-                    throw new ParserException(exceptPreface + "File not open: " + fname);
-                }
+                FileIO.close(fname);
                 break;
             case FREAD:
-                // arg 0: number of lines to read
-                int count = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
-                      ParameterStruct.ParamType.Integer).getIntegerValue().intValue();
-                if (fileReader == null) {
-                    throw new ParserException(exceptPreface + "Read file not open");
+                // optional arg 0: number of lines to read
+                Integer count = null;
+                if (! cmdStruct.params.isEmpty()) {
+                    count = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                          ParameterStruct.ParamType.Integer).getIntegerValue().intValue();
                 }
-                try {
-                    // add the lines to $RESPONSE parameter
-                    for (int ix = 0; ix < count; ix++) {
-                        String line = fileReader.readLine();
-                        if (line == null)
-                            break;
-                        VarReserved.putResponseValue(line);
-                    }
-                } catch (IOException ex) {
-                    throw new IOException(exceptPreface + ex);
-                }
+                FileIO.read(count);
                 break;
             case FWRITE:
                 // arg 0: text to write
                 String text = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                if (fileWriter == null) {
-                    throw new ParserException(exceptPreface + "Write file not open");
-                }
-                fileWriter.println(text);
+                FileIO.write(text);
                 break;
             case OCRSCAN:
                 // verify 1 String argument: file name
