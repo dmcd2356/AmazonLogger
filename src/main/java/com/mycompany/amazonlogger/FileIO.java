@@ -15,6 +15,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import org.apache.commons.io.FileUtils;
 
 /**
@@ -54,11 +55,12 @@ public class FileIO {
     public static void exit() throws IOException {
         if (fileReader != null) {
             fileReader.close();
-            frame.outputInfoMsg(STATUS_DEBUG, "Closed file: " + fileReadName);
+            frame.outputInfoMsg(STATUS_DEBUG, "File reader closed: " + fileReadName);
         }
         if (fileWriter != null) {
+            fileWriter.flush();
             fileWriter.close();
-            frame.outputInfoMsg(STATUS_DEBUG, "Closed file: " + fileWriteName);
+            frame.outputInfoMsg(STATUS_DEBUG, "File writer flushed & closed: " + fileWriteName);
         }
     }
 
@@ -135,6 +137,8 @@ public class FileIO {
      * @param path - the path of the dir or file
      * 
      * @return a file of the path specified
+     * 
+     * @throws ParserException
      */
     public static java.io.File getFilePath (String path) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
@@ -165,14 +169,15 @@ public class FileIO {
             } else {
                 path = Utils.getDefaultPath (Utils.PathType.Test);
             }
-        } else if (! path.startsWith("/")) {
-            // if missing the leading '/' char, it is a path relative to current dir
-            path = fileDir + "/" + path;
-        } else {
+        } else if (path.startsWith("/")) {
+            // this indicates an absolute path is provided
             String userPath = System.getProperty("user.dir");
             if (! path.startsWith(userPath)) {
                 throw new ParserException(functionId + "Absolute path outside of User space (" + userPath + ") boundaries: " + path);
             }
+        } else {
+            // otherwise, we assume it is relative to currently selected file path
+            path = fileDir + "/" + path;
         }
         java.io.File file = new java.io.File(path);
         frame.outputInfoMsg(STATUS_PROGRAM, "    Path selection: " + path);
@@ -297,10 +302,10 @@ public class FileIO {
         if (fileWriter != null && writable) {
             throw new ParserException(functionId + "File writer already open: " + fileWriteName);
         }
-        if (fname.contentEquals(fileReadName)) {
+        if (fileReadName != null && fname.contentEquals(fileReadName)) {
             throw new ParserException(functionId + "File already open for reading: " + fname);
         }
-        if (fname.contentEquals(fileWriteName)) {
+        if (fileWriteName != null && fname.contentEquals(fileWriteName)) {
             throw new ParserException(functionId + "File already open for writing: " + fname);
         }
         
@@ -311,13 +316,14 @@ public class FileIO {
         file.createNewFile();
         if (writable) {
             file.setWritable(true);
-            fileWriter = new PrintWriter(new FileWriter(fname, true));
+            String absname = file.getAbsolutePath();
+            fileWriter = new PrintWriter(new FileWriter(absname, true));
             fileWriteName = fname;
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File created for writing: " + fname);
+            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer created for: " + fname);
         } else {
             fileReader = new BufferedReader(new FileReader(file));
             fileReadName = fname;
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File created for reading: " + fname);
+            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File reader created for: " + fname);
         }
     }
 
@@ -341,10 +347,10 @@ public class FileIO {
         if (fileWriter != null && writable) {
             throw new ParserException(functionId + "File writer already open: " + fileWriteName);
         }
-        if (fname.contentEquals(fileReadName)) {
+        if (fileReadName != null && fname.contentEquals(fileReadName)) {
             throw new ParserException(functionId + "File already open for reading: " + fname);
         }
-        if (fname.contentEquals(fileWriteName)) {
+        if (fileWriteName != null && fname.contentEquals(fileWriteName)) {
             throw new ParserException(functionId + "File already open for writing: " + fname);
         }
         
@@ -356,16 +362,17 @@ public class FileIO {
             if (! file.canWrite()) {
                 throw new ParserException(functionId + "Invalid file - no write access: " + fname);
             }
-            fileWriter = new PrintWriter(new FileWriter(fname, true));
+            String absname = file.getAbsolutePath();
+            fileWriter = new PrintWriter(new FileWriter(absname, true));
             fileWriteName = fname;
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File opened for writing: " + fname);
+            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer opened for: " + fname);
         } else {
             if (! file.canRead()) {
                 throw new ParserException(functionId + "Invalid file - no read access: " + fname);
             }
             fileReader = new BufferedReader(new FileReader(file));
             fileReadName = fname;
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File opened for reading: " + fname);
+            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File reader opened for: " + fname);
         }
     }
 
@@ -383,7 +390,8 @@ public class FileIO {
         if (! file.isFile()) {
             throw new ParserException(functionId + "File not found: " + fname);
         }
-        if (fname.contentEquals(fileWriteName) || fname.contentEquals(fileReadName)) {
+        if ( (fileWriteName != null && fname.contentEquals(fileWriteName)) ||
+             (fileReadName  != null && fname.contentEquals(fileReadName))    ) {
             throw new ParserException(functionId + "File is currently open: " + fname);
         }
         file.delete();
@@ -401,14 +409,18 @@ public class FileIO {
     public static void close (String fname) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        if (fname.contentEquals(fileWriteName)) {
+        if (fileWriteName != null && fname.contentEquals(fileWriteName)) {
             fileWriteName = null;
+            fileWriter.flush();
+            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer flushed: " + fname);
             fileWriter.close();
             fileWriter = null;
-        } else if (fname.contentEquals(fileReadName)) {
+            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer closed: " + fname);
+        } else if (fileReadName != null && fname.contentEquals(fileReadName)) {
             fileReadName = null;
             fileReader.close();
             fileReader = null;
+            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File reader closed: " + fname);
         } else {
             throw new ParserException(functionId + "File not open: " + fname);
         }
@@ -427,7 +439,7 @@ public class FileIO {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (fileReader == null) {
-            throw new ParserException(functionId + "Read file not open");
+            throw new ParserException(functionId + "File reader not open");
         }
         try {
             // add the lines to $RESPONSE parameter
@@ -441,6 +453,7 @@ public class FileIO {
                 VarReserved.putResponseValue(line);
                 ix++;
             }
+            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File reader read " + count + " lines from '" + fileReadName + "'");
         } catch (IOException ex) {
             throw new IOException(functionId + ex);
         }
@@ -458,9 +471,34 @@ public class FileIO {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (fileWriter == null) {
-            throw new ParserException(functionId + "Write file not open");
+            throw new ParserException(functionId + "File writer not open");
         }
         fileWriter.println(text);
+        frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer wrote 1 line to '" + fileWriteName + "'");
+    }
+
+    /**
+     * write text String to file.
+     * The file must have been opened in WRITE mode.
+     * 
+     * @param array the array of text to write
+     * 
+     * @throws ParserException 
+     */
+    public static void write (ArrayList<String> array) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (fileWriter == null) {
+            throw new ParserException(functionId + "File writer not open");
+        }
+        if (array == null) {
+            throw new ParserException(functionId + "Text ArrayList to write is null");
+        }
+        for (int ix = 0; ix < array.size(); ix++) {
+            String text = array.get(ix);
+            fileWriter.println(text);
+        }
+        frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer wrote " + array.size() + " lines to '" + fileWriteName + "'");
     }
 
     /**

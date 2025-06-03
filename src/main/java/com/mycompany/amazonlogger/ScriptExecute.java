@@ -285,14 +285,12 @@ public class ScriptExecute {
                 }
                 break;
             case DIRECTORY:
-                // arg 0: directory path, optional arg 1: filter selection (-f or -d)
-                String fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                // arg 0: filter selection (-f -d or blank)
+                // arg 0: directory path
+                String filter = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                   ParameterStruct.ParamType.String).getStringValue();
+                String fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
                          ParameterStruct.ParamType.String).getStringValue();
-                String filter = "";
-                if (cmdStruct.params.size() > 1) {
-                    filter = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
-                       ParameterStruct.ParamType.String).getStringValue();
-                }
                 FileIO.getDirFileList (fname, filter);
                 break;
             case CD:
@@ -302,32 +300,30 @@ public class ScriptExecute {
                 FileIO.setFilePath (fname);
                 break;
             case FEXISTS:
-                // arg 0: filename, optional arg 1: type of check on file
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                // arg 0: type of check on file
+                // arg 1: filename
+                String ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                File file = FileIO.getFilePath(fname);
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                  ParameterStruct.ParamType.String).getStringValue();
 
+                File file = FileIO.getFilePath(fname);
                 boolean value;
-                String strCheck = "EXISTS";
-                if (cmdStruct.params.size() > 1) {
-                    strCheck = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
-                      ParameterStruct.ParamType.String).getStringValue();
-                }
-                switch (strCheck) {
-                    case "WRITABLE":
+                switch (ftype) {
+                    case "-w":
                         value = file.isFile() && file.canWrite();
                         break;
-                    case "READABLE":
+                    case "-r":
                         value = file.isFile() && file.canRead();
                         break;
-                    case "DIRECTORY":
+                    case "-d":
                         value = file.isDirectory();
                         break;
-                    case "EXISTS":
+                    case "-x":
                         value = file.exists();
                         break;
                     default:
-                        throw new ParserException(exceptPreface + "Unknown file check argument: " + strCheck);
+                        throw new ParserException(exceptPreface + "Unknown file check argument: " + ftype);
                 }
                 VarReserved.putStatusValue(value);
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "File " + file + " exists = " + value);
@@ -353,14 +349,13 @@ public class ScriptExecute {
                 FileIO.createDir(fname);
                 break;
             case RMDIR:
-                // arg 0: dir name
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                // arg 0: -f if force, else don't remove if not empty
+                // arg 1: dir name
+                ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                boolean bForce = false;
-                if (cmdStruct.params.size() > 1 && cmdStruct.params.get(1).getStringValue().contentEquals("FORCE")) {
-                    bForce = true;
-                }
-                FileIO.removeDir(fname, bForce);
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                  ParameterStruct.ParamType.String).getStringValue();
+                FileIO.removeDir(fname, ftype.contentEquals("-f"));
                 break;
             case FDELETE:
                 // arg 0: filename
@@ -369,30 +364,22 @@ public class ScriptExecute {
                 FileIO.delete(fname);
                 break;
             case FCREATE:
-                // arg 0: filename
-                // arg 1: type (optional)
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                // arg 0: type (-r / -w)
+                // arg 1: filename
+                ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                boolean writable = false;
-                if (cmdStruct.params.size() > 1) {
-                    String ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
-                      ParameterStruct.ParamType.String).getStringValue();
-                    writable = ftype.contentEquals("WRITE");
-                }
-                FileIO.createFile(fname, writable);
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                  ParameterStruct.ParamType.String).getStringValue();
+                FileIO.createFile(fname, ftype.contentEquals("-w"));
                 break;
             case FOPEN:
-                // arg 0: filename
-                // arg 1: type
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                // arg 0: type (-r / -w)
+                // arg 1: filename
+                ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                writable = false;
-                if (cmdStruct.params.size() > 1) {
-                    String ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
-                      ParameterStruct.ParamType.String).getStringValue();
-                    writable = ftype.contentEquals("WRITE");
-                }
-                FileIO.openFile(fname, writable);
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                  ParameterStruct.ParamType.String).getStringValue();
+                FileIO.openFile(fname, ftype.contentEquals("-w"));
                 break;
             case FCLOSE:
                 // arg 0: filename
@@ -411,9 +398,14 @@ public class ScriptExecute {
                 break;
             case FWRITE:
                 // arg 0: text to write
-                String text = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
-                  ParameterStruct.ParamType.String).getStringValue();
-                FileIO.write(text);
+                ParameterStruct parm = cmdStruct.params.get(0);
+                ArrayList<String> strArray = ParameterStruct.verifyArgEntry (parm,
+                  ParameterStruct.ParamType.StrArray).getStrArray();
+                if (strArray != null && strArray.size() > 1) {
+                    FileIO.write(strArray);
+                } else {
+                    FileIO.write(parm.getStringValue());
+                }
                 break;
             case OCRSCAN:
                 // verify 1 String argument: file name

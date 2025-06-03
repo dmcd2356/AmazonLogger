@@ -560,67 +560,71 @@ public class ParseScript {
         }
 
         frame.outputInfoMsg(STATUS_COMPILE, "     * Repacking parameters for Calculation");
-        
-        // the 1st argument of a SET command is the parameter name to assign the value to
-        line = line.substring(paramName.length()).strip();
-        parm = new ParameterStruct(paramName, ParameterStruct.ParamClass.Reference, ptype);
-        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + paramName);
-        params.add(parm);
 
-        // next entry should be the equality sign (except for Arrays)
-        switch (ptype) {
-            case Integer:
-            case Unsigned:
-            case Boolean:
-                String nextArg = getNextWord (line);
-                line = line.substring(nextArg.length()).strip();
-                String newOp = nextArg.substring(0, nextArg.length() - 1);
-                nextArg = nextArg.strip();
-                switch (nextArg) {
-                    case "=", "+=", "-=", "*=", "/=", "%=", "AND=", "OR=", "XOR=" -> {
-                    }
-                    default -> throw new ParserException(functionId + "invalid equality sign: " + nextArg);
-                }
-
-                // bitwise ops are only allowed for Unsigned type
-                if (ptype != ParameterStruct.ParamType.Unsigned) {
-                    if (newOp.equals("AND") || newOp.equals("OR") || newOp.equals("XOR")) {
-                        throw new ParserException(functionId + "Bitwise assignments not allowed for type: " + ptype + ": " + newOp);
-                    }
-                } else if (ptype == ParameterStruct.ParamType.Boolean && ! newOp.equals("=")) {
-                    throw new ParserException(functionId + "No modifiers in equals allowed for type: " + ptype + ": " + newOp);
-                }
-
-                // this will pack the "=" sign
-                ParameterStruct.ParamType newParam = ParameterStruct.ParamType.String;
-                parm = new ParameterStruct("=", ParameterStruct.ParamClass.Discrete, newParam);
-                frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + newParam + " value: =");
-                params.add(parm);
-
-                // if there was an operation preceeding the "=" sign, let's sneek the operation in here
-                //  by adding it to the rest of the line
-                if (!newOp.isEmpty()) {
-                    // first we add the parameter name that has the $ attached, so it becomes a reference value,
-                    // followed by the operation to perform, followed by the opening parenthesis and then
-                    // the remainder of the calculation, then we end it with the closing parenthesis.
-                    // (the parenthesis are included to assure that the newOp operation is performed last.
-                    line = "$" + paramName + " " + newOp + " (" + line + ")";
-                }
-                break;
-
-            default:
-                break;
-        }
-
-        // check if Boolean type, which must have a comparison of 2 calculations
-        if (ptype == ParameterStruct.ParamType.Boolean) {
-            ArrayList<ParameterStruct> compParams = packComparison(line);
-            params.addAll(compParams);
-        } else {
-            // else, numeric type: remaining data is a single Calculation
-            parm = new ParameterStruct(line, ParameterStruct.ParamClass.Calculation, ptype);
-            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
+        try {
+            // the 1st argument of a SET command is the parameter name to assign the value to
+            line = line.substring(paramName.length()).strip();
+            parm = new ParameterStruct(paramName, ParameterStruct.ParamClass.Reference, ptype);
+            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + paramName);
             params.add(parm);
+
+            // next entry should be the equality sign (except for Arrays)
+            switch (ptype) {
+                case Integer:
+                case Unsigned:
+                case Boolean:
+                    String nextArg = getNextWord (line);
+                    line = line.substring(nextArg.length()).strip();
+                    String newOp = nextArg.substring(0, nextArg.length() - 1);
+                    nextArg = nextArg.strip();
+                    switch (nextArg) {
+                        case "=", "+=", "-=", "*=", "/=", "%=", "AND=", "OR=", "XOR=" -> {
+                        }
+                        default -> throw new ParserException(functionId + "invalid equality sign: " + nextArg);
+                    }
+
+                    // bitwise ops are only allowed for Unsigned type
+                    if (ptype != ParameterStruct.ParamType.Unsigned) {
+                        if (newOp.equals("AND") || newOp.equals("OR") || newOp.equals("XOR")) {
+                            throw new ParserException(functionId + "Bitwise assignments not allowed for type: " + ptype + ": " + newOp);
+                        }
+                    } else if (ptype == ParameterStruct.ParamType.Boolean && ! newOp.equals("=")) {
+                        throw new ParserException(functionId + "No modifiers in equals allowed for type: " + ptype + ": " + newOp);
+                    }
+
+                    // this will pack the "=" sign
+                    ParameterStruct.ParamType newParam = ParameterStruct.ParamType.String;
+                    parm = new ParameterStruct("=", ParameterStruct.ParamClass.Discrete, newParam);
+                    frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + newParam + " value: =");
+                    params.add(parm);
+
+                    // if there was an operation preceeding the "=" sign, let's sneek the operation in here
+                    //  by adding it to the rest of the line
+                    if (!newOp.isEmpty()) {
+                        // first we add the parameter name that has the $ attached, so it becomes a reference value,
+                        // followed by the operation to perform, followed by the opening parenthesis and then
+                        // the remainder of the calculation, then we end it with the closing parenthesis.
+                        // (the parenthesis are included to assure that the newOp operation is performed last.
+                        line = "$" + paramName + " " + newOp + " (" + line + ")";
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+
+            // check if Boolean type, which must have a comparison of 2 calculations
+            if (ptype == ParameterStruct.ParamType.Boolean) {
+                ArrayList<ParameterStruct> compParams = packComparison(line);
+                params.addAll(compParams);
+            } else {
+                // else, numeric type: remaining data is a single Calculation
+                parm = new ParameterStruct(line, ParameterStruct.ParamClass.Calculation, ptype);
+                frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
+                params.add(parm);
+            }
+        } catch (ParserException exMsg) {
+            throw new ParserException(exMsg + "\n  -> " + functionId );
         }
         
         return params;
@@ -667,6 +671,10 @@ public class ParseScript {
         // search for required comparison sign
         String compSign = "==";
         int offset = line.indexOf(compSign);
+        if (offset <= 0) {
+            compSign = "!=";
+            offset = line.indexOf(compSign);
+        }
         if (offset <= 0) {
             compSign = ">=";
             offset = line.indexOf(compSign);

@@ -196,10 +196,14 @@ public class ScriptCompile {
                     case DIRECTORY:
                         // verify 1 String argument: directory & 1 optional String -d or -f
                         ParseScript.checkMaxArgs(2, cmdStruct);
-                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
-                        if (cmdStruct.params.size() > 1) {
+                        if (cmdStruct.params.size() == 1) {
+                            ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                            ParameterStruct newParm = new ParameterStruct ("");
+                            cmdStruct.params.add(0, newParm); // insert default value as empty string
+                        } else {
+                            ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                             ParseScript.checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
-                            String option = cmdStruct.params.get(1).getStringValue();
+                            String option = cmdStruct.params.get(0).getStringValue();
                             switch (option) {
                                 case "-f", "-d" -> {  }
                                 default -> throw new ParserException(functionId + "option is not valid: " + option);
@@ -212,14 +216,18 @@ public class ScriptCompile {
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FEXISTS:
-                        // verify 1 String argument: file name & 1 optional argument String: READABLE / WRITABLE / DIRECTORY
+                        // verify 1 optional argument String: type & 1 required String argument: file name
                         ParseScript.checkMaxArgs(2, cmdStruct);
-                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
-                        if (cmdStruct.params.size() > 1) {
+                        if (cmdStruct.params.size() == 1) {
+                            ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                            ParameterStruct newParm = new ParameterStruct ("-x");
+                            cmdStruct.params.add(0, newParm); // insert default value "-x"
+                        } else {
+                            ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                             ParseScript.checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
-                            String option = cmdStruct.params.get(1).getStringValue();
+                            String option = cmdStruct.params.get(0).getStringValue();
                             switch (option) {
-                                case "EXISTS", "READABLE", "WRITABLE", "DIRECTORY" -> {  }
+                                case "-x", "-r", "-w", "-d" -> {  }
                                 default -> throw new ParserException(functionId + "option is not valid: " + option);
                             }
                         }
@@ -231,12 +239,16 @@ public class ScriptCompile {
                         break;
                     case RMDIR:
                         // verify 1 String argument: dir name & 1 optional argument String: FORCE (if dir is not empty)
-                        ParseScript.checkMaxArgs(1, cmdStruct);
-                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
-                        if (cmdStruct.params.size() > 1) {
+                        ParseScript.checkMaxArgs(2, cmdStruct);
+                        if (cmdStruct.params.size() == 1) {
+                            ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                            ParameterStruct newParm = new ParameterStruct (" ");
+                            cmdStruct.params.add(0, newParm); // insert default value "-x"
+                        } else {
                             ParseScript.checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
-                            String option = cmdStruct.params.get(1).getStringValue();
-                            if (! option.contentEquals("FORCE")) {
+                            ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                            String option = cmdStruct.params.get(0).getStringValue();
+                            if (! option.contentEquals("-f")) {
                                 throw new ParserException(functionId + "option is not valid: " + option);
                             }
                         }
@@ -247,27 +259,35 @@ public class ScriptCompile {
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FCREATE:
-                        // verify 1 String argument: file name & 1 optional argument String: type = READ/WRITE
+                        // verify 1 optional argument String: type & 1 required String argument: file name
                         ParseScript.checkMaxArgs(2, cmdStruct);
-                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
-                        if (cmdStruct.params.size() > 1) {
+                        if (cmdStruct.params.size() == 1) {
+                            ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                            ParameterStruct newParm = new ParameterStruct ("-r");
+                            cmdStruct.params.add(0, newParm); // insert default value "-r"
+                        } else {
+                            ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                             ParseScript.checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
-                            String option = cmdStruct.params.get(1).getStringValue();
+                            String option = cmdStruct.params.get(0).getStringValue();
                             switch (option) {
-                                case "READ", "WRITE" -> {  }
+                                case "-r", "-w" -> {  }
                                 default -> throw new ParserException(functionId + "option is not valid: " + option);
                             }
                         }
                         break;
                     case FOPEN:
-                        // verify 1 String argument: file name & 1 optional argument String: type = READ/WRITE
+                        // verify 1 optional argument String: type & 1 required String argument: file name
                         ParseScript.checkMaxArgs(2, cmdStruct);
-                        ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
-                        if (cmdStruct.params.size() > 1) {
+                        if (cmdStruct.params.size() == 1) {
+                            ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
+                            ParameterStruct newParm = new ParameterStruct ("-r");
+                            cmdStruct.params.add(0, newParm); // insert default value "-r"
+                        } else {
+                            ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                             ParseScript.checkArgType (1, ParameterStruct.ParamType.String, cmdStruct.params);
-                            String option = cmdStruct.params.get(1).getStringValue();
+                            String option = cmdStruct.params.get(0).getStringValue();
                             switch (option) {
-                                case "READ", "WRITE" -> {  }
+                                case "-r", "-w" -> {  }
                                 default -> throw new ParserException(functionId + "option is not valid: " + option);
                             }
                         }
@@ -452,14 +472,14 @@ public class ScriptCompile {
                         // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Variables)
                         String ifName = cmdStruct.params.get(0).getStringValue();
 
-                        // if not first IF statement, make sure previous IF had an ENDIF
                         IFStruct ifInfo;
-                        if (!IFStruct.isIfListEnpty() && !IFStruct.isIfStackEnpty()) {
-                            ifInfo = IFStruct.getIfListEntry();
-                            if (!ifInfo.isValid()) {
-                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when previous IF has no matching ENDIF");
-                            }
-                        }
+//                        // if not first IF statement, make sure previous IF had an ENDIF
+//                        if (!IFStruct.isIfListEnpty() && !IFStruct.isIfStackEnpty()) {
+//                            ifInfo = IFStruct.getIfListEntry();
+//                            if (!ifInfo.isValid()) {
+//                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when previous IF has no matching ENDIF");
+//                            }
+//                        }
 
                         // add entry to the current loop stack
                         String sname = Subroutine.getSubName();
@@ -558,13 +578,13 @@ public class ScriptCompile {
                                 loopStart = cmdStruct.params.get(1);
                                 strVal    = ParseScript.checkArgTypeString  (2, cmdStruct.params);
                                 loopEnd   = cmdStruct.params.get(3);
+                                if (strVal.contentEquals("TO")) {
+                                    bInclEnd = true;
+                                }
                                 if (! strVal.contentEquals("TO") && ! strVal.contentEquals("UPTO")) {
                                     bValid = false;
                                 }
-                                else if (cmdStruct.params.size() == 6) {
-                                    if (strVal.contentEquals("TO")) {
-                                        bInclEnd = true;
-                                    }
+                                if (cmdStruct.params.size() == 6) {
                                     // this checks the optional loop index step value
                                     strVal   = ParseScript.checkArgTypeString  (4, cmdStruct.params);
                                     loopStep = cmdStruct.params.get(5);
