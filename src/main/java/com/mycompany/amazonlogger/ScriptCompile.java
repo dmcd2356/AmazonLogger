@@ -472,16 +472,8 @@ public class ScriptCompile {
                         // assumed format is: IF Name1 >= Name2  (where Names can be Integers, Strings or Variables)
                         String ifName = cmdStruct.params.get(0).getStringValue();
 
-                        IFStruct ifInfo;
-//                        // if not first IF statement, make sure previous IF had an ENDIF
-//                        if (!IFStruct.isIfListEnpty() && !IFStruct.isIfStackEnpty()) {
-//                            ifInfo = IFStruct.getIfListEntry();
-//                            if (!ifInfo.isValid()) {
-//                                throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when previous IF has no matching ENDIF");
-//                            }
-//                        }
-
                         // add entry to the current loop stack
+                        IFStruct ifInfo;
                         String sname = Subroutine.getSubName();
                         ifInfo = new IFStruct (cmdIndex, LoopStruct.getStackSize(), sname);
                         IFStruct.ifListPush(ifInfo);

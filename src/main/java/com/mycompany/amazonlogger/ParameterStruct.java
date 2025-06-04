@@ -186,7 +186,11 @@ public final class ParameterStruct {
                     break;
                 case IntArray:
                 case StrArray:
-                    // first transfer the array entries to the String Array param
+                    // first, remove the braces if they are included
+                    if (strParam.charAt(0) == '{' && strParam.charAt(strParam.length()-1) == '}') {
+                        strParam = strParam.substring(1, strParam.length()-1).strip();
+                    }
+                    // transfer the array entries to the String Array param
                     strArrayParam = new ArrayList<>(Arrays.asList(strParam.split(",")));
                     intArrayParam = new ArrayList<>();
                     boolean bAllInts = true;
@@ -534,6 +538,7 @@ public final class ParameterStruct {
         }
         
         // first check if it is a Variable
+        strValue = strValue.strip();
         ParamType varType;
         if (strValue.startsWith("$")) {
             // it's a parameter - determine its data type
@@ -564,9 +569,14 @@ public final class ParameterStruct {
                     Long longVal = getLongOrUnsignedValue (strValue);
                     varType = isUnsignedInt(longVal) ? ParamType.Unsigned : ParamType.Integer;
                 } catch (ParserException ex) {
-                    int offset = strValue.indexOf('{');
-                    if (offset > 0) {
-                        varType = ParamType.StrArray; // NOTE: could also be Array, but let's leave it at List
+                    int offset1 = strValue.indexOf('{');
+                    int offset2 = strValue.indexOf('}');
+                    if (offset1 == 0 && offset2 == strValue.length() - 1) {
+                        if (isDiscreteIntArray(strValue)) {
+                            varType = ParamType.IntArray;
+                        } else {
+                            varType = ParamType.StrArray;
+                        }
                     } else {
                         varType = ParamType.String;
                     }
@@ -575,6 +585,25 @@ public final class ParameterStruct {
         }
         
         return varType;
+    }
+
+    /**
+     * checks to see if the entry is an IntArray of integer values.
+     * 
+     * @param entry - the string representing the parameter value
+     * 
+     * @return true if the entry qualifies as an integer array
+     */
+    private static boolean isDiscreteIntArray (String entry) {
+        if (entry.charAt(0) != '{' || entry.charAt(entry.length()-1) != '}')
+            return false;
+        for (int ix = 1; ix < entry.length() - 1; ix++) {
+            char ch = entry.charAt(ix);
+            if (!Character.isDigit(ch) && ch != '-' && ch != ' ' && ch != ',') {
+                return false;
+            }
+        }
+        return true;
     }
     
     /**

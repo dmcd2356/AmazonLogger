@@ -7,6 +7,7 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import java.util.ArrayList;
 import java.util.Objects;
 
 /**
@@ -120,9 +121,23 @@ public class Comparison {
         if ((matchType & STRING) != 0) {
             String strval1 = value1.getStringValue();
             String strval2 = value2.getStringValue();
-            bStatus = Utils.compareParameterValues (strval1, strval2, compSign);
-            frame.outputInfoMsg(STATUS_PROGRAM, "    String Compare: " + strval1 + " " + compSign + " " + strval2 + " => " + bStatus);
-            return;
+            if ((types2 & SARRAY) == 0) {
+                bStatus = Utils.compareParameterValues (strval1, strval2, compSign);
+                frame.outputInfoMsg(STATUS_PROGRAM, "    String Compare: " + strval1 + " " + compSign + " " + strval2 + " => " + bStatus);
+                return;
+            } else {
+                // we are comparing a String to a list of Strings
+                ArrayList<String> arrval = value2.getStrArray();
+                frame.outputInfoMsg(STATUS_PROGRAM, "    Comparing String to an array of values of size: " + arrval.size());
+                bStatus = false;
+                for (int ix = 0; ix < arrval.size() && !bStatus; ix++) {
+                    strval2 = arrval.get(ix);
+                    bStatus = Utils.compareParameterValues (strval1, strval2, compSign);
+                    frame.outputInfoMsg(STATUS_PROGRAM, "    String Compare ix[" + ix + "]: " + strval1 + " " + compSign + " " + strval2 + " => " + bStatus);
+                }
+                frame.outputInfoMsg(STATUS_PROGRAM, "    String Compare result: " + bStatus);
+                return;
+            }
         }
         
         // otherwise, it is a numeric comparison

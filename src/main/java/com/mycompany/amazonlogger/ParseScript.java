@@ -421,7 +421,8 @@ public class ParseScript {
                     }
                     
                     // place them in the proper list structure
-                    arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.StrArray);
+                    paramType = ParameterStruct.ParamType.StrArray;
+                    arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, paramType);
                     frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: [ " + nextArg + " ]");
                     params.add(arg);
                     continue;
@@ -651,9 +652,8 @@ public class ParseScript {
         
         ArrayList<ParameterStruct> params = new ArrayList<>();
         ParameterStruct parm;
-        ParameterStruct.ParamType ptype;
-        ParameterStruct.ParamClass pclass1;
-        ParameterStruct.ParamClass pclass2;
+        ParameterStruct.ParamType ptype1, ptype2;
+        ParameterStruct.ParamClass pclass1, pclass2;
         
         frame.outputInfoMsg(STATUS_COMPILE, "     * Repacking parameters for Comparison");
         
@@ -694,17 +694,17 @@ public class ParseScript {
         if (offset <= 0) {
             // this is a single boolean entry rather than a comparison
             pclass1 = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
-            ptype = ParameterStruct.ParamType.Boolean;
-            parm = new ParameterStruct(line, pclass1, ptype);
-            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
+            ptype1 = ParameterStruct.ParamType.Boolean;
+            parm = new ParameterStruct(line, pclass1, ptype1);
+            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype1 + " value: " + line);
             params.add(parm);
             
             if (bNot) {
                 String value = "!";
                 pclass2 = ParameterStruct.ParamClass.Discrete;
-                ptype = ParameterStruct.ParamType.String;
-                parm = new ParameterStruct(value, pclass2, ptype);
-                frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + value);
+                ptype2 = ParameterStruct.ParamType.String;
+                parm = new ParameterStruct(value, pclass2, ptype2);
+                frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype2 + " value: " + value);
                 params.add(parm);
             }
             return params;
@@ -725,14 +725,14 @@ public class ParseScript {
         boolean bCalc = false;
         boolean bQuote = false;
         // if we have more than 1 entry on either side, it must be a numeric calculation
-        if (countArgs(prefix) > 1 || countArgs(line) > 1) {
-            bCalc = true;
-        } else {
+//        if (countArgs(prefix) > 1 || countArgs(line) > 1) {
+//            bCalc = true;
+//        } else {
             // or, if either entry is a quoted string, remove the quotes from it
             bQuote = (prefix.charAt(0) == '\"' || line.charAt(0) == '\"');
             prefix = extractQuotedString (prefix);
             line   = extractQuotedString (line);
-        }
+//        }
             
         if (! bCalc && ! bQuote) {
             // if neither of the above, let's determine if the entries are numeric or not.
@@ -749,28 +749,30 @@ public class ParseScript {
             
         // now set the type of comparison we are doing: Integer or String.
         if (bCalc) {
-            ptype = ParameterStruct.ParamType.Integer;
+            ptype1 = ParameterStruct.ParamType.Integer;
+            ptype2 = ParameterStruct.ParamType.Integer;
             pclass1 = ParameterStruct.ParamClass.Calculation;
             pclass2 = ParameterStruct.ParamClass.Calculation;
         } else {
-            ptype = ParameterStruct.ParamType.String;
+            ptype1 = ParameterStruct.ParamType.String;
+            ptype2 = ParameterStruct.classifyDataType(line);
             pclass1 = (prefix.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
             pclass2 = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
         }
 
-        // first add the initial Calculation value, which will usually be a Variable or a Discreet value.
-        parm = new ParameterStruct(prefix, pclass1, ptype);
-        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + prefix);
+        // first add the initial value, which will usually be a Variable or a Discrete value.
+        parm = new ParameterStruct(prefix, pclass1, ptype1);
+        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype1 + " value: " + prefix);
         params.add(parm);
         
-            // now add the comparison sign
+        // now add the comparison sign
         parm = new ParameterStruct(compSign, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
-        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + compSign);
+        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type String value: " + compSign);
         params.add(parm);
             
         // remaining data is the Calculation, which may be a single value or a complex formula
-        parm = new ParameterStruct(line, pclass2, ptype);
-        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
+        parm = new ParameterStruct(line, pclass2, ptype2);
+        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype2 + " value: " + line);
         params.add(parm);
 
         return params;
