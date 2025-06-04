@@ -126,7 +126,10 @@ public class Comparison {
                 frame.outputInfoMsg(STATUS_PROGRAM, "    String Compare: " + strval1 + " " + compSign + " " + strval2 + " => " + bStatus);
                 return;
             } else {
-                // we are comparing a String to a list of Strings
+                // we are comparing a String to a list of Strings, but we can only use == or != comparison
+                if (! compSign.contentEquals("==") && ! compSign.contentEquals("!=")) {
+                    throw new ParserException(functionId + "Invalid Comparison of String to StrArray using " + compSign);
+                }
                 ArrayList<String> arrval = value2.getStrArray();
                 frame.outputInfoMsg(STATUS_PROGRAM, "    Comparing String to an array of values of size: " + arrval.size());
                 bStatus = false;
