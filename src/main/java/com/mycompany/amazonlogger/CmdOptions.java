@@ -6,6 +6,7 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
+import com.mycompany.amazonlogger.PropertiesFile.Property;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import static com.mycompany.amazonlogger.Utils.getDefaultPath;
@@ -44,8 +45,6 @@ public class CmdOptions {
         new OptionList ("-pfile"    , "S"),
         new OptionList ("-prun"     , ""),
         new OptionList ("-update"   , ""),
-        new OptionList ("-tpath"    , "s"),
-        new OptionList ("-ofile"    , "s"),
         new OptionList ("-save"     , ""),
 
         new OptionList ("-date"     , "S"),
@@ -106,7 +105,7 @@ public class CmdOptions {
      * 
      * @return String containing line number info
      */
-    private String showLineNumberInfo (int lineNum) {
+    private static String showLineNumberInfo (int lineNum) {
         if (lineNum > 0) {
             return "(line " + lineNum + ") ";
         }
@@ -616,18 +615,6 @@ public class CmdOptions {
                 case "-debug":
                     frame.setMessageFlags(getUnsignedValue(params, 0));
                     break;
-                case "-tpath":
-                    String path;
-                    if (params.isEmpty()) {
-                        path = System.getProperty("user.dir");
-                        frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to current running directory: " + path);
-                    } else {
-                        path = getStringValue(params, 0);
-                        frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to: " + path);
-                    }
-                    Utils.setDefaultPath(Utils.PathType.Test, path);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to: " + path);
-                    break;
                 case "-spath":
                     String absPath = getStringValue(params, 0);
                     Utils.setDefaultPath(Utils.PathType.Spreadsheet, absPath);
@@ -761,16 +748,6 @@ public class CmdOptions {
                             }
                         }
                         response.add(line);
-                    }
-                    break;
-                case "-ofile":
-                    if (params.isEmpty()) {
-                        frame.outputInfoMsg(STATUS_PROGRAM, "  Output messages to stdout");
-                        frame.setTestOutputFile(null);
-                    } else {
-                        fname = getStringValue(params, 0);
-                        frame.outputInfoMsg(STATUS_PROGRAM, "  Output messages to file: " + fname);
-                        frame.setTestOutputFile(fname);
                     }
                     break;
                 case "-save":

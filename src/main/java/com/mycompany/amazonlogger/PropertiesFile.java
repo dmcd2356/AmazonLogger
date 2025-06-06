@@ -50,13 +50,14 @@ public class PropertiesFile {
         // these are startup settings to use that are saved from last run
         PdfPath,                // initial path selection for PDF file
         SpreadsheetPath,        // initial path selection for spreadsheet file
-        MsgEnable,              // debug message enable flags
-        MaxLenDescription,      // max length of description to display
-        DebugFileOut,           // name of the output file to copy debug info to
-        TestPath,               // test directory path
-        TestFileOut,            // name of the output file to copy test report to
         SpreadsheetFile,        // name of the spreadsheet file selection
         SpreadsheetTab,         // name of the spreadsheet tab selection
+        MaxLenDescription,      // max length of description to display
+        DebugFileOut,           // name of the output file to copy debug info to
+        MsgEnable,              // debug message enable flags
+        TestPath,               // test directory path
+        TestFileOut,            // name of the output file to copy test report to
+        TestFileAppend,         // 1 to append to test file output, 0 to overwrite it
     };
 
     /**

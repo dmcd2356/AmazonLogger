@@ -10,7 +10,6 @@ TODO:
  - add a timer function to run a subroutine when the timer goes off. also allow timer to be reset.
    (e.g. TIMERSET timeSecs SubroutineName , TIMER RESET)
  - add an elapsed time command (ELAPSEDSTART to set start point, $ELAPSED to get current elapsed time in msec)
- - make default debug output got to stdout until test file output -ofile command is received.
  - cleanup error handling messages and reporting errors with the stack trace.
  - More thorough error checking
  - Create tests for verifying functionality by specifying test web clips and PDF files to run with

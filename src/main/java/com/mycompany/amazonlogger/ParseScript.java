@@ -253,6 +253,21 @@ public class ParseScript {
     }
 
     /**
+     * checks if the specified argument is a Boolean and returns the value.
+     * 
+     * @param index      - the index of the argument in the arg list
+     * @param parmList   - the list of args
+     * 
+     * @return the value of the Boolean argument (it should always be valid)
+     * 
+     * @throws ParserException 
+     */    
+    public static Boolean checkArgTypeBoolean (int index, ArrayList<ParameterStruct> parmList) throws ParserException {
+        checkArgType (index, ParameterStruct.ParamType.Boolean, parmList);
+        return parmList.get(index).getBooleanValue();
+    }
+
+    /**
      * checks if the specified argument is a StrArray and returns the value.
      * 
      * @param index      - the index of the argument in the arg list
@@ -266,6 +281,22 @@ public class ParseScript {
         checkArgType (index, ParameterStruct.ParamType.StrArray, parmList);
         return parmList.get(index).getStrArray();
     }
+    
+    /**
+     * checks if the specified argument is a IntArray and returns the value.
+     * 
+     * @param index      - the index of the argument in the arg list
+     * @param parmList   - the list of args
+     * 
+     * @return the value of the IntArray argument (it should always be valid)
+     * 
+     * @throws ParserException 
+     */    
+    public static ArrayList<Long> checkArgTypeIntArray (int index, ArrayList<ParameterStruct> parmList) throws ParserException {
+        checkArgType (index, ParameterStruct.ParamType.IntArray, parmList);
+        return parmList.get(index).getIntArray();
+    }
+    
     /**
      * checks if the specified argument compiles with the Array Filter type.
      * 

@@ -27,6 +27,8 @@ public class CommandStruct {
         EXIT,       // this command is added automatically by the compiler
         STARTUP,    // begining of startup commands that run during pre-compile
         ENDSTARTUP, // end of startup commands
+        TESTPATH,   // sets the base path to use for basing relative paths from
+        LOGFILE,    // specifies the log file location and characteristics
         RUN,        // this command is for running the command-line commands
         PRINT,      // outputs text to console
         DIRECTORY,  // text file access functions

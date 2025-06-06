@@ -145,6 +145,12 @@ public final class UIFrame extends JFrame implements ActionListener {
     public UIFrame(boolean bGUI)
     {
         bUseGUI = bGUI;
+    
+        // reset test file location to none if not running from GUI
+        if (! bGUI) {
+            testFile = null;
+            testFname = "";
+        }
         
         // setup the control sizes
         int y_pane_height = 700;        // dimensions of the text pane
@@ -801,16 +807,20 @@ public final class UIFrame extends JFrame implements ActionListener {
      *  header line in it.
      * 
      * @param fname - name of the test file
+     * @param bAppend - true to append to existing file, false to create new file
      */
-    public void setTestOutputFile (String fname) {
+    public void setTestOutputFile (String fname, boolean bAppend) {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
         String absPath = fname;
         if (absPath != null && !absPath.isBlank()) {
             if (absPath.charAt(0) != '/') {
                 absPath = Utils.getDefaultPath (Utils.PathType.Test) + "/" + absPath;
             }
+            props.setPropertiesItem(Property.TestFileAppend,  bAppend ? 1 : 0);
             if (testFname.contentEquals(absPath)) {
                 String time = elapsedTimerGet();
-                this.testFile.println(time + "[DEBUG ] UIFrame.setTestOutputFile: No change in output file setting");
+                testFile.println(time + "[DEBUG ] " + functionId + "No change in output file setting");
                 return;
             }
             
@@ -818,19 +828,23 @@ public final class UIFrame extends JFrame implements ActionListener {
             props.setPropertiesItem(Property.TestFileOut, fname);
             testFname = absPath;
 
+            // if the file already exists and we are not appending, delete it first
+            File file = new File(absPath);
+            if (file.isFile() && ! bAppend) {
+                file.delete();
+            }
+                
             // if a file isn't already open, do it now
+            closeTestFile ();
             try {
-                if (this.testFile != null) {
-                    this.testFile.close();
-                }
-                this.testFile = new PrintWriter(new FileWriter(absPath, true));
-                this.testFile.println("\n=== " + getCurrentDateTime() + " ============================================================");
+                testFile = new PrintWriter(new FileWriter(absPath, true));
+                testFile.println("\n=== " + getCurrentDateTime() + " ============================================================");
             } catch (IOException ex) {
-                System.out.println("UIFrame.setTestOutputFile: on creating file: " + absPath + ", " + ex);
-                this.testFile = null;
+                System.out.println(functionId + "creating file: " + absPath + ", " + ex);
+                testFile = null;
             }
         } else {
-            this.testFile = null;
+            testFile = null;
             props.setPropertiesItem(Property.TestFileOut, "");
         }
     }
@@ -981,7 +995,13 @@ public final class UIFrame extends JFrame implements ActionListener {
      * sets the default settings for message control
      */
     public void setDefaultStatus () {
-        setTestOutputFile(props.getPropertiesItem(Property.TestFileOut, ""));
+        // only default to PropertiesFile selection for test file out if running from GUI.
+        // (for program mode, default to using stdout until selection made)
+        if (bUseGUI) {
+            String testName = props.getPropertiesItem(Property.TestFileOut, "");
+            Integer testAppend = props.getPropertiesItem(Property.TestFileAppend, 0);
+            setTestOutputFile(testName, testAppend != 0);
+        }
         setMessageFlags(getPropsMsgEnable());
     }
     

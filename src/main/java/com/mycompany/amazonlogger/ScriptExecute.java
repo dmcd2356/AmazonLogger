@@ -154,11 +154,11 @@ public class ScriptExecute {
         }
         // return if we don't see an embedded reference name in the String
         String strValue = param.getStringValue();
-        int offset = strValue.indexOf("\\$");
+        int offset = strValue.indexOf("<$");
         if (offset < 0 || offset >= strValue.length() - 5) {
             return null;
         }
-        int offset2 = strValue.substring(offset+2).indexOf("$");
+        int offset2 = strValue.substring(offset+2).indexOf(">");
         if (offset2 < 0) {
             return null;
         }
