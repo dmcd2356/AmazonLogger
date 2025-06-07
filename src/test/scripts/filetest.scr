@@ -1,0 +1,167 @@
+STARTUP
+  TESTPATH .
+  LOGFILE 0x8FE logs/<$SCRIPTNAME>.log
+ENDSTARTUP
+
+ALLOCATE GLOBAL String  { Filename, CheckType }
+ALLOCATE GLOBAL StrArray TextArray
+
+PRINT "This tests the embedded references: " + logs/<$SCRIPTNAME>.log
+PRINT
+
+CD logs
+PRINT "Current dir path: " + $CURDIR
+CLEAR RESPONSE
+DIRECTORY -d .
+DIRECTORY -f .
+PRINT $RESPONSE
+PRINT
+
+CD ../input
+
+Filename = testfile.txt
+PRINT "Current dir path: " + $CURDIR
+PRINT "File name: " + $Filename
+CLEAR RESPONSE
+FGETSIZE $Filename
+PRINT "File size: " + $RESPONSE[0]
+FGETLINES $Filename
+PRINT "Number of lines: " + $RESPONSE[1]
+
+PRINT "First 10 lines:"
+PRINT ====================
+CLEAR RESPONSE
+FOPEN -r $Filename
+FREAD 10
+FCLOSE $Filename
+FOR ix = 0 TO 9
+  PRINT $RESPONSE[$ix]
+NEXT
+PRINT ====================
+PRINT
+
+CD ../logs
+
+Filename = newFile.txt
+PRINT "Check ability to create, close, open, write and delete file: " + $Filename
+FEXISTS $Filename
+IF $STATUS
+  PRINT "- File exists - deleting"
+  FDELETE $Filename
+ENDIF
+PRINT "- Creating file"
+FCREATE -w $Filename
+PRINT "- Closing file"
+FCLOSE $Filename
+PRINT "- Opening file"
+FOPEN -w $Filename
+PRINT "- Writing 5 lines of text to file"
+TextArray = { aaaaa, bbb, ccccc, dddddddddd, ee }
+FWRITE $TextArray
+PRINT "- Closing file"
+FCLOSE $Filename
+CLEAR RESPONSE
+FGETSIZE $Filename
+FGETLINES $Filename
+PRINT "File size: " + $RESPONSE[0]
+PRINT "Number of lines: " + $RESPONSE[1]
+
+PRINT
+PRINT "File status checks:"
+PRINT $Filename + " exists as a writable file:"
+CheckType = WriteFile
+GOSUB FileStatusCheck
+
+FDELETE $Filename
+PRINT $Filename + " was just deleted:"
+CheckType = NoFile
+GOSUB FileStatusCheck
+
+Filename = nonexistant.file
+PRINT $Filename + " does not exist:"
+CheckType = NoFile
+GOSUB FileStatusCheck
+
+Filename = subdir
+MKDIR $Filename
+PRINT $Filename + " has just been created as a directory:"
+CheckType = Directory
+GOSUB FileStatusCheck
+
+CD subdir
+CD ..
+
+RMDIR $Filename
+PRINT Filename + " dir has just been deleted:"
+CheckType = NoFile
+GOSUB FileStatusCheck
+
+ENDMAIN
+
+# This does a status check on a file or directory to determine
+#  if the FEXISTS command is functioning correctly.
+# It reports the status value for each type of FEXISTS type and
+#  then compares to what values they should be.
+# Assumes $CheckType is set to one of { NoFile, ReadFile, WriteFile, Directory }
+#  so that it knows what values it should expect.
+#
+SUB FileStatusCheck
+  ALLOCATE LOCAL String Success
+  Success = PASS
+
+  # this one should be true for any case except NoFile
+  FEXISTS $Filename
+  PRINT $Filename + " EXISTS    ? " + $STATUS
+  IF $STATUS
+    IF $CheckType == NoFile
+      Success = FAIL
+    ENDIF
+  ELSE
+    IF $CheckType != NoFile
+      Success = FAIL
+    ENDIF
+  ENDIF
+
+  # this one should be true for ReadFile and WriteFile only
+  FEXISTS -r $Filename
+  PRINT $Filename + " READABLE  ? " + $STATUS
+  IF $STATUS
+    IF $CheckType == { NoFile, Directory }
+      Success = FAIL
+    ENDIF
+  ELSE
+    IF $CheckType == { ReadFile, WriteFile }
+      Success = FAIL
+    ENDIF
+  ENDIF
+
+  # this one should be true for WriteFile only
+  FEXISTS -w $Filename
+  PRINT $Filename + " WRITABLE  ? " + $STATUS
+  IF $STATUS
+    IF $CheckType == { NoFile, ReadFile, Directory }
+      Success = FAIL
+    ENDIF
+  ELSE
+    IF $CheckType == WriteFile
+      Success = FAIL
+    ENDIF
+  ENDIF
+
+  # this one should be true for Directory only
+  FEXISTS -d $Filename
+  PRINT $Filename + " DIRECTORY ? " + $STATUS
+  IF $STATUS
+    IF $CheckType != Directory
+      Success = FAIL
+    ENDIF
+  ELSE
+    IF $CheckType == Directory
+      Success = FAIL
+    ENDIF
+  ENDIF
+  PRINT "Test success: " + $Success
+  PRINT
+  RETURN
+ENDSUB
+

@@ -523,6 +523,7 @@ public class Utils {
                 break;
         }
         if (pathname == null || pathname.isBlank()) {
+            // if not found, use current working directory
             pathname = System.getProperty("user.dir");
         }
         return pathname;
@@ -543,20 +544,33 @@ public class Utils {
             throw new ParserException(functionId + "Input path name was null");
         }
         // Java doesn't get the '~' char, so change it to the home dir
-        if (pathname.charAt(0) == '~') {
-            pathname = System.getProperty("user.home") + pathname.substring(1);
-        }
+        pathname = FileIO.getAbsPath(pathname);
         
         switch (type) {
             case PDF:
+                // if running from script, limit path selection to within test path
+                if (! AmazonReader.isRunModeCommmandLine()) {
+                    if (! FileIO.isWithinTestPath(pathname)) {
+                        throw new ParserException(functionId + "Input path name was outside Test Path");
+                    }
+                }
                 props.setPropertiesItem (PropertiesFile.Property.PdfPath, pathname);
                 break;
             case Spreadsheet:
+                // if running from script, limit path selection to within test path
+                if (! AmazonReader.isRunModeCommmandLine()) {
+                    if (! FileIO.isWithinTestPath(pathname)) {
+                        throw new ParserException(functionId + "Input path name was outside Test Path");
+                    }
+                }
                 props.setPropertiesItem (PropertiesFile.Property.SpreadsheetPath, pathname);
                 break;
             default:
             case Test:
+                // when we set the Test path, init all other paths to it as well
                 props.setPropertiesItem (PropertiesFile.Property.TestPath, pathname);
+                props.setPropertiesItem (PropertiesFile.Property.PdfPath, pathname);
+                props.setPropertiesItem (PropertiesFile.Property.SpreadsheetPath, pathname);
                 break;
         }
     }

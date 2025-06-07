@@ -1,0 +1,35 @@
+STARTUP
+  TESTPATH .
+  LOGFILE 0x8FE logs/<$SCRIPTNAME>.log
+ENDSTARTUP
+
+ALLOCATE GLOBAL String   { Filename, SheetPath }
+
+-spath logs/output
+Filename = newsheet.ods
+CD $SpreadsheetPath
+FEXISTS $Filename
+IF $STATUS
+  FDELETE $Filename
+ENDIF
+
+#-stest $Filename { FirstTab, NextTab, LastTab }  { These, Are, The, Column, Categories }
+#-rowput 0 1 { AAA, "023", CCC, 007, EEE }
+#-rowput 0 2 { xyz, pf6, zzz, 23, x }
+#-rowput 0 3 { 999, last, line, of, data }
+
+-snew $Filename FirstTab { These, Are, The, Column, Categories }
+-rowput 0 1 { AAA, "023", CCC, 007, EEE }
+-rowput 0 2 { xyz, pf6, zzz, 23, x }
+-rowput 0 3 { 999, last, line, of, data }
+
+#-saddtab NextTab
+#-tab NextTab
+#-rowput 0 0 { Name, Rank, Cereal }
+#-rowput 0 1 { Fred, Son, Wheaties }
+#-rowput 0 2 { Susan, Daughter, Fruit loops }
+
+-save
+
+ENDMAIN
+

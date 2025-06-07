@@ -6,7 +6,6 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
-import com.mycompany.amazonlogger.PropertiesFile.Property;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import static com.mycompany.amazonlogger.Utils.getDefaultPath;

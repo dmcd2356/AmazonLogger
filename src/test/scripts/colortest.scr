@@ -1,0 +1,53 @@
+STARTUP
+  TESTPATH .
+  LOGFILE 0xE3 logs/<$SCRIPTNAME>.log
+ENDSTARTUP
+
+ALLOCATE GLOBAL Unsigned { U_Red, U_Green, U_Blue, U_BGmix, U_RowStart }
+ALLOCATE GLOBAL Integer  { I_Size, I_BGSize }
+ALLOCATE GLOBAL IntArray { A_ColorBytes, A_BGColumn, A_RGB }
+
+# select the spreadsheet to output to
+-spath ./logs/output
+-sfile colortest.ods
+-load 1 false
+-tab 0
+
+# set the colorwheel
+A_ColorBytes = { 0xFF, 0xDF, 0xBF, 0x9F, 0x7F, 0x5F, 0x3F, 0x1F }
+
+U_RowStart = 2
+
+# make a column of Green and Blue data (stays the same for each column)
+I_Size = $A_ColorBytes.SIZE
+CLEAR A_BGColumn
+FOR IX = 0 UPTO $I_Size
+  U_Green = $A_ColorBytes[$IX]
+  FOR IY = 0 UPTO $I_Size
+    U_Blue = $A_ColorBytes[$IY]
+    U_BGmix = ($U_Green * 0x100) + $U_Blue
+    APPEND A_BGColumn $U_BGmix
+  NEXT
+NEXT
+
+# now add the red for each column and output the column info
+FOR COL = 0 UPTO $I_Size
+  # create the RGB color array for the column by adding the red component
+  CLEAR A_RGB
+  I_BGSize = $I_Size * $I_Size
+  FOR IX = 0 UPTO $I_BGSize
+    U_Red = $A_ColorBytes[$COL]
+    U_BGmix = $A_BGColumn[$IX]
+    APPEND A_RGB ($U_Red * 0x10000) + $U_BGmix
+  NEXT
+
+  -colput $COL $U_RowStart $A_RGB.HEX
+  -colcolor $COL $U_RowStart $A_RGB
+NEXT
+
+# save the file
+-save
+
+ENDMAIN
+
+

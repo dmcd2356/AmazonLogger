@@ -1,0 +1,65 @@
+STARTUP
+  TESTPATH .
+  LOGFILE 0x8FE logs/<$SCRIPTNAME>.log
+ENDSTARTUP
+
+# the MAIN routine
+PRINT "MAIN routine starting"
+
+ALLOCATE LOCAL  Integer  { MainLocal_I1 }
+ALLOCATE LOCAL  Boolean  { MainLocal_B2, MainLocal_B3 }
+ALLOCATE GLOBAL IntArray { MainGlobal_IA4 }
+
+MainLocal_I1 = 765
+MainLocal_B2 = true
+MainGlobal_IA4 = { 1, 3, 5, 7, 9 }
+
+IF $MainLocal_B3 == false
+  PRINT "This is an uninitialized variable!"
+ENDIF
+
+PRINT $MainGlobal_IA4
+GOSUB AnotherFunnySub
+PRINT $MainGlobal_IA4
+
+GOSUB FunnySub
+
+PRINT $RETVAL
+PRINT $Smelly
+PRINT "Smelly : " + $Smelly.WRITETIME + " " + $Smelly.WRITER
+#PRINT "Stinky : " + $Stinky.WRITETIME + " " + $Stinky.WRITER
+PRINT "MainGlobal_IA4 : " + $MainGlobal_IA4.WRITETIME + " " + $MainGlobal_IA4.WRITER
+PRINT "MAIN routine complete"
+
+ENDMAIN
+
+
+SUB FunnySub
+  PRINT "FunnySub subroutine starting"
+  ALLOCATE LOCAL String  { Stinky }
+  Stinky = true
+  PRINT "Hello " + $Stinky
+  GOSUB DeeperSub
+  PRINT "FunnySub subroutine exiting"
+  RETURN $Stinky
+ENDSUB
+
+SUB AnotherFunnySub
+  PRINT "AnotherFunnySub subroutine starting"
+  ALLOCATE GLOBAL String  { Smelly }
+  Smelly = $MainGlobal_IA4
+  PRINT "Hello " + $Smelly
+  APPEND MainGlobal_IA4 { 2, 4, 6, 8 }
+  PRINT "AnotherFunnySub subroutine exiting"
+  RETURN $Smelly
+ENDSUB
+
+SUB DeeperSub
+  PRINT "DeeperSub subroutine starting"
+  ALLOCATE LOCAL String  { Stinky }
+  Stinky = false
+  PRINT "Hello " + $Stinky + $Smelly
+  PRINT "DeeperSub subroutine exiting"
+  RETURN $Stinky
+ENDSUB
+

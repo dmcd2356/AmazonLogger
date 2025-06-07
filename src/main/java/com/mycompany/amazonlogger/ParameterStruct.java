@@ -142,7 +142,7 @@ public final class ParameterStruct {
                         }
                     }
                 } else {
-                    frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Calculation type " + paramType + " value: " + strValue);
+                    frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Calculation " + paramType + ": " + strValue);
                 }
                 return;
             }
@@ -151,7 +151,7 @@ public final class ParameterStruct {
                 // extract any extension added to the Variable
                 VarExtract paramInfo = new VarExtract(strParam);
                 variableRef = new VarExtensions(paramInfo);
-                frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Reference type " + paramType + " name: " + variableRef.getName());
+                frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Reference " + paramType + " name: " + variableRef.getName());
                 return;
             }
 
@@ -225,7 +225,7 @@ public final class ParameterStruct {
                 default:
                     break;
             }
-            frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Discreet type " + paramType + " value: " + strParam);
+            frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Discreet " + paramType + ": '" + strParam + "'");
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }

@@ -1,0 +1,33 @@
+STARTUP
+  TESTPATH .
+  LOGFILE 0x8FE logs/<$SCRIPTNAME>.log
+ENDSTARTUP
+
+# this should print the numbers 0 to 5
+FOR LOOPIX = 0 TO 5
+  PRINT $LOOPIX
+NEXT
+
+# this should not print anything
+FOR LOOPIX = 5 TO 0
+  PRINT $LOOPIX
+NEXT
+
+# this should print the numbers 9 to 5
+FOR LOOPIX = 9 TO 5 STEP -1
+  PRINT $LOOPIX
+NEXT
+
+# this should print the array info line at a time
+ALLOCATE GLOBAL StrArray { WordList }
+ALLOCATE GLOBAL Unsigned Index
+WordList = { If this, prints, the, test, passed }
+Index = 0
+FOR EVER 100
+  PRINT $WordList[$Index]
+  Index += 1
+  BREAKIF $Index >= $WordList.SIZE
+NEXT
+
+ENDMAIN
+

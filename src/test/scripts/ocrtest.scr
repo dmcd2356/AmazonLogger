@@ -1,0 +1,17 @@
+STARTUP
+  TESTPATH .
+  LOGFILE 0x8FE logs/<$SCRIPTNAME>.log
+ENDSTARTUP
+
+ALLOCATE GLOBAL StrArray { Columns, L_FILES, OcrLines }
+ALLOCATE GLOBAL String   { Filename, MyText, EXTENSION }
+
+#-ppath input
+OCRSCAN input/Scanned.pdf
+PRINT $OCRTEXT.SIZE
+MyText = $OCRTEXT
+OcrLines = $MyText.TOLINES
+PRINT $OcrLines.SIZE
+PRINT $OcrLines[21-23]
+
+ENDMAIN

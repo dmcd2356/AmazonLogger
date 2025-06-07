@@ -1,0 +1,61 @@
+STARTUP
+  TESTPATH .
+  LOGFILE 0x8FE logs/<$SCRIPTNAME>.log
+ENDSTARTUP
+
+ALLOCATE GLOBAL StrArray { Array1, ArraySum }
+ALLOCATE GLOBAL IntArray { Array2 }
+ALLOCATE GLOBAL String   { ix, index }
+ALLOCATE GLOBAL Integer  { Size1, EndIx }
+
+Array1 = { 0xFF, 0xDF, 0xBF, 0x9F, 0x7F, 0x5F, 0x3F, 0x1F }
+Array2 = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }
+Size1 = $Array1.SIZE
+
+PRINT "Array1 as list:"
+PRINT $Array1
+PRINT
+
+PRINT "Adding one array to another"
+PRINT "Array1 length = " + $Array1.SIZE
+PRINT "Array1 = " + $Array1.TOSTRING
+PRINT "Array2 length = " + $Array2.SIZE
+PRINT "Array2 = " + $Array2.TOSTRING
+APPEND ArraySum $Array1
+EndIx = $Array2.SIZE - 1
+FOR IX = $EndIx TO 0 STEP -1
+  APPEND ArraySum $Array2[$IX]
+NEXT
+PRINT "ArraySum length = " + $ArraySum.SIZE
+PRINT "ArraySum = " + $ArraySum.TOSTRING
+PRINT
+
+ix = 5
+index = 3
+CLEAR ArraySum
+PRINT "Array1 = " + $Array1.TOSTRING
+PRINT "Array2 = " + $Array2.TOSTRING
+PRINT "ArraySum = " + $ArraySum.TOSTRING
+APPEND ArraySum $Array1[$ix] + $Array2[$index]
+PRINT "Selecting 2 entries from the arrays and putting them into new array"
+PRINT $ArraySum.TOSTRING
+PRINT
+
+FOR IX = 0 TO $Size1
+  APPEND ArraySum $Array1[$ix] + $Array2[$IX]
+NEXT
+PRINT "Adding entries from a StrArray with an IntArray and putting them into another StrArray"
+PRINT $ArraySum.TOSTRING
+PRINT
+
+PRINT "Printing a random entry from 0 to 7 from an array"
+RANDOM = 7
+PRINT "Random entry in Array1 = " + $Array1[$RANDOM]
+PRINT
+
+PRINT "Printing an entry from an array based on the day of the week"
+PRINT "Day of week: " + $DATE.DOW
+PRINT "Array2 entry based on day of week: " + $Array2[$DATE.DOW]
+
+ENDMAIN
+

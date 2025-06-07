@@ -27,6 +27,8 @@ public class AmazonReader {
     private static String  scriptName = "";
 
     public enum RunMode {
+        GUI,
+        COMMAND_LINE,
         COMPILE_ONLY,
         COMPILE,
         EXECUTE,
@@ -34,6 +36,10 @@ public class AmazonReader {
 
     private static void setRunMode (RunMode mode) {
         opMode = mode;
+    }
+    
+    public static boolean isRunModeCommmandLine () {
+        return opMode == RunMode.COMMAND_LINE;
     }
     
     public static boolean isRunModeCompile () {
@@ -71,6 +77,7 @@ public class AmazonReader {
                     String fname = args[1];
                     runFromFile (fname, bRunExec);
                 } else {
+                    setRunMode (RunMode.COMMAND_LINE);
                     CmdOptions cmdLine = new CmdOptions();
                     cmdLine.runCommandLine(args);
                 }
@@ -87,7 +94,7 @@ public class AmazonReader {
             // close the test output file
             frame.closeTestFile();
         } else {
-            setRunMode (RunMode.EXECUTE);
+            setRunMode (RunMode.GUI);
             // create the user interface to control things
             frame = new UIFrame(true);
             props = new PropertiesFile();

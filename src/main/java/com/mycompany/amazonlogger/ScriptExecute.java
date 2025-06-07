@@ -203,7 +203,7 @@ public class ScriptExecute {
     public int executeProgramCommand (int cmdIndex, CommandStruct cmdStruct) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         String linePreface = "PROGIX [" + cmdIndex + "]: " + showLineNumberInfo(cmdStruct.line);
-        String exceptPreface = functionId + linePreface;
+        String exceptPreface = functionId + linePreface + " " + cmdStruct.command;
         String debugPreface = "    ";
         int newIndex = -1;
         

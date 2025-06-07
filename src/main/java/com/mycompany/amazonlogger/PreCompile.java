@@ -109,6 +109,7 @@ public class PreCompile {
                             frame.outputInfoMsg(STATUS_COMPILE, lineInfo + command + " - Ending STARTUP code");
                             break;
                         case TESTPATH:
+                            ParseScript.showPackedParams(params);
                             String path;
                             if (params.isEmpty()) {
                                 path = System.getProperty("user.dir");
@@ -117,10 +118,13 @@ public class PreCompile {
                                 path = ParseScript.checkArgTypeString (0, params);
                                 frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to: " + path);
                             }
+                            FileIO.setBaseTestPath(path);
+                            path = FileIO.getCurrentFilePath(); // make sure we have an absolute path
                             Utils.setDefaultPath(Utils.PathType.Test, path);
                             frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to: " + path);
                             break;
                         case LOGFILE:
+                            ParseScript.showPackedParams(params);
                             String logname = null;
                             boolean bAppend = false;
                             // set the debug filter value
@@ -152,6 +156,7 @@ public class PreCompile {
                     switch (command) {
                         case ALLOCATE:
                             // must be a Data Type followed by a List of Variable name entries
+                            ParseScript.showPackedParams(params);
                             String access   = ParseScript.checkArgTypeString (0, params);
                             String dataType = ParseScript.checkArgTypeString (1, params);
                             ArrayList<String> strArray = ParseScript.checkArgTypeStrArray (2, params);
@@ -191,6 +196,7 @@ public class PreCompile {
                             if (params.isEmpty()) {
                                 throw new ParserException(functionId + "Missing argument");
                             }
+                            ParseScript.showPackedParams(params);
                             subName = params.get(0).getStringValue();
                             subs.compileSubStart (subName, lineNum);
                             variables.varLocal.allocSubroutine(subName);
@@ -303,7 +309,6 @@ public class PreCompile {
                     // place them in the proper list structure
                     paramType = ParameterStruct.ParamType.StrArray;
                     arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, paramType);
-                    frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: [ " + nextArg + " ]");
                     params.add(arg);
                     continue;
                 }
@@ -351,7 +356,6 @@ public class PreCompile {
             // create the parameter entry and add it to the list of parameters
             ParameterStruct.ParamClass pClass = ParameterStruct.ParamClass.Discrete;
             arg = new ParameterStruct(nextArg, pClass, paramType);
-            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
             params.add(arg);
         }
         } catch (ParserException exMsg) {

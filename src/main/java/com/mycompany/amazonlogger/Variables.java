@@ -594,6 +594,31 @@ public class Variables {
         
         return varClass;
     }
+
+    /**
+     * extracts the length of the root variable name from a string (excludes extensions).
+     * 
+     * @param name - name containing parameter (must not include $ char
+     * 
+     * @return the length of the variable name found
+     * 
+     * @throws ParserException 
+     */
+    private static int getBaseNameLength (String name) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (name == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
+        int ix;
+        for (ix = 0; ix < name.length(); ix++) {
+            char nextch = name.charAt(ix);
+            if (! Character.isLetterOrDigit(nextch) && nextch != '_') {
+                break;
+            }
+        }
+        return ix;
+    }
     
     /**
      * determines the type of Variable by searching for the name.
@@ -613,13 +638,40 @@ public class Variables {
         if (name.charAt(0) == '$') {
             name = name.substring(1);
         }
-        int offTrait = name.indexOf('.');
-        int offBrack = name.indexOf('[');
-        if (offTrait > 0 && (offBrack > offTrait || offBrack < 0))
-            name = name.substring(0, offTrait);
-        else if (offBrack > 0 && (offTrait > offBrack || offTrait < 0))
-            name = name.substring(0, offBrack);
 
+        String paramName = name;
+        String traitName = "";
+        boolean bSingleBracket = false;
+
+        // in case there are extensions or other stuff at end of var name, trim it off so we can evaluate it
+        int offset = getBaseNameLength(name);
+        if (offset < name.length()) {
+            paramName = name.substring(0, offset);
+            name = name.substring(offset);
+
+            // check for brackets
+            if (! name.isEmpty() && name.charAt(0) == '[') {
+                offset = name.indexOf(']');
+                if (offset > 2) {
+                    String range = name.substring(1, offset);
+                    name = name.substring(offset + 1);
+                    if (range.indexOf('-') < 0) {
+                        bSingleBracket = true;
+                    }
+                }
+            }
+            // check for trait
+            if (! name.isEmpty() && name.charAt(0) == '.') {
+                traitName = name.substring(1);
+                offset = traitName.indexOf(' ');
+                if (offset >= 0) {
+                    traitName = traitName.substring(0, offset);
+                }
+            }
+            
+            name = paramName;
+        }
+        
         // this is the default value
         ParameterStruct.ParamType vartype = null;
         if (LoopStruct.getCurrentLoopValue(name) != null) {
@@ -640,6 +692,25 @@ public class Variables {
         if (vartype == null) {
             throw new ParserException(functionId + "Variable entry not found: " + name);
         }
+        
+        // the type may change based on brackets or traits
+        if (bSingleBracket) {
+            switch (vartype) {
+                case StrArray:
+                    vartype = ParameterStruct.ParamType.String;
+                    break;
+                case IntArray:
+                    vartype = ParameterStruct.ParamType.Integer;
+                    break;
+                default:
+                    break;
+            }
+        }
+        if (! traitName.isEmpty()) {
+            TraitInfo.Trait trait = TraitInfo.getTrait (traitName, paramName, vartype);
+            vartype = TraitInfo.getTraitDataType (trait, paramName, vartype);
+        }
+        
         return vartype;
     }
 

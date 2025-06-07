@@ -39,6 +39,14 @@ public class ScriptCompile {
         }
         return lineNumbers.get(cmdIx);
     }
+
+    private static void checkNoArgs (CommandStruct.CommandTable command, String strParams) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (! strParams.isEmpty()) {
+            throw new ParserException(functionId + "command " + command + " should have no arguments: " + strParams);
+        }
+    }
     
     /**
      * compiles the external script file (when -f option used) into a series of
@@ -158,28 +166,31 @@ public class ScriptCompile {
                 //  into the cmdStruct structure.
                 switch (command) {
                     case EXIT:
-                        ParseScript.checkMaxArgs(0, cmdStruct);
+                        checkNoArgs(command, parmString);
                         break;
                     case ENDMAIN:
-                        ParseScript.checkMaxArgs(0, cmdStruct);
+                        checkNoArgs(command, parmString);
                         break;
                     case SUB:
                         // verify 1 String argument: name of subroutine
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         String subName = ParseScript.checkArgTypeString (0, cmdStruct.params);
                         subs.compileSubStartCmdIx(subName, cmdIndex);
                         break;
                     case ENDSUB:
-                        ParseScript.checkMaxArgs(0, cmdStruct);
+                        checkNoArgs(command, parmString);
                         break;
                     case GOSUB:
                         // verify 1 String argument: name of subroutine (and optionally a list of various args)
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         subName = ParseScript.checkArgTypeString (0, cmdStruct.params);
                         subs.compileSubGosub (subName);
                         break;
                     case RETURN:
                         // optional String argument returned
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         if (!cmdStruct.params.isEmpty()) {
                             ParseScript.checkArgTypeString (0, cmdStruct.params);
@@ -189,12 +200,14 @@ public class ScriptCompile {
                     case PRINT:
                         // if no params, we will print a blank line
                         // if more than 1 parameter, check for a quoted string or concatenated string
+                        ParseScript.showPackedParams(cmdStruct.params);
                         if (cmdStruct.params.size() > 1) {
                             cmdStruct.params = parseScript.packStringConcat (cmdStruct.params, 2);
                         }
                         break;
                     case DIRECTORY:
                         // verify 1 String argument: directory & 1 optional String -d or -f
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(2, cmdStruct);
                         if (cmdStruct.params.size() == 1) {
                             ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
@@ -212,11 +225,13 @@ public class ScriptCompile {
                         break;
                     case CD:
                         // verify 1 String argument: directory
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FEXISTS:
                         // verify 1 optional argument String: type & 1 required String argument: file name
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(2, cmdStruct);
                         if (cmdStruct.params.size() == 1) {
                             ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
@@ -234,11 +249,13 @@ public class ScriptCompile {
                         break;
                     case MKDIR:
                         // verify 1 String argument: dir name
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case RMDIR:
                         // verify 1 String argument: dir name & 1 optional argument String: FORCE (if dir is not empty)
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(2, cmdStruct);
                         if (cmdStruct.params.size() == 1) {
                             ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
@@ -255,11 +272,13 @@ public class ScriptCompile {
                         break;
                     case FDELETE:
                         // verify 1 String argument: file name
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FCREATE:
                         // verify 1 optional argument String: type & 1 required String argument: file name
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(2, cmdStruct);
                         if (cmdStruct.params.size() == 1) {
                             ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
@@ -277,6 +296,7 @@ public class ScriptCompile {
                         break;
                     case FOPEN:
                         // verify 1 optional argument String: type & 1 required String argument: file name
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(2, cmdStruct);
                         if (cmdStruct.params.size() == 1) {
                             ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
@@ -294,21 +314,25 @@ public class ScriptCompile {
                         break;
                     case FCLOSE:
                         // verify 1 String argument: file name
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FGETSIZE:
                         // verify 1 String argument: file name
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FGETLINES:
                         // verify 1 String argument: file name
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                     case FREAD:
                         // verify 1 optional number of lines to read
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         if (! cmdStruct.params.isEmpty()) {
                             ParseScript.checkArgType (0, ParameterStruct.ParamType.Integer, cmdStruct.params);
@@ -321,12 +345,14 @@ public class ScriptCompile {
                         break;
                     case FWRITE:
                         // verify 1 argument: message to write
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
                         
                     case OCRSCAN:
                         // verify 1 String argument: file name
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         ParseScript.checkArgType (0, ParameterStruct.ParamType.String, cmdStruct.params);
                         break;
@@ -337,6 +363,7 @@ public class ScriptCompile {
                         
                     case SET:
                         if (cmdStruct.params.size() < 3) {
+                            ParseScript.showPackedParams(cmdStruct.params);
                             throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing value to set variable to");
                         }
                         // we pack parameters differently for calculations, so if the param
@@ -348,11 +375,14 @@ public class ScriptCompile {
                         String option = cmdStruct.params.get(1).getStringValue();
                         switch (option) {
                             case "=", "+=", "-=", "*=", "/=", "%=" -> {  }
-                            default -> 
+                            default -> {
+                                ParseScript.showPackedParams(cmdStruct.params);
                                 throw new ParserException(functionId + lineInfo + "command " + cmdStruct.command + " : Missing required '=' following variable name");
+                            }
                         }
                         if (cmdStruct.params.size() == 3 && option.contentEquals("=")) {
                             // if it's a single arg, verify it is an acceptable type for the variable
+                            ParseScript.showPackedParams(cmdStruct.params);
                             ParseScript.checkArgType (2, vartype, cmdStruct.params);
                         } else {
                             // else, we must either have a calculation (for numerics or booleans) or a String concatenation
@@ -368,6 +398,7 @@ public class ScriptCompile {
                                 default -> {
                                     // Strings are handled in the execution phase
                                     // Arrays are not allowed to have any operations, just simple assignments
+                                    ParseScript.showPackedParams(cmdStruct.params);
                                 }
                             }
                         }
@@ -376,6 +407,7 @@ public class ScriptCompile {
                     // these are the Array-only commands
                     case INSERT:
                     case APPEND:
+                        ParseScript.showPackedParams(cmdStruct.params);
                         // VarName, Data Value
                         // arg 0 should be the Array variable name
                         vartype = ParseScript.checkVariableName (0, cmdStruct.params);
@@ -398,6 +430,7 @@ public class ScriptCompile {
 
                     case MODIFY:
                         // VarName, Index, Data Value
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(3, cmdStruct);
                         // arg 0 should be the Array variable name
                         vartype = ParseScript.checkVariableName (0, cmdStruct.params);
@@ -416,6 +449,7 @@ public class ScriptCompile {
 
                     case REMOVE:
                         // VarName, Index
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(2, cmdStruct);
                         // arg 0 should be the Array variable name
                         ParseScript.checkVariableName (0, cmdStruct.params);
@@ -426,6 +460,7 @@ public class ScriptCompile {
                     case TRUNCATE:
                     case POP:
                         // VarName, Index (optional)
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(2, cmdStruct);
                         // arg 0 should be the Array variable name
                         ParseScript.checkVariableName (0, cmdStruct.params);
@@ -438,6 +473,7 @@ public class ScriptCompile {
                     case CLEAR:
                         // VarName
                         // arg 0 should be the Array variable name or RESPONSE
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(1, cmdStruct);
                         String varName = cmdStruct.params.get(0).getStringValue();
                         if (! varName.contentEquals("RESPONSE")) {
@@ -448,6 +484,7 @@ public class ScriptCompile {
                     case FILTER:
                         // ARGS: 0 = ParamName or RESET, 1 (optional) the filter string
                         // verify there are the correct number and type of arguments
+                        ParseScript.showPackedParams(cmdStruct.params);
                         ParseScript.checkMaxArgs(2, cmdStruct);
                         if (cmdStruct.params.size() < 1) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " command requires at least 1 argument : " + parmString);
@@ -481,7 +518,7 @@ public class ScriptCompile {
                         frame.outputInfoMsg(STATUS_COMPILE, "   - new IF level " + IFStruct.getStackSize() + " Variable " + ifName);
                         break;
                     case ELSE:
-                        ParseScript.checkMaxArgs(0, cmdStruct);
+                        checkNoArgs(command, parmString);
                         if (IFStruct.isIfListEnpty()) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
                         }
@@ -512,7 +549,7 @@ public class ScriptCompile {
                         frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " Variable " + ifName);
                         break;
                     case ENDIF:
-                        ParseScript.checkMaxArgs(0, cmdStruct);
+                        checkNoArgs(command, parmString);
                         if (IFStruct.isIfStackEnpty()) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in an IF case");
                         }
@@ -528,6 +565,7 @@ public class ScriptCompile {
                     case FOR:
                         // assumed format is: FOR VarName [=] StartIx TO EndIx [STEP StepVal]
                         // the other format is: "FOR EVER" - check for single argument of "EVER"
+                        ParseScript.showPackedParams(cmdStruct.params);
                         String loopName, strVal;
                         ParameterStruct loopStart = null;
                         ParameterStruct loopEnd   = null;
@@ -603,14 +641,14 @@ public class ScriptCompile {
                         }
                         break;
                     case BREAK:
-                        ParseScript.checkMaxArgs(0, cmdStruct);
+                        checkNoArgs(command, parmString);
                         // make sure we are in a FOR ... NEXT loop
                         if (LoopStruct.getStackSize() == 0) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
                         }
                         break;
                     case SKIP:
-                        ParseScript.checkMaxArgs(0, cmdStruct);
+                        checkNoArgs(command, parmString);
                         // make sure we are in a FOR ... NEXT loop
                         if (LoopStruct.getStackSize() == 0) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
@@ -633,7 +671,7 @@ public class ScriptCompile {
                         }
                         break;
                     case NEXT:
-                        ParseScript.checkMaxArgs(0, cmdStruct);
+                        checkNoArgs(command, parmString);
                         // make sure we are in a FOR ... NEXT loop
                         if (LoopStruct.getStackSize() == 0) {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " received when not in a FOR loop");
@@ -658,25 +696,17 @@ public class ScriptCompile {
                         LoopStruct.popStack();
                         break;
                     case ENDFOR:
-                        ParseScript.checkMaxArgs(0, cmdStruct);
+                        checkNoArgs(command, parmString);
                         // ignore the user entry of this command - we place our own ENDFOR when the NEXT command is found.
                         continue;
                     case RUN:
                         // verify the option command and its parameters
                         // NOTE: when we place the command in cmdStruct, we remove the RUN label,
                         //       so executeProgramCommand does not need to check for it.
+                        ParseScript.showPackedParams(cmdStruct.params);
                         cmdStruct.option = cmdStruct.params.getFirst().getStringValue();
                         cmdStruct.params.removeFirst();
                         cmdOptionParser.checkCmdOptions(cmdStruct.option, cmdStruct.params, lineNum);
-//                        ArrayList<String> optCmd = new ArrayList<>(Arrays.asList(parmString.split(" ")));
-//                        ArrayList<CommandStruct> runList = cmdOptionParser.formatCmdOptions (optCmd, lineNum);
-//
-//                        // append all option commands on the line to the command list, 1 option per command line
-//                        while (! runList.isEmpty()) {
-//                            lineNumbers.add(lineNum);
-//                            cmdList.add(runList.removeFirst());
-//                        }
-//                        cmdStruct = null; // clear this since we have copied all the commands from here
                         break;
 
                     default:
@@ -684,11 +714,10 @@ public class ScriptCompile {
                 }
 
                 // all good, add command to list
-                if (cmdStruct != null) {
-                    ParameterStruct.showParamTypeList(cmdStruct.params);
-                    lineNumbers.add(lineNum);
-                    cmdList.add(cmdStruct);
-                }
+                ParameterStruct.showParamTypeList(cmdStruct.params);
+                lineNumbers.add(lineNum);
+                cmdList.add(cmdStruct);
+                
             } catch (ParserException exMsg) {
                 String errMsg = exMsg + "\n  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + line;
                 if (AmazonReader.isRunModeCompileOnly()) {

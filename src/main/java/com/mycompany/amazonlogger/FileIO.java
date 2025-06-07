@@ -7,7 +7,6 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -34,9 +33,131 @@ public class FileIO {
     private static PrintWriter    fileWriter = null;
     private static String fileReadName;
     private static String fileWriteName;
-    private static String fileDir = Utils.getDefaultPath (Utils.PathType.Test);
+    private static String baseDir = System.getProperty("user.dir");
+    private static String fileDir = System.getProperty("user.dir");
 
 
+    /**
+     * tests whether the selected path is within the base path selection.
+     * 
+     * @param path - the absolute path to test
+     * 
+     * @return true if valid path
+     */
+    public static boolean isWithinTestPath (String path) throws ParserException {
+        int baseLen = baseDir.length();
+        if (path.length() < baseLen) {
+            return false;
+        }
+        return path.substring(0, baseLen).contentEquals(baseDir);
+    }
+
+    /**
+     * backs up to previous path in the chain.
+     * 
+     * This is called when a ".." entry is found in the directory path, which
+     *  indicates to backup to the directory above this one. Note that is will not
+     *  go beyond the user home directory.
+     * 
+     * @param curpath - the current path
+     * 
+     * @return the path above the current one
+     * 
+     * @throws ParserException
+     */
+    private static String backupPath (String curpath) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        // if there is a '/' char at end of path, remove it
+        if (curpath.charAt(curpath.length()-1) == '/') {
+            curpath = curpath.substring(0, curpath.length()-1);
+        }
+        // first make sure we are in the user base path
+        if (! curpath.startsWith(baseDir)) {
+            throw new ParserException(functionId + "Path is not within test base path: " + curpath);
+        }
+        int offset = curpath.lastIndexOf('/');
+        if (offset <= 0) {
+            throw new ParserException(functionId + "Path is invalid: " + curpath);
+        }
+        curpath = curpath.substring(0, offset);
+        
+        // make sure we are within bounds
+        if (! isWithinTestPath(curpath)) {
+            throw new ParserException(functionId + "Path is not within test base path: " + curpath);
+        }
+        frame.outputInfoMsg(STATUS_PROGRAM, "Backed up to directory above: " + curpath);
+        return curpath;
+    }
+
+    /**    
+     * converts the specified path into an absolute path.
+     * 
+     * @param path - the path (relative, absolute, relative to home or current dir)
+     * 
+     * @return the corresponding absolute path name
+     * 
+     * @throws ParserException 
+     */
+    public static String getAbsPath (String path) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (path.startsWith("..")) {
+            String newpath = fileDir;
+            while (! path.isEmpty() && path.startsWith("..")) {
+                newpath = backupPath (newpath);
+                path = path.substring(2);
+                if (! path.isEmpty()) {
+                    if (path.charAt(0) != '/') {
+                        throw new ParserException(functionId + "Invalid path format following .. : " + path);
+                    }
+                    path = path.substring(1);
+                }
+            }
+            if (! path.isEmpty()) {
+                newpath = newpath + "/" + path;
+            }
+            path = newpath;
+        } else if (path.contentEquals(".")) {
+            // the '.' indicates the current directory
+            path = fileDir;
+        } else if (path.startsWith("./")) {
+            // './' indicates relative to current directory
+            path = fileDir + path.substring(1);
+        } else if (path.startsWith("~")) {
+            // a leading '~' refers to the base Test path
+            if (path.length() > 1) {
+                path = System.getProperty("user.home") + path.substring(1);
+            } else {
+                path = System.getProperty("user.home");
+            }
+        } else if (! path.startsWith("/")) {
+            // otherwise it is relative to currently selected file path
+            path = fileDir + "/" + path;
+        }
+        return path;
+    }
+    
+    /**
+     * sets the base Test path for all file write accesses to be contained within.
+     * 
+     * @param path - the path to set as the FileIO path
+     * 
+     * @throws ParserException 
+     */    
+    public static void setBaseTestPath(String path) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        path = getAbsPath(path);
+        if (! isWithinTestPath(path)) {
+            throw new ParserException(functionId + "Path is not within test base path: " + path);
+        }
+
+        baseDir = path;
+        fileDir = path;
+        frame.outputInfoMsg(STATUS_DEBUG, "File IO base path set to: " + path);
+    }
+    
     /**
      * returns the current selected directory path for FileIO.
      * 
@@ -90,43 +211,6 @@ public class FileIO {
     }
 
     /**
-     * backs up to previous path in the chain.
-     * 
-     * This is called when a ".." entry is found in the directory path, which
-     *  indicates to backup to the directory above this one. Note that is will not
-     *  go beyond the user home directory.
-     * 
-     * @param curpath - the current path
-     * 
-     * @return the path above the current one
-     */
-    public static String backupPath (String curpath) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        // if there is a '/' char at end of path, remove it
-        if (curpath.charAt(curpath.length()-1) == '/') {
-            curpath = curpath.substring(0, curpath.length()-1);
-        }
-        // first make sure we are in the user home path
-        String userPath = System.getProperty("user.dir");
-        if (! curpath.startsWith(userPath)) {
-            throw new ParserException(functionId + "Path is not within user home path: " + curpath);
-        }
-        // now make sure we aren't alreay at the base home directory (won't go any further)
-        if (curpath.contentEquals(userPath)) {
-            frame.outputInfoMsg(STATUS_WARN, "Path isalready at user home base path: " + curpath);
-            return curpath;
-        }
-        int offset = curpath.lastIndexOf('/');
-        if (offset <= 0) {
-            throw new ParserException(functionId + "Path is invalid: " + curpath);
-        }
-        curpath = curpath.substring(0, offset);
-        frame.outputInfoMsg(STATUS_PROGRAM, "Backed up to directory above: " + curpath);
-        return curpath;
-    }
-    
-    /**
      * gets the file or directory specified by the given path.
      * 
      * A single '.' will represent the current directory and '~' indicates
@@ -141,44 +225,7 @@ public class FileIO {
      * @throws ParserException
      */
     public static java.io.File getFilePath (String path) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (path.contentEquals(".")) {
-            // the '.' indicates the current directory
-            path = fileDir;
-        } else if (path.startsWith("..")) {
-            String newpath = fileDir;
-            while (! path.isEmpty() && path.startsWith("..")) {
-                newpath = backupPath (newpath);
-                path = path.substring(2);
-                if (! path.isEmpty()) {
-                    if (path.charAt(0) != '/') {
-                        throw new ParserException(functionId + "Invalid path format following .. : " + path);
-                    }
-                    path = path.substring(1);
-                }
-            }
-            if (! path.isEmpty()) {
-                newpath = fileDir + "/" + path;
-            }
-            path = newpath;
-        } else if (path.startsWith("~")) {
-            // a leading '~' refers to the base Test path
-            if (path.length() > 1) {
-                path = Utils.getDefaultPath (Utils.PathType.Test) + path.substring(1);
-            } else {
-                path = Utils.getDefaultPath (Utils.PathType.Test);
-            }
-        } else if (path.startsWith("/")) {
-            // this indicates an absolute path is provided
-            String userPath = System.getProperty("user.dir");
-            if (! path.startsWith(userPath)) {
-                throw new ParserException(functionId + "Absolute path outside of User space (" + userPath + ") boundaries: " + path);
-            }
-        } else {
-            // otherwise, we assume it is relative to currently selected file path
-            path = fileDir + "/" + path;
-        }
+        path = getAbsPath(path);
         java.io.File file = new java.io.File(path);
         frame.outputInfoMsg(STATUS_PROGRAM, "    Path selection: " + path);
         return (file);
@@ -193,43 +240,18 @@ public class FileIO {
      *  Absolute paths are only supported if it resides within the User path bounds.
      * 
      * @param path - the path of the dir or file
+     * 
+     * @throws ParserException
      */
     public static void setFilePath (String path) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (path.contentEquals(".")) {
-            // the '.' indicates the current directory, so no change needed
-        } else if (path.startsWith("..")) {
-            while (! path.isEmpty() && path.startsWith("..")) {
-                fileDir = backupPath (fileDir);
-                path = path.substring(2);
-                if (! path.isEmpty()) {
-                    if (path.charAt(0) != '/') {
-                        throw new ParserException(functionId + "Invalid path format following .. : " + path);
-                    }
-                    path = path.substring(1);
-                }
-            }
-            if (! path.isEmpty()) {
-                fileDir = fileDir + "/" + path;
-            }
-        } else if (path.startsWith("~")) {
-            // a leading '~' refers to the base Test path
-            if (path.length() > 1) {
-                fileDir = Utils.getDefaultPath (Utils.PathType.Test) + path.substring(1);
-            } else {
-                fileDir = Utils.getDefaultPath (Utils.PathType.Test);
-            }
-        } else if (! path.startsWith("/")) {
-            // if missing the leading '/' char, it is a path relative to current dir
-            fileDir = fileDir + "/" + path;
-        } else {
-            String userPath = System.getProperty("user.dir");
-            if (! path.startsWith(userPath)) {
-                throw new ParserException(functionId + "Absolute path outside of User space (" + userPath + ") boundaries: " + path);
-            }
-            fileDir = path;
+        path = getAbsPath(path);
+        if (! isWithinTestPath(path)) {
+            throw new ParserException(functionId + "Path is not within test base path: " + path);
         }
+
+        fileDir = path;
         java.io.File file = new java.io.File(fileDir);
         if (! file.exists() || ! file.isDirectory()) {
             throw new ParserException(functionId + "Invalid directory selection: " + fileDir);
@@ -255,6 +277,10 @@ public class FileIO {
                 throw new ParserException(functionId + "File already exists with that name: " + fname);
             }
         }
+        String path = file.getAbsolutePath();
+        if (! isWithinTestPath(path)) {
+            throw new ParserException(functionId + "Path is not within test base path: " + path);
+        }
         file.mkdirs();
     }
 
@@ -275,6 +301,10 @@ public class FileIO {
             throw new ParserException(functionId + "Directory not found: " + fname);
         }
         
+        String path = file.getAbsolutePath();
+        if (! isWithinTestPath(path)) {
+            throw new ParserException(functionId + "Path is not within test base path: " + path);
+        }
         if (force) {
             FileUtils.deleteDirectory(file);
         } else {
@@ -313,6 +343,13 @@ public class FileIO {
         if (file.exists()) {
             throw new ParserException(functionId + "File already exists: " + fname);
         }
+        
+        // verify path selection is valid
+        String path = file.getAbsolutePath();
+        if (! isWithinTestPath(path)) {
+            throw new ParserException(functionId + "Path is not within test base path: " + path);
+        }
+
         file.createNewFile();
         if (writable) {
             file.setWritable(true);
@@ -359,11 +396,16 @@ public class FileIO {
             throw new ParserException(functionId + "File not found: " + fname);
         }
         if (writable) {
+            // verify path selection is valid
+            String path = file.getAbsolutePath();
+            if (! isWithinTestPath(path)) {
+                throw new ParserException(functionId + "Path is not within test base path: " + path);
+            }
+
             if (! file.canWrite()) {
                 throw new ParserException(functionId + "Invalid file - no write access: " + fname);
             }
-            String absname = file.getAbsolutePath();
-            fileWriter = new PrintWriter(new FileWriter(absname, true));
+            fileWriter = new PrintWriter(new FileWriter(path, true));
             fileWriteName = fname;
             frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer opened for: " + fname);
         } else {
@@ -394,6 +436,13 @@ public class FileIO {
              (fileReadName  != null && fname.contentEquals(fileReadName))    ) {
             throw new ParserException(functionId + "File is currently open: " + fname);
         }
+
+        // verify path selection is valid
+        String path = file.getAbsolutePath();
+        if (! isWithinTestPath(path)) {
+            throw new ParserException(functionId + "Path is not within test base path: " + path);
+        }
+
         file.delete();
         frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File deleted: " + file);
     }

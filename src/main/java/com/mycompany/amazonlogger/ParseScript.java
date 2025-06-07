@@ -372,6 +372,19 @@ public class ParseScript {
                 throw new ParserException(functionId + "Invalid variable type (must be an Array type): " + vartype);
         }
     }
+
+    /**
+     * displays the list of parameters that were packed
+     * 
+     * @param params - the parameter list
+     */
+    public static void showPackedParams (ArrayList<ParameterStruct> params) {
+        for (int ix = 0; ix < params.size(); ix++) {
+            ParameterStruct paramValue = params.get(ix);
+            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + ix + "]: " +
+                    paramValue.getParamClass() + " " + paramValue.getParamType() + ": '" + paramValue.getStringValue() + "'");
+        }
+    }
     
     /**
      * This takes a command line and extracts the parameter list from it.
@@ -419,14 +432,11 @@ public class ParseScript {
                     line = line.strip();
                     nextArg = "=";
                     arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
-                    frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
                     params.add(arg);
                     arg = new ParameterStruct (paramName, ParameterStruct.ParamClass.Reference, ParameterStruct.ParamType.String);
-                    frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + paramName);
                     params.add(arg);
                     nextArg = "+";
                     arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
-                    frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
                     params.add(arg);
                     continue;
                 }
@@ -454,7 +464,6 @@ public class ParseScript {
                     // place them in the proper list structure
                     paramType = ParameterStruct.ParamType.StrArray;
                     arg = new ParameterStruct (nextArg, ParameterStruct.ParamClass.Discrete, paramType);
-                    frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: [ " + nextArg + " ]");
                     params.add(arg);
                     continue;
                 }
@@ -507,13 +516,12 @@ public class ParseScript {
             }
             
             arg = new ParameterStruct(nextArg, pClass, paramType);
-            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + paramType + " value: " + nextArg);
             params.add(arg);
         }
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId + " bParamAssign = " + bParamAssign);
         }
-        
+
         return params;
     }
 
@@ -754,16 +762,12 @@ public class ParseScript {
         // Otherwise, if either side is a numeric (value or Variable), assume numeric comparison.
         // Otherwise, do String comparison.
         boolean bCalc = false;
-        boolean bQuote = false;
-        // if we have more than 1 entry on either side, it must be a numeric calculation
-//        if (countArgs(prefix) > 1 || countArgs(line) > 1) {
-//            bCalc = true;
-//        } else {
-            // or, if either entry is a quoted string, remove the quotes from it
-            bQuote = (prefix.charAt(0) == '\"' || line.charAt(0) == '\"');
-            prefix = extractQuotedString (prefix);
-            line   = extractQuotedString (line);
-//        }
+        boolean bQuote;
+        
+        // if either entry is a quoted string, remove the quotes from it
+        bQuote = (prefix.charAt(0) == '\"' || line.charAt(0) == '\"');
+        prefix = extractQuotedString (prefix);
+        line   = extractQuotedString (line);
             
         if (! bCalc && ! bQuote) {
             // if neither of the above, let's determine if the entries are numeric or not.
@@ -873,6 +877,60 @@ public class ParseScript {
     private static String getNextWord (String line) {
         if (line.isBlank()) {
             return "";
+        }
+        
+        // normally, we can just read until the next whitespace, but users may omit
+        //  whitespace between operations. Also, we may have a quoted string in which
+        //  case the entire quoted list is counted as 1 entry or a list which is
+        //  contained in { }, which is also counted as a single entry. So let's
+        //  weed out these special cases.
+        
+        char ch = line.charAt(0);
+
+        // determine if we have a variable reference, which may contain brackets
+        //  or traits. We will search for the end of the reference.
+        if (ch == '$') {
+            // variable ref - skip until first non-alphanumeric or '_'
+            int ix = 1;
+            for (; ix < line.length(); ix++) {
+                // proceed to end of var name
+                ch = line.charAt(ix);
+                if (ch != '_' && ! Character.isLetterOrDigit(ch)) {
+                    break;
+                }
+            }
+            int endRef = ix;
+            if (ch == '[') {
+                // proceed to end of brackets
+                ix = line.indexOf(']');
+                if (ix > 0) {
+                    endRef = ix + 1;
+                    if (ix < line.length() - 1) {
+                        ch = line.charAt(endRef);
+                    }
+                }
+            }
+            if (ch == '.') {
+                // proceed to end of Trait
+                for (ix++; ix < line.length(); ix++) {
+                    ch = line.charAt(ix);
+                    if (! Character.isUpperCase(ch)) {
+                        break;
+                    }
+                }
+                endRef = ix;
+            }
+            String strRef = line.substring(0, endRef);
+            return strRef;
+        }
+
+        for (int ix = 0; ix < line.length(); ix++) {
+            ch = line.charAt(ix);
+            switch (ch) {
+                case '[':
+                case ']':
+                    break;
+            }
         }
         int offset = line.indexOf(" ");
         if (offset <= 0) {
