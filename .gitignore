@@ -2,3 +2,9 @@ data/**
 target/**
 ./*.jar
 .~*
+
+src/test/compare/
+
+src/test/logs/
+
+src/test/.amazonreader/site.properties

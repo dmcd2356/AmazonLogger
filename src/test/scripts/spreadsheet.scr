@@ -1,6 +1,6 @@
 STARTUP
   TESTPATH .
-  LOGFILE 0x8FE logs/<$SCRIPTNAME>.log
+  LOGFILE 0xFE logs/<$SCRIPTNAME>.log
 ENDSTARTUP
 
 ALLOCATE GLOBAL String   { Filename, SheetPath }

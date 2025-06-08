@@ -1,6 +1,6 @@
 STARTUP
   TESTPATH .
-  LOGFILE 0xE3 logs/<$SCRIPTNAME>.log
+  LOGFILE 0xFE logs/<$SCRIPTNAME>.log
 ENDSTARTUP
 
 ALLOCATE GLOBAL Unsigned { U_Red, U_Green, U_Blue, U_BGmix, U_RowStart }
