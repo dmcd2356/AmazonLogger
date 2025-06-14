@@ -297,8 +297,8 @@ public class AmazonReader {
             frame.elapsedTimerDisable();
             frame.outputInfoMsg(STATUS_PROGRAM, "Resetting program index to begining");
             commandIndex = 0;
+            frame.reset();
         }
-        frame.reset();
     }
     
     /**
@@ -337,6 +337,7 @@ public class AmazonReader {
         if (commandIndex >= cmdList.size()) {
             frame.outputInfoMsg(STATUS_PROGRAM, "Resetting program index to begining");
             commandIndex = 0;
+            frame.reset();
         }
     }
 
