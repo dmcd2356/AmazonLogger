@@ -32,7 +32,7 @@ public class PdfReader {
     private static final String CLASS_NAME = PdfReader.class.getSimpleName();
 
     private static File pdfFile = null;
-    private static final ArrayList<String> contents = new ArrayList<>();  // the contents of the pdf file read
+    private static ArrayList<String> contents = new ArrayList<>();  // the contents of the pdf file read
 
     // this class is the information that is extracted from the charge card PDF file for
     // balancing the amounts charged to the account with the Amazon purchases.
@@ -45,6 +45,8 @@ public class PdfReader {
     }
 
     public PdfReader () {
+        pdfFile = null;
+        contents = new ArrayList<>();
     }
 
     public ArrayList<String> getContents () {

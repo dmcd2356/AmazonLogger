@@ -28,10 +28,19 @@ public class OpenDoc {
     private static final String CLASS_NAME = OpenDoc.class.getSimpleName();
     private static final String INDENT = "     ";
     
-    private static File     spreadsheetFile;                // the spreadsheet file
-    private static Sheet    sheetSel = null;                // the current spreadsheet tab selection
+    private static File  spreadsheetFile;                // the spreadsheet file
+    private static Sheet sheetSel = null;                // the current spreadsheet tab selection
     private static final ArrayList<Sheet> sheetArray = new ArrayList<>(); // the list of sheets (tabs) loaded in memory
 
+    /**
+     * initializes all the static parameters
+     */
+    public static void init() {
+        spreadsheetFile = null;
+        sheetSel = null;
+        sheetArray.clear();
+    }
+    
     /**
      * returns the current number of columns defined for the selected sheet.
      * 

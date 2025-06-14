@@ -26,11 +26,11 @@ public class IFStruct {
     boolean bCondMet;   // set to the IF level condition being executed (null if none)
 
     // IF List is built during Compile phase and referenced during Execution phase.
-    private final static ArrayList<IFStruct> ifList  = new ArrayList<>();
+    private static ArrayList<IFStruct> ifList  = new ArrayList<>();
 
     // IF Stack is used during Compile and Execution phases. Compile time for
     //   verification, and Execution for running the branches.
-    private final static Stack<Integer>      ifStack = new Stack<>();
+    private static Stack<Integer>      ifStack = new Stack<>();
 
     
     IFStruct (int index, int loopLevel, String subName) {
@@ -51,6 +51,14 @@ public class IFStruct {
         frame.outputInfoMsg(STATUS_COMPILE, "    " + cmdId + " @ " + this.ixIf + nestLevel);
     }
 
+    /**
+     * initializes all the static parameters
+     */
+    public static void init() {
+        ifList  = new ArrayList<>();
+        ifStack = new Stack<>();
+    }
+    
     // Get and Put functions for ifList
     public static IFStruct getIfListEntry (int cmdIndex) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";

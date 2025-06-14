@@ -42,6 +42,18 @@ public class Subroutine {
     private static Integer curLineNum  = 1;
 
     /**
+     * initializes all the static parameters
+     */
+    public static void init() {
+        subroutines.clear();
+        subStack.removeAllElements();
+        subCallList.clear();
+        subUsed.clear();
+        lastSubName = null;
+        curLineNum = 1;
+    }
+    
+    /**
      * this class is used for defining the bounds of the script file for the subroutines.
      * 
      * This allows us to determine whether a particular line of the script is

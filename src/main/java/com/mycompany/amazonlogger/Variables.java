@@ -20,8 +20,9 @@ public class Variables {
     
     static final int NAME_MAXLEN = 20;  // the max # chars in a param name
 
-            
-    public final VarLocal    varLocal    = new VarLocal();
+
+    // the LOCAL user variables (for main and each subroutine)
+    public final VarLocal varLocal = new VarLocal();
 
 
     public enum AccessType {
@@ -53,6 +54,8 @@ public class Variables {
     public static void initVariables () {
         VarReserved.initVariables();
         VarGlobal.initVariables();
+        VarLocal.initVariables();
+        VarArray.initVariables();
         LoopParam.initVariables();
     }
 

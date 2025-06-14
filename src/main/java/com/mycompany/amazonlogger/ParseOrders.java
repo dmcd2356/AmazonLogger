@@ -20,9 +20,10 @@ public class ParseOrders {
 
     private static final String CLASS_NAME = ParseOrders.class.getSimpleName();
 
-    private static int iQtyPossible = 0;
+    private int iQtyPossible = 0;
     
     public ParseOrders() {
+        iQtyPossible = 0;
     }
 
     /**

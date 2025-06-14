@@ -22,17 +22,29 @@ public class ScriptExecute {
     
     private static final String CLASS_NAME = ScriptExecute.class.getSimpleName();
     
+    private static String scriptName = "";
+    private static int    scriptSize = 0;
+    
     // this handles the command line options via the RUN command
     private final CmdOptions cmdOptionParser;
     
     // identifies the current loopStack entry.
-    private static LoopId curLoopId = null;
+    private LoopId curLoopId;
+
     
 
-    ScriptExecute () {
+    ScriptExecute (String name, int size) {
         this.cmdOptionParser = new CmdOptions();
+        curLoopId = null;
+        scriptName = name;
+        scriptSize = size;
+        frame.outputInfoMsg(STATUS_PROGRAM, "    Running compiled file: " + scriptName + " (size " + scriptSize + " lines)");
     }
 
+    public static int getMaxLines() {
+        return scriptSize;
+    }
+    
     /**
      * cleanup of any open resources.
      * 

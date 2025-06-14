@@ -31,6 +31,8 @@ public class OCRReader {
     private static String   content = "";
     
     public OCRReader() {
+        metadata = null;
+        content = "";
     }
     
     /**

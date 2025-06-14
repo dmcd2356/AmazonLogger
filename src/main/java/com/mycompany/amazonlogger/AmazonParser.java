@@ -27,11 +27,15 @@ public class AmazonParser {
     public AmazonParser () {
         // run using input from system clipboard
         clipReader = new ClipboardReader();
+        amazonList = new ArrayList<>();
+        detailList = new ArrayList<>();
     }
     
     public AmazonParser (File clipFile) {
         // run from using input from file
         clipReader = new ClipboardReader (clipFile);
+        amazonList = new ArrayList<>();
+        detailList = new ArrayList<>();
     }
     
     /**

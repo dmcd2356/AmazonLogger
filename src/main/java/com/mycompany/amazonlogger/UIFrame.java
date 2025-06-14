@@ -63,13 +63,15 @@ public final class UIFrame extends JFrame implements ActionListener {
     public static final int STATUS_WARN    = 0x4000;  // non-fatal warnings
     public static final int STATUS_ERROR   = 0x8000;  // fatal errors
     
-    private PrintWriter    debugFile = null;
-    private PrintWriter    testFile = null;
+    private static PrintWriter    debugFile = null;
+    private static PrintWriter    testFile = null;
     private static String  testFname = "";
     private static int     msgEnable;
     private static boolean bUseGUI = false;
     private static long    elapsedStart = 0;    // hold start of elapsed time for running from file
+    private static long    prevElapsed = 0;     // hold current elapsed time for pause durations
     private static boolean showElapsed = false; // indicates if elapsed time to be displayed in logs
+    private static int     logCounter = 0;
 
     private final class MsgControl {
         int       statusId;     // STATUS_ entry
@@ -139,6 +141,19 @@ public final class UIFrame extends JFrame implements ActionListener {
     private final JScrollPane scroll_info;
     private final JPanel txt_panel;
     private final JTextPane txt_info;
+
+    /**
+     * resets the GUI state to initial settings.
+     * called when a script has completed when running from network connection
+     */
+    public void reset() {
+        closeTestFile();
+        testFile = null;
+        testFname = "";
+        msgEnable = 0;
+        logCounter = 0;
+        props.setPropertiesItem(Property.TestFileOut, "");
+    }
     
     // constructor, to initialize the components
     // with default values.
@@ -1077,6 +1092,11 @@ public final class UIFrame extends JFrame implements ActionListener {
             } else {
                 System.out.println(msg);
             }
+            // if network connection, send to client
+            if (AmazonReader.isRunModeNetwork()) {
+                TCPServerThread.sendLogMessage(logCounter, msg);
+                logCounter++;
+            }
             return;
         }
         
@@ -1120,9 +1140,18 @@ public final class UIFrame extends JFrame implements ActionListener {
     }
     
     /**
+     * save the current elapsed time so we can add it when resumed
+     */
+    public void elapsedTimerPause() {
+        prevElapsed = System.currentTimeMillis() - elapsedStart;
+        showElapsed = false;
+    }
+    
+    /**
      * disable the timestamp counter
      */
     public void elapsedTimerDisable() {
+        prevElapsed = 0;
         showElapsed = false;
     }
     
@@ -1135,7 +1164,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         if (!showElapsed) {
             return "";
         }
-        long elapsedTime = System.currentTimeMillis() - elapsedStart;
+        long elapsedTime = System.currentTimeMillis() - elapsedStart + prevElapsed;
         long msecs = elapsedTime % 1000;
         long secs = elapsedTime / 1000;
 //        long hours = secs / 3600;

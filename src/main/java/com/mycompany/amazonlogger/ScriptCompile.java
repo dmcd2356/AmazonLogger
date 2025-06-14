@@ -24,13 +24,19 @@ public class ScriptCompile {
     // this handles the command line options via the RUN command
     private final CmdOptions cmdOptionParser;
     // this contains the line numbers corresponding to each command index value
-    private static final ArrayList<Integer> lineNumbers = new ArrayList<>();
+    private static ArrayList<Integer> lineNumbers = new ArrayList<>();
+    private int scriptLineLength = 0;
     
     private final ParseScript parseScript = new ParseScript();
 
     ScriptCompile (Variables preVars) {
         // create an instance of the command options parser for any RUN commands
         cmdOptionParser = new CmdOptions();
+        lineNumbers = new ArrayList<>();
+    }
+
+    public int getMaxLines () {
+        return scriptLineLength;
     }
 
     public static int getLineNumber (int cmdIx) {
@@ -52,24 +58,23 @@ public class ScriptCompile {
      * compiles the external script file (when -f option used) into a series of
      * CommandStruct entities to execute.
      * 
-     * @param fname - the script filename
+     * @param scriptFile - the script file
      * 
      * @return the list of commands to execute
      * 
      * @throws ParserException
      * @throws IOException 
      */
-    public ArrayList<CommandStruct> build (String fname) throws ParserException, IOException {
+    public ArrayList<CommandStruct> build (File scriptFile) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        frame.outputInfoMsg(STATUS_COMPILE, "Compiling file: " + fname);
+        frame.outputInfoMsg(STATUS_COMPILE, "Compiling file: " + scriptFile.getAbsolutePath());
         ArrayList<CommandStruct> cmdList = new ArrayList<>();
         int cmdIndex = 0;
         String lineInfo = "";
         CommandStruct cmdStruct;
 
         // open the file to compile and extract the commands from it
-        File scriptFile = Utils.checkFilename (fname, ".scr", Utils.PathType.Test, false);
         FileReader fReader = new FileReader(scriptFile);
         BufferedReader fileReader = new BufferedReader(fReader);
 
@@ -738,6 +743,7 @@ public class ScriptCompile {
         }
         Subroutine.checkSubroutineMissing();
 
+        scriptLineLength = lineNum;
         fileReader.close();
         
 //        // the last line will be the one to end the program flow

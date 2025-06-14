@@ -25,6 +25,10 @@ public class VarLocal {
     public VarLocal() {
     }
 
+    public static void initVariables () {
+        locals.clear();
+    }
+    
     /**
      * this allocates a block for adding local variables for a subroutine.
      * This should be called when a subroutine is defined during COMPILE.

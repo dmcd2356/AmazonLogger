@@ -23,6 +23,10 @@ public class VarArray {
     private static ArrayList<Boolean> ixFilter = null;
 
 
+    public static void initVariables () {
+        ixFilter = null;
+    }
+    
     private static boolean isStrArray (String name) throws ParserException {
         ParameterStruct.ParamType ptype = PreCompile.variables.getVariableTypeFromName(name);
         return ptype == ParameterStruct.ParamType.StrArray;

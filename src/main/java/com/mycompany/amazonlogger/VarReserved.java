@@ -65,9 +65,10 @@ public class VarReserved {
      * initializes the saved Variables
      */
     public static void initVariables () {
-        bStatus = false;
-        subRetValue = "";
         strResponse.clear();
+        subRetValue = "";
+        bStatus = false;
+        maxRandom = 1000000000;
     }
     
     /**

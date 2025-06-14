@@ -27,10 +27,21 @@ public class PreCompile {
     public static final Variables variables = new Variables();
 
     /**
+     * initializes all the static variable entities
+     */
+    public static void init() {
+        Variables.initVariables();
+        Subroutine.init();
+        Spreadsheet.init();
+        OpenDoc.init();
+        IFStruct.init();
+    }
+    
+    /**
      * compiles the external script file (when -f option used) into a series of
      * CommandStruct entities to execute.
      * 
-     * @param fname - the script filename
+     * @param scriptFile - the script file
      * 
      * @return the Global & Local Variables that have been setup
      * 
@@ -39,20 +50,22 @@ public class PreCompile {
      * @throws SAXException
      * @throws TikaException
      */
-    public Variables build (String fname) throws ParserException, IOException, SAXException, TikaException {
+    public Variables build (File scriptFile) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        frame.outputInfoMsg(STATUS_COMPILE, "Pre-Compiling file: " + fname);
+        frame.outputInfoMsg(STATUS_COMPILE, "Pre-Compiling file: " + scriptFile.getAbsolutePath());
         String lineInfo = "";
 
         // open the file to compile and extract the commands from it
-        File scriptFile = Utils.checkFilename (fname, ".scr", Utils.PathType.Test, false);
         FileReader fReader = new FileReader(scriptFile);
         BufferedReader fileReader = new BufferedReader(fReader);
 
         // access the Subroutine class to define them
         Subroutine subs = new Subroutine();
 
+        // init the static entities
+        init();
+        
         // read the program and compile into ArrayList 'cmdList'
         int lineNum = 0;
         int cmdIndex = 0;

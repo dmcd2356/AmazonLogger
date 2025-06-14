@@ -6,6 +6,7 @@ package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import java.io.BufferedReader;
 import java.io.File;
@@ -31,12 +32,25 @@ public class FileIO {
     //  and the same file can't be opened for both read and write.
     private static BufferedReader fileReader = null;
     private static PrintWriter    fileWriter = null;
-    private static String fileReadName;
-    private static String fileWriteName;
+    private static String fileReadName = "";
+    private static String fileWriteName = "";
     private static String baseDir = System.getProperty("user.dir");
     private static String fileDir = System.getProperty("user.dir");
 
 
+    /**
+     * initializes all the static parameters
+     */
+    public static void init() {
+        baseDir = System.getProperty("user.dir");
+        fileDir = System.getProperty("user.dir");
+        try {
+            exit();
+        } catch (IOException exMsg) {
+            frame.outputInfoMsg(STATUS_ERROR, "Error on closing File Reader/Writers");
+        }
+    }
+    
     /**
      * tests whether the selected path is within the base path selection.
      * 
@@ -176,12 +190,16 @@ public class FileIO {
     public static void exit() throws IOException {
         if (fileReader != null) {
             fileReader.close();
+            fileReader = null;
             frame.outputInfoMsg(STATUS_DEBUG, "File reader closed: " + fileReadName);
+            fileReadName = "";
         }
         if (fileWriter != null) {
             fileWriter.flush();
             fileWriter.close();
+            fileWriter = null;
             frame.outputInfoMsg(STATUS_DEBUG, "File writer flushed & closed: " + fileWriteName);
+            fileWriteName = "";
         }
     }
 

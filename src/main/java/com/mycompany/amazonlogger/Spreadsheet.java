@@ -10,7 +10,6 @@ import com.mycompany.amazonlogger.PropertiesFile.Property;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_INFO;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_SSHEET;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
-import static com.mycompany.amazonlogger.Utils.getDefaultPath;
 
 import java.awt.Color;
 import java.io.File;
@@ -69,6 +68,16 @@ public class Spreadsheet {
         Seller          // (optional) 
     };
 
+    /**
+     * initializes all the static parameters
+     */
+    public static void init() {
+        hmSheetColumns.clear();
+        iSheetYear = null;
+        firstRow = -1;
+        lastValidColumn = 0;
+    }
+    
     /**
      * returns the corresponding column index for the specified column name in the spreadsheet.
      * 

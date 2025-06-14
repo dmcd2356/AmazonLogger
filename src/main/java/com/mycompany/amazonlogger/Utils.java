@@ -621,7 +621,9 @@ public class Utils {
             throw new ParserException(functionId + "Invalid " + filetype + " filename is blank");
         }
         
-        fname = getDefaultPath(filetype) + "/" + fname;
+        if (fname.charAt(0) != '/') {
+            fname = getDefaultPath(filetype) + "/" + fname;
+        }
         File myFile = new File(fname);
         if (!myFile.canRead()) {
             throw new ParserException(functionId + "Invalid " + filetype + " file - no read access: " + fname);
