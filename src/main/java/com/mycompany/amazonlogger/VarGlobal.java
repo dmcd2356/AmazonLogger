@@ -8,6 +8,7 @@ import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
@@ -31,6 +32,63 @@ public class VarGlobal {
         globals.clear();
     }
 
+    /**
+     * returns a list of the variables defined here.
+     * 
+     * @return a list of the defined variables
+     */
+    public static ArrayList<String> getVarAlloc() {
+        ArrayList<String> response = new ArrayList<>();
+        for (Map.Entry<String, VarAccess> pair : globals.entrySet()) {
+            String name    = pair.getKey();
+            VarAccess info = pair.getValue();
+            String subWriter = Subroutine.findSubName(info.getWriterIndex());
+            response.add("[<name> " + name
+                    + ", <type> " + info.getType()
+                    + ", <owner> " + info.getOwner() + "]");
+        }
+        return response;
+    }
+    
+    /**
+     * returns a list of the variables defined here.
+     * 
+     * @param varName - name of the variable to look up
+     * 
+     * @return a string containing the name, value and other info for the variable
+     */
+    public static String getVarInfo (String varName) throws ParserException {
+        VarAccess varInfo = globals.get(varName);
+        String value = "";
+        switch(varInfo.getType()) {
+            case String:
+                value = varInfo.getValueString();
+                break;
+            case Integer:
+                value = varInfo.getValueInteger().toString();
+                break;
+            case Unsigned:
+                value = varInfo.getValueUnsigned().toString();
+                break;
+            case Boolean:
+                value = varInfo.getValueBoolean().toString();
+                break;
+            case StrArray:
+                value = varInfo.getValueStrArray().toString();
+                break;
+            case IntArray:
+                value = varInfo.getValueIntArray().toString();
+                break;
+        }
+        String subWriter = Subroutine.findSubName(varInfo.getWriterIndex());
+        String response = "[<name> "    + varName
+                        + ", <value> "  + value
+                        + ", <writer> " + subWriter
+                        + ", <line> "   + varInfo.getWriterIndex()
+                        + ", <time> "   + varInfo.getWriterTime() + "]";
+        return response;
+    }
+    
     /**
      * makes a global allocation for the given variable specs.
      * 

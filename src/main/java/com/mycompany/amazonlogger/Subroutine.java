@@ -10,6 +10,7 @@ import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Stack;
 
 /**
@@ -112,6 +113,41 @@ public class Subroutine {
 
     Subroutine() {
         curLineNum = 1;
+    }
+    
+    /**
+     * returns a list of the subroutines defined here.
+     * 
+     * @return a list of the defined variables
+     */
+    public static ArrayList<String> getSubNames() {
+        ArrayList<String> response = new ArrayList<>();
+        for (Map.Entry<String, Integer> pair : subroutines.entrySet()) {
+            response.add(pair.getKey());
+        }
+        return response;
+    }
+    
+    public static String findSubName (int lineNum) {
+        int min = 0;
+        String minName = MAIN_FCTN;
+        if (subroutines.isEmpty()) {
+            return minName;
+        }
+        for (Map.Entry<String, Integer> pair : subroutines.entrySet()) {
+            String  subName = pair.getKey();
+            Integer subLine = pair.getValue();
+            if (lineNum == subLine) {
+                // exact match - return the sub name
+                return subName;
+            }
+            // else, find line number that is < the selected line, but is closest to it
+            if (lineNum < subLine && lineNum > min) {
+                min = lineNum;
+                minName = subName;
+            }
+        }
+        return minName;
     }
     
     /**

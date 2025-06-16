@@ -30,6 +30,44 @@ public class VarLocal {
     }
     
     /**
+     * returns a list of all local variables.
+     * 
+     * @return a list of the defined variables for local definitions in all subroutines
+     */
+    public ArrayList<String> getVarAlloc () {
+        ArrayList<String> response = new ArrayList<>();
+        ArrayList<String> subNameList = Subroutine.getSubNames();
+        for (int ix = 0; ix < subNameList.size(); ix++) {
+            String subName = subNameList.get(ix);
+            response.add("<SUB: " + subName + ">");
+            if (locals.containsKey(subName)) {
+                VarLocalSub subInfo = locals.get(subName);
+                response.addAll(subInfo.getVarAlloc());
+            }
+        }
+        return response;
+    }
+    
+    /**
+     * returns a list of the variables defined here.
+     * 
+     * @param subName - name of the subroutine of interest
+     * @param varName - name of the variable to look up
+     * 
+     * @return a string containing the name, value and other info for the variable
+     * 
+     * @throws ParserException
+     */
+    public String getVarInfo (String subName, String varName) throws ParserException {
+        String response = "";
+        VarLocalSub varInfo = locals.get(subName);
+        if (varInfo != null) {
+            response = varInfo.getVarInfo(varName);
+        }
+        return response;
+    }
+    
+    /**
      * this allocates a block for adding local variables for a subroutine.
      * This should be called when a subroutine is defined during COMPILE.
      * 

@@ -257,6 +257,7 @@ public final class ParameterStruct {
     
     public void setVariableRef (VarExtensions value) {
         variableRef = value;
+        paramClass  = ParamClass.Reference;
     }
     
     public void setParamType (ParamType value) {

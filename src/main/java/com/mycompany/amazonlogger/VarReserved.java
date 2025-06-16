@@ -44,21 +44,66 @@ public class VarReserved {
      * @param name - the name to check
      * 
      * @return the reserved variable name if valid, null if not
-     * 
-     * @throws ParserException
      */
-    public static ReservedVars isReservedName (String name) throws ParserException {
+    public static ReservedVars isReservedName (String name) {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (name == null) {
-            throw new ParserException(functionId + "Null input value");
-        }
-        for (ReservedVars entry : ReservedVars.values()) {
-            if (entry.toString().contentEquals(name)) {
-                return entry;
+        if (name != null) {
+            for (ReservedVars entry : ReservedVars.values()) {
+                if (entry.toString().contentEquals(name)) {
+                    return entry;
+                }
             }
         }
         return null;
+    }
+
+    /**
+     * returns a list of the variables defined here.
+     * 
+     * @return a list of the defined variables
+     */
+    public static ArrayList<String> getVarAlloc() {
+        ArrayList<String> response = new ArrayList<>();
+        for (ReservedVars entry : ReservedVars.values()) {
+            String name = entry.toString();
+            response.add("[<name> " + name
+                      + ", <type> " + getVariableTypeFromName(name).toString() + "]");
+        }
+        return response;
+    }
+    
+    /**
+     * returns name and value of a variable.
+     * 
+     * @param varName - the name of the reserved parameter
+     * 
+     * @return the name and value of the variable
+     */
+    public static String getVarInfo (String varName) {
+        ParameterStruct.ParamType varType = getVariableTypeFromName(varName);
+        ParameterStruct param = getVariableInfo (varName, varType);
+        String value = "";
+        switch (varType) {
+            case Integer:
+            case Unsigned :
+                value = param.getIntegerValue().toString();
+                break;
+            case Boolean:
+                value = param.getBooleanValue().toString();
+                break;
+            case String:
+                value = param.getStringValue();
+                break;
+            case StrArray:
+                value = param.getStrArray().toString();
+                break;
+            case IntArray:
+                value = param.getIntArray().toString();
+                break;
+        }
+        String response = ("[<name> " + varName + ", <value> " + value + "]");
+        return response;
     }
     
     /**
@@ -131,10 +176,8 @@ public class VarReserved {
      * resets the specified variable value.
      * 
      * @param varName - the reserved variable name
-     * 
-     * @throws ParserException 
      */
-    public static void resetVar (String varName) throws ParserException {
+    public static void resetVar (String varName) {
         ReservedVars reserved = isReservedName (varName);
         if (reserved != null) {
             switch (reserved) {
@@ -153,10 +196,8 @@ public class VarReserved {
      * @param varName - the reserved variable name
      * 
      * @return true if it is an array type
-     * 
-     * @throws ParserException 
      */
-    public static boolean isArray (String varName) throws ParserException {
+    public static boolean isArray (String varName) {
         ReservedVars reserved = isReservedName (varName);
         if (reserved != null) {
             switch (reserved) {
@@ -175,10 +216,8 @@ public class VarReserved {
      * @param varName - the reserved variable name
      * 
      * @return the size if it is an array type, 0 if not
-     * 
-     * @throws ParserException 
      */
-    public static int getArraySize (String varName) throws ParserException {
+    public static int getArraySize (String varName) {
         ReservedVars reserved = isReservedName (varName);
         if (reserved != null) {
             switch (reserved) {
@@ -197,10 +236,8 @@ public class VarReserved {
      * @param name - name of the Variable
      * 
      * @return the corresponding Variable type (null if not a reserved var)
-     * 
-     * @throws ParserException
      */    
-    public static ParameterStruct.ParamType getVariableTypeFromName (String name) throws ParserException {
+    public static ParameterStruct.ParamType getVariableTypeFromName (String name) {
         ParameterStruct.ParamType vartype = null;
         ReservedVars reserved = isReservedName (name);
         if (reserved != null) {
@@ -237,16 +274,12 @@ public class VarReserved {
      * It is only at this point where we can do the run-time evaluation, just
      *  prior to executing the command.
      * 
-     * @param paramInfo  - Variable reference information
      * @param varName    - reference variable name
      * @param pType      - data type of variable
      * 
      * @return the Variable value (null if not found)
-     * 
-     * @throws ParserException - if Variable not found
      */
-    public static ParameterStruct getVariableInfo (VarExtensions paramInfo, String varName, ParameterStruct.ParamType pType) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+    public static ParameterStruct getVariableInfo (String varName, ParameterStruct.ParamType pType) {
 
         // create a new parameter with all null entries
         ParameterStruct paramValue = new ParameterStruct();

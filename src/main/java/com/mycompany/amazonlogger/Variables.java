@@ -59,6 +59,19 @@ public class Variables {
         LoopParam.initVariables();
     }
 
+    public ArrayList<String> getVarAlloc() {
+        ArrayList<String> response = new ArrayList<>();
+        response.add("<START>");
+        response.add("<RESERVED>");
+        response.addAll(VarReserved.getVarAlloc());
+        response.add("<GLOBAL>");
+        response.addAll(VarGlobal.getVarAlloc());
+        response.add("<LOCAL>");
+        response.addAll(varLocal.getVarAlloc());
+        response.add("<END>");
+        return response;
+    }
+    
     /**
      * modifies the value of an existing entry in the String Variable table.
      * Indicates if the name was not found (does NOT create a new entry).
@@ -228,7 +241,7 @@ public class Variables {
     }
     
     // indicates if the variable has been written to since it was allocated
-    public boolean IsVarInit (String varName) throws ParserException {
+    public boolean isVarInit (String varName) throws ParserException {
         switch (getVariableClass (varName)) {
             case LOCAL:
                 return varLocal.isVarInit(varName);
@@ -509,7 +522,7 @@ public class Variables {
         switch (getVariableClass (name)) {
             // check the reserved params list
             case RESERVED:
-                paramValue = VarReserved.getVariableInfo (paramInfo, name, pType);
+                paramValue = VarReserved.getVariableInfo (name, pType);
                 if (paramValue == null) {
                     PropertiesFile props = new PropertiesFile();
                     PropertiesFile.Property propItem = PropertiesFile.isValidProperty(name);

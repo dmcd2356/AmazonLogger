@@ -163,11 +163,13 @@ public class AmazonReader {
      * pause / resume the script.
      */
     public static void pauseScript (boolean state) {
-        pause = state;
-        if (pause) {
-            frame.outputInfoMsg (STATUS_PROGRAM, "Script PAUSED");
-        } else {
-            frame.outputInfoMsg (STATUS_PROGRAM, "Script RESUMED");
+        if (isRunModeNetwork()) {
+            pause = state;
+            if (pause) {
+                frame.outputInfoMsg (STATUS_PROGRAM, "Script PAUSED");
+            } else {
+                frame.outputInfoMsg (STATUS_PROGRAM, "Script RESUMED");
+            }
         }
     }
 
@@ -176,11 +178,13 @@ public class AmazonReader {
      * (Also resets the command index to begining so we can re-run)
      */
     public static void stopScript () {
-        pause = true;
-        if (cmdList != null && ! cmdList.isEmpty()) {
-            commandIndex = 0;
+        if (isRunModeNetwork()) {
+            pause = true;
+            if (cmdList != null && ! cmdList.isEmpty()) {
+                commandIndex = 0;
+            }
+            frame.outputInfoMsg (STATUS_PROGRAM, "Script STOPPED");
         }
-        frame.outputInfoMsg (STATUS_PROGRAM, "Script STOPPED");
     }
     
     /**
@@ -242,6 +246,11 @@ public class AmazonReader {
             frame.outputInfoMsg(STATUS_COMPILE, "===== BEGINING PROGRAM PRE-COMPILE =====");
             PreCompile preCompile = new PreCompile();
             Variables variables = preCompile.build(scriptFile);
+
+            if (isRunModeNetwork()) {
+                ArrayList<String> varAllocs = variables.getVarAlloc();
+                TCPServerThread.sendAllocations(varAllocs);
+            }
             
             // compile the program
             frame.outputInfoMsg(STATUS_COMPILE, "\"===== BEGINING PROGRAM COMPILE =====");

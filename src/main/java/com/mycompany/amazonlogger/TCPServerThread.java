@@ -105,22 +105,22 @@ public class TCPServerThread implements Runnable {
         }
     }
     
-    public static void sendAllocations () {
-//        if (out_socket != null && clientConnected) {
-//            String countstr = "00000000" + Integer.toString(counter);
-//            int countlen = countstr.length();
-//            countstr = countstr.substring(countlen - 8);
-//            sendMessage ("ALLOC: " + countstr + " " + message);
-//        }
+    public static void sendAllocations (ArrayList<String> varList) {
+        if (out_socket != null && clientConnected) {
+            for (int ix = 0; ix < varList.size(); ix++) {
+                String entry = varList.get(ix);
+                sendMessage ("ALLOC: " + entry);
+            }
+        }
     }
     
-    public static void sendVarInfo () {
-//        if (out_socket != null && clientConnected) {
-//            String countstr = "00000000" + Integer.toString(counter);
-//            int countlen = countstr.length();
-//            countstr = countstr.substring(countlen - 8);
-//            sendMessage ("VARMSG: " + countstr + " " + message);
-//        }
+    public static void sendVarInfo (ArrayList<String> varInfo) {
+        if (out_socket != null && clientConnected) {
+            for (int ix = 0; ix < varInfo.size(); ix++) {
+                String entry = varInfo.get(ix);
+                sendMessage ("VARMSG: " + entry);
+            }
+        }
     }
     
     public static void sendLineInfo (int line) {

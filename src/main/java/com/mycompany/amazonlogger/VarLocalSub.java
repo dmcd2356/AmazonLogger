@@ -27,6 +27,64 @@ public class VarLocalSub {
         this.localVar = new HashMap<>();
     }
 
+    /**
+     * returns a list of the variables defined here.
+     * 
+     * @return a list of the defined variables
+     */
+    public ArrayList<String> getVarAlloc() {
+        ArrayList<String> response = new ArrayList<>();
+        for (var pair : localVar.entrySet()) {
+            String name    = pair.getKey();
+            VarAccess info = pair.getValue();
+            response.add("[<name> " + name
+                    + ", <type> " + info.getType()
+                    + ", <owner> " + info.getOwner() + "]");
+        }
+        return response;
+    }
+    
+    /**
+     * returns a list of the variables defined here.
+     * 
+     * @param varName - name of the variable to look up
+     * 
+     * @return a string containing the name, value and other info for the variable
+     * 
+     * @throws ParserException
+     */
+    public String getVarInfo (String varName) throws ParserException {
+        VarAccess varInfo = localVar.get(varName);
+        String value = "";
+        switch(varInfo.getType()) {
+            case String:
+                value = varInfo.getValueString();
+                break;
+            case Integer:
+                value = varInfo.getValueInteger().toString();
+                break;
+            case Unsigned:
+                value = varInfo.getValueUnsigned().toString();
+                break;
+            case Boolean:
+                value = varInfo.getValueBoolean().toString();
+                break;
+            case StrArray:
+                value = varInfo.getValueStrArray().toString();
+                break;
+            case IntArray:
+                value = varInfo.getValueIntArray().toString();
+                break;
+        }
+        String subWriter = Subroutine.findSubName(varInfo.getWriterIndex());
+        String response = "[<name> "    + varName
+                        + ", <value> "  + value
+                        + ", <writer> " + subWriter
+                        + ", <line> "   + varInfo.getWriterIndex()
+                        + ", <time> "   + varInfo.getWriterTime() + "]";
+        return response;
+    }
+    
     private VarAccess checkLocalVar (String varName, ParameterStruct.ParamType callType) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         VarAccess var = localVar.get(varName);
