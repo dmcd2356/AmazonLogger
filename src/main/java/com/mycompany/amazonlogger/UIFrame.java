@@ -1093,7 +1093,7 @@ public final class UIFrame extends JFrame implements ActionListener {
                 System.out.println(msg);
             }
             // if network connection, send to client
-            if (AmazonReader.isRunModeNetwork()) {
+            if (AmazonReader.isOpModeNetwork()) {
                 TCPServerThread.sendLogMessage(logCounter, msg);
                 logCounter++;
             }

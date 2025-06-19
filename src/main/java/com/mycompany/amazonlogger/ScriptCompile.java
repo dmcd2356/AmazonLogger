@@ -41,7 +41,8 @@ public class ScriptCompile {
 
     public static int getLineNumber (int cmdIx) {
         if (cmdIx >= lineNumbers.size() || cmdIx < 0) {
-            cmdIx = lineNumbers.size();
+            return lineNumbers.getLast() + 1;
+//            cmdIx = lineNumbers.size() - 1;
         }
         return lineNumbers.get(cmdIx);
     }

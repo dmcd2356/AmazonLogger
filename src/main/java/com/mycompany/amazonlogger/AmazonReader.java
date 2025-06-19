@@ -24,7 +24,8 @@ public class AmazonReader {
     public  static Keyword keyword;
     public  static PropertiesFile props;
     
-    private static RunMode opMode;
+    private static RunMode runMode;
+    private static OperatingMode opMode;
     private static String  scriptName = "";
     private static File    scriptFile = null;
     private static int     commandIndex = 0;
@@ -35,45 +36,53 @@ public class AmazonReader {
     
     private static TCPServerMain server;
 
-    public enum RunMode {
-        GUI,
-        COMMAND_LINE,
-        NETWORK,
+    private enum RunMode {
         COMPILE_ONLY,
         COMPILE,
         EXECUTE,
     }
 
-    private static void setRunMode (RunMode mode) {
+    private enum OperatingMode {
+        GUI,
+        COMMAND_LINE,
+        SCRIPT,
+        NETWORK,
+    }
+    
+    private static void setOpMode (OperatingMode mode) {
         opMode = mode;
     }
     
-    public static boolean isRunModeGUI () {
-        return opMode == RunMode.GUI;
+    private static void setRunMode (RunMode mode) {
+        runMode = mode;
     }
     
-    public static boolean isRunModeNetwork () {
-        return opMode == RunMode.NETWORK;
+    public static boolean isOpModeGUI () {
+        return opMode == OperatingMode.GUI;
     }
     
-    public static boolean isRunModeScript () {
-        return (opMode == RunMode.EXECUTE || opMode == RunMode.COMPILE || opMode == RunMode.COMPILE_ONLY);
+    public static boolean isOpModeNetwork () {
+        return opMode == OperatingMode.NETWORK;
     }
     
-    public static boolean isRunModeCommmandLine () {
-        return opMode == RunMode.COMMAND_LINE;
+    public static boolean isOpModeScript () {
+        return opMode == OperatingMode.SCRIPT;
+    }
+    
+    public static boolean isOpModeCommmandLine () {
+        return opMode == OperatingMode.COMMAND_LINE;
     }
     
     public static boolean isRunModeCompile () {
-        return opMode == RunMode.COMPILE;
+        return ((runMode == RunMode.COMPILE) || (runMode == RunMode.COMPILE_ONLY));
     }
     
     public static boolean isRunModeExecute () {
-        return opMode == RunMode.EXECUTE;
+        return runMode == RunMode.EXECUTE;
     }
     
     public static boolean isRunModeCompileOnly () {
-        return opMode == RunMode.COMPILE_ONLY;
+        return runMode == RunMode.COMPILE_ONLY;
     }
     
     public static String getScriptName() {
@@ -87,7 +96,7 @@ public class AmazonReader {
         // check for arguments passed (non-GUI interface for testing):
         if (args.length == 0) {
             // GUI mode:
-            setRunMode (RunMode.GUI);
+            setOpMode (OperatingMode.GUI);
             // create the user interface to control things
             frame = new UIFrame(true);
             props = new PropertiesFile();
@@ -108,6 +117,7 @@ public class AmazonReader {
                 String firstArg = args[0];
                 switch (firstArg) {
                     case "-script" ->  {
+                        setOpMode (OperatingMode.SCRIPT);
                         setRunMode (RunMode.COMPILE);
                         if (args.length != 2) {
                             throw new ParserException(functionId + "missing filename argument for option: " + firstArg);
@@ -118,6 +128,7 @@ public class AmazonReader {
                         runScript();
                     }
                     case "-compile" -> {
+                        setOpMode (OperatingMode.SCRIPT);
                         setRunMode (RunMode.COMPILE_ONLY);
                         if (args.length != 2) {
                             throw new ParserException(functionId + "missing filename argument for option: " + firstArg);
@@ -127,7 +138,8 @@ public class AmazonReader {
                         compileScript();
                     }
                     case "-network" -> {
-                        setRunMode (RunMode.NETWORK);
+                        setOpMode (OperatingMode.NETWORK);
+                        setRunMode (RunMode.COMPILE);
                         int port = 5000; // default port selection
                         if (args.length == 2) {
                             port = Utils.getIntValue(args[1]).intValue();
@@ -135,7 +147,8 @@ public class AmazonReader {
                         server = new TCPServerMain (port);
                     }
                     default -> {
-                        setRunMode (RunMode.COMMAND_LINE);
+                        setOpMode (OperatingMode.COMMAND_LINE);
+                        setRunMode (RunMode.COMPILE);
                         CmdOptions cmdLine = new CmdOptions();
                         cmdLine.runCommandLine(args);
                     }
@@ -153,7 +166,7 @@ public class AmazonReader {
             
             // close the test output file
             frame.closeTestFile();
-            if (isRunModeNetwork()) {
+            if (isOpModeNetwork()) {
 //                server.exit();
             }
         }
@@ -163,7 +176,7 @@ public class AmazonReader {
      * pause / resume the script.
      */
     public static void pauseScript (boolean state) {
-        if (isRunModeNetwork()) {
+        if (isOpModeNetwork()) {
             pause = state;
             if (pause) {
                 frame.outputInfoMsg (STATUS_PROGRAM, "Script PAUSED");
@@ -178,7 +191,7 @@ public class AmazonReader {
      * (Also resets the command index to begining so we can re-run)
      */
     public static void stopScript () {
-        if (isRunModeNetwork()) {
+        if (isOpModeNetwork()) {
             pause = true;
             if (cmdList != null && ! cmdList.isEmpty()) {
                 commandIndex = 0;
@@ -247,7 +260,7 @@ public class AmazonReader {
             PreCompile preCompile = new PreCompile();
             Variables variables = preCompile.build(scriptFile);
 
-            if (isRunModeNetwork()) {
+            if (isOpModeNetwork()) {
                 ArrayList<String> varAllocs = variables.getVarAlloc();
                 TCPServerThread.sendAllocations(varAllocs);
             }
@@ -302,7 +315,8 @@ public class AmazonReader {
             frame.elapsedTimerPause();
         } else {
             // otherwise, we have completed - inform the client and stop the timer
-            TCPServerThread.sendLineInfo (commandIndex);
+            int lineNumber = ScriptCompile.getLineNumber(commandIndex);
+            TCPServerThread.sendLineInfo (lineNumber);
             frame.elapsedTimerDisable();
             frame.outputInfoMsg(STATUS_PROGRAM, "Resetting program index to begining");
             commandIndex = 0;
@@ -329,6 +343,8 @@ public class AmazonReader {
             frame.outputInfoMsg(STATUS_PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
         }
 
+        // enable timestamp on log messages
+        frame.elapsedTimerEnable();
         setRunMode (RunMode.EXECUTE);
         
         // get command to run
@@ -337,10 +353,14 @@ public class AmazonReader {
         // run command instruction
         try {
             commandIndex = exec.executeProgramCommand (commandIndex, command);
-            TCPServerThread.sendLineInfo (commandIndex);
+            int lineNumber = ScriptCompile.getLineNumber(commandIndex);
+            TCPServerThread.sendLineInfo (lineNumber);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
+
+        // if we haven't completed because we are paused, just pause the timer
+        frame.elapsedTimerPause();
         
         // reset ptr to begining if we reached the end of the script
         if (commandIndex >= cmdList.size()) {

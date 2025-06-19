@@ -41,6 +41,7 @@ public class TCPServerThread implements Runnable {
             
             // Initial message to the client
             sendStatus("CONNECTED");
+            System.out.println("SENT: CONNECTED");
             clientConnected = true;
             
             // Read and print the client's message
@@ -69,30 +70,7 @@ public class TCPServerThread implements Runnable {
     public static void sendStatus (String status) {
         if (out_socket != null && clientConnected) {
             sendMessage ("STATUS: " + status);
-            
-            String message = "";
-            switch(status) {
-                case "CONNECTED":
-                    break;
-                case "LOADED":
-                    message = "Script loaded";
-                    break;
-                case "COMPILED":
-                    message = "Script compiled";
-                    break;
-                case "EOF":
-                    message = "Script completed";
-                    break;
-                case "PAUSED":
-                    message = "Script paused";
-                    break;
-                default:
-                    break;
-            }
-            
-            if (! message.isEmpty()) {
-                System.out.println(message);
-            }
+            System.out.println("SENT: STATUS: " + status);
         }
     }
     
@@ -111,15 +89,14 @@ public class TCPServerThread implements Runnable {
                 String entry = varList.get(ix);
                 sendMessage ("ALLOC: " + entry);
             }
+            System.out.println("SENT: ALLOC: " + varList.size() + " msgs");
         }
     }
     
-    public static void sendVarInfo (ArrayList<String> varInfo) {
+    public static void sendVarInfo (String varInfo) {
         if (out_socket != null && clientConnected) {
-            for (int ix = 0; ix < varInfo.size(); ix++) {
-                String entry = varInfo.get(ix);
-                sendMessage ("VARMSG: " + entry);
-            }
+            sendMessage ("VARMSG: " + varInfo);
+            System.out.println("SENT: VARMSG: " + varInfo);
         }
     }
     
@@ -127,6 +104,7 @@ public class TCPServerThread implements Runnable {
         if (out_socket != null && clientConnected) {
             String message = Integer.toString(line);
             sendMessage ("LINE: " + message);
+            System.out.println("SENT: LINE: " + message);
         }
     }
     
@@ -181,6 +159,7 @@ public class TCPServerThread implements Runnable {
                     System.exit(0);
                 default:
                     System.out.println("invalid command: " + array.getFirst());
+                    sendStatus("UNKNOWN COMMAND: " + command);
                     return true;
             }
         } catch (ParserException exMsg) {

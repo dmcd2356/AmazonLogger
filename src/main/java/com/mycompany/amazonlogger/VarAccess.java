@@ -104,20 +104,23 @@ public class VarAccess {
     public boolean isGlobal () {
         return this.access == Variables.AccessType.GLOBAL;
     }
+        
+    public void setWriteInfo () throws ParserException {
+        this.writer = Subroutine.getCurrentIndex();
+        this.writeTime = UIFrame.elapsedTimerGet();
+    }
 
     // these are the functions to set the value of the variable
     public void setValueString (String value) throws ParserException {
         checkType (ParameterStruct.ParamType.String);
         this.strValue = value;
-        this.writer = Subroutine.getCurrentIndex();
-        this.writeTime = UIFrame.elapsedTimerGet();
+        setWriteInfo();
     }
         
     public void setValueInteger (Long value) throws ParserException {
         checkType (ParameterStruct.ParamType.Integer);
         this.intValue = value;
-        this.writer = Subroutine.getCurrentIndex();
-        this.writeTime = UIFrame.elapsedTimerGet();
+        setWriteInfo();
     }
         
     public void setValueUnsigned (Long value) throws ParserException {
@@ -127,29 +130,25 @@ public class VarAccess {
             throw new ParserException(functionId + "Invalid value for type Unsigned: " + value);
         }
         this.intValue = value;
-        this.writer = Subroutine.getCurrentIndex();
-        this.writeTime = UIFrame.elapsedTimerGet();
+        setWriteInfo();
     }
         
     public void setValueBoolean (Boolean value) throws ParserException {
         checkType (ParameterStruct.ParamType.Boolean);
         this.boolValue = value;
-        this.writer = Subroutine.getCurrentIndex();
-        this.writeTime = UIFrame.elapsedTimerGet();
+        setWriteInfo();
     }
         
     public void setValueStrArray (ArrayList<String> value) throws ParserException {
         checkType (ParameterStruct.ParamType.StrArray);
         this.strArray = value;
-        this.writer = Subroutine.getCurrentIndex();
-        this.writeTime = UIFrame.elapsedTimerGet();
+        setWriteInfo();
     }
         
     public void setValueIntArray (ArrayList<Long> value) throws ParserException {
         checkType (ParameterStruct.ParamType.IntArray);
         this.intArray = value;
-        this.writer = Subroutine.getCurrentIndex();
-        this.writeTime = UIFrame.elapsedTimerGet();
+        setWriteInfo();
     }
         
     // these are the function to get the variable values

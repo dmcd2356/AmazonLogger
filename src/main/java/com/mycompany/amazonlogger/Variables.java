@@ -71,6 +71,37 @@ public class Variables {
         response.add("<END>");
         return response;
     }
+
+    public void sendVarChange (String varName, VarClass cls) throws ParserException {
+        if (AmazonReader.isOpModeNetwork()) {
+            String response;
+            switch (cls) {
+                case LOCAL:
+                    String subName = Subroutine.getSubName();
+                    response = varLocal.getVarInfo(subName, varName);
+                    TCPServerThread.sendVarInfo(response);
+                    break;
+                case GLOBAL:
+                    response = VarGlobal.getVarInfo(varName);
+                    TCPServerThread.sendVarInfo(response);
+                    break;
+            }
+        }
+    }
+
+    // saves the time and script line when the variable was written.
+    public void setVarWriter (String varName, VarClass cls) throws ParserException {
+        if (AmazonReader.isOpModeNetwork()) {
+            switch (cls) {
+                case LOCAL:
+                    VarLocal.setVarWriter(varName);
+                    break;
+                case GLOBAL:
+                    VarGlobal.setVarWriter(varName);
+                    break;
+            }
+        }
+    }
     
     /**
      * modifies the value of an existing entry in the String Variable table.
@@ -82,7 +113,8 @@ public class Variables {
      * @throws ParserException
      */
     public void setStringVariable (String name, String value) throws ParserException {
-        switch (getVariableClass (name)) {
+        VarClass cls = getVariableClass (name);
+        switch (cls) {
             case LOCAL:
                 varLocal.putString(name, value);
                 break;
@@ -91,6 +123,7 @@ public class Variables {
                 VarGlobal.putStringVariable(name, value);
                 break;
         }
+        sendVarChange (name, cls);
     }
 
     /**
@@ -103,7 +136,8 @@ public class Variables {
      * @throws ParserException
      */
     public void setIntegerVariable (String name, Long value) throws ParserException {
-        switch (getVariableClass (name)) {
+        VarClass cls = getVariableClass (name);
+        switch (cls) {
             case LOCAL:
                 varLocal.putInteger(name, value);
                 break;
@@ -112,6 +146,7 @@ public class Variables {
                 VarGlobal.putIntegerVariable(name, value);
                 break;
         }
+        sendVarChange (name, cls);
     }
 
     /**
@@ -124,7 +159,8 @@ public class Variables {
      * @throws ParserException
      */
     public void setUnsignedVariable (String name, Long value) throws ParserException {
-        switch (getVariableClass (name)) {
+        VarClass cls = getVariableClass (name);
+        switch (cls) {
             case LOCAL:
                 varLocal.putUnsigned(name, value);
                 break;
@@ -133,6 +169,7 @@ public class Variables {
                 VarGlobal.putUnsignedVariable(name, value);
                 break;
         }
+        sendVarChange (name, cls);
     }
 
     /**
@@ -145,7 +182,8 @@ public class Variables {
      * @throws ParserException
      */
     public void setBooleanVariable (String name, Boolean value) throws ParserException {
-        switch (getVariableClass (name)) {
+        VarClass cls = getVariableClass (name);
+        switch (cls) {
             case LOCAL:
                 varLocal.putBoolean(name, value);
                 break;
@@ -154,10 +192,12 @@ public class Variables {
                 VarGlobal.putBooleanVariable(name, value);
                 break;
         }
+        sendVarChange (name, cls);
     }
     
     public void setStrArray (String name, ArrayList<String> value) throws ParserException {
-        switch (getVariableClass (name)) {
+        VarClass cls = getVariableClass (name);
+        switch (cls) {
             case LOCAL:
                 varLocal.updateStrArray(name, value);
                 break;
@@ -166,10 +206,12 @@ public class Variables {
                 VarGlobal.updateStrArray(name, value);
                 break;
         }
+        sendVarChange (name, cls);
     }
     
     public void setIntArray (String name, ArrayList<Long> value) throws ParserException {
-        switch (getVariableClass (name)) {
+        VarClass cls = getVariableClass (name);
+        switch (cls) {
             case LOCAL:
                 varLocal.updateIntArray(name, value);
                 break;
@@ -178,6 +220,7 @@ public class Variables {
                 VarGlobal.updateIntArray(name, value);
                 break;
         }
+        sendVarChange (name, cls);
     }
 
     public String getStringValue (String name) throws ParserException {

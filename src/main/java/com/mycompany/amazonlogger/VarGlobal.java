@@ -19,11 +19,11 @@ public class VarGlobal {
     private static final String CLASS_NAME = VarGlobal.class.getSimpleName();
     private static final String INDENT = "     ";
     
+    // the chars used to seperate entries in reporting variable contents to the client
+    private static final String DATA_SEP = "::";
+    
     // user-defined global static Variables
     private static final HashMap<String, VarAccess> globals  = new HashMap<>();
-    
-    VarGlobal () {
-    }
     
     /**
      * initializes the saved Variables
@@ -42,12 +42,25 @@ public class VarGlobal {
         for (Map.Entry<String, VarAccess> pair : globals.entrySet()) {
             String name    = pair.getKey();
             VarAccess info = pair.getValue();
-            String subWriter = Subroutine.findSubName(info.getWriterIndex());
             response.add("[<name> " + name
-                    + ", <type> " + info.getType()
-                    + ", <owner> " + info.getOwner() + "]");
+                    + " " + DATA_SEP + " <type> "  + info.getType()
+                    + " " + DATA_SEP + " <owner> " + info.getOwner() + "]");
         }
         return response;
+    }
+
+    /**
+     * saves the time and script line when the variable was written.
+     * 
+     * @param varName - name of the variable written
+     * 
+     * @throws ParserException 
+     */
+    public static void setVarWriter (String varName) throws ParserException {
+        VarAccess varInfo = globals.get(varName);
+        if (varInfo != null) {
+            varInfo.setWriteInfo();
+        }
     }
     
     /**
@@ -81,11 +94,13 @@ public class VarGlobal {
                 break;
         }
         String subWriter = Subroutine.findSubName(varInfo.getWriterIndex());
-        String response = "[<name> "    + varName
-                        + ", <value> "  + value
-                        + ", <writer> " + subWriter
-                        + ", <line> "   + varInfo.getWriterIndex()
-                        + ", <time> "   + varInfo.getWriterTime() + "]";
+        String response = "[<section> GLOBAL"
+                        + " " + DATA_SEP + " <name> "   + varName
+                        + " " + DATA_SEP + " <type> "   + varInfo.getType()
+                        + " " + DATA_SEP + " <value> "  + value
+                        + " " + DATA_SEP + " <writer> " + subWriter
+                        + " " + DATA_SEP + " <line> "   + varInfo.getWriterIndex()
+                        + " " + DATA_SEP + " <time> "   + varInfo.getWriterTime() + "]";
         return response;
     }
     

@@ -549,7 +549,7 @@ public class Utils {
         switch (type) {
             case PDF:
                 // if running from script, limit path selection to within test path
-                if (! AmazonReader.isRunModeCommmandLine()) {
+                if (! AmazonReader.isOpModeCommmandLine()) {
                     if (! FileIO.isWithinTestPath(pathname)) {
                         throw new ParserException(functionId + "Input path name was outside Test Path");
                     }
@@ -558,7 +558,7 @@ public class Utils {
                 break;
             case Spreadsheet:
                 // if running from script, limit path selection to within test path
-                if (! AmazonReader.isRunModeCommmandLine()) {
+                if (! AmazonReader.isOpModeCommmandLine()) {
                     if (! FileIO.isWithinTestPath(pathname)) {
                         throw new ParserException(functionId + "Input path name was outside Test Path");
                     }

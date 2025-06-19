@@ -493,6 +493,7 @@ public class ScriptExecute {
                 PreCompile.variables.checkWriteAccess (varName);
                 
                 boolean bSuccess = false;
+                Variables.VarClass varClass;
                 String strValue;
                 switch (parmType) {
                     case IntArray:
@@ -522,7 +523,11 @@ public class ScriptExecute {
                         throw new ParserException(exceptPreface + "Invalid parameter type: " + parmRef.getParamType());
                 }
 
-                if (!bSuccess) {
+                if (bSuccess) {
+                    varClass = PreCompile.variables.getVariableClass(varName);
+                    PreCompile.variables.setVarWriter (varName, varClass);
+                    PreCompile.variables.sendVarChange(varName, varClass);
+                } else {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
 
@@ -563,7 +568,11 @@ public class ScriptExecute {
                         throw new ParserException(exceptPreface + "Invalid parameter type: " + parmType);
                 }
 
-                if (!bSuccess) {
+                if (bSuccess) {
+                    varClass = PreCompile.variables.getVariableClass(varName);
+                    PreCompile.variables.setVarWriter (varName, varClass);
+                    PreCompile.variables.sendVarChange(varName, varClass);
+                } else {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
                 break;
@@ -593,7 +602,11 @@ public class ScriptExecute {
                 }
                 
                 bSuccess = VarArray.arrayModifyEntry (varName, index, strValue);
-                if (!bSuccess) {
+                if (bSuccess) {
+                    varClass = PreCompile.variables.getVariableClass(varName);
+                    PreCompile.variables.setVarWriter (varName, varClass);
+                    PreCompile.variables.sendVarChange(varName, varClass);
+                } else {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
                 break;
@@ -608,7 +621,11 @@ public class ScriptExecute {
                 PreCompile.variables.checkWriteAccess (varName);
                 
                 bSuccess = VarArray.arrayClearEntries (varName, index, 1);
-                if (!bSuccess) {
+                if (bSuccess) {
+                    varClass = PreCompile.variables.getVariableClass(varName);
+                    PreCompile.variables.setVarWriter (varName, varClass);
+                    PreCompile.variables.sendVarChange(varName, varClass);
+                } else {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
                 break;
@@ -631,7 +648,11 @@ public class ScriptExecute {
                 }
                 int iStart = size - iCount;
                 bSuccess = VarArray.arrayClearEntries (varName, iStart, iCount);
-                if (!bSuccess) {
+                if (bSuccess) {
+                    varClass = PreCompile.variables.getVariableClass(varName);
+                    PreCompile.variables.setVarWriter (varName, varClass);
+                    PreCompile.variables.sendVarChange(varName, varClass);
+                } else {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
                 break;
@@ -654,7 +675,11 @@ public class ScriptExecute {
                     }
                 }
                 bSuccess = VarArray.arrayClearEntries (varName, iStart, iCount);
-                if (!bSuccess) {
+                if (bSuccess) {
+                    varClass = PreCompile.variables.getVariableClass(varName);
+                    PreCompile.variables.setVarWriter (varName, varClass);
+                    PreCompile.variables.sendVarChange(varName, varClass);
+                } else {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
                 }
                 break;
@@ -667,6 +692,9 @@ public class ScriptExecute {
                 PreCompile.variables.checkWriteAccess (varName);
                 
                 VarArray.arrayClearAll(varName);
+                varClass = PreCompile.variables.getVariableClass(varName);
+                PreCompile.variables.setVarWriter (varName, varClass);
+                PreCompile.variables.sendVarChange(varName, varClass);
                 break;
                 
             case FILTER:
@@ -884,7 +912,17 @@ public class ScriptExecute {
                 break;
         }
         } catch (IOException | TikaException | SAXException | ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + exceptPreface);
+            if (AmazonReader.isOpModeNetwork()) {
+                String response = exMsg.getMessage();
+                if (response.length() > 120) {
+                    response = response.substring(0, 120);
+                }
+                TCPServerThread.sendStatus("ERROR: " + response);
+                newIndex = -1;
+                cmdIndex = -1;
+            } else {
+                throw new ParserException(exMsg + "\n  -> " + exceptPreface);
+            }
         }
         
         // by default, the command will proceed to the next command

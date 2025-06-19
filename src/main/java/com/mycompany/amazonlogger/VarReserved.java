@@ -19,6 +19,9 @@ public class VarReserved {
     
     private static final String CLASS_NAME = VarReserved.class.getSimpleName();
     
+    // the chars used to seperate entries in reporting variable contents to the client
+    private static final String DATA_SEP = "::";
+    
     // reserved static Variables
     private static final ArrayList<String> strResponse = new ArrayList<>(); // responses from RUN commands
     private static String  subRetValue;     // ret value from the last subroutine call
@@ -68,7 +71,7 @@ public class VarReserved {
         for (ReservedVars entry : ReservedVars.values()) {
             String name = entry.toString();
             response.add("[<name> " + name
-                      + ", <type> " + getVariableTypeFromName(name).toString() + "]");
+                      + " " + DATA_SEP + " <type> " + getVariableTypeFromName(name).toString() + "]");
         }
         return response;
     }
@@ -102,7 +105,8 @@ public class VarReserved {
                 value = param.getIntArray().toString();
                 break;
         }
-        String response = ("[<name> " + varName + ", <value> " + value + "]");
+        String response = ("[<name> " + varName
+                        + " " + DATA_SEP + " <value> " + value + "]");
         return response;
     }
     

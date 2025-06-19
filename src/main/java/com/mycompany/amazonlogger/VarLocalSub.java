@@ -15,6 +15,9 @@ import java.util.HashMap;
 public class VarLocalSub {
 
     private static final String CLASS_NAME = VarLocalSub.class.getSimpleName();
+
+    // the chars used to seperate entries in reporting variable contents to the client
+    private static final String DATA_SEP = "::";
     
     // These are keyed by the name of the variable.
     private final HashMap<String, VarAccess> localVar;
@@ -38,8 +41,8 @@ public class VarLocalSub {
             String name    = pair.getKey();
             VarAccess info = pair.getValue();
             response.add("[<name> " + name
-                    + ", <type> " + info.getType()
-                    + ", <owner> " + info.getOwner() + "]");
+                     + " " + DATA_SEP + " <type> "  + info.getType()
+                     + " " + DATA_SEP + " <owner> " + info.getOwner() + "]");
         }
         return response;
     }
@@ -77,11 +80,14 @@ public class VarLocalSub {
                 break;
         }
         String subWriter = Subroutine.findSubName(varInfo.getWriterIndex());
-        String response = "[<name> "    + varName
-                        + ", <value> "  + value
-                        + ", <writer> " + subWriter
-                        + ", <line> "   + varInfo.getWriterIndex()
-                        + ", <time> "   + varInfo.getWriterTime() + "]";
+        String response = "[<section> LOCAL"
+                        + " " + DATA_SEP + " <owner> "  + varInfo.getOwner()
+                        + " " + DATA_SEP + " <name> "   + varName
+                        + " " + DATA_SEP + " <type> "   + varInfo.getType()
+                        + " " + DATA_SEP + " <value> "  + value
+                        + " " + DATA_SEP + " <writer> " + subWriter
+                        + " " + DATA_SEP + " <line> "   + varInfo.getWriterIndex()
+                        + " " + DATA_SEP + " <time> "   + varInfo.getWriterTime() + "]";
         return response;
     }
     
@@ -117,6 +123,16 @@ public class VarLocalSub {
         return varInfo.isVarInit();
     }
 
+    // saves the time and script line when the variable was written.
+    public void setVarWriter (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        VarAccess varInfo = localVar.get(varName);
+        if (varInfo == null) {
+            throw new ParserException(functionId + "Local variable not found: " + varName);
+        }
+        varInfo.setWriteInfo();
+    }
+    
     // returns the line number of the script that was the last writer to the variable
     public String getWriterIndex (String varName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";

@@ -39,7 +39,6 @@ public class VarLocal {
         ArrayList<String> subNameList = Subroutine.getSubNames();
         for (int ix = 0; ix < subNameList.size(); ix++) {
             String subName = subNameList.get(ix);
-            response.add("<SUB: " + subName + ">");
             if (locals.containsKey(subName)) {
                 VarLocalSub subInfo = locals.get(subName);
                 response.addAll(subInfo.getVarAlloc());
@@ -118,6 +117,20 @@ public class VarLocal {
         return localSub.isVarInit(varName);
     }
 
+    // saves the time and script line when the variable was written.
+    public static void setVarWriter (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        String subName = Subroutine.getSubName();
+        VarLocalSub localSub = locals.get(subName);
+        if (localSub == null) {
+            throw new ParserException(functionId + "Subroutine allocations not found: " + subName);
+        }
+        if (! localSub.isDefined(varName)) {
+            throw new ParserException(functionId + "Variable " + varName + " not found");
+        }
+        localSub.setVarWriter(varName);
+    }
+    
     // returns the line number of the script that was the last writer to the variable
     public String getWriterIndex (String varName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";

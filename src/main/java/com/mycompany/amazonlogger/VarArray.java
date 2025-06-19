@@ -54,7 +54,7 @@ public class VarArray {
         }
         return PreCompile.variables.getIntArray(name).get(ix);
     }
-
+    
     /**
      * get the number of elements in an existing Array Variable.
      * Indicates if the name was not found (does NOT create a new entry).
