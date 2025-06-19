@@ -50,20 +50,6 @@ public class VarGlobal {
     }
 
     /**
-     * saves the time and script line when the variable was written.
-     * 
-     * @param varName - name of the variable written
-     * 
-     * @throws ParserException 
-     */
-    public static void setVarWriter (String varName) throws ParserException {
-        VarAccess varInfo = globals.get(varName);
-        if (varInfo != null) {
-            varInfo.setWriteInfo();
-        }
-    }
-    
-    /**
      * returns a list of the variables defined here.
      * 
      * @param varName - name of the variable to look up
@@ -149,6 +135,14 @@ public class VarGlobal {
         return varInfo.isVarInit();
     }
 
+    // saves the time and script line when the variable was written.
+    public static void setVarWriter (String varName) throws ParserException {
+        VarAccess varInfo = globals.get(varName);
+        if (varInfo != null) {
+            varInfo.setWriteInfo();
+        }
+    }
+    
     // returns the line number of the script that was the last writer to the variable
     public static String getWriterIndex (String varName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";

@@ -199,6 +199,15 @@ public class AmazonReader {
             frame.outputInfoMsg (STATUS_PROGRAM, "Script STOPPED");
         }
     }
+
+    /**
+     * determine if the script has completed.
+     * 
+     * @return true if it completed
+     */
+    public static boolean isScriptCompleted() {
+        return (commandIndex >= cmdList.size() || commandIndex < 0);
+    }
     
     /**
      * selects the program to run
@@ -297,6 +306,7 @@ public class AmazonReader {
         // enable timestamp on log messages
         frame.elapsedTimerEnable();
         pause = false;
+        FileIO.init();
 
 //        commandIndex = 0;
         try {
@@ -310,7 +320,7 @@ public class AmazonReader {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
 
-        if (pause && commandIndex < cmdList.size()) {
+        if (pause && !isScriptCompleted()) {
             // if we haven't completed because we are paused, just pause the timer
             frame.elapsedTimerPause();
         } else {
@@ -321,6 +331,7 @@ public class AmazonReader {
             frame.outputInfoMsg(STATUS_PROGRAM, "Resetting program index to begining");
             commandIndex = 0;
             frame.reset();
+            FileIO.init();
         }
     }
     
@@ -363,10 +374,11 @@ public class AmazonReader {
         frame.elapsedTimerPause();
         
         // reset ptr to begining if we reached the end of the script
-        if (commandIndex >= cmdList.size()) {
+        if (isScriptCompleted()) {
             frame.outputInfoMsg(STATUS_PROGRAM, "Resetting program index to begining");
             commandIndex = 0;
             frame.reset();
+            FileIO.init();
         }
     }
 

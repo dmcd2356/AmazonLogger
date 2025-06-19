@@ -7,6 +7,7 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
+import java.util.ArrayList;
 import java.util.Stack;
 
 /**
@@ -19,6 +20,9 @@ public class LoopStruct {
     private static final String CLASS_NAME = LoopStruct.class.getSimpleName();
     
     private static final String LOOP_FOREVER = "#FOREVER#";
+    
+    // the chars used to seperate entries in reporting variable contents to the client
+    private static final String DATA_SEP = "::";
     
     private final String    name;       // parameter name for the loop
     private       Integer   value;      // current parameter value
@@ -134,6 +138,42 @@ public class LoopStruct {
     }
 
     /**
+     * sends the LoopId for the current running loops to the client.
+     */
+    public static void sendCurrentLoopInfo () {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+       
+        if (! AmazonReader.isOpModeNetwork()) {
+            return;
+        }
+        if (! loopStack.empty()) {
+            for (int ix = 0; ix < loopStack.size(); ix++) {
+                LoopId id = loopStack.get(ix);
+                LoopStruct loop = LoopParam.getLoopStruct (id);
+                if (loop == null) {
+                    continue;
+                }
+                try {
+                    String entry = "[<section> LOOP"
+                            + " " + DATA_SEP + " <name> "   + id.name
+                            + " " + DATA_SEP + " <owner> "  + Subroutine.findSubName(loop.ixBegin)
+                            + " " + DATA_SEP + " <type> Integer"
+                            + " " + DATA_SEP + " <value> "   + loop.value
+                            + " " + DATA_SEP + " <start> "   + loop.valStart.getIntValue()
+                            + " " + DATA_SEP + " <end> "     + loop.valEnd.getIntValue()
+                            + " " + DATA_SEP + " <step> "    + loop.valStep.getIntValue()
+                            + " " + DATA_SEP + " <incl> "    + loop.bInclEnd
+                            + " " + DATA_SEP + " <comp> "    + loop.comparator
+                            + "]";
+                    TCPServerThread.sendVarInfo(entry);
+                } catch (ParserException exMsg) {
+                    frame.outputInfoMsg(STATUS_WARN, functionId + "Loop " + id.name + " error in getting loop settings");
+                }
+            }
+        }
+    }
+    
+    /**
      * checks if the loop index values are valid integers or variable references.
      * 
      * @param which - name of the loop parameter setting (START, END, STEP)
@@ -220,7 +260,7 @@ public class LoopStruct {
     public Integer getLoopValue () {
         return value;
     }
-    
+
     /**
      * indicates if the loop exceeds the bounds of the IF block it is in.
      * This should be called when any of the commands NEXT, BREAK, ENDFOR are called

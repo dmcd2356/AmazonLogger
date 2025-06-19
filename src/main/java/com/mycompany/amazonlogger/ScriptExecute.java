@@ -820,6 +820,7 @@ public class ScriptExecute {
                 LoopStruct.pushStack(curLoopId);
                 int loopSize = LoopStruct.getStackSize();
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "new FOR Loop level " + loopSize+ " parameter " + loopName + " index @ " + cmdIndex);
+                LoopStruct.sendCurrentLoopInfo();
                 break;
             case BREAK:
                 loopSize = LoopStruct.getStackSize();
@@ -829,6 +830,7 @@ public class ScriptExecute {
                 newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
+                LoopStruct.sendCurrentLoopInfo();
                 break;
             case SKIP:
                 loopSize = LoopStruct.getStackSize();
@@ -838,6 +840,7 @@ public class ScriptExecute {
                 newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
+                LoopStruct.sendCurrentLoopInfo();
                 break;
             case BREAKIF:
                 loopSize = LoopStruct.getStackSize();
@@ -857,6 +860,7 @@ public class ScriptExecute {
                     newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                     frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
                 }
+                LoopStruct.sendCurrentLoopInfo();
                 break;
             case SKIPIF:
                 loopSize = LoopStruct.getStackSize();
@@ -876,6 +880,7 @@ public class ScriptExecute {
                     newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                     frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
                 }
+                LoopStruct.sendCurrentLoopInfo();
                 break;
             case NEXT:
                 loopSize = LoopStruct.getStackSize();
@@ -885,6 +890,7 @@ public class ScriptExecute {
                 newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
+                LoopStruct.sendCurrentLoopInfo();
                 break;
             case ENDFOR:
                 loopSize = LoopStruct.getStackSize();
@@ -904,6 +910,7 @@ public class ScriptExecute {
                     frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Current Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 }
+                LoopStruct.sendCurrentLoopInfo();
                 break;
             case RUN:
                 // fall through...
@@ -918,8 +925,7 @@ public class ScriptExecute {
                     response = response.substring(0, 120);
                 }
                 TCPServerThread.sendStatus("ERROR: " + response);
-                newIndex = -1;
-                cmdIndex = -1;
+                return -1;
             } else {
                 throw new ParserException(exMsg + "\n  -> " + exceptPreface);
             }

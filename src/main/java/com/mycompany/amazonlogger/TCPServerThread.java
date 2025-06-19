@@ -152,7 +152,11 @@ public class TCPServerThread implements Runnable {
                     break;
                 case "STEP":
                     AmazonReader.runScriptStep();
-                    sendStatus("STEPPED");
+                    if (AmazonReader.isScriptCompleted()) {
+                        sendStatus("EOF");
+                    } else {
+                        sendStatus("STEPPED");
+                    }
                     break;
                 case "EXIT":
                     System.out.println("User shut down");
