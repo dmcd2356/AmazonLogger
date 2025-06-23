@@ -143,18 +143,31 @@ public final class UIFrame extends JFrame implements ActionListener {
     private final JTextPane txt_info;
 
     /**
-     * resets the GUI state to initial settings.
-     * called when a script has completed when running from network connection
+     * initializes the GUI state.
+     * called prior to compiling a file
      */
-    public void reset() {
+    public void init () {
+        msgEnable = 0;
         closeTestFile();
         testFile = null;
         testFname = "";
-        msgEnable = 0;
         logCounter = 0;
         props.setPropertiesItem(Property.TestFileOut, "");
     }
     
+    /**
+     * resets the GUI state after a script has been run.
+     * called when a script has completed when running from network connection
+     */
+    public void reset() {
+        // close and re-open the test file
+//        closeTestFile();
+//        setTestOutputFile (testFname, false);
+        
+        // reset the log counter to 0
+        logCounter = 0;
+    }
+
     // constructor, to initialize the components
     // with default values.
     public UIFrame(boolean bGUI)
@@ -887,7 +900,7 @@ public final class UIFrame extends JFrame implements ActionListener {
      * 
      * @return a 2 character String: 00 - 99
      */
-    private String get2DigitString (int value) {
+    private static String get2DigitString (int value) {
         String strVal = (value < 10) ? "0" + value : "" + value;
         return strVal;
     }
@@ -899,7 +912,7 @@ public final class UIFrame extends JFrame implements ActionListener {
      * 
      * @param msgType - the message to enable/disable
      */
-    private int getPropsMsgEnable () {
+    private static int getPropsMsgEnable () {
         String strFlags = props.getPropertiesItem(Property.MsgEnable, "0");
         Integer intVal = 0;
         try {
@@ -921,7 +934,7 @@ public final class UIFrame extends JFrame implements ActionListener {
      * 
      * @param msgType - the message to enable/disable
      */
-    private void setPropsMsgEnable (int intValue) {
+    private static void setPropsMsgEnable (int intValue) {
         try {
             String strFlags = Utils.toHexWordValue (intValue);
             props.setPropertiesItem(Property.MsgEnable, strFlags);

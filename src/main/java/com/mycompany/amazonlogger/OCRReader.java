@@ -27,21 +27,7 @@ public class OCRReader {
 
     private static final String CLASS_NAME = OCRReader.class.getSimpleName();
     
-    private static Metadata metadata;
-    private static String   content = "";
-    
     public OCRReader() {
-        metadata = null;
-        content = "";
-    }
-    
-    /**
-     * returns the entire text of the last OCR scan.
-     * 
-     * @return the text from the last scan
-     */
-    public static String getContent () {
-        return content;
     }
     
     /**
@@ -65,7 +51,6 @@ public class OCRReader {
             throw new ParserException(functionId + "OCR file not found: " + fname);
         }
         
-        content = "";
         Parser parser = new AutoDetectParser();
         BodyContentHandler handler = new BodyContentHandler(Integer.MAX_VALUE);
 
@@ -82,9 +67,10 @@ public class OCRReader {
         parseContext.set(Parser.class, parser);
 
         FileInputStream stream = new FileInputStream(fname);
-        metadata = new Metadata();
+        Metadata metadata = new Metadata();
         parser.parse(stream, handler, metadata, parseContext);
-        content = handler.toString();
+        String content = handler.toString();
+        VarReserved.putOcrDataValue(content);
         frame.outputInfoMsg (STATUS_PROGRAM, "Size of OCR scanned text: " + content.length());
     }
 

@@ -163,6 +163,11 @@ public class ScriptCompile {
                 // 'cmdStruct'  will receive the command, with the arguments yet to be placed.
                 cmdStruct = new CommandStruct(command, lineNum);
 
+                // skip the ALLOCATE command since it has already been handled by the PreCompiler
+                if (command == CommandStruct.CommandTable.ALLOCATE) {
+                    continue;
+                }
+                
                 // extract the arguments to pass to the command
                 frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + command + " " + parmString);
                 boolean bParamAssign = (CommandStruct.CommandTable.SET == command);

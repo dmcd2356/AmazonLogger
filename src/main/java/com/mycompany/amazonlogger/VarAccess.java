@@ -67,6 +67,39 @@ public class VarAccess {
         frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + varType + " Variable " + varName + " allocated for subroutine: " + this.owner);
     }
 
+    // clears the data value and writer info from the variable
+    public void reset() {
+        this.writer    = null;
+        this.writeTime = "";
+
+        this.strValue  = null;
+        this.intValue  = null;
+        this.boolValue = null;
+        this.strArray  = null;
+        this.intArray  = null;
+
+        // init the value of the chosen type
+        switch (varType) {
+            case Integer:
+            case Unsigned:
+                this.intValue = 0L;
+                break;
+            case Boolean:
+                this.boolValue = false;
+                break;
+            case String:
+                this.strValue = "";
+                break;
+            case StrArray:
+                this.strArray = new ArrayList<>();
+                break;
+            case IntArray:
+                this.intArray = new ArrayList<>();
+                break;
+        }
+        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + varType + " Variable " + varName + " reset for subroutine: " + this.owner);
+    }
+    
     private void checkType (ParameterStruct.ParamType callType) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         if (varType != callType) {

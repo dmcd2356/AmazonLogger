@@ -26,6 +26,10 @@ public class PreCompile {
 
     public static final Variables variables = new Variables();
 
+    public PreCompile() {
+        init();
+    }
+    
     /**
      * initializes all the static variable entities
      */

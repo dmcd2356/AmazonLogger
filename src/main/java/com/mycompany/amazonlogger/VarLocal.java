@@ -8,6 +8,7 @@ import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
@@ -29,6 +30,16 @@ public class VarLocal {
         locals.clear();
     }
     
+    /**
+     * re-initializes the saved Variables
+     */
+    public void resetVariables () {
+        for (Map.Entry<String, VarLocalSub> pair : locals.entrySet()) {
+            VarLocalSub var = pair.getValue();
+            var.resetVariables();
+        }
+    }
+
     /**
      * returns a list of all local variables.
      * 
@@ -197,7 +208,7 @@ public class VarLocal {
         if (! locals.containsKey(subName)) {
             allocSubroutine (subName);
         }
-        if (isAllocated (subName, varName)) {
+        else if (isAllocated (subName, varName)) {
             throw new ParserException(functionId + "Variable " + varName + " already defined for subroutine: " + subName);
         }
         VarLocalSub vars = locals.get(subName);

@@ -58,6 +58,7 @@ public class PropertiesFile {
         TestPath,               // test directory path
         TestFileOut,            // name of the output file to copy test report to
         TestFileAppend,         // 1 to append to test file output, 0 to overwrite it
+        Port,                   // TCP port for server to use for communicating with client
     };
 
     /**

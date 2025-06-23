@@ -41,6 +41,9 @@ public class Subroutine {
     
     // the current script line number
     private static Integer curLineNum  = 1;
+    
+    // indicates whether the script is compiling or executing code
+    private static boolean bExecuteMode = false;
 
     /**
      * initializes all the static parameters
@@ -52,6 +55,14 @@ public class Subroutine {
         subUsed.clear();
         lastSubName = null;
         curLineNum = 1;
+        bExecuteMode = false;
+    }
+    
+    /**
+     * sets the flag to indicate we are now executing code.
+     */
+    public static void beginExecution() {
+        bExecuteMode = true;
     }
     
     /**
@@ -185,7 +196,16 @@ public class Subroutine {
      */
     public static String getSubName () {
         String subName = MAIN_FCTN;
-        if (AmazonReader.isRunModeCompile()) {
+        if (bExecuteMode) {
+            // in EXECUTE mode we just check the stack to see where we are
+            if (! subStack.empty()) {
+                SubCall info = subStack.peek();
+                if (info != null) {
+                    subName = info.getName();
+                }
+            }
+        } else {
+            // in COMPILE mode we use the current line number to determine
             if (! subCallList.isEmpty()) {
                 for (int ix = subCallList.size() - 1; ix >= 0; ix--) {
                     SubInfo info = subCallList.get(ix);
@@ -193,13 +213,6 @@ public class Subroutine {
                         subName = info.subName;
                         break;
                     }
-                }
-            }
-        } else {
-            if (! subStack.empty()) {
-                SubCall info = subStack.peek();
-                if (info != null) {
-                    subName = info.getName();
                 }
             }
         }

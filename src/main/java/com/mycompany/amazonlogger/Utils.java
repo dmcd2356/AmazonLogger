@@ -112,6 +112,35 @@ public class Utils {
         }  
     }
 
+    /**
+     * limits the max string length to a given amount and indicates it is truncated.
+     * 
+     * @param value - the initial string value
+     * 
+     * @return the modified string value
+     */
+    public static String limitStringLength (String value) {
+        if (value.length() > 75) {
+            value = value.substring(0, 60) + "... (len = " + value.length() + ")";
+        }
+        String response = "";
+        int offset1 = value.indexOf('\n');
+        int offset2 = value.indexOf('\r');
+        if (offset1 >= 0 || offset2 >= 0) {
+            for (int ix = 0; ix < value.length(); ix++) {
+                char ch = value.charAt(ix);
+                if (ch >= ' ') {
+                    response += ch;
+                } else {
+                    response += '.';
+                }
+            }
+        } else {
+            response = value;
+        }
+        return response;
+    }
+    
     /*********************************************************************
     ** converts the integer cost in cents into a string in dollar amount.
     * 

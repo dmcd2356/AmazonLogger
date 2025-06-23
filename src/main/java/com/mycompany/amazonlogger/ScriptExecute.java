@@ -51,6 +51,7 @@ public class ScriptExecute {
      * @throws IOException 
      */
     public static void exit() throws IOException {
+        Subroutine.beginExecution(); // make sure to run the exit commands in EXECUTE mode
         FileIO.exit();
     }
     

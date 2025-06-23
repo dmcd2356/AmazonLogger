@@ -26,10 +26,20 @@ public class VarGlobal {
     private static final HashMap<String, VarAccess> globals  = new HashMap<>();
     
     /**
-     * initializes the saved Variables
+     * removes all the saved Variables
      */
     public static void initVariables () {
         globals.clear();
+    }
+
+    /**
+     * re-initializes the saved Variables
+     */
+    public static void resetVariables () {
+        for (Map.Entry<String, VarAccess> pair : globals.entrySet()) {
+            VarAccess var = pair.getValue();
+            var.reset();
+        }
     }
 
     /**
@@ -62,6 +72,7 @@ public class VarGlobal {
         switch(varInfo.getType()) {
             case String:
                 value = varInfo.getValueString();
+                value = Utils.limitStringLength(value);
                 break;
             case Integer:
                 value = varInfo.getValueInteger().toString();

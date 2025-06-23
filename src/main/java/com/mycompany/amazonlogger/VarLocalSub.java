@@ -6,6 +6,7 @@ package com.mycompany.amazonlogger;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This holds maps of each of the variable data types for LOCAL variables.
@@ -28,6 +29,16 @@ public class VarLocalSub {
     public VarLocalSub (String owner) {
         this.owner = owner;
         this.localVar = new HashMap<>();
+    }
+
+    /**
+     * re-initializes the saved Variables
+     */
+    public void resetVariables () {
+        for (Map.Entry<String, VarAccess> pair : localVar.entrySet()) {
+            VarAccess var = pair.getValue();
+            var.reset();
+        }
     }
 
     /**
@@ -62,6 +73,7 @@ public class VarLocalSub {
         switch(varInfo.getType()) {
             case String:
                 value = varInfo.getValueString();
+                value = Utils.limitStringLength(value);
                 break;
             case Integer:
                 value = varInfo.getValueInteger().toString();

@@ -26,6 +26,10 @@ public class VarReserved {
     private static final ArrayList<String> strResponse = new ArrayList<>(); // responses from RUN commands
     private static String  subRetValue;     // ret value from the last subroutine call
     private static boolean bStatus = false; // true/false status indications
+    private static String  OcrText = "";    // the OCR data read
+    private static String  curDirectory = ""; // the current directory value
+    private static String  scriptName = ""; // the current running script base name
+    
     private static long    maxRandom = 1000000000; // for random values 0 - 999999999
 
     
@@ -39,6 +43,16 @@ public class VarReserved {
         OCRTEXT,        // String output of OCRSCAN command
         CURDIR,         // String the current directory for file i/o
         SCRIPTNAME,     // String name of the current script that is running
+    }
+    
+    /**
+     * initializes the saved Variables
+     */
+    public static void initVariables () {
+        strResponse.clear();
+        subRetValue = "";
+        bStatus = false;
+        maxRandom = 1000000000;
     }
     
     /**
@@ -77,47 +91,27 @@ public class VarReserved {
     }
     
     /**
-     * returns name and value of a variable.
+     * sends the reserved variable info to the client.
      * 
      * @param varName - the name of the reserved parameter
-     * 
-     * @return the name and value of the variable
+     * @param varType - parameter type
+     * @param value   - parameter value
      */
-    public static String getVarInfo (String varName) {
-        ParameterStruct.ParamType varType = getVariableTypeFromName(varName);
-        ParameterStruct param = getVariableInfo (varName, varType);
-        String value = "";
-        switch (varType) {
-            case Integer:
-            case Unsigned :
-                value = param.getIntegerValue().toString();
-                break;
-            case Boolean:
-                value = param.getBooleanValue().toString();
-                break;
-            case String:
-                value = param.getStringValue();
-                break;
-            case StrArray:
-                value = param.getStrArray().toString();
-                break;
-            case IntArray:
-                value = param.getIntArray().toString();
-                break;
+    public static void sendVarInfo (ReservedVars varName, ParameterStruct.ParamType varType, String value) {
+        String curTime = UIFrame.elapsedTimerGet();
+        if (curTime == null || curTime.isEmpty()) {
+            curTime = "00:00.000";
         }
-        String response = ("[<name> " + varName
-                        + " " + DATA_SEP + " <value> " + value + "]");
-        return response;
-    }
-    
-    /**
-     * initializes the saved Variables
-     */
-    public static void initVariables () {
-        strResponse.clear();
-        subRetValue = "";
-        bStatus = false;
-        maxRandom = 1000000000;
+        String response = "[<section> RESERVED"
+                        + " " + DATA_SEP + " <name> "   + varName
+                        + " " + DATA_SEP + " <type> "   + varType
+                        + " " + DATA_SEP + " <value> "  + value
+                        + " " + DATA_SEP + " <writer> " + Subroutine.getSubName()
+                        + " " + DATA_SEP + " <line> "   + Subroutine.getCurrentIndex()
+                        + " " + DATA_SEP + " <time> "   + curTime + "]";
+
+        // send info to client
+        TCPServerThread.sendVarInfo(response);
     }
     
     /**
@@ -127,6 +121,7 @@ public class VarReserved {
      */
     public static void putResponseValue (String value) {
         strResponse.add(value);
+        sendVarInfo (ReservedVars.RESPONSE, ParameterStruct.ParamType.StrArray, value);
     }
     
     /**
@@ -136,6 +131,7 @@ public class VarReserved {
      */
     public static void putResponseValue (ArrayList<String> value) {
         strResponse.addAll(value);
+        sendVarInfo (ReservedVars.RESPONSE, ParameterStruct.ParamType.StrArray, value.toString());
     }
     
     /**
@@ -143,8 +139,9 @@ public class VarReserved {
      * 
      * @param value - value to set the result Variable to
      */
-    public static void putStatusValue (boolean value) {
+    public static void putStatusValue (Boolean value) {
         bStatus = value;
+        sendVarInfo (ReservedVars.STATUS, ParameterStruct.ParamType.Boolean, value.toString());
     }
 
     /**
@@ -154,8 +151,39 @@ public class VarReserved {
      */
     public static void putSubRetValue (String value) {
         subRetValue = value;
+        sendVarInfo (ReservedVars.RETVAL, ParameterStruct.ParamType.String, value);
     }
 
+    /**
+     * set the value of the $OCRTEXT Variable
+     * 
+     * @param value - value to set the subroutine return Variable to
+     */
+    public static void putOcrDataValue (String value) {
+        OcrText = value;
+        sendVarInfo (ReservedVars.OCRTEXT, ParameterStruct.ParamType.String, value);
+    }
+    
+    /**
+     * set the value of the $CURDIR Variable
+     * 
+     * @param value - value to set the subroutine return Variable to
+     */
+    public static void putCurDirValue (String value) {
+        curDirectory = value;
+        sendVarInfo (ReservedVars.CURDIR, ParameterStruct.ParamType.String, value);
+    }
+    
+    /**
+     * set the value of the $SCRIPTNAME Variable
+     * 
+     * @param value - value to set the subroutine return Variable to
+     */
+    public static void putScriptNameValue (String value) {
+        scriptName = value;
+        sendVarInfo (ReservedVars.SCRIPTNAME, ParameterStruct.ParamType.String, value);
+    }
+    
     /**
      * set the max value for the $RANDOM variable.
      * (the max range for random value will be 0 to maxRandom - 1)
@@ -301,34 +329,38 @@ public class VarReserved {
                 paramValue.setBooleanValue(bStatus);
                 pType = ParameterStruct.ParamType.Boolean;
                 break;
-            case RANDOM:
-                paramValue.setIntegerValue(getRandomValue());
-                pType = ParameterStruct.ParamType.Integer;
-                break;
             case RETVAL:
                 paramValue.setStringValue(subRetValue);
                 pType = ParameterStruct.ParamType.String;
                 break;
+            case RANDOM:
+                Long value = getRandomValue();
+                paramValue.setIntegerValue(value);
+                pType = ParameterStruct.ParamType.Integer;
+                sendVarInfo (reserved, ParameterStruct.ParamType.Integer, value.toString());
+                break;
             case TIME:
                 LocalTime currentTime = LocalTime.now();
-                paramValue.setStringValue(currentTime.toString().substring(0,12));
+                String strTime = currentTime.toString().substring(0,12);
+                paramValue.setStringValue(strTime);
                 pType = ParameterStruct.ParamType.String;
+                sendVarInfo (reserved, ParameterStruct.ParamType.String, strTime);
                 break;
             case DATE:
                 LocalDate currentDate = LocalDate.now();
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ENGLISH);
                 String strDate = currentDate.format(formatter);
                 paramValue.setStringValue(strDate);
+                sendVarInfo (reserved, ParameterStruct.ParamType.String, strDate);
                 break;
             case OCRTEXT:
-                String ocrText = OCRReader.getContent();
-                paramValue.setStringValue(ocrText);
+                paramValue.setStringValue(OcrText);
                 break;
             case CURDIR:
-                paramValue.setStringValue(FileIO.getCurrentFilePath());
+                paramValue.setStringValue(curDirectory);
                 break;
             case SCRIPTNAME:
-                paramValue.setStringValue(AmazonReader.getScriptName());
+                paramValue.setStringValue(scriptName);
                 break;
             default:
                 paramValue = null;

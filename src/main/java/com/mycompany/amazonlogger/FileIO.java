@@ -154,6 +154,7 @@ public class FileIO {
     
     /**
      * sets the base Test path for all file write accesses to be contained within.
+     * This is only called by PreCompile to initialize the base path we will use.
      * 
      * @param path - the path to set as the FileIO path
      * 
@@ -270,6 +271,7 @@ public class FileIO {
         }
 
         fileDir = path;
+        VarReserved.putCurDirValue(fileDir);
         java.io.File file = new java.io.File(fileDir);
         if (! file.exists() || ! file.isDirectory()) {
             throw new ParserException(functionId + "Invalid directory selection: " + fileDir);

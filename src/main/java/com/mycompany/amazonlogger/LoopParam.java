@@ -7,7 +7,6 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -65,6 +64,14 @@ public class LoopParam {
         }
     }
         
+    /**
+     * initializes the saved Variables
+     */
+    public static void initVariables () {
+        loopParams.clear();
+        loopNames.clear();
+    }
+
     public void update (Integer value) {
         this.value = value;
     }
@@ -96,14 +103,6 @@ public class LoopParam {
             return null;
         }
         return LoopStruct.getCurrentLoopValue(name).longValue();
-    }
-
-    /**
-     * initializes the saved Variables
-     */
-    public static void initVariables () {
-        loopParams.clear();
-        loopNames.clear();
     }
 
     /**

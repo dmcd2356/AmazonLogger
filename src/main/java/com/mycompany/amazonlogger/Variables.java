@@ -59,6 +59,18 @@ public class Variables {
         LoopParam.initVariables();
     }
 
+    /**
+     * re-initializes the saved Variables
+     */
+    public void resetVariables () {
+        VarReserved.initVariables();
+        VarGlobal.resetVariables();
+        if (varLocal != null) {
+            varLocal.resetVariables();
+        }
+        VarArray.initVariables();
+    }
+
     public ArrayList<String> getVarAlloc() {
         ArrayList<String> response = new ArrayList<>();
         response.add("<START>");
