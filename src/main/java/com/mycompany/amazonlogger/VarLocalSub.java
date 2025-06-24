@@ -73,7 +73,7 @@ public class VarLocalSub {
         switch(varInfo.getType()) {
             case String:
                 value = varInfo.getValueString();
-                value = Utils.limitStringLength(value);
+                value = Utils.formatNetworkString(value);
                 break;
             case Integer:
                 value = varInfo.getValueInteger().toString();

@@ -39,12 +39,37 @@ public class ScriptCompile {
         return scriptLineLength;
     }
 
+    /**
+     * converts a command index to the script line number it represents,
+     * 
+     * @param cmdIx - the command index value
+     * 
+     * @return the corresponding line number (9999 if invalid index)
+     */
     public static int getLineNumber (int cmdIx) {
         if (cmdIx >= lineNumbers.size() || cmdIx < 0) {
-            return lineNumbers.getLast() + 1;
-//            cmdIx = lineNumbers.size() - 1;
+            return 9999;
         }
         return lineNumbers.get(cmdIx);
+    }
+
+    /**
+     * converts a line number to the corresponding command index,
+     * 
+     * @param lineNum - the script line number
+     * 
+     * @return the corresponding command index value if found
+     */
+    public static int getCommandIndex (int lineNum) {
+        for (int ix = 0; ix < lineNumbers.size(); ix++) {
+            if (lineNumbers.get(ix) == lineNum) {
+                return ix;
+            }
+            if (lineNumbers.get(ix) > lineNum) {
+                break;
+            }
+        }
+        return 9999;
     }
 
     private static void checkNoArgs (CommandStruct.CommandTable command, String strParams) throws ParserException {

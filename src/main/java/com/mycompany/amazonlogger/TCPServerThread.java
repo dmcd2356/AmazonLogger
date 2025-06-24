@@ -10,6 +10,7 @@ package com.mycompany.amazonlogger;
  */
 import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.io.*;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,6 +24,9 @@ public class TCPServerThread implements Runnable {
     private static PrintWriter out_socket;
     private static boolean clientConnected = false;
 
+    private ServerSocket ss = null;
+    private DataInputStream in = null;
+    
     public TCPServerThread(Socket socket, TCPServerMain tcpServerMain) {
         this.socket = socket;
         this.tcpServerMain = tcpServerMain;
@@ -33,29 +37,29 @@ public class TCPServerThread implements Runnable {
         // wait for clients to connect
         int clientNumber = tcpServerMain.getClientNumber();
         System.out.println("Client " + clientNumber + " at " + socket.getInetAddress() + " has connected.");
-            
+
         try {
             // Set up input and output streams for client communication
             BufferedReader in_socket = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out_socket = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
-            
+
             // Initial message to the client
             sendStatus("CONNECTED");
             System.out.println("SENT: CONNECTED");
             clientConnected = true;
-            
+
             // Read and print the client's message
             boolean bExit = false;
             while (! bExit) {
                 String message = in_socket.readLine();
                 bExit = executeCommand(message);
             }
-            
+
             // Close the connection
             clientConnected = false;
             socket.close();
             System.out.println("Client " + clientNumber + " " + socket.getInetAddress() + " has disconnected.");
-       
+
         } catch (IOException exMsg) {
             exMsg.printStackTrace();
         }
@@ -108,15 +112,15 @@ public class TCPServerThread implements Runnable {
         }
     }
     
-    private static boolean executeCommand (String command) {
+    private boolean executeCommand (String command) {
         if (command == null || command.isEmpty()) {
-            System.out.println("CLIENT: received empty command");
-            return true;
+            //System.out.println("CLIENT: received empty command");
+            return false;
         }
         ArrayList<String> array = new ArrayList<>(Arrays.asList(command.split(" ")));
         if (array.isEmpty()) {
             System.out.println("CLIENT: received empty command");
-            return true;
+            return false;
         }
         System.out.println("CLIENT: received command: " + command);
         try {
@@ -135,36 +139,37 @@ public class TCPServerThread implements Runnable {
                     sendStatus("COMPILED");
                     break;
                 case "RUN":
-                    AmazonReader.runScript();
-                    sendStatus("EOF");
+                    AmazonReader.runScriptNetwork();
                     break;
                 case "STOP":
                     AmazonReader.stopScript();
-                    sendStatus("STOPPED");
                     break;
                 case "PAUSE":
                     AmazonReader.pauseScript(true);
-                    sendStatus("PAUSED");
                     break;
                 case "RESUME":
                     AmazonReader.pauseScript(false);
-                    sendStatus("RESUMED");
                     break;
                 case "STEP":
                     AmazonReader.runScriptStep();
-                    if (AmazonReader.isScriptCompleted()) {
-                        sendStatus("EOF");
-                    } else {
-                        sendStatus("STEPPED");
-                    }
                     break;
+                case "RESET":
+                    AmazonReader.resetScript();
+                    break;
+                case "BREAKPT":
+                    AmazonReader.setBreakpoint(array.get(1));
+                    break;
+                case "DISCONNECT":
+                    return true;
                 case "EXIT":
                     System.out.println("User shut down");
+                    clientConnected = false;
+                    socket.close();
                     System.exit(0);
                 default:
                     System.out.println("invalid command: " + array.getFirst());
                     sendStatus("UNKNOWN COMMAND: " + command);
-                    return true;
+                    return false;
             }
         } catch (ParserException exMsg) {
             AmazonReader.frame.outputInfoMsg(STATUS_WARN, exMsg.getMessage());
@@ -172,7 +177,14 @@ public class TCPServerThread implements Runnable {
             return false;
         } catch (IOException | SAXException | TikaException exMsg) {
             exMsg.printStackTrace();
-            return true;
+            clientConnected = false;
+            try {
+                socket.close();
+            } catch (IOException ex) {
+                // ignore
+            }
+            System.exit(0);
+            //return true;
         }
         return false;
     }

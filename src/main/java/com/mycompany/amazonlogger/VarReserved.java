@@ -102,6 +102,7 @@ public class VarReserved {
         if (curTime == null || curTime.isEmpty()) {
             curTime = "00:00.000";
         }
+        value = Utils.formatNetworkString(value);
         String response = "[<section> RESERVED"
                         + " " + DATA_SEP + " <name> "   + varName
                         + " " + DATA_SEP + " <type> "   + varType

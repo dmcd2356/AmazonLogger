@@ -114,12 +114,14 @@ public class Utils {
 
     /**
      * limits the max string length to a given amount and indicates it is truncated.
+     * This is used for passing String values to the client in network mode.
+     * It limits the length and encloses the value in quotes if it isn't a boolean or numeric.
      * 
      * @param value - the initial string value
      * 
      * @return the modified string value
      */
-    public static String limitStringLength (String value) {
+    public static String formatNetworkString (String value) {
         if (value.length() > 75) {
             value = value.substring(0, 60) + "... (len = " + value.length() + ")";
         }
@@ -138,6 +140,16 @@ public class Utils {
         } else {
             response = value;
         }
+        
+        // if value is not boolean or numeric, enclose it in quotes
+        if (!response.equalsIgnoreCase("true") && !response.equalsIgnoreCase("false")) {
+            try {
+                Long.valueOf(response);
+            } catch (NumberFormatException ex) {
+                response = "\"" + response + "\"";
+            }
+        }
+        
         return response;
     }
     
