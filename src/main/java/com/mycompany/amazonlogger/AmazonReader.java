@@ -22,6 +22,9 @@ public class AmazonReader {
     
     // port to use if not found in PropertiesFile
     private static final int SERVER_PORT = 6000;
+    
+    // command index value that represents end of file reached
+    public static final int CMD_INDEX_EOF = -1;
 
     // GLOBALS
     public  static UIFrame frame;
@@ -36,8 +39,7 @@ public class AmazonReader {
     private static ScriptExecute exec = null;
     private static boolean pause = false;
     private static boolean stop = false;
-    private static boolean breakEnable = false;
-    private static int     breakIndex;
+    private static int     breakIndex = CMD_INDEX_EOF;
     
     private static ArrayList<CommandStruct> cmdList = null;
     
@@ -170,7 +172,23 @@ public class AmazonReader {
     }
 
     /**
+     * resets the script program counter to 0.
+     * 
+     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
+     * 
+     */
+    public static void resetScript() {
+        scriptInit();
+
+        // send back the line info of initial execution instruction
+        int lineNumber = ScriptCompile.getLineNumber(commandIndex);
+        TCPServerThread.sendLineInfo (lineNumber);
+    }
+    
+    /**
      * pause / resume the script.
+     * 
+     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
      * 
      * @param state - the pause/resume state to go to
      * @throws ParserException
@@ -179,36 +197,35 @@ public class AmazonReader {
      * @throws TikaException
      */
     public static void pauseScript (boolean state) throws ParserException, IOException, SAXException, TikaException {
-        if (isOpModeNetwork()) {
-            pause = state;
-            if (pause) {
-                frame.outputInfoMsg (STATUS_PROGRAM, "Script begining PAUSE");
-            } else {
-                TCPServerThread.sendStatus("RESUMED");
-                frame.outputInfoMsg (STATUS_PROGRAM, "Script begining RESUME");
-                runScriptNetwork();
-            }
+        pause = state;
+        if (pause) {
+            frame.outputInfoMsg (STATUS_PROGRAM, "Script begining PAUSE");
+        } else {
+            TCPServerThread.sendStatus("RESUMED");
+            frame.outputInfoMsg (STATUS_PROGRAM, "Script begining RESUME");
+            runScriptNetwork();
         }
     }
 
     /**
      * stop the script from running.
-     * (Also resets the command index to beginning so we can re-run)
+     * 
+     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
      */
     public static void stopScript () {
-        if (isOpModeNetwork()) {
-            stop = true;
-        }
+        stop = true;
     }
 
     /**
      * sets or disables the breakpoint for executing from the network.
      * 
+     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
+     * 
      * @param value - OFF or the script line number of the breakpoint
      */
     public static void setBreakpoint (String value) {
         if (value.contentEquals("OFF")) {
-            breakEnable = false;
+            breakIndex = CMD_INDEX_EOF;
             frame.outputInfoMsg (STATUS_PROGRAM, "Script breakpoint disabled");
         } else {
             int line;
@@ -222,11 +239,10 @@ public class AmazonReader {
 
             // get the corresponding command index value for the line
             breakIndex = ScriptCompile.getCommandIndex(line);
-            if (breakIndex == 9999) {
+            if (breakIndex == CMD_INDEX_EOF) {
                 TCPServerThread.sendStatus("BREAKPT INVALID");
                 return;
             }
-            breakEnable = true;
             frame.outputInfoMsg (STATUS_PROGRAM, "Script breakpoint set to line: " + value);
             TCPServerThread.sendStatus("BREAKPT SET");
         }
@@ -294,7 +310,7 @@ public class AmazonReader {
         frame.elapsedTimerEnable();
         cmdList = null;
         int maxLines = 0;
-        breakEnable = false;
+        breakIndex = CMD_INDEX_EOF;
 
         try {
             // do the Pre-compile operation
@@ -303,8 +319,7 @@ public class AmazonReader {
             Variables variables = preCompile.build(scriptFile);
 
             if (isOpModeNetwork()) {
-                ArrayList<String> varAllocs = variables.getVarAlloc();
-                TCPServerThread.sendAllocations(varAllocs);
+                variables.sendVarAlloc();
             }
             
             // compile the program
@@ -359,20 +374,7 @@ public class AmazonReader {
         }
     }
     
-    /**
-     * resets the script program counter to 0.
-     * 
-     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
-     * 
-     */
-    public static void resetScript() {
-        scriptInit();
 
-        // send back the line info of initial execution instruction
-        int lineNumber = ScriptCompile.getLineNumber(commandIndex);
-        TCPServerThread.sendLineInfo (lineNumber);
-    }
-    
     /**
      * runs the currently compiled script.
      * 
@@ -397,6 +399,7 @@ public class AmazonReader {
             // execute the program by running each 'cmdList' entry
             if (commandIndex == 0) {
                 frame.outputInfoMsg(STATUS_PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
+                Subroutine.sendSubStackList();
             } else {
                 frame.outputInfoMsg(STATUS_PROGRAM, "===== RESUMING PROGRAM EXECUTION =====");
             }
@@ -408,14 +411,12 @@ public class AmazonReader {
                 }
                 if (stop) {
                     stop = false;
-                    pause = true;
-                    if (cmdList != null && ! cmdList.isEmpty()) {
-                        commandIndex = 0;
-                    }
+                    commandIndex = CMD_INDEX_EOF;
                     frame.outputInfoMsg (STATUS_PROGRAM, "Script STOPPED");
                     TCPServerThread.sendStatus("STOPPED");
+                    break;
                 }
-                if (breakEnable && commandIndex == breakIndex) {
+                if (commandIndex == breakIndex) {
                     pause = true;
                     TCPServerThread.sendStatus("BREAK");
                     break;
@@ -425,10 +426,8 @@ public class AmazonReader {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
 
-        // if the user requested a pause, pause the timer
-        if (pause) {
-            frame.elapsedTimerPause();
-        }
+        // pause the timer
+        frame.elapsedTimerPause();
 
         // send back the line info of where we stopped
         int lineNumber = ScriptCompile.getLineNumber(commandIndex);
@@ -437,6 +436,7 @@ public class AmazonReader {
         // we have completed - if running from network, inform the client and stop the timer
         if (isScriptCompleted()) {
             TCPServerThread.sendStatus("EOF");
+            frame.elapsedTimerDisable();
         }
     }
     
@@ -459,6 +459,7 @@ public class AmazonReader {
 
         if (commandIndex == 0) {
             frame.outputInfoMsg(STATUS_PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
+            Subroutine.sendSubStackList();
         }
 
         // enable timestamp on log messages

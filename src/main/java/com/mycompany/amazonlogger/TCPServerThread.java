@@ -19,13 +19,14 @@ import org.xml.sax.SAXException;
 
 public class TCPServerThread implements Runnable {
     
-    private final TCPServerMain tcpServerMain; // Reference to the main server
-    private final Socket socket; // Client socket
-    private static PrintWriter out_socket;
-    private static boolean clientConnected = false;
+    private final  TCPServerMain tcpServerMain; // Reference to the main server
+    private final  Socket        socket; // Client socket
+    private static PrintWriter   out_socket = null;
+    private static boolean       clientConnected = false;
 
-    private ServerSocket ss = null;
-    private DataInputStream in = null;
+    public  static final BoundedBuffer buffer = new BoundedBuffer();
+    private final ServerSocket    ss = null;
+    private final DataInputStream in = null;
     
     public TCPServerThread(Socket socket, TCPServerMain tcpServerMain) {
         this.socket = socket;
@@ -48,6 +49,10 @@ public class TCPServerThread implements Runnable {
             System.out.println("SENT: CONNECTED");
             clientConnected = true;
 
+            // create the thread that will do the command execution
+            Thread scriptThread = new Thread(new ScriptThread());
+            scriptThread.start();
+            
             // Read and print the client's message
             boolean bExit = false;
             while (! bExit) {
@@ -60,7 +65,7 @@ public class TCPServerThread implements Runnable {
             socket.close();
             System.out.println("Client " + clientNumber + " " + socket.getInetAddress() + " has disconnected.");
 
-        } catch (IOException exMsg) {
+        } catch (IOException | InterruptedException exMsg) {
             exMsg.printStackTrace();
         }
     }
@@ -103,7 +108,20 @@ public class TCPServerThread implements Runnable {
             System.out.println("SENT: VARMSG: " + varInfo);
         }
     }
-    
+
+    public static void sendUserOutputInfo (String varInfo) {
+        if (out_socket != null && clientConnected) {
+            sendMessage ("OUTPUT: " + varInfo);
+        }
+    }
+
+    public static void sendSubInfo (String varInfo) {
+        if (out_socket != null && clientConnected) {
+            sendMessage ("SUBSTACK: " + varInfo);
+            System.out.println("SENT: SUBSTACK: " + varInfo);
+        }
+    }
+
     public static void sendLineInfo (int line) {
         if (out_socket != null && clientConnected) {
             String message = Integer.toString(line);
@@ -112,7 +130,7 @@ public class TCPServerThread implements Runnable {
         }
     }
     
-    private boolean executeCommand (String command) {
+    private boolean executeCommand (String command) throws InterruptedException {
         if (command == null || command.isEmpty()) {
             //System.out.println("CLIENT: received empty command");
             return false;
@@ -138,27 +156,27 @@ public class TCPServerThread implements Runnable {
                     AmazonReader.compileScript();
                     sendStatus("COMPILED");
                     break;
-                case "RUN":
-                    AmazonReader.runScriptNetwork();
-                    break;
-                case "STOP":
-                    AmazonReader.stopScript();
-                    break;
-                case "PAUSE":
-                    AmazonReader.pauseScript(true);
-                    break;
-                case "RESUME":
-                    AmazonReader.pauseScript(false);
-                    break;
-                case "STEP":
-                    AmazonReader.runScriptStep();
-                    break;
-                case "RESET":
-                    AmazonReader.resetScript();
-                    break;
-                case "BREAKPT":
-                    AmazonReader.setBreakpoint(array.get(1));
-                    break;
+//                case "RUN":
+//                    AmazonReader.runScriptNetwork();
+//                    break;
+//                case "STOP":
+//                    AmazonReader.stopScript();
+//                    break;
+//                case "PAUSE":
+//                    AmazonReader.pauseScript(true);
+//                    break;
+//                case "RESUME":
+//                    AmazonReader.pauseScript(false);
+//                    break;
+//                case "STEP":
+//                    AmazonReader.runScriptStep();
+//                    break;
+//                case "RESET":
+//                    AmazonReader.resetScript();
+//                    break;
+//                case "BREAKPT":
+//                    AmazonReader.setBreakpoint(array.get(1));
+//                    break;
                 case "DISCONNECT":
                     return true;
                 case "EXIT":
@@ -167,8 +185,9 @@ public class TCPServerThread implements Runnable {
                     socket.close();
                     System.exit(0);
                 default:
-                    System.out.println("invalid command: " + array.getFirst());
-                    sendStatus("UNKNOWN COMMAND: " + command);
+                    buffer.produce(command);
+//                    System.out.println("invalid command: " + array.getFirst());
+//                    sendStatus("UNKNOWN COMMAND: " + command);
                     return false;
             }
         } catch (ParserException exMsg) {

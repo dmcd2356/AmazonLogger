@@ -279,10 +279,15 @@ public class CmdOptions {
                 response.addAll(rsp);
             }
         }
+        String text;
         if (response.isEmpty()) {
-            System.out.println("<OK>");
+            text = "<OK>";
         } else {
-            System.out.println("<" + String.join(",", response) + ">");
+            text = "<" + String.join(",", response) + ">";
+        }
+        System.out.println(text);
+        if (AmazonReader.isOpModeNetwork()) {
+            TCPServerThread.sendUserOutputInfo(text);
         }
     }
     

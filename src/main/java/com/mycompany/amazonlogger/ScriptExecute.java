@@ -269,6 +269,9 @@ public class ScriptExecute {
                 if (cmdStruct.params.isEmpty()) {
                     // treat no arguments as outputting an empty newline
                     System.out.println();
+                    if (AmazonReader.isOpModeNetwork()) {
+                        TCPServerThread.sendUserOutputInfo("");
+                    }
                 } else if (cmdStruct.params.size() > 1) {
                     // if multiple arguments, must be a concatenated string.
                     //  pull the pieces together and print
@@ -280,21 +283,36 @@ public class ScriptExecute {
                         }
                     }
                     System.out.println(text);
+                    if (AmazonReader.isOpModeNetwork()) {
+                        TCPServerThread.sendUserOutputInfo(text);
+                    }
                 } else if (cmdStruct.params.get(0).getParamType() == ParameterStruct.ParamType.StrArray) {
                     // if entry is a string array, print each entry on a new line
                     ArrayList<String> list = cmdStruct.params.get(0).getStrArray();
                     for (int ix = 0; ix < list.size(); ix++) {
-                        System.out.println(list.get(ix));
+                        String text = list.get(ix);
+                        System.out.println(text);
+                        if (AmazonReader.isOpModeNetwork()) {
+                            TCPServerThread.sendUserOutputInfo(text);
+                        }
                     }
                 } else if (cmdStruct.params.get(0).getParamType() == ParameterStruct.ParamType.IntArray) {
                     // if entry is a string array, print each entry on a new line
                     ArrayList<Long> list = cmdStruct.params.get(0).getIntArray();
                     for (int ix = 0; ix < list.size(); ix++) {
-                        System.out.println(list.get(ix).toString());
+                        String text = list.get(ix).toString();
+                        System.out.println(text);
+                        if (AmazonReader.isOpModeNetwork()) {
+                            TCPServerThread.sendUserOutputInfo(text);
+                        }
                     }
                 } else {
                     // otherwise, just print the single entry
-                    System.out.println(cmdStruct.params.get(0).getStringValue());
+                    String text = cmdStruct.params.get(0).getStringValue();
+                    System.out.println(text);
+                    if (AmazonReader.isOpModeNetwork()) {
+                        TCPServerThread.sendUserOutputInfo(text);
+                    }
                 }
                 break;
             case DIRECTORY:
@@ -524,12 +542,11 @@ public class ScriptExecute {
                         throw new ParserException(exceptPreface + "Invalid parameter type: " + parmRef.getParamType());
                 }
 
-                if (bSuccess) {
-                    varClass = PreCompile.variables.getVariableClass(varName);
-                    PreCompile.variables.setVarWriter (varName, varClass);
-                    PreCompile.variables.sendVarChange(varName, varClass);
-                } else {
+                // AmazonReader.isOpModeNetwork()
+                if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
+                } else {
+                    Variables.updateNetworkArray (varName);
                 }
 
             case APPEND:
@@ -569,12 +586,10 @@ public class ScriptExecute {
                         throw new ParserException(exceptPreface + "Invalid parameter type: " + parmType);
                 }
 
-                if (bSuccess) {
-                    varClass = PreCompile.variables.getVariableClass(varName);
-                    PreCompile.variables.setVarWriter (varName, varClass);
-                    PreCompile.variables.sendVarChange(varName, varClass);
-                } else {
+                if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
+                } else {
+                    Variables.updateNetworkArray (varName);
                 }
                 break;
             case MODIFY:
@@ -603,12 +618,10 @@ public class ScriptExecute {
                 }
                 
                 bSuccess = VarArray.arrayModifyEntry (varName, index, strValue);
-                if (bSuccess) {
-                    varClass = PreCompile.variables.getVariableClass(varName);
-                    PreCompile.variables.setVarWriter (varName, varClass);
-                    PreCompile.variables.sendVarChange(varName, varClass);
-                } else {
+                if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
+                } else {
+                    Variables.updateNetworkArray (varName);
                 }
                 break;
             case REMOVE:
@@ -622,12 +635,10 @@ public class ScriptExecute {
                 PreCompile.variables.checkWriteAccess (varName);
                 
                 bSuccess = VarArray.arrayClearEntries (varName, index, 1);
-                if (bSuccess) {
-                    varClass = PreCompile.variables.getVariableClass(varName);
-                    PreCompile.variables.setVarWriter (varName, varClass);
-                    PreCompile.variables.sendVarChange(varName, varClass);
-                } else {
+                if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
+                } else {
+                    Variables.updateNetworkArray (varName);
                 }
                 break;
             case TRUNCATE:
@@ -649,12 +660,10 @@ public class ScriptExecute {
                 }
                 int iStart = size - iCount;
                 bSuccess = VarArray.arrayClearEntries (varName, iStart, iCount);
-                if (bSuccess) {
-                    varClass = PreCompile.variables.getVariableClass(varName);
-                    PreCompile.variables.setVarWriter (varName, varClass);
-                    PreCompile.variables.sendVarChange(varName, varClass);
-                } else {
+                if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
+                } else {
+                    Variables.updateNetworkArray (varName);
                 }
                 break;
             case POP:
@@ -676,12 +685,10 @@ public class ScriptExecute {
                     }
                 }
                 bSuccess = VarArray.arrayClearEntries (varName, iStart, iCount);
-                if (bSuccess) {
-                    varClass = PreCompile.variables.getVariableClass(varName);
-                    PreCompile.variables.setVarWriter (varName, varClass);
-                    PreCompile.variables.sendVarChange(varName, varClass);
-                } else {
+                if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
+                } else {
+                    Variables.updateNetworkArray (varName);
                 }
                 break;
             case CLEAR:
@@ -693,9 +700,7 @@ public class ScriptExecute {
                 PreCompile.variables.checkWriteAccess (varName);
                 
                 VarArray.arrayClearAll(varName);
-                varClass = PreCompile.variables.getVariableClass(varName);
-                PreCompile.variables.setVarWriter (varName, varClass);
-                PreCompile.variables.sendVarChange(varName, varClass);
+                Variables.updateNetworkArray (varName);
                 break;
                 
             case FILTER:

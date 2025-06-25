@@ -71,19 +71,32 @@ public class Variables {
         VarArray.initVariables();
     }
 
-    public ArrayList<String> getVarAlloc() {
-        ArrayList<String> response = new ArrayList<>();
-        response.add("<START>");
-        response.add("<RESERVED>");
-        response.addAll(VarReserved.getVarAlloc());
-        response.add("<GLOBAL>");
-        response.addAll(VarGlobal.getVarAlloc());
-        response.add("<LOCAL>");
-        response.addAll(varLocal.getVarAlloc());
-        response.add("<END>");
-        return response;
+    /**
+     * sends the allocation information for all variables to the network client.
+     * This is called following the PreCompile after all allocations are generated.
+     */
+    public void sendVarAlloc() {
+        ArrayList<String> varAllocs = new ArrayList<>();
+        varAllocs.add("<START>");
+        varAllocs.add("<RESERVED>");
+        varAllocs.addAll(VarReserved.getVarAlloc());
+        varAllocs.add("<GLOBAL>");
+        varAllocs.addAll(VarGlobal.getVarAlloc());
+        varAllocs.add("<LOCAL>");
+        varAllocs.addAll(varLocal.getVarAlloc());
+        varAllocs.add("<END>");
+        TCPServerThread.sendAllocations(varAllocs);
     }
 
+    /**
+     * sends the variable change info to the network client.
+     * This is called when a LOCAL or GLOBAL variable has been written to
+     * 
+     * @param varName - name of the variable
+     * @param cls     - the variable class (LOCAL or GLOBAL only)
+     * 
+     * @throws ParserException 
+     */
     public void sendVarChange (String varName, VarClass cls) throws ParserException {
         if (AmazonReader.isOpModeNetwork()) {
             String response;
@@ -101,8 +114,23 @@ public class Variables {
         }
     }
 
+    /**
+     * handles reporting Array variable changes to the network client.
+     * 
+     * @param varName - name of array variable changed
+     * 
+     * @throws ParserException 
+     */
+    public static void updateNetworkArray (String varName) throws ParserException {
+        if (AmazonReader.isOpModeNetwork()) {
+            Variables.VarClass varClass = PreCompile.variables.getVariableClass(varName);
+            PreCompile.variables.setVarWriter (varName, varClass);
+            PreCompile.variables.sendVarChange(varName, varClass);
+        }
+    }
+    
     // saves the time and script line when the variable was written.
-    public void setVarWriter (String varName, VarClass cls) throws ParserException {
+    private void setVarWriter (String varName, VarClass cls) throws ParserException {
         if (AmazonReader.isOpModeNetwork()) {
             switch (cls) {
                 case LOCAL:

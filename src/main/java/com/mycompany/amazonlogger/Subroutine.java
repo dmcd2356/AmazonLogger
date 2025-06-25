@@ -24,6 +24,9 @@ public class Subroutine {
     private static final String MAIN_FCTN = "*MAIN*";
     private static final String INDENT = "     ";
     
+    // the chars used to seperate entries in reporting variable contents to the client
+    private static final String DATA_SEP = "::";
+    
     // contains a list of the subroutines and their corresponding command index locations
     // (for EXECUTION only)
     private static final HashMap<String, Integer> subroutines = new HashMap<>();
@@ -126,6 +129,17 @@ public class Subroutine {
         curLineNum = 1;
     }
     
+    /**
+     * sends the subroutine stack list to the network client.
+     */
+    public static void sendSubStackList() {
+        String response = "MAIN";
+        for (int ix = 0; ix < subStack.size(); ix++) {
+            response +=  " " + DATA_SEP + " " + subStack.get(ix).getName();
+        }
+        TCPServerThread.sendSubInfo(response);
+    }
+
     /**
      * returns a list of the subroutines defined here.
      * 
@@ -537,6 +551,7 @@ public class Subroutine {
                 " entered at level " + (1 + subStack.size()));
         SubCall info = new SubCall(cmdIx, name);
         subStack.push(info);
+        sendSubStackList();
         return subroutines.get(name);
     }
 
@@ -563,6 +578,7 @@ public class Subroutine {
         SubCall info = subStack.pop();
         int index = info.getIndex();
         frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "Subroutine returned to index: " + index);
+        sendSubStackList();
         return index;
     }
 

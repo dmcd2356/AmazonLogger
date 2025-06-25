@@ -48,7 +48,7 @@ public class ScriptCompile {
      */
     public static int getLineNumber (int cmdIx) {
         if (cmdIx >= lineNumbers.size() || cmdIx < 0) {
-            return 9999;
+            return AmazonReader.CMD_INDEX_EOF;
         }
         return lineNumbers.get(cmdIx);
     }
@@ -69,7 +69,7 @@ public class ScriptCompile {
                 break;
             }
         }
-        return 9999;
+        return AmazonReader.CMD_INDEX_EOF;
     }
 
     private static void checkNoArgs (CommandStruct.CommandTable command, String strParams) throws ParserException {
