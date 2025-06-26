@@ -141,6 +141,7 @@ public class TCPServerThread implements Runnable {
             return false;
         }
         System.out.println("CLIENT: received command: " + command);
+        boolean bRunThread = false;
         try {
             switch (array.getFirst()) {
                 case "LOAD":
@@ -153,42 +154,52 @@ public class TCPServerThread implements Runnable {
                     sendStatus("LOADED");
                     break;
                 case "COMPILE":
+                    AmazonReader.enableRun();
                     AmazonReader.compileScript();
                     sendStatus("COMPILED");
                     break;
-//                case "RUN":
-//                    AmazonReader.runScriptNetwork();
-//                    break;
-//                case "STOP":
-//                    AmazonReader.stopScript();
-//                    break;
-//                case "PAUSE":
-//                    AmazonReader.pauseScript(true);
-//                    break;
-//                case "RESUME":
-//                    AmazonReader.pauseScript(false);
-//                    break;
-//                case "STEP":
-//                    AmazonReader.runScriptStep();
-//                    break;
-//                case "RESET":
-//                    AmazonReader.resetScript();
-//                    break;
-//                case "BREAKPT":
-//                    AmazonReader.setBreakpoint(array.get(1));
-//                    break;
+                case "STOP":
+                    AmazonReader.stopScript();
+                    bRunThread = true;
+                    break;
+                case "PAUSE":
+                    AmazonReader.pauseScript();
+                    bRunThread = true;
+                    break;
+                case "RUN":
+                    AmazonReader.enableRun();
+                    bRunThread = true;
+                    break;
+                case "RESUME":
+                    AmazonReader.enableRun();
+                    bRunThread = true;
+                    break;
+                case "STEP":
+                    bRunThread = true;
+                    break;
+                case "RESET":
+                    bRunThread = true;
+                    break;
+                case "BREAKPT":
+                    bRunThread = true;
+                    break;
                 case "DISCONNECT":
+                    // this will exit this ServerThread
                     return true;
                 case "EXIT":
+                    // this will close the program entirely
                     System.out.println("User shut down");
                     clientConnected = false;
                     socket.close();
                     System.exit(0);
                 default:
-                    buffer.produce(command);
-//                    System.out.println("invalid command: " + array.getFirst());
-//                    sendStatus("UNKNOWN COMMAND: " + command);
+                    System.out.println("invalid command: " + array.getFirst());
+                    sendStatus("UNKNOWN COMMAND: " + command);
                     return false;
+            }
+            if (bRunThread) {
+                // run these in seperate ScriptThread
+                buffer.produce(command);
             }
         } catch (ParserException exMsg) {
             AmazonReader.frame.outputInfoMsg(STATUS_WARN, exMsg.getMessage());

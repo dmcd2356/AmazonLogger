@@ -43,30 +43,17 @@ public class ScriptThread implements Runnable {
         System.out.println("CLIENT: received command: " + command);
         try {
             switch (array.getFirst()) {
-//                case "LOAD":
-//                    if (array.size() < 2) {
-//                        System.out.println("LOAD command missing argument");
-//                    }
-//                    String fname = array.get(1);
-//                    PreCompile.init();
-//                    AmazonReader.selectScriptFile(fname);
-//                    sendStatus("LOADED");
-//                    break;
-//                case "COMPILE":
-//                    AmazonReader.compileScript();
-//                    sendStatus("COMPILED");
-//                    break;
+                case "STOP":
+                    AmazonReader.stopComplete();
+                    break;
+                case "PAUSE":
+                    AmazonReader.pauseComplete();
+                    break;
                 case "RUN":
                     AmazonReader.runScriptNetwork();
                     break;
-                case "STOP":
-                    AmazonReader.stopScript();
-                    break;
-                case "PAUSE":
-                    AmazonReader.pauseScript(true);
-                    break;
                 case "RESUME":
-                    AmazonReader.pauseScript(false);
+                    AmazonReader.resumeScript();
                     break;
                 case "STEP":
                     AmazonReader.runScriptStep();
@@ -77,16 +64,7 @@ public class ScriptThread implements Runnable {
                 case "BREAKPT":
                     AmazonReader.setBreakpoint(array.get(1));
                     break;
-//                case "DISCONNECT":
-//                    return true;
-//                case "EXIT":
-//                    System.out.println("User shut down");
-//                    clientConnected = false;
-//                    socket.close();
-//                    System.exit(0);
                 default:
-//                    System.out.println("invalid command: " + array.getFirst());
-//                    sendStatus("UNKNOWN COMMAND: " + command);
                     return false;
             }
         } catch (ParserException exMsg) {

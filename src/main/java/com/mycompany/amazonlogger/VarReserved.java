@@ -97,12 +97,14 @@ public class VarReserved {
      * @param varType - parameter type
      * @param value   - parameter value
      */
-    public static void sendVarInfo (ReservedVars varName, ParameterStruct.ParamType varType, String value) {
+    private static void sendVarInfo (ReservedVars varName, ParameterStruct.ParamType varType, String value) {
         String curTime = UIFrame.elapsedTimerGet();
         if (curTime == null || curTime.isEmpty()) {
             curTime = "00:00.000";
         }
-        value = Utils.formatNetworkString(value);
+        if (varType == ParameterStruct.ParamType.String) {
+            value = Utils.formatNetworkString(value);
+        }
         String response = "[<section> RESERVED"
                         + " " + DATA_SEP + " <name> "   + varName
                         + " " + DATA_SEP + " <type> "   + varType

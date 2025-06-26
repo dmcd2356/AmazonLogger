@@ -38,7 +38,7 @@ public class AmazonReader {
     private static int     commandIndex = 0;
     private static ScriptExecute exec = null;
     private static boolean pause = false;
-    private static boolean stop = false;
+    private static boolean stop  = false;
     private static int     breakIndex = CMD_INDEX_EOF;
     
     private static ArrayList<CommandStruct> cmdList = null;
@@ -184,27 +184,57 @@ public class AmazonReader {
         int lineNumber = ScriptCompile.getLineNumber(commandIndex);
         TCPServerThread.sendLineInfo (lineNumber);
     }
-    
+
     /**
-     * pause / resume the script.
+     * set flag to allow runScriptNetwork() to run.
+     * It should be called from the server thread prior to executing the
+     *  new thread when handling RUN and RESUME commands.
      * 
      * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
      * 
-     * @param state - the pause/resume state to go to
+     */
+    public static void enableRun() {
+        pause = false;
+    }
+    
+    /**
+     * pause the script.
+     * This is called from the TCPServerThread to pause the runScriptNetwork
+     *  function that is called by ScriptThread
+     * 
+     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
+     * 
+     */
+    public static void pauseScript () {
+        pause = true;
+        frame.outputInfoMsg (STATUS_PROGRAM, "Script begining PAUSE");
+    }
+
+    /**
+     * indicate pause has completed.
+     * This is called from the ScriptThread when runScriptNetwork has completed
+     * 
+     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
+     * 
+     */
+    public static void pauseComplete () {
+        TCPServerThread.sendStatus("PAUSED");
+    }
+
+    /**
+     * resume the script.
+     * 
+     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
+     * 
      * @throws ParserException
      * @throws IOException
      * @throws SAXException
      * @throws TikaException
      */
-    public static void pauseScript (boolean state) throws ParserException, IOException, SAXException, TikaException {
-        pause = state;
-        if (pause) {
-            frame.outputInfoMsg (STATUS_PROGRAM, "Script begining PAUSE");
-        } else {
-            TCPServerThread.sendStatus("RESUMED");
-            frame.outputInfoMsg (STATUS_PROGRAM, "Script begining RESUME");
-            runScriptNetwork();
-        }
+    public static void resumeScript () throws ParserException, IOException, SAXException, TikaException {
+        frame.outputInfoMsg (STATUS_PROGRAM, "Script begining RESUME");
+        TCPServerThread.sendStatus("RESUMED");
+        runScriptNetwork();
     }
 
     /**
@@ -214,6 +244,18 @@ public class AmazonReader {
      */
     public static void stopScript () {
         stop = true;
+        frame.outputInfoMsg (STATUS_PROGRAM, "Script begining STOP");
+    }
+
+    /**
+     * indicate pause has completed.
+     * This is called from the ScriptThread when runScriptNetwork has stopped
+     * 
+     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
+     * 
+     */
+    public static void stopComplete () {
+        TCPServerThread.sendStatus("STOPPED");
     }
 
     /**
@@ -333,7 +375,6 @@ public class AmazonReader {
 
         frame.elapsedTimerDisable();
         exec = new ScriptExecute(scriptFile.getAbsolutePath(), maxLines);
-        pause = false;
         scriptInit();
         VarReserved.putScriptNameValue(scriptName);
         VarReserved.putCurDirValue(FileIO.getCurrentFilePath());
@@ -388,37 +429,39 @@ public class AmazonReader {
     public static void runScriptNetwork () throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        if (cmdList == null || exec == null) {
+        if (cmdList == null || exec == null || commandIndex < 0 || commandIndex > cmdList.size()) {
             throw new ParserException(functionId + "No script file has been compiled");
         }
+
+        // execute the program by running each 'cmdList' entry
+        if (commandIndex == 0) {
+            frame.outputInfoMsg(STATUS_PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
+            Subroutine.sendSubStackList();
+        } else {
+            frame.outputInfoMsg(STATUS_PROGRAM, "===== RESUMING PROGRAM EXECUTION =====");
+        }
+
         // enable timestamp on log messages
         frame.elapsedTimerEnable();
-        pause = false;
 
         try {
-            // execute the program by running each 'cmdList' entry
-            if (commandIndex == 0) {
-                frame.outputInfoMsg(STATUS_PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
-                Subroutine.sendSubStackList();
-            } else {
-                frame.outputInfoMsg(STATUS_PROGRAM, "===== RESUMING PROGRAM EXECUTION =====");
-            }
             while (commandIndex >= 0 && commandIndex < cmdList.size()) {
-                commandIndex = exec.executeProgramCommand (commandIndex, cmdList.get(commandIndex));
+                // execute next command
+                CommandStruct command = cmdList.get(commandIndex);
+                commandIndex = exec.executeProgramCommand (commandIndex, command);
+                
+                // check for termination causes
+                if (commandIndex == breakIndex) {
+                    TCPServerThread.sendStatus("BREAK");
+                    break;
+                }
                 if (pause) {
-                    TCPServerThread.sendStatus("PAUSED");
                     break;
                 }
                 if (stop) {
                     stop = false;
                     commandIndex = CMD_INDEX_EOF;
                     frame.outputInfoMsg (STATUS_PROGRAM, "Script STOPPED");
-                    TCPServerThread.sendStatus("STOPPED");
-                    break;
-                }
-                if (commandIndex == breakIndex) {
-                    pause = true;
-                    TCPServerThread.sendStatus("BREAK");
                     break;
                 }
             }
@@ -465,11 +508,10 @@ public class AmazonReader {
         // enable timestamp on log messages
         frame.elapsedTimerEnable();
         
-        // get command to run
-        CommandStruct command = cmdList.get(commandIndex);
-        
         // run command instruction
         try {
+            // execute next command
+            CommandStruct command = cmdList.get(commandIndex);
             commandIndex = exec.executeProgramCommand (commandIndex, command);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
