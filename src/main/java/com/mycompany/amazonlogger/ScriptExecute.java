@@ -230,7 +230,7 @@ public class ScriptExecute {
                 try {
                     param.updateFromReference();
                 } catch (ParserException exMsg) {
-                    throw new ParserException(exMsg + "\n  -> " + exceptPreface + " - replacing reference: " + param.getVariableRefName());
+                    Utils.throwAddendum (exMsg.getMessage(), exceptPreface + " - replacing reference: " + param.getVariableRefName());
                 }
                 // see if there are any variable references embedded in any of the parameters
                 String strVal = extractEmbeddedVar(param);
@@ -933,7 +933,7 @@ public class ScriptExecute {
                 TCPServerThread.sendStatus("ERROR: " + response);
                 return -1;
             } else {
-                throw new ParserException(exMsg + "\n  -> " + exceptPreface);
+                Utils.throwAddendum (exMsg.getMessage(), exceptPreface);
             }
         }
         

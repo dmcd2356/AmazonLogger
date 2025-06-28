@@ -5,7 +5,6 @@
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.ParameterStruct.getLongOrUnsignedValue;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
 import java.util.ArrayList;
 import java.util.Objects;
@@ -250,7 +249,7 @@ public class VarArray {
                 if (index >= entry.size()) {
                     throw new ParserException(functionId + "Array Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
-                Long longVal = getLongOrUnsignedValue (value);
+                Long longVal = Utils.getLongOrUnsignedValue (value);
                 entry.set(index, longVal);
                 arrayContents = entry.toString();
             }
@@ -267,7 +266,7 @@ public class VarArray {
             frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified List param: " + name + " = " + value);
             frame.outputInfoMsg(STATUS_VARS, INDENT + "- " + name + ": " + arrayContents);
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
         return true;
     }
@@ -295,7 +294,7 @@ public class VarArray {
             String arrayContents;
             if (isIntArray(name)) {
                 ArrayList<Long> entry = PreCompile.variables.getIntArray(name);
-                Long longVal = getLongOrUnsignedValue (value);
+                Long longVal = Utils.getLongOrUnsignedValue (value);
                 if (index >= entry.size() || entry.isEmpty()) {
                     throw new ParserException(functionId + "Variable " + name + " index exceeded: " + index + " (max " + entry.size() + ")");
                 }
@@ -325,7 +324,7 @@ public class VarArray {
             frame.outputInfoMsg(STATUS_VARS, INDENT + "- Inserted entry[" + index + "] in param: " + name + " = " + value);
             frame.outputInfoMsg(STATUS_VARS, INDENT + "- " + name + ": " + arrayContents);
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
         return true;
     }
@@ -347,15 +346,15 @@ public class VarArray {
         if (name == null || name.isEmpty()) {
             throw new ParserException(functionId + "Array Variable is missing name");
         }
-        String arrayContents;
+        String arrayContents = "";
         if (isIntArray(name)) {
             ArrayList<Long> entry = PreCompile.variables.getIntArray(name);
             try {
-                Long longVal = getLongOrUnsignedValue (value);
+                Long longVal = Utils.getLongOrUnsignedValue (value);
                 entry.addLast(longVal);
                 arrayContents = entry.toString();
             } catch (ParserException exMsg) {
-                throw new ParserException(exMsg + "\n  -> " + functionId);
+                Utils.throwAddendum (exMsg.getMessage(), functionId);
             }
         }
         else if (isStrArray(name)) {

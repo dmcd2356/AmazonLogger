@@ -497,7 +497,7 @@ public class ParseScript {
                     paramType = ParameterStruct.ParamType.Boolean;
                 } else {
                     try {
-                        Long longVal = ParameterStruct.getLongOrUnsignedValue(nextArg);
+                        Long longVal = Utils.getLongOrUnsignedValue(nextArg);
                         if (ParameterStruct.isUnsignedInt(longVal))
                             paramType = ParameterStruct.ParamType.Unsigned;
                         else
@@ -519,7 +519,7 @@ public class ParseScript {
             params.add(arg);
         }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId + " bParamAssign = " + bParamAssign);
+            Utils.throwAddendum (exMsg.getMessage(), functionId + " bParamAssign = " + bParamAssign);
         }
 
         return params;
@@ -593,7 +593,7 @@ public class ParseScript {
         try {
             PreCompile.variables.checkValidVariable(Variables.VarCheck.SET, paramName);
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
         if (line.contentEquals(paramName)) {
             throw new ParserException(functionId + "no arguments following parameter name: " + line);
@@ -664,7 +664,7 @@ public class ParseScript {
                 params.add(parm);
             }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId );
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
         
         return params;

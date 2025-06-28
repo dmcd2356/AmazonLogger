@@ -7,6 +7,7 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
 import static com.mycompany.amazonlogger.Utils.getDefaultPath;
 import java.io.File;
@@ -575,7 +576,8 @@ public class CmdOptions {
                 ParameterStruct.verifyArgEntry (command.params.get(ix), expType);
             }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId + command + " - arg[" + ix + "]");
+            frame.outputInfoMsg(STATUS_ERROR, exMsg.getMessage());
+            Utils.throwAddendum (exMsg.getMessage(), functionId + command + " - arg[" + ix + "]");
         }
     }
 

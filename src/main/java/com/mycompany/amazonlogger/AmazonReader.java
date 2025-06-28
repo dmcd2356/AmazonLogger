@@ -17,9 +17,6 @@ public class AmazonReader {
 
     private static final String CLASS_NAME = AmazonReader.class.getSimpleName();
     
-    // port to use if not found in PropertiesFile
-    private static final int SERVER_PORT = 6000;
-    
     // GLOBALS
     public  static UIFrame frame;
     public  static Keyword keyword;
@@ -129,7 +126,7 @@ public class AmazonReader {
                     }
                     case "-network" -> {
                         setOpMode (OperatingMode.NETWORK);
-                        Integer port = props.getPropertiesItem(PropertiesFile.Property.Port, SERVER_PORT);
+                        Integer port = null;
                         if (args.length == 2) {
                             port = Utils.getIntValue(args[1]).intValue();
                         }
@@ -143,11 +140,11 @@ public class AmazonReader {
                     }
                 }
             } catch (ParserException | IOException | SAXException | TikaException ex) {
-                frame.outputInfoMsg (STATUS_ERROR, ex.getMessage() + "\n  -> " + functionId);
+                frame.outputInfoMsg (STATUS_ERROR, ex.getMessage());
                 try {
                     ScriptExecute.exit();
                 } catch (IOException exIO) {
-                    frame.outputInfoMsg (STATUS_ERROR, exIO.getMessage() + "\n  -> " + functionId);
+                    frame.outputInfoMsg (STATUS_ERROR, exIO.getMessage());
                 }
                 frame.closeTestFile();
             }
@@ -228,7 +225,7 @@ public class AmazonReader {
             ScriptCompile compiler = new ScriptCompile(variables);
             compiler.build(scriptFile);
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            throw new ParserException(exMsg.getMessage());
         }
 
         if (isOpModeNetwork()) {
@@ -274,7 +271,7 @@ public class AmazonReader {
                 commandIndex = exec.executeProgramCommand (commandIndex, ScriptCompile.getExecCommand(commandIndex));
             }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
     }
 }

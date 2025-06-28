@@ -169,7 +169,7 @@ public final class ParameterStruct {
                     break;
                 case Unsigned:
                     try {
-                        longParam = getLongOrUnsignedValue(strParam);
+                        longParam = Utils.getLongOrUnsignedValue(strParam);
                     } catch (ParserException ex) {
                         throw new ParserException(functionId + invalidMsg);
                     }
@@ -179,7 +179,7 @@ public final class ParameterStruct {
                     break;
                 case Integer:
                     try {
-                        longParam = getLongOrUnsignedValue(strParam);
+                        longParam = Utils.getLongOrUnsignedValue(strParam);
                     } catch (ParserException ex) {
                         throw new ParserException(functionId + invalidMsg);
                     }
@@ -199,7 +199,7 @@ public final class ParameterStruct {
                             // now check if all entries were Integer, even if it was String Array
                             String cleanStr = strArrayParam.get(ix).strip();
                             strArrayParam.set(ix, cleanStr); // remove leading & trailing spaces
-                            longParam = getLongOrUnsignedValue(cleanStr);
+                            longParam = Utils.getLongOrUnsignedValue(cleanStr);
                             intArrayParam.add(longParam);
                         } catch (ParserException ex) {
                             bAllInts = false;
@@ -227,7 +227,7 @@ public final class ParameterStruct {
             }
             frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Discreet " + paramType + ": '" + strParam + "'");
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
     }
 
@@ -412,10 +412,10 @@ public final class ParameterStruct {
         try {
             Calculation calc = new Calculation(calcParam);
             longParam = calc.compute(type);
-            return longParam;
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
+        return longParam;
     }
         
     /**
@@ -431,7 +431,7 @@ public final class ParameterStruct {
         try {
             value = PreCompile.variables.getVariableInfo (variableRef);
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
         if (value != null) {
             this.paramType      = value.paramType;
@@ -567,7 +567,7 @@ public final class ParameterStruct {
                 varType = ParamType.Boolean;
             } else {
                 try {
-                    Long longVal = getLongOrUnsignedValue (strValue);
+                    Long longVal = Utils.getLongOrUnsignedValue (strValue);
                     varType = isUnsignedInt(longVal) ? ParamType.Unsigned : ParamType.Integer;
                 } catch (ParserException ex) {
                     int offset1 = strValue.indexOf('{');
@@ -607,32 +607,6 @@ public final class ParameterStruct {
         return true;
     }
     
-    /**
-     * converts a String hexadecimal unsigned value or 64-bit signed Integer value to a Long
-     * 
-     * @param strValue - value to convert
-     * 
-     * @return the corresponding unsigned Long value
-     * 
-     * @throws ParserException 
-     */
-    public static Long getLongOrUnsignedValue (String strValue) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        
-        Long longVal;
-        try {
-            Integer iVal = Utils.getHexValue (strValue);
-            if (iVal == null) {
-                longVal = Utils.getIntValue (strValue);
-            } else {
-                longVal = iVal.longValue();
-            }
-        } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
-        }
-        return longVal;
-    }
-
     /**
      * checks if a value is an unsigned integer
      * 
@@ -805,7 +779,7 @@ public final class ParameterStruct {
                         paramType = ParamType.Boolean;
                     } else {
                         try {
-                            Long longVal = getLongOrUnsignedValue (strParam);
+                            Long longVal = Utils.getLongOrUnsignedValue (strParam);
                             longParam = longVal;
                             if (isUnsignedInt(longVal)) {
                                 paramType = ParamType.Unsigned;

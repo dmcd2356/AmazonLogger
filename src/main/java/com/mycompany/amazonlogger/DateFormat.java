@@ -207,7 +207,7 @@ public class DateFormat {
                         iDate = (10000 * iYear) + iDate;
                 }
             } catch (ParserException exMsg) {
-                throw new ParserException(exMsg + "\n  -> " + functionId);
+                Utils.throwAddendum (exMsg.getMessage(), functionId);
             }
         }
         return iDate;

@@ -390,7 +390,7 @@ public class VarReserved {
             switch (reserved) {
                 case RESPONSE:
                     if (! strResponse.isEmpty()) {
-                        iValue = ParameterStruct.getLongOrUnsignedValue(strResponse.getFirst());
+                        iValue = Utils.getLongOrUnsignedValue(strResponse.getFirst());
                     }
                     break;
                 case STATUS:
@@ -400,7 +400,11 @@ public class VarReserved {
                     iValue = getRandomValue();
                     break;
                 case RETVAL:
-                    iValue = Utils.getIntValue(subRetValue);
+                    try {
+                        iValue = Utils.getIntValue(subRetValue);
+                    } catch (ParserException exMsg) {
+                        iValue = 0L;
+                    }
                     break;
                 case DATE:
                     iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.String);

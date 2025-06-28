@@ -313,7 +313,7 @@ public class OpenDoc {
             // if it is a String, check if it is either a Long or Integer and convert
             String text = objVal.toString();
             try {
-                Long iValue = ParameterStruct.getLongOrUnsignedValue(text);
+                Long iValue = Utils.getLongOrUnsignedValue(text);
                 sheetSel.getCellAt(col, row).setValue(iValue);
                 strClass = "java.lang.Long";
             } catch (ParserException exMsg) {

@@ -54,7 +54,7 @@ public class LoopParam {
             try {
                 PreCompile.variables.checkValidVariable(Variables.VarCheck.REFERENCE, name);
             } catch (ParserException exMsg) {
-                throw new ParserException(exMsg + "\n  -> " + functionId);
+                Utils.throwAddendum (exMsg.getMessage(), functionId);
             }
             if (!name.startsWith("$")) {
                 throw new ParserException(functionId + "reference Variable " + this.paramName + " is not valid Variable name");

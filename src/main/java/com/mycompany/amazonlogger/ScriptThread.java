@@ -157,7 +157,7 @@ public class ScriptThread implements Runnable {
             }
         } catch (ParserException exMsg) {
             AmazonReader.frame.outputInfoMsg(STATUS_WARN, exMsg.getMessage());
-            // ignore for now, but may want to send error indication back to client
+            TCPServerThread.sendStatus("ERROR: " + exMsg.getMessage());
             return false;
         } catch (IOException | SAXException | TikaException exMsg) {
             exMsg.printStackTrace();
@@ -180,7 +180,14 @@ public class ScriptThread implements Runnable {
      * resets the script program counter to 0.
      */
     private static void resetScript() {
-        AmazonReader.scriptInit();
+        frame.reset();          // reset the GUI settings
+        FileIO.init();          // reset the File settings
+        PreCompile.variables.resetVariables();  // reset all variable values back to default
+        Spreadsheet.init();     // reset spreadsheet params
+        OpenDoc.init();         // reset the OpenDoc params
+        frame.elapsedTimerDisable();    // stop the timer for the timestamp
+        frame.outputInfoMsg(STATUS_PROGRAM, "Resetting program index to begining");
+        netCmdIndex = 0;        // reset the command pointer to the begining
 
         // send back the line info of initial execution instruction
         int lineNumber = ScriptCompile.getLineNumber(netCmdIndex);
@@ -260,7 +267,7 @@ public class ScriptThread implements Runnable {
         
         int compileSize = ScriptCompile.getCompiledSize();
         if (compileSize <= 0 || exec == null || netCmdIndex < 0 || netCmdIndex > compileSize) {
-            throw new ParserException(functionId + "No script file has been compiled");
+            throw new ParserException(functionId + "No script file has been compiled: size = " + compileSize + ", cmdIx = " + netCmdIndex);
         }
 
         // execute the program by running each 'netCompileList' entry
@@ -296,7 +303,7 @@ public class ScriptThread implements Runnable {
                 }
             }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
 
         // pause the timer
@@ -343,7 +350,7 @@ public class ScriptThread implements Runnable {
             CommandStruct command = ScriptCompile.getExecCommand(netCmdIndex);
             netCmdIndex = exec.executeProgramCommand (netCmdIndex, command);
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
 
         // pause the timer

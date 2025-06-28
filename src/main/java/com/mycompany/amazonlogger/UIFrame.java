@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -1094,21 +1096,18 @@ public final class UIFrame extends JFrame implements ActionListener {
             String time = elapsedTimerGet();
             msg = time + msg;
 
-            if (testFile != null) {
-                testFile.println(msg);
-                // errors and warnings will always go to console, even if reporting to file
-                if (errLevel == STATUS_ERROR) {
-                    System.out.println(msg);
-                } else if (errLevel == STATUS_WARN) {
-                    System.out.println(msg);
-                }
+            // for error and warning messages, check for inclusion of call trace
+            //  and separate into individual lines.
+            boolean bError = errLevel == STATUS_ERROR || errLevel == STATUS_WARN;
+            if (!bError) {
+                // not an error or warning, just print or save the line
+                printLine (bError, msg);
             } else {
-                System.out.println(msg);
-            }
-            // if network connection, send to client
-            if (AmazonReader.isOpModeNetwork()) {
-                TCPServerThread.sendLogMessage(logCounter, msg);
-                logCounter++;
+                ArrayList<String> array = new ArrayList<>(Arrays.asList(msg.split("->")));
+                printLine (bError, array.get(0).stripTrailing());
+                for (int ix = 1; ix < array.size(); ix++) {
+                    printLine (bError, "    -> " + array.get(ix).stripLeading());
+                }
             }
             return;
         }
@@ -1141,6 +1140,24 @@ public final class UIFrame extends JFrame implements ActionListener {
             txt_info.setCaretPosition(txt_info.getDocument().getLength());
         } catch (BadLocationException ex) {
             Logger.getLogger(UIFrame.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    private static void printLine (boolean bError, String msg) {
+        if (testFile != null) {
+            testFile.println(msg);
+            // errors and warnings will always go to console, even if reporting to file
+            if (bError) {
+                System.out.println(msg);
+            }
+        } else {
+            System.out.println(msg);
+        }
+
+        // if network connection, send to client
+        if (AmazonReader.isOpModeNetwork()) {
+            TCPServerThread.sendLogMessage(logCounter, msg);
+            logCounter++;
         }
     }
     

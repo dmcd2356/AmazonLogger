@@ -359,7 +359,7 @@ public class PreCompile {
                     paramType = ParameterStruct.ParamType.Boolean;
                 } else {
                     try {
-                        Long longVal = ParameterStruct.getLongOrUnsignedValue(nextArg);
+                        Long longVal = Utils.getLongOrUnsignedValue(nextArg);
                         if (ParameterStruct.isUnsignedInt(longVal))
                             paramType = ParameterStruct.ParamType.Unsigned;
                         else
@@ -376,7 +376,7 @@ public class PreCompile {
             params.add(arg);
         }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
         
         return params;

@@ -437,7 +437,7 @@ public class Variables {
         try {
             checkValidVariable(VarCheck.ALLOCATE, varName);
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
 
         ParameterStruct.ParamType ptype = ParameterStruct.checkParamType (dataType);
@@ -962,7 +962,7 @@ public class Variables {
                         iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.String);
                         if (iValue == null) {
                             String strValue = param.getStringValue();
-                            iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+                            iValue = Utils.getLongOrUnsignedValue(strValue);
                             frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Converting variable " + name + " to Integer: " + iValue);
                         }
                         break;
@@ -971,7 +971,7 @@ public class Variables {
                         iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.StrArray);
                         if (iValue == null) {
                             String strValue = param.getStrArray().getFirst();
-                            iValue = ParameterStruct.getLongOrUnsignedValue(strValue);
+                            iValue = Utils.getLongOrUnsignedValue(strValue);
                             frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Extracted 1st entry of StrArray " + name + " to Integer: " + iValue);
                         }
                         break;
@@ -986,7 +986,7 @@ public class Variables {
                 }
             }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
         if (iValue == null) {
             throw new ParserException(functionId + "Numeric value not found for variable: " + name);
@@ -1091,7 +1091,7 @@ public class Variables {
                 throw new ParserException(functionId + errMsg);
             }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId + name);
+            Utils.throwAddendum (exMsg.getMessage(), functionId + name);
         }
     }
 

@@ -1210,7 +1210,7 @@ public class Spreadsheet {
                 try {
                     iYear = Utils.getIntFromString (strYear, 0, 4);
                 } catch (ParserException exMsg) {
-                    throw new ParserException(exMsg + "\n  -> " + functionId + "Invalid spreadsheet format - header year invalid: " + strYear);
+                    Utils.throwAddendum (exMsg.getMessage(), functionId + "Invalid spreadsheet format - header year invalid: " + strYear);
                 }
                 if (iYear < 2020 || iYear > 2040) {
                     throw new ParserException(functionId + "Invalid spreadsheet format - header year out of range: " + iYear);

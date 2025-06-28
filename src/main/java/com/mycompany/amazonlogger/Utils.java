@@ -368,6 +368,32 @@ public class Utils {
     }
 
     /**
+     * converts a String hexadecimal unsigned value or 64-bit signed Integer value to a Long
+     * 
+     * @param strValue - value to convert
+     * 
+     * @return the corresponding unsigned Long value
+     * 
+     * @throws ParserException 
+     */
+    public static Long getLongOrUnsignedValue (String strValue) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        Long longVal = 0L;
+        try {
+            Integer iVal = Utils.getHexValue (strValue);
+            if (iVal == null) {
+                longVal = Utils.getIntValue (strValue);
+            } else {
+                longVal = iVal.longValue();
+            }
+        } catch (ParserException exMsg) {
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
+        }
+        return longVal;
+    }
+
+    /**
      * converts a String value to an Integer
      * 
      * @param strValue - value to convert
@@ -836,4 +862,17 @@ public class Utils {
         frame.outputInfoMsg(STATUS_ERROR, "\n  -> " + traceBuilder.toString());
     }
 
+    /**
+     * throws an addeddum to an exception received to give a stack trace
+     * 
+     * @param exMsg  - the message from the caught exception
+     * @param addMsg - additional info to report the calling function invocation of the error
+     * 
+     * @throws ParserException 
+     */
+    public static void throwAddendum (String exMsg, String addMsg) throws ParserException {
+//        frame.outputInfoMsg(STATUS_ERROR, exMsg);
+        throw new ParserException(exMsg + " -> " + addMsg);
+    }
+    
 }

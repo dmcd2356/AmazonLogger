@@ -139,7 +139,7 @@ public class VarExtract {
         try {
             getExtensions ();
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
     }
 
@@ -215,7 +215,7 @@ public class VarExtract {
         try {
             PreCompile.variables.checkValidVariable(Variables.VarCheck.REFERENCE, name);
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
     }
 

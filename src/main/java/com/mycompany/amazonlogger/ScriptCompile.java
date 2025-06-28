@@ -638,7 +638,7 @@ public class ScriptCompile {
                                 frame.outputInfoMsg(STATUS_COMPILE, "   - new FOR EVER Loop level " + LoopStruct.getStackSize() +
                                         " " + newLoopName + " index @ " + cmdIndex);
                             } catch (ParserException exMsg) {
-                                throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
+                                Utils.throwAddendum (exMsg.getMessage(), functionId + lineInfo + "command " + cmdStruct.command);
                             }
                         } else {
                             // verify the arguments passed
@@ -686,7 +686,7 @@ public class ScriptCompile {
                                                 bInclEnd, cmdIndex, IFStruct.getStackSize());
                                 LoopParam.saveLoopParameter (loopInfo);
                             } catch (ParserException exMsg) {
-                                throw new ParserException(exMsg + "\n -> " + functionId + lineInfo + "command " + cmdStruct.command);
+                                Utils.throwAddendum (exMsg.getMessage(), functionId + lineInfo + "command " + cmdStruct.command);
                             }
                             frame.outputInfoMsg(STATUS_COMPILE, "   - new FOR Loop level " + LoopStruct.getStackSize() + " Variable " + loopName + " index @ " + cmdIndex);
                         }
@@ -770,27 +770,51 @@ public class ScriptCompile {
                 cmdList.add(cmdStruct);
                 
             } catch (ParserException exMsg) {
-                String errMsg = exMsg + "\n  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + line;
-                if (AmazonReader.isRunModeCompileOnly()) {
-                    // if only running compiler, just log the messages but don't exit
-                    frame.outputInfoMsg(STATUS_ERROR, errMsg);
-                } else {
-                    throw new ParserException(errMsg);
+                frame.outputInfoMsg(STATUS_ERROR, exMsg.getMessage());
+                if (! AmazonReader.isRunModeCompileOnly()) {
+                    // if running script after compile, exit after logging msg
+                    String newMsg = "  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + line;
+                    Utils.throwAddendum (exMsg.getMessage(), newMsg);
                 }
             }
         }  // end of while loop
-        
+
+        String errorMsg = "";
         int loopSize = LoopStruct.getStackSize();
         if (loopSize != 0) {
-            throw new ParserException(functionId + "FOR loop not complete for " + loopSize + " entries");
+            errorMsg = functionId + "FOR loop not complete for " + loopSize + " entries";
+            compilerError (errorMsg);
         }
         if (!IFStruct.isIfStackEnpty() && !IFStruct.getIfListEntry().isValid()) {
-            throw new ParserException(functionId + "Last IF has no matching ENDIF");
+            errorMsg = functionId + "Last IF has no matching ENDIF";
+            compilerError (errorMsg);
         }
-        Subroutine.checkSubroutineMissing();
+        try {
+            Subroutine.checkSubroutineMissing();
+        } catch (ParserException exMsg) {
+            errorMsg = exMsg.getMessage();
+            compilerError (errorMsg);
+        }
 
         scriptLineLength = lineNum;
         fileReader.close();
     }
 
+    /**
+     * This handles the compiler errors.
+     * If we are running compiler only, we don't want to stop the process, just report
+     *  the errors in the log.
+     * 
+     * @param errorMsg - the error to report
+     * 
+     * @throws ParserException 
+     */
+    private static void compilerError (String errorMsg) throws ParserException {
+        if (AmazonReader.isRunModeCompileOnly()) {
+            frame.outputInfoMsg(STATUS_ERROR, errorMsg);
+        } else {
+            throw new ParserException(errorMsg);
+        }
+    }
+    
 }

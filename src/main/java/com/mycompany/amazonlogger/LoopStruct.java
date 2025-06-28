@@ -26,9 +26,9 @@ public class LoopStruct {
     
     private final String    name;       // parameter name for the loop
     private       Integer   value;      // current parameter value
-    private final LoopParam valStart;   // loop start value
-    private final LoopParam valEnd;     // loop end   value
-    private final LoopParam valStep;    // value to increment value by on each loop
+    private       LoopParam valStart;   // loop start value
+    private       LoopParam valEnd;     // loop end   value
+    private       LoopParam valStep;    // value to increment value by on each loop
     private final boolean   bInclEnd;   // true if include valEnd limit before exit, false if exit on = valEnd
     private       String    comparator; // the comparison symbols used for checking against valEnd
     private final Integer   ixBegin;    // command index of start of loop (where it returns to)
@@ -97,10 +97,11 @@ public class LoopStruct {
         try {
             isValidLoopName(name, index);
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId + " [FOR param @ " + index + "]");
+            Utils.throwAddendum (exMsg.getMessage(), functionId + " [FOR param @ " + index + "]");
         }
 
         // now verify types of params and check whether they are discreet or reference
+        this.valStart = null;
         try {
             if (checkIfValidInteger ("START", start))
                 this.valStart = new LoopParam (start.getIntegerValue());
@@ -121,7 +122,7 @@ public class LoopStruct {
                 this.valStep = new LoopParam (1L); // set to default value
             }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
         
         this.name     = name;
@@ -450,7 +451,7 @@ public class LoopStruct {
                 throw new ParserException(functionId + ": Loop param " + name + " @ " + index + " is nested in same name at " + loopIx);
             }
         } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
+            Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
     }
     

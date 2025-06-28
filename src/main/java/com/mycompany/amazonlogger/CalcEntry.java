@@ -25,7 +25,7 @@ public class CalcEntry {
             }
             switch (type) {
                 case Value:
-                    this.value = ParameterStruct.getLongOrUnsignedValue(entry);
+                    this.value = Utils.getLongOrUnsignedValue(entry);
                     this.paramName = null;
                     break;
                 case Param:
