@@ -154,24 +154,24 @@ public class TCPServerThread implements Runnable {
                     sendStatus("LOADED");
                     break;
                 case "COMPILE":
-                    AmazonReader.enableRun();
+                    ScriptThread.enableRun();
                     AmazonReader.compileScript();
                     sendStatus("COMPILED");
                     break;
                 case "STOP":
-                    AmazonReader.stopScript();
+                    ScriptThread.stopScript();
                     bRunThread = true;
                     break;
                 case "PAUSE":
-                    AmazonReader.pauseScript();
+                    ScriptThread.pauseScript();
                     bRunThread = true;
                     break;
                 case "RUN":
-                    AmazonReader.enableRun();
+                    ScriptThread.enableRun();
                     bRunThread = true;
                     break;
                 case "RESUME":
-                    AmazonReader.enableRun();
+                    ScriptThread.enableRun();
                     bRunThread = true;
                     break;
                 case "STEP":

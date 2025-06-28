@@ -5,14 +5,11 @@
 package com.mycompany.amazonlogger;
 
 // Importing java input/output classes
-import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import org.apache.tika.exception.TikaException;
 import org.xml.sax.SAXException;
 
@@ -23,9 +20,6 @@ public class AmazonReader {
     // port to use if not found in PropertiesFile
     private static final int SERVER_PORT = 6000;
     
-    // command index value that represents end of file reached
-    public static final int CMD_INDEX_EOF = -1;
-
     // GLOBALS
     public  static UIFrame frame;
     public  static Keyword keyword;
@@ -37,11 +31,6 @@ public class AmazonReader {
     private static File    scriptFile = null;
     private static int     commandIndex = 0;
     private static ScriptExecute exec = null;
-    private static boolean pause = false;
-    private static boolean stop  = false;
-    private static int     breakIndex = CMD_INDEX_EOF;
-    
-    private static ArrayList<CommandStruct> cmdList = null;
     
     private static TCPServerMain server;
 
@@ -56,7 +45,7 @@ public class AmazonReader {
         opMode = mode;
     }
     
-    private static void scriptInit () {
+    public static void scriptInit () {
         frame.reset();          // reset the GUI settings
         FileIO.init();          // reset the File settings
         PreCompile.variables.resetVariables();  // reset all variable values back to default
@@ -112,7 +101,6 @@ public class AmazonReader {
             
             // set defaults from properties file
             frame.setDefaultStatus ();
-            pause = false;
             bCompileOnly = false;
          
             // run the command line arguments
@@ -146,6 +134,7 @@ public class AmazonReader {
                             port = Utils.getIntValue(args[1]).intValue();
                         }
                         server = new TCPServerMain (port);
+                        ScriptThread.enableRun();
                     }
                     default -> {
                         setOpMode (OperatingMode.COMMAND_LINE);
@@ -171,134 +160,6 @@ public class AmazonReader {
         }
     }
 
-    /**
-     * resets the script program counter to 0.
-     * 
-     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
-     * 
-     */
-    public static void resetScript() {
-        scriptInit();
-
-        // send back the line info of initial execution instruction
-        int lineNumber = ScriptCompile.getLineNumber(commandIndex);
-        TCPServerThread.sendLineInfo (lineNumber);
-    }
-
-    /**
-     * set flag to allow runScriptNetwork() to run.
-     * It should be called from the server thread prior to executing the
-     *  new thread when handling RUN and RESUME commands.
-     * 
-     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
-     * 
-     */
-    public static void enableRun() {
-        pause = false;
-    }
-    
-    /**
-     * pause the script.
-     * This is called from the TCPServerThread to pause the runScriptNetwork
-     *  function that is called by ScriptThread
-     * 
-     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
-     * 
-     */
-    public static void pauseScript () {
-        pause = true;
-        frame.outputInfoMsg (STATUS_PROGRAM, "Script begining PAUSE");
-    }
-
-    /**
-     * indicate pause has completed.
-     * This is called from the ScriptThread when runScriptNetwork has completed
-     * 
-     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
-     * 
-     */
-    public static void pauseComplete () {
-        TCPServerThread.sendStatus("PAUSED");
-    }
-
-    /**
-     * resume the script.
-     * 
-     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
-     * 
-     * @throws ParserException
-     * @throws IOException
-     * @throws SAXException
-     * @throws TikaException
-     */
-    public static void resumeScript () throws ParserException, IOException, SAXException, TikaException {
-        frame.outputInfoMsg (STATUS_PROGRAM, "Script begining RESUME");
-        TCPServerThread.sendStatus("RESUMED");
-        runScriptNetwork();
-    }
-
-    /**
-     * stop the script from running.
-     * 
-     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
-     */
-    public static void stopScript () {
-        stop = true;
-        frame.outputInfoMsg (STATUS_PROGRAM, "Script begining STOP");
-    }
-
-    /**
-     * indicate pause has completed.
-     * This is called from the ScriptThread when runScriptNetwork has stopped
-     * 
-     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
-     * 
-     */
-    public static void stopComplete () {
-        TCPServerThread.sendStatus("STOPPED");
-    }
-
-    /**
-     * sets or disables the breakpoint for executing from the network.
-     * 
-     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
-     * 
-     * @param value - OFF or the script line number of the breakpoint
-     */
-    public static void setBreakpoint (String value) {
-        if (value.contentEquals("OFF")) {
-            breakIndex = CMD_INDEX_EOF;
-            frame.outputInfoMsg (STATUS_PROGRAM, "Script breakpoint disabled");
-        } else {
-            int line;
-            try {
-                line = Integer.parseInt(value);
-            } catch (NumberFormatException exMsg) {
-                frame.outputInfoMsg (STATUS_WARN, "Invalid Script breakpoint value: " + value);
-                TCPServerThread.sendStatus("BREAKPT INVALID");
-                return;
-            }
-
-            // get the corresponding command index value for the line
-            breakIndex = ScriptCompile.getCommandIndex(line);
-            if (breakIndex == CMD_INDEX_EOF) {
-                TCPServerThread.sendStatus("BREAKPT INVALID");
-                return;
-            }
-            frame.outputInfoMsg (STATUS_PROGRAM, "Script breakpoint set to line: " + value);
-            TCPServerThread.sendStatus("BREAKPT SET");
-        }
-    }
-    
-    /**
-     * determine if the script has completed.
-     * 
-     * @return true if it completed
-     */
-    public static boolean isScriptCompleted() {
-        return (commandIndex >= cmdList.size() || commandIndex < 0);
-    }
-    
     /**
      * selects the program to run
      * 
@@ -350,9 +211,7 @@ public class AmazonReader {
         // enable timestamp on log messages
         frame.init();
         frame.elapsedTimerEnable();
-        cmdList = null;
-        int maxLines = 0;
-        breakIndex = CMD_INDEX_EOF;
+        ScriptThread.initBreakpoint();
 
         try {
             // do the Pre-compile operation
@@ -367,14 +226,17 @@ public class AmazonReader {
             // compile the program
             frame.outputInfoMsg(STATUS_COMPILE, "\"===== BEGINING PROGRAM COMPILE =====");
             ScriptCompile compiler = new ScriptCompile(variables);
-            maxLines = compiler.getMaxLines();
-            cmdList = compiler.build(scriptFile);
+            compiler.build(scriptFile);
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
 
+        if (isOpModeNetwork()) {
+            ScriptThread.compilerComplete();
+        }
+        
         frame.elapsedTimerDisable();
-        exec = new ScriptExecute(scriptFile.getAbsolutePath(), maxLines);
+        exec = new ScriptExecute(scriptFile.getAbsolutePath(), ScriptCompile.getMaxLines());
         scriptInit();
         VarReserved.putScriptNameValue(scriptName);
         VarReserved.putCurDirValue(FileIO.getCurrentFilePath());
@@ -398,7 +260,8 @@ public class AmazonReader {
     public static void runScript () throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        if (cmdList == null || exec == null) {
+        int compileSize = ScriptCompile.getCompiledSize();
+        if (compileSize <= 0 || exec == null) {
             throw new ParserException(functionId + "No script file has been compiled");
         }
         // enable timestamp on log messages
@@ -407,133 +270,15 @@ public class AmazonReader {
         try {
             // execute the program by running each 'cmdList' entry
             frame.outputInfoMsg(STATUS_PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
-            while (commandIndex >= 0 && commandIndex < cmdList.size()) {
-                commandIndex = exec.executeProgramCommand (commandIndex, cmdList.get(commandIndex));
+            while (commandIndex >= 0 && commandIndex < compileSize) {
+                commandIndex = exec.executeProgramCommand (commandIndex, ScriptCompile.getExecCommand(commandIndex));
             }
         } catch (ParserException exMsg) {
             throw new ParserException(exMsg + "\n  -> " + functionId);
         }
     }
-    
-
-    /**
-     * runs the currently compiled script.
-     * 
-     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
-     * 
-     * @throws ParserException
-     * @throws IOException
-     * @throws SAXException
-     * @throws TikaException 
-     */
-    public static void runScriptNetwork () throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        
-        if (cmdList == null || exec == null || commandIndex < 0 || commandIndex > cmdList.size()) {
-            throw new ParserException(functionId + "No script file has been compiled");
-        }
-
-        // execute the program by running each 'cmdList' entry
-        if (commandIndex == 0) {
-            frame.outputInfoMsg(STATUS_PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
-            Subroutine.sendSubStackList();
-        } else {
-            frame.outputInfoMsg(STATUS_PROGRAM, "===== RESUMING PROGRAM EXECUTION =====");
-        }
-
-        // enable timestamp on log messages
-        frame.elapsedTimerEnable();
-
-        try {
-            while (commandIndex >= 0 && commandIndex < cmdList.size()) {
-                // execute next command
-                CommandStruct command = cmdList.get(commandIndex);
-                commandIndex = exec.executeProgramCommand (commandIndex, command);
-                
-                // check for termination causes
-                if (commandIndex == breakIndex) {
-                    TCPServerThread.sendStatus("BREAK");
-                    break;
-                }
-                if (pause) {
-                    break;
-                }
-                if (stop) {
-                    stop = false;
-                    commandIndex = CMD_INDEX_EOF;
-                    frame.outputInfoMsg (STATUS_PROGRAM, "Script STOPPED");
-                    break;
-                }
-            }
-        } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
-        }
-
-        // pause the timer
-        frame.elapsedTimerPause();
-
-        // send back the line info of where we stopped
-        int lineNumber = ScriptCompile.getLineNumber(commandIndex);
-        TCPServerThread.sendLineInfo (lineNumber);
-
-        // we have completed - if running from network, inform the client and stop the timer
-        if (isScriptCompleted()) {
-            TCPServerThread.sendStatus("EOF");
-            frame.elapsedTimerDisable();
-        }
-    }
-    
-    /**
-     * runs the currently compiled script.
-     * 
-     * THIS IS ONLY EXECUTED WHEN RUNNING FROM NETWORK!
-     * 
-     * @throws ParserException
-     * @throws IOException
-     * @throws SAXException
-     * @throws TikaException 
-     */
-    public static void runScriptStep () throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        
-        if (cmdList == null || exec == null || commandIndex < 0 || commandIndex > cmdList.size()) {
-            throw new ParserException(functionId + "No script file has been compiled");
-        }
-
-        if (commandIndex == 0) {
-            frame.outputInfoMsg(STATUS_PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
-            Subroutine.sendSubStackList();
-        }
-
-        // enable timestamp on log messages
-        frame.elapsedTimerEnable();
-        
-        // run command instruction
-        try {
-            // execute next command
-            CommandStruct command = cmdList.get(commandIndex);
-            commandIndex = exec.executeProgramCommand (commandIndex, command);
-        } catch (ParserException exMsg) {
-            throw new ParserException(exMsg + "\n  -> " + functionId);
-        }
-
-        // pause the timer
-        frame.elapsedTimerPause();
-
-        // send the next line number to the cliend
-        int lineNumber = ScriptCompile.getLineNumber(commandIndex);
-        TCPServerThread.sendLineInfo (lineNumber);
-        
-        // reset ptr to begining if we reached the end of the script
-        if (isScriptCompleted()) {
-            TCPServerThread.sendStatus("EOF");
-        } else {
-            TCPServerThread.sendStatus("STEPPED");
-        }
-    }
-
 }
-
+    
 class ParserException extends Exception {
     
     // Parameterless Constructor

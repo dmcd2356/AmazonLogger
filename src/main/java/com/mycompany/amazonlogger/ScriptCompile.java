@@ -25,7 +25,9 @@ public class ScriptCompile {
     private final CmdOptions cmdOptionParser;
     // this contains the line numbers corresponding to each command index value
     private static ArrayList<Integer> lineNumbers = new ArrayList<>();
-    private int scriptLineLength = 0;
+    private static ArrayList<CommandStruct> cmdList = null;
+    private static int scriptLineLength = 0;
+    private static String compiledFilename = "";
     
     private final ParseScript parseScript = new ParseScript();
 
@@ -35,10 +37,25 @@ public class ScriptCompile {
         lineNumbers = new ArrayList<>();
     }
 
-    public int getMaxLines () {
+    public static int getMaxLines () {
         return scriptLineLength;
     }
 
+    public static String getFilename() {
+        return compiledFilename;
+    }
+    
+    public static Integer getCompiledSize() {
+        if (cmdList == null) {
+            return -1;
+        }
+        return cmdList.size();
+    }
+    
+    public static CommandStruct getExecCommand(int cmdIx) {
+        return cmdList.get(cmdIx);
+    }
+    
     /**
      * converts a command index to the script line number it represents,
      * 
@@ -48,7 +65,7 @@ public class ScriptCompile {
      */
     public static int getLineNumber (int cmdIx) {
         if (cmdIx >= lineNumbers.size() || cmdIx < 0) {
-            return AmazonReader.CMD_INDEX_EOF;
+            return ScriptThread.CMD_INDEX_EOF;
         }
         return lineNumbers.get(cmdIx);
     }
@@ -69,7 +86,7 @@ public class ScriptCompile {
                 break;
             }
         }
-        return AmazonReader.CMD_INDEX_EOF;
+        return ScriptThread.CMD_INDEX_EOF;
     }
 
     private static void checkNoArgs (CommandStruct.CommandTable command, String strParams) throws ParserException {
@@ -81,21 +98,19 @@ public class ScriptCompile {
     }
     
     /**
-     * compiles the external script file (when -f option used) into a series of
-     * CommandStruct entities to execute.
+     * compiles the external script file into an array of CommandStruct entities to execute.
      * 
      * @param scriptFile - the script file
-     * 
-     * @return the list of commands to execute
      * 
      * @throws ParserException
      * @throws IOException 
      */
-    public ArrayList<CommandStruct> build (File scriptFile) throws ParserException, IOException {
+    public void build (File scriptFile) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        frame.outputInfoMsg(STATUS_COMPILE, "Compiling file: " + scriptFile.getAbsolutePath());
-        ArrayList<CommandStruct> cmdList = new ArrayList<>();
+        compiledFilename = scriptFile.getAbsolutePath();
+        frame.outputInfoMsg(STATUS_COMPILE, "Compiling file: " + compiledFilename);
+        cmdList = new ArrayList<>();
         int cmdIndex = 0;
         String lineInfo = "";
         CommandStruct cmdStruct;
@@ -776,11 +791,6 @@ public class ScriptCompile {
 
         scriptLineLength = lineNum;
         fileReader.close();
-        
-//        // the last line will be the one to end the program flow
-//        cmdList.add(new CommandStruct(CommandStruct.CommandTable.EXIT, lineNum));
-//        frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "]: EXIT  (appended)");
-        return cmdList;
     }
 
 }
