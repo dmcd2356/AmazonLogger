@@ -105,12 +105,13 @@ public class VarReserved {
         if (varType == ParameterStruct.ParamType.String) {
             value = Utils.formatNetworkString(value);
         }
+        Integer lineNum = ScriptCompile.getLineNumber(Subroutine.getCurrentIndex());
         String response = "[<section> RESERVED"
                         + " " + DATA_SEP + " <name> "   + varName
                         + " " + DATA_SEP + " <type> "   + varType
                         + " " + DATA_SEP + " <value> "  + value
                         + " " + DATA_SEP + " <writer> " + Subroutine.getSubName()
-                        + " " + DATA_SEP + " <line> "   + Subroutine.getCurrentIndex()
+                        + " " + DATA_SEP + " <line> "   + lineNum
                         + " " + DATA_SEP + " <time> "   + curTime + "]";
 
         // send info to client
@@ -124,7 +125,7 @@ public class VarReserved {
      */
     public static void putResponseValue (String value) {
         strResponse.add(value);
-        sendVarInfo (ReservedVars.RESPONSE, ParameterStruct.ParamType.StrArray, value);
+        sendVarInfo (ReservedVars.RESPONSE, ParameterStruct.ParamType.StrArray, strResponse.toString());
     }
     
     /**

@@ -157,7 +157,7 @@ public class ScriptThread implements Runnable {
             }
         } catch (ParserException exMsg) {
             AmazonReader.frame.outputInfoMsg(STATUS_WARN, exMsg.getMessage());
-            TCPServerThread.sendStatus("ERROR: " + exMsg.getMessage());
+            TCPServerThread.sendStatus("ERROR: " + array.getFirst() + " " + exMsg.getMessage());
             return false;
         } catch (IOException | SAXException | TikaException exMsg) {
             exMsg.printStackTrace();
@@ -176,10 +176,7 @@ public class ScriptThread implements Runnable {
         return (netCmdIndex >= cmdSize || netCmdIndex < 0);
     }
     
-    /**
-     * resets the script program counter to 0.
-     */
-    private static void resetScript() {
+    private static void scriptInit () {
         frame.reset();          // reset the GUI settings
         FileIO.init();          // reset the File settings
         PreCompile.variables.resetVariables();  // reset all variable values back to default
@@ -188,6 +185,13 @@ public class ScriptThread implements Runnable {
         frame.elapsedTimerDisable();    // stop the timer for the timestamp
         frame.outputInfoMsg(STATUS_PROGRAM, "Resetting program index to begining");
         netCmdIndex = 0;        // reset the command pointer to the begining
+    }
+    
+    /**
+     * resets the script program counter to 0.
+     */
+    private static void resetScript() {
+        scriptInit();
 
         // send back the line info of initial execution instruction
         int lineNumber = ScriptCompile.getLineNumber(netCmdIndex);

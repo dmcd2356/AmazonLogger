@@ -779,7 +779,7 @@ public class ScriptCompile {
             }
         }  // end of while loop
 
-        String errorMsg = "";
+        String errorMsg;
         int loopSize = LoopStruct.getStackSize();
         if (loopSize != 0) {
             errorMsg = functionId + "FOR loop not complete for " + loopSize + " entries";

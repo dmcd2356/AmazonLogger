@@ -143,7 +143,8 @@ public class TCPServerThread implements Runnable {
         System.out.println("CLIENT: received command: " + command);
         boolean bRunThread = false;
         try {
-            switch (array.getFirst()) {
+            String key = array.getFirst();
+            switch (key) {
                 case "LOAD":
                     if (array.size() < 2) {
                         System.out.println("LOAD command missing argument");
@@ -151,12 +152,12 @@ public class TCPServerThread implements Runnable {
                     String fname = array.get(1);
                     PreCompile.init();
                     AmazonReader.selectScriptFile(fname);
-                    sendStatus("LOADED");
                     break;
                 case "COMPILE":
                     ScriptThread.enableRun();
                     AmazonReader.compileScript();
-                    sendStatus("COMPILED");
+                    command = "RESET"; // follow compile with a RESET
+                    bRunThread = true;
                     break;
                 case "STOP":
                     ScriptThread.stopScript();
@@ -193,7 +194,7 @@ public class TCPServerThread implements Runnable {
                     socket.close();
                     System.exit(0);
                 default:
-                    System.out.println("invalid command: " + array.getFirst());
+                    System.out.println("invalid command: " + key);
                     sendStatus("UNKNOWN COMMAND: " + command);
                     return false;
             }

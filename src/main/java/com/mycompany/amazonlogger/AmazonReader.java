@@ -130,6 +130,7 @@ public class AmazonReader {
                         if (args.length == 2) {
                             port = Utils.getIntValue(args[1]).intValue();
                         }
+                        // start the network server
                         server = new TCPServerMain (port);
                         ScriptThread.enableRun();
                     }
@@ -174,6 +175,7 @@ public class AmazonReader {
         scriptFile = new File(fname);
         fname = scriptFile.getAbsolutePath();
         if (! scriptFile.canRead()) {
+            TCPServerThread.sendStatus("ERROR: LOAD");
             throw new ParserException(functionId + "Invalid file - no read access: " + fname);
         }
             
@@ -188,6 +190,10 @@ public class AmazonReader {
         offset = scriptName.indexOf('.');
         if (offset > 0) {
             scriptName = scriptName.substring(0, offset);
+        }
+        
+        if (isOpModeNetwork()) {
+            TCPServerThread.sendStatus("LOADED");
         }
     }
     /**
@@ -225,23 +231,22 @@ public class AmazonReader {
             ScriptCompile compiler = new ScriptCompile(variables);
             compiler.build(scriptFile);
         } catch (ParserException exMsg) {
+            TCPServerThread.sendStatus("ERROR: COMPILE");
             throw new ParserException(exMsg.getMessage());
         }
 
-        if (isOpModeNetwork()) {
-            ScriptThread.compilerComplete();
-        }
-        
         frame.elapsedTimerDisable();
-        exec = new ScriptExecute(scriptFile.getAbsolutePath(), ScriptCompile.getMaxLines());
-        scriptInit();
         VarReserved.putScriptNameValue(scriptName);
         VarReserved.putCurDirValue(FileIO.getCurrentFilePath());
 
-        // send back the line info of initial execution instruction
-        int lineNumber = ScriptCompile.getLineNumber(commandIndex);
-        TCPServerThread.sendLineInfo (lineNumber);
-
+        if (isOpModeNetwork()) {
+            ScriptThread.compilerComplete();
+            TCPServerThread.sendStatus("COMPILED");
+        } else {
+            exec = new ScriptExecute(scriptFile.getAbsolutePath(), ScriptCompile.getMaxLines());
+            scriptInit();
+        }
+        
         // indicate to subroutines we have completed compiling
         Subroutine.beginExecution();
     }
