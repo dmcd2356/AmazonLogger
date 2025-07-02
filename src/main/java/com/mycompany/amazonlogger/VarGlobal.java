@@ -43,6 +43,17 @@ public class VarGlobal {
     }
 
     /**
+     * resets the changed status of the variables.
+     * this is done at the start of RESUME and STEP so we know what values have changed
+     */
+    public static void resetUpdate () {
+        for (Map.Entry<String, VarAccess> pair : globals.entrySet()) {
+            VarAccess var = pair.getValue();
+            var.resetUpdate();
+        }
+    }
+    
+    /**
      * returns a list of the variables defined here.
      * 
      * @return a list of the defined variables
@@ -60,45 +71,50 @@ public class VarGlobal {
     }
 
     /**
-     * returns a list of the variables defined here.
+     * sends a list of the variables that have changed.
      * 
-     * @param varName - name of the variable to look up
-     * 
-     * @return a string containing the name, value and other info for the variable
+     * @throws ParserException
      */
-    public static String getVarInfo (String varName) throws ParserException {
-        VarAccess varInfo = globals.get(varName);
-        String value = "";
-        switch(varInfo.getType()) {
-            case String:
-                value = varInfo.getValueString();
-                value = Utils.formatNetworkString(value);
-                break;
-            case Integer:
-                value = varInfo.getValueInteger().toString();
-                break;
-            case Unsigned:
-                value = varInfo.getValueUnsigned().toString();
-                break;
-            case Boolean:
-                value = varInfo.getValueBoolean().toString();
-                break;
-            case StrArray:
-                value = varInfo.getValueStrArray().toString();
-                break;
-            case IntArray:
-                value = varInfo.getValueIntArray().toString();
-                break;
+    public static void sendVarChange () throws ParserException {
+        for (Map.Entry<String, VarAccess> pair : globals.entrySet()) {
+            String varName = pair.getKey();
+            VarAccess varInfo = pair.getValue();
+            if (varInfo.isVarChanged()) {
+                String value = "";
+                switch(varInfo.getType()) {
+                    case String:
+                        value = varInfo.getValueString();
+                        value = Utils.formatNetworkString(value);
+                        break;
+                    case Integer:
+                        value = varInfo.getValueInteger().toString();
+                        break;
+                    case Unsigned:
+                        value = varInfo.getValueUnsigned().toString();
+                        break;
+                    case Boolean:
+                        value = varInfo.getValueBoolean().toString();
+                        break;
+                    case StrArray:
+                        value = varInfo.getValueStrArray().toString();
+                        break;
+                    case IntArray:
+                        value = varInfo.getValueIntArray().toString();
+                        break;
+                }
+                String subWriter = Subroutine.findSubName(varInfo.getWriterIndex());
+                String response = "[<section> GLOBAL"
+                                + " " + DATA_SEP + " <name> "   + varName
+                                + " " + DATA_SEP + " <type> "   + varInfo.getType()
+                                + " " + DATA_SEP + " <value> "  + value
+                                + " " + DATA_SEP + " <writer> " + subWriter
+                                + " " + DATA_SEP + " <line> "   + varInfo.getWriterIndex()
+                                + " " + DATA_SEP + " <time> "   + varInfo.getWriterTime() + "]";
+
+                // send the string to the client
+                TCPServerThread.sendVarInfo(response);
+            }
         }
-        String subWriter = Subroutine.findSubName(varInfo.getWriterIndex());
-        String response = "[<section> GLOBAL"
-                        + " " + DATA_SEP + " <name> "   + varName
-                        + " " + DATA_SEP + " <type> "   + varInfo.getType()
-                        + " " + DATA_SEP + " <value> "  + value
-                        + " " + DATA_SEP + " <writer> " + subWriter
-                        + " " + DATA_SEP + " <line> "   + varInfo.getWriterIndex()
-                        + " " + DATA_SEP + " <time> "   + varInfo.getWriterTime() + "]";
-        return response;
     }
     
     /**
@@ -144,6 +160,20 @@ public class VarGlobal {
             throw new ParserException(functionId + "Variable " + varName + " not found");
         }
         return varInfo.isVarInit();
+    }
+
+    // indicates if the variable has been written to since last step
+    public static boolean isVarChanged (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (varName == null) {
+            throw new ParserException(functionId + "Null input value");
+        }
+        VarAccess varInfo = globals.get(varName);
+        if (varInfo == null) {
+            throw new ParserException(functionId + "Variable " + varName + " not found");
+        }
+        return varInfo.isVarChanged();
     }
 
     // saves the time and script line when the variable was written.

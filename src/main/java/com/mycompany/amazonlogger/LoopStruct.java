@@ -7,7 +7,6 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
-import java.util.ArrayList;
 import java.util.Stack;
 
 /**
@@ -36,6 +35,7 @@ public class LoopStruct {
     private       Integer   ifLevel;    // IF nest level (to make sure loop def doesn't exceed the boundaries)
     private       LoopId    loopId;     // the loop ID value
     private       Integer   maxLoops;   // the max number of loops to run in FOREVER mode (null if no safety)
+    private       boolean   bUpdate;    // true when a value has been written to
 
     // loop stack for keeping track of current nesting of loops as program runs
     private static final Stack<LoopId> loopStack = new Stack<>();
@@ -55,6 +55,7 @@ public class LoopStruct {
         String functionId = CLASS_NAME + " (new FOREVER): ";
        
         this.name     = LOOP_FOREVER;
+        this.bUpdate  = false;
         this.loopId   = new LoopId(name, index);
         this.valStart = new LoopParam(0L);
         this.valEnd   = new LoopParam(0L);
@@ -125,10 +126,11 @@ public class LoopStruct {
             Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
         
+        this.bUpdate  = false;
         this.name     = name;
         this.loopId   = new LoopId(name, index);
         this.bInclEnd = bIncl;
-        this.value    = 0; // this is called during compile, so if the tsrat param is a ref, we don't know the value
+        this.value    = 0; // this is called during compile, so if the start param is a ref, we don't know the value
         this.ixBegin  = index;
         this.ixEnd    = null;
         this.ifLevel  = ifLev;
@@ -139,39 +141,73 @@ public class LoopStruct {
     }
 
     /**
-     * sends the LoopId for the current running loops to the client.
+     * this resets the flag that indicates the loop value has changed.
+     * It is called at the start of a run or a step in Network mode.
      */
-    public static void sendCurrentLoopInfo () {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-       
-        if (! AmazonReader.isOpModeNetwork()) {
-            return;
-        }
+    public static void resetUpdate() {
         if (! loopStack.empty()) {
             for (int ix = 0; ix < loopStack.size(); ix++) {
                 LoopId id = loopStack.get(ix);
                 LoopStruct loop = LoopParam.getLoopStruct (id);
-                if (loop == null) {
-                    continue;
-                }
-                try {
-                    String entry = "[<section> LOOP"
-                            + " " + DATA_SEP + " <name> "   + id.name
-                            + " " + DATA_SEP + " <owner> "  + Subroutine.findSubName(loop.ixBegin)
-                            + " " + DATA_SEP + " <type> Integer"
-                            + " " + DATA_SEP + " <value> "   + loop.value
-                            + " " + DATA_SEP + " <start> "   + loop.valStart.getIntValue()
-                            + " " + DATA_SEP + " <end> "     + loop.valEnd.getIntValue()
-                            + " " + DATA_SEP + " <step> "    + loop.valStep.getIntValue()
-                            + " " + DATA_SEP + " <incl> "    + loop.bInclEnd
-                            + " " + DATA_SEP + " <comp> "    + loop.comparator
-                            + "]";
-                    TCPServerThread.sendVarInfo(entry);
-                } catch (ParserException exMsg) {
-                    frame.outputInfoMsg(STATUS_WARN, functionId + "Loop " + id.name + " error in getting loop settings");
+                if (loop != null) {
+                    loop.bUpdate = false;
                 }
             }
         }
+    }
+
+    public static String getLoopInfo (LoopId id, LoopStruct loop) {
+        if (loop != null) {
+            String start = "?";
+            String end   = "?";
+            String step  = "?";
+            try {
+                start = loop.valStart.getIntValue().toString();
+            } catch (ParserException exMsg) {  }
+            try {
+                end = loop.valEnd.getIntValue().toString();
+            } catch (ParserException exMsg) {  }
+            try {
+                step = loop.valStep.getIntValue().toString();
+            } catch (ParserException exMsg) {  }
+            return "<name> " + id.name + " @ " + id.index
+                    + " " + DATA_SEP + " <owner> "   + Subroutine.findSubName(loop.ixBegin)
+                    + " " + DATA_SEP + " <type> Integer"
+                    + " " + DATA_SEP + " <value> "   + loop.value
+                    + " " + DATA_SEP + " <start> "   + start
+                    + " " + DATA_SEP + " <end> "     + end
+                    + " " + DATA_SEP + " <step> "    + step
+                    + " " + DATA_SEP + " <incl> "    + loop.bInclEnd
+                    + " " + DATA_SEP + " <comp> "    + loop.comparator ;
+        }
+        return null;
+    }
+    
+    /**
+     * sends the LoopId for the current running loops to the client.
+     */
+    public static void sendVarChange () {
+        if (! AmazonReader.isOpModeNetwork()) {
+            return;
+        }
+        for (int ix = 0; ix < loopStack.size(); ix++) {
+            LoopId id = loopStack.get(ix);
+            LoopStruct loop = LoopParam.getLoopStruct (id);
+            if (loop != null && loop.bUpdate) {
+                String entry = getLoopInfo (id, loop);
+                entry = "[<section> LOOP " + DATA_SEP + " " + entry + "]";
+                TCPServerThread.sendVarInfo(entry);
+            }
+        }
+    }
+
+    /**
+     * resets the stack.
+     * This should be done prior to compiling or running a second time, since the
+     * previous run might not have completed and left the stack with old entries.
+     */
+    public static void resetStack() {
+        loopStack.clear();
     }
     
     /**
@@ -292,6 +328,7 @@ public class LoopStruct {
      */
     public int startLoop (int index) throws ParserException {
         value = valStart.getIntValue();
+        bUpdate = true;
         
         // if we are looping without end, we always proceed to the next command
         if (isForever()) {
@@ -337,6 +374,7 @@ public class LoopStruct {
 
         // increment param by the step value and check if we have completed
         value += valStep.getIntValue();
+        bUpdate = true;
         frame.outputInfoMsg(STATUS_DEBUG, "     LOOP " + name + "@" + loopId.index + " value = " + value);
         
         // skip checking for exit if running forever

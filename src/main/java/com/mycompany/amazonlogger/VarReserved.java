@@ -29,10 +29,11 @@ public class VarReserved {
     private static String  OcrText = "";    // the OCR data read
     private static String  curDirectory = ""; // the current directory value
     private static String  scriptName = ""; // the current running script base name
+    private static final ArrayList<VarInfo> varInfo = new ArrayList<>();
     
     private static long    maxRandom = 1000000000; // for random values 0 - 999999999
 
-    
+    // The list of Reserved variables
     public enum ReservedVars {
         RESPONSE,       // StrArray value from various commands
         RETVAL,         // String return value from subroutine call
@@ -44,37 +45,146 @@ public class VarReserved {
         CURDIR,         // String the current directory for file i/o
         SCRIPTNAME,     // String name of the current script that is running
     }
+
+    /**
+     * THIS CLASS KEEPS TRACK OF EACH RESERVED VARIABLE FOR PASSING INFORMATION 
+     * BACK TO THE CLIENT WHEN RUNNING IN NETWORK MODE.
+     */
+    private class VarInfo {
+        boolean   bUpdate;      // true when a value has been written to
+        ReservedVars name;      // name of variable
+        String    type;         // data type
+        String    value;        // value saved as a String
+        String    writer;       // subroutine that last wrote to it
+        String    line;         // script line that wrote to it
+        String    time;         // time it was written
+        
+        VarInfo (ReservedVars name) {
+            String dataType;
+            String value = "";
+            switch (name) {
+                case STATUS:
+                    dataType = "Boolean";
+                    value = "false";
+                    break;
+                case RANDOM:
+                    dataType = "Integer";
+                    value = "0";
+                    break;
+                case RESPONSE:
+                    dataType = "StrArray";
+                    value = "[]";
+                    break;
+                default:
+                    dataType = "String";
+                    break;
+            }
+            this.bUpdate = false;
+            this.name   = name;
+            this.type   = dataType;
+            this.value  = value;
+            this.writer = "";
+            this.line   = "";
+            this.time   = "";
+        }
+        
+        public void reset() {
+            this.bUpdate = false;
+        }
+        
+        public void init() {
+            switch (this.name) {
+                case STATUS:
+                    this.type = "Boolean";
+                    this.value = "false";
+                    break;
+                case RANDOM:
+                    this.type = "Integer";
+                    this.value = "0";
+                    break;
+                case RESPONSE:
+                    this.type = "StrArray";
+                    this.value = "[]";
+                    break;
+                default:
+                    this.type = "String";
+                    this.value = "";
+                    break;
+            }
+        }
+        
+        public void setValue (String value) {
+            String curTime = UIFrame.elapsedTimerGet();
+            if (curTime == null || curTime.isEmpty()) {
+                curTime = "00:00.000";
+            }
+            if (this.type.contentEquals("String")) {
+                value = Utils.formatNetworkString(value);
+            }
+            Integer lineNum = ScriptCompile.getLineNumber(Subroutine.getCurrentIndex());
+
+            this.bUpdate = true;
+            this.value   = value;
+            this.writer  = Subroutine.getSubName();
+            this.line    = lineNum.toString();
+            this.time    = curTime;
+        }
+        
+        public void sendVarInfo() {
+            String response;
+            if (! this.bUpdate) {
+                response = "[<section> RESERVED"
+                        + " " + DATA_SEP + " <name> "   + this.name.toString()
+                        + " " + DATA_SEP + " <type> "   + this.type + "]";
+            } else {
+                response = "[<section> RESERVED"
+                        + " " + DATA_SEP + " <name> "   + this.name.toString()
+                        + " " + DATA_SEP + " <type> "   + this.type
+                        + " " + DATA_SEP + " <value> "  + this.value
+                        + " " + DATA_SEP + " <writer> " + this.writer
+                        + " " + DATA_SEP + " <line> "   + this.line
+                        + " " + DATA_SEP + " <time> "   + this.time + "]";
+            }
+
+            // send info to client
+            TCPServerThread.sendVarInfo(response);
+        }
+    }
+
+    VarReserved() {
+        // init the VarInfo table
+        for (ReservedVars varEnum : ReservedVars.values()) {
+            varInfo.add (new VarInfo(varEnum));
+        }
+    }
     
     /**
-     * initializes the saved Variables
+     * initializes the saved Variables.
+     * This is done at the start of each run to reset all values to their initial
+     *   settings, as well as clearing the flag that indicates values have changed.
      */
     public static void initVariables () {
         strResponse.clear();
         subRetValue = "";
         bStatus = false;
         maxRandom = 1000000000;
+        
+        for (int ix = 0; ix < varInfo.size(); ix++) {
+            varInfo.get(ix).init();
+            varInfo.get(ix).reset();
+        }
     }
     
     /**
-     * indicates if the name is reserved and can't be used for a variable.
-     * 
-     * @param name - the name to check
-     * 
-     * @return the reserved variable name if valid, null if not
+     * resets the changed status of the variables.
+     * this is done at the start of RESUME and STEP so we know what values have changed
      */
-    public static ReservedVars isReservedName (String name) {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (name != null) {
-            for (ReservedVars entry : ReservedVars.values()) {
-                if (entry.toString().contentEquals(name)) {
-                    return entry;
-                }
-            }
+    public static void resetUpdate () {
+        for (int ix = 0; ix < varInfo.size(); ix++) {
+            varInfo.get(ix).reset();
         }
-        return null;
     }
-
+    
     /**
      * returns a list of the variables defined here.
      * 
@@ -92,32 +202,68 @@ public class VarReserved {
     
     /**
      * sends the reserved variable info to the client.
-     * 
-     * @param varName - the name of the reserved parameter
-     * @param varType - parameter type
-     * @param value   - parameter value
+     * This should be called when the RUN or STEP action is completed in NETWORK mode
      */
-    private static void sendVarInfo (ReservedVars varName, ParameterStruct.ParamType varType, String value) {
-        String curTime = UIFrame.elapsedTimerGet();
-        if (curTime == null || curTime.isEmpty()) {
-            curTime = "00:00.000";
+    public static void sendVarChange () {
+        if (! AmazonReader.isOpModeNetwork()) {
+            return;
         }
-        if (varType == ParameterStruct.ParamType.String) {
-            value = Utils.formatNetworkString(value);
+        for (int ix = 0; ix < varInfo.size(); ix++) {
+            VarInfo info = varInfo.get(ix);
+            info.sendVarInfo();
+//            if (info.bUpdate) {
+//                String response = "[<section> RESERVED"
+//                            + " " + DATA_SEP + " <name> "   + info.name
+//                            + " " + DATA_SEP + " <type> "   + info.type
+//                            + " " + DATA_SEP + " <value> "  + info.value
+//                            + " " + DATA_SEP + " <writer> " + info.writer
+//                            + " " + DATA_SEP + " <line> "   + info.line
+//                            + " " + DATA_SEP + " <time> "   + info.time + "]";
+//
+//                // send info to client
+//                TCPServerThread.sendVarInfo(response);
+//            }
         }
-        Integer lineNum = ScriptCompile.getLineNumber(Subroutine.getCurrentIndex());
-        String response = "[<section> RESERVED"
-                        + " " + DATA_SEP + " <name> "   + varName
-                        + " " + DATA_SEP + " <type> "   + varType
-                        + " " + DATA_SEP + " <value> "  + value
-                        + " " + DATA_SEP + " <writer> " + Subroutine.getSubName()
-                        + " " + DATA_SEP + " <line> "   + lineNum
-                        + " " + DATA_SEP + " <time> "   + curTime + "]";
-
-        // send info to client
-        TCPServerThread.sendVarInfo(response);
     }
     
+    /**
+     * updates the reserved variable value.
+     * This is only for NETWORK mode
+     * 
+     * @param varName - the name of the reserved parameter
+     * @param value   - parameter value
+     */
+    private static void setVarChange (ReservedVars varName, String value) {
+        if (! AmazonReader.isOpModeNetwork()) {
+            return;
+        }
+        for (int ix = 0; ix < varInfo.size(); ix++) {
+            VarInfo info = varInfo.get(ix);
+            if (info.name == varName) {
+                info.setValue(value);
+                break;
+            }
+        }
+    }
+    
+    /**
+     * indicates if the name is reserved and can't be used for a variable.
+     * 
+     * @param name - the name to check
+     * 
+     * @return the reserved variable name if valid, null if not
+     */
+    public static ReservedVars isReservedName (String name) {
+        if (name != null) {
+            for (ReservedVars entry : ReservedVars.values()) {
+                if (entry.toString().contentEquals(name)) {
+                    return entry;
+                }
+            }
+        }
+        return null;
+    }
+
     /**
      * adds a String value to the $RESPONSE Variable
      * 
@@ -125,7 +271,7 @@ public class VarReserved {
      */
     public static void putResponseValue (String value) {
         strResponse.add(value);
-        sendVarInfo (ReservedVars.RESPONSE, ParameterStruct.ParamType.StrArray, strResponse.toString());
+        setVarChange (ReservedVars.RESPONSE, strResponse.toString());
     }
     
     /**
@@ -135,7 +281,7 @@ public class VarReserved {
      */
     public static void putResponseValue (ArrayList<String> value) {
         strResponse.addAll(value);
-        sendVarInfo (ReservedVars.RESPONSE, ParameterStruct.ParamType.StrArray, value.toString());
+        setVarChange (ReservedVars.RESPONSE, value.toString());
     }
     
     /**
@@ -145,7 +291,7 @@ public class VarReserved {
      */
     public static void putStatusValue (Boolean value) {
         bStatus = value;
-        sendVarInfo (ReservedVars.STATUS, ParameterStruct.ParamType.Boolean, value.toString());
+        setVarChange (ReservedVars.STATUS, value.toString());
     }
 
     /**
@@ -155,7 +301,7 @@ public class VarReserved {
      */
     public static void putSubRetValue (String value) {
         subRetValue = value;
-        sendVarInfo (ReservedVars.RETVAL, ParameterStruct.ParamType.String, value);
+        setVarChange (ReservedVars.RETVAL, value);
     }
 
     /**
@@ -165,7 +311,7 @@ public class VarReserved {
      */
     public static void putOcrDataValue (String value) {
         OcrText = value;
-        sendVarInfo (ReservedVars.OCRTEXT, ParameterStruct.ParamType.String, value);
+        setVarChange (ReservedVars.OCRTEXT, value);
     }
     
     /**
@@ -175,7 +321,7 @@ public class VarReserved {
      */
     public static void putCurDirValue (String value) {
         curDirectory = value;
-        sendVarInfo (ReservedVars.CURDIR, ParameterStruct.ParamType.String, value);
+        setVarChange (ReservedVars.CURDIR, value);
     }
     
     /**
@@ -185,7 +331,7 @@ public class VarReserved {
      */
     public static void putScriptNameValue (String value) {
         scriptName = value;
-        sendVarInfo (ReservedVars.SCRIPTNAME, ParameterStruct.ParamType.String, value);
+        setVarChange (ReservedVars.SCRIPTNAME, value);
     }
     
     /**
@@ -341,21 +487,21 @@ public class VarReserved {
                 Long value = getRandomValue();
                 paramValue.setIntegerValue(value);
                 pType = ParameterStruct.ParamType.Integer;
-                sendVarInfo (reserved, ParameterStruct.ParamType.Integer, value.toString());
+                setVarChange (reserved, value.toString());
                 break;
             case TIME:
                 LocalTime currentTime = LocalTime.now();
                 String strTime = currentTime.toString().substring(0,12);
                 paramValue.setStringValue(strTime);
                 pType = ParameterStruct.ParamType.String;
-                sendVarInfo (reserved, ParameterStruct.ParamType.String, strTime);
+                setVarChange (reserved, strTime);
                 break;
             case DATE:
                 LocalDate currentDate = LocalDate.now();
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ENGLISH);
                 String strDate = currentDate.format(formatter);
                 paramValue.setStringValue(strDate);
-                sendVarInfo (reserved, ParameterStruct.ParamType.String, strDate);
+                setVarChange (reserved, strDate);
                 break;
             case OCRTEXT:
                 paramValue.setStringValue(OcrText);

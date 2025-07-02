@@ -53,9 +53,19 @@ public class Subroutine {
      */
     public static void init() {
         subroutines.clear();
-        subStack.removeAllElements();
+        subStack.clear();
         subCallList.clear();
         subUsed.clear();
+        lastSubName = null;
+        curLineNum = 1;
+        bExecuteMode = false;
+    }
+    
+    /**
+     * resets the subroutine stack used in execution to empty
+     */
+    public static void resetStack() {
+        subStack.clear();
         lastSubName = null;
         curLineNum = 1;
         bExecuteMode = false;

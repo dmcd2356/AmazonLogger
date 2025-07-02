@@ -180,6 +180,8 @@ public class ScriptThread implements Runnable {
         frame.reset();          // reset the GUI settings
         FileIO.init();          // reset the File settings
         PreCompile.variables.resetVariables();  // reset all variable values back to default
+        LoopStruct.resetStack(); // reset the loop stack
+        Subroutine.resetStack(); // reset subroutine stack
         Spreadsheet.init();     // reset spreadsheet params
         OpenDoc.init();         // reset the OpenDoc params
         frame.elapsedTimerDisable();    // stop the timer for the timestamp
@@ -255,6 +257,10 @@ public class ScriptThread implements Runnable {
     private static void resumeScript () throws ParserException, IOException, SAXException, TikaException {
         AmazonReader.frame.outputInfoMsg (STATUS_PROGRAM, "Script begining RESUME");
         TCPServerThread.sendStatus("RESUMED");
+
+        // reset the variable change flags
+        PreCompile.variables.resetUpdate();
+        
         runScriptNetwork();
     }
 
@@ -317,6 +323,9 @@ public class ScriptThread implements Runnable {
         int lineNumber = ScriptCompile.getLineNumber(netCmdIndex);
         TCPServerThread.sendLineInfo (lineNumber);
 
+        // send back info on any variable changes
+        PreCompile.variables.sendVarChange();
+        
         // we have completed - if running from network, inform the client and stop the timer
         if (isScriptCompleted()) {
             TCPServerThread.sendStatus("EOF");
@@ -345,6 +354,9 @@ public class ScriptThread implements Runnable {
             Subroutine.sendSubStackList();
         }
 
+        // reset the variable change flags
+        PreCompile.variables.resetUpdate();
+        
         // enable timestamp on log messages
         AmazonReader.frame.elapsedTimerEnable();
         
@@ -363,6 +375,9 @@ public class ScriptThread implements Runnable {
         // send the next line number to the cliend
         int lineNumber = ScriptCompile.getLineNumber(netCmdIndex);
         TCPServerThread.sendLineInfo (lineNumber);
+
+        // send back info on any variable changes
+        PreCompile.variables.sendVarChange();
         
         // reset ptr to begining if we reached the end of the script
         if (isScriptCompleted()) {

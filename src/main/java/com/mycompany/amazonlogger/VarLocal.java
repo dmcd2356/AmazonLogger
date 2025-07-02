@@ -41,6 +41,17 @@ public class VarLocal {
     }
 
     /**
+     * resets the changed status of the variables.
+     * this is done at the start of RESUME and STEP so we know what values have changed
+     */
+    public void resetUpdate () {
+        for (Map.Entry<String, VarLocalSub> pair : locals.entrySet()) {
+            VarLocalSub var = pair.getValue();
+            var.resetUpdate();
+        }
+    }
+    
+    /**
      * returns a list of all local variables.
      * 
      * @return a list of the defined variables for local definitions in all subroutines
@@ -59,22 +70,19 @@ public class VarLocal {
     }
     
     /**
-     * returns a list of the variables defined here.
-     * 
-     * @param subName - name of the subroutine of interest
-     * @param varName - name of the variable to look up
-     * 
-     * @return a string containing the name, value and other info for the variable
+     * sends a list of the variables that have changed.
      * 
      * @throws ParserException
      */
-    public String getVarInfo (String subName, String varName) throws ParserException {
-        String response = "";
-        VarLocalSub varInfo = locals.get(subName);
-        if (varInfo != null) {
-            response = varInfo.getVarInfo(varName);
+    public void sendVarChange () throws ParserException {
+        ArrayList<String> subNameList = Subroutine.getSubNames();
+        for (int ix = 0; ix < subNameList.size(); ix++) {
+            String subName = subNameList.get(ix);
+            VarLocalSub varInfo = locals.get(subName);
+            if (varInfo != null) {
+                varInfo.sendVarChange();
+            }
         }
-        return response;
     }
     
     /**
@@ -126,6 +134,20 @@ public class VarLocal {
             throw new ParserException(functionId + "Variable " + varName + " not found");
         }
         return localSub.isVarInit(varName);
+    }
+
+    // indicates if the variable has been written to since last step
+    public static boolean isVarChanged (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        String subName = Subroutine.getSubName();
+        VarLocalSub localSub = locals.get(subName);
+        if (localSub == null) {
+            throw new ParserException(functionId + "Subroutine allocations not found: " + subName);
+        }
+        if (! localSub.isDefined(varName)) {
+            throw new ParserException(functionId + "Variable " + varName + " not found");
+        }
+        return localSub.isVarChanged(varName);
     }
 
     // saves the time and script line when the variable was written.

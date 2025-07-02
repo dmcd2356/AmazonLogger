@@ -36,6 +36,7 @@ public class PreCompile {
     public static void init() {
         Variables.initVariables();
         Subroutine.init();
+        LoopStruct.resetStack();
         Spreadsheet.init();
         OpenDoc.init();
         IFStruct.init();

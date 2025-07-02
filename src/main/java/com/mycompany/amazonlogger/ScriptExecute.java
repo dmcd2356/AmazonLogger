@@ -199,6 +199,25 @@ public class ScriptExecute {
         frame.outputInfoMsg(STATUS_PROGRAM, "    Replaced arg value with expanded value: " + response);
         return response;
     }
+
+    /**
+     * prints the user-specified text to standard output.
+     * 
+     * @param text - the text to output
+     */
+    private static void printUserText (String text) {
+        if (text == null) {
+            System.out.println();
+        } else {
+            System.out.println(text);
+        }
+        if (AmazonReader.isOpModeNetwork()) {
+            if (text == null) {
+                text = "";
+            }
+            TCPServerThread.sendUserOutputInfo(text);
+        }
+    }
     
     /**
      * Executes a command from the list of CommandStruct entries created by the compileProgramCommand method.
@@ -268,10 +287,7 @@ public class ScriptExecute {
                 // arg 0: text to output
                 if (cmdStruct.params.isEmpty()) {
                     // treat no arguments as outputting an empty newline
-                    System.out.println();
-                    if (AmazonReader.isOpModeNetwork()) {
-                        TCPServerThread.sendUserOutputInfo("");
-                    }
+                    printUserText(null);
                 } else if (cmdStruct.params.size() > 1) {
                     // if multiple arguments, must be a concatenated string.
                     //  pull the pieces together and print
@@ -282,37 +298,25 @@ public class ScriptExecute {
                             text += entry;
                         }
                     }
-                    System.out.println(text);
-                    if (AmazonReader.isOpModeNetwork()) {
-                        TCPServerThread.sendUserOutputInfo(text);
-                    }
+                    printUserText(text);
                 } else if (cmdStruct.params.get(0).getParamType() == ParameterStruct.ParamType.StrArray) {
                     // if entry is a string array, print each entry on a new line
                     ArrayList<String> list = cmdStruct.params.get(0).getStrArray();
                     for (int ix = 0; ix < list.size(); ix++) {
                         String text = list.get(ix);
-                        System.out.println(text);
-                        if (AmazonReader.isOpModeNetwork()) {
-                            TCPServerThread.sendUserOutputInfo(text);
-                        }
+                        printUserText(text);
                     }
                 } else if (cmdStruct.params.get(0).getParamType() == ParameterStruct.ParamType.IntArray) {
                     // if entry is a string array, print each entry on a new line
                     ArrayList<Long> list = cmdStruct.params.get(0).getIntArray();
                     for (int ix = 0; ix < list.size(); ix++) {
                         String text = list.get(ix).toString();
-                        System.out.println(text);
-                        if (AmazonReader.isOpModeNetwork()) {
-                            TCPServerThread.sendUserOutputInfo(text);
-                        }
+                        printUserText(text);
                     }
                 } else {
                     // otherwise, just print the single entry
                     String text = cmdStruct.params.get(0).getStringValue();
-                    System.out.println(text);
-                    if (AmazonReader.isOpModeNetwork()) {
-                        TCPServerThread.sendUserOutputInfo(text);
-                    }
+                    printUserText(text);
                 }
                 break;
             case DIRECTORY:
@@ -480,6 +484,7 @@ public class ScriptExecute {
                         break;
                     case ParameterStruct.ParamType.Boolean:
                         Boolean bResult = getComparison(parm1, parm2, parm3);
+                        PreCompile.variables.setBooleanVariable(varName, bResult);
                         frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Boolean Variable " + varName + " = " + bResult);
                         break;
 
@@ -545,8 +550,6 @@ public class ScriptExecute {
                 // AmazonReader.isOpModeNetwork()
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
-                } else {
-                    Variables.updateNetworkArray (varName);
                 }
 
             case APPEND:
@@ -588,8 +591,6 @@ public class ScriptExecute {
 
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
-                } else {
-                    Variables.updateNetworkArray (varName);
                 }
                 break;
             case MODIFY:
@@ -620,8 +621,6 @@ public class ScriptExecute {
                 bSuccess = VarArray.arrayModifyEntry (varName, index, strValue);
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
-                } else {
-                    Variables.updateNetworkArray (varName);
                 }
                 break;
             case REMOVE:
@@ -637,8 +636,6 @@ public class ScriptExecute {
                 bSuccess = VarArray.arrayClearEntries (varName, index, 1);
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
-                } else {
-                    Variables.updateNetworkArray (varName);
                 }
                 break;
             case TRUNCATE:
@@ -662,8 +659,6 @@ public class ScriptExecute {
                 bSuccess = VarArray.arrayClearEntries (varName, iStart, iCount);
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
-                } else {
-                    Variables.updateNetworkArray (varName);
                 }
                 break;
             case POP:
@@ -687,8 +682,6 @@ public class ScriptExecute {
                 bSuccess = VarArray.arrayClearEntries (varName, iStart, iCount);
                 if (!bSuccess) {
                     throw new ParserException(exceptPreface + " variable ref not found: " + varName);
-                } else {
-                    Variables.updateNetworkArray (varName);
                 }
                 break;
             case CLEAR:
@@ -700,7 +693,6 @@ public class ScriptExecute {
                 PreCompile.variables.checkWriteAccess (varName);
                 
                 VarArray.arrayClearAll(varName);
-                Variables.updateNetworkArray (varName);
                 break;
                 
             case FILTER:
@@ -826,7 +818,7 @@ public class ScriptExecute {
                 LoopStruct.pushStack(curLoopId);
                 int loopSize = LoopStruct.getStackSize();
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "new FOR Loop level " + loopSize+ " parameter " + loopName + " index @ " + cmdIndex);
-                LoopStruct.sendCurrentLoopInfo();
+//                LoopStruct.sendCurrentLoopInfo();
                 break;
             case BREAK:
                 loopSize = LoopStruct.getStackSize();
@@ -836,7 +828,7 @@ public class ScriptExecute {
                 newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
-                LoopStruct.sendCurrentLoopInfo();
+//                LoopStruct.sendCurrentLoopInfo();
                 break;
             case SKIP:
                 loopSize = LoopStruct.getStackSize();
@@ -846,7 +838,7 @@ public class ScriptExecute {
                 newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
-                LoopStruct.sendCurrentLoopInfo();
+//                LoopStruct.sendCurrentLoopInfo();
                 break;
             case BREAKIF:
                 loopSize = LoopStruct.getStackSize();
@@ -866,7 +858,7 @@ public class ScriptExecute {
                     newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                     frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
                 }
-                LoopStruct.sendCurrentLoopInfo();
+//                LoopStruct.sendCurrentLoopInfo();
                 break;
             case SKIPIF:
                 loopSize = LoopStruct.getStackSize();
@@ -886,7 +878,7 @@ public class ScriptExecute {
                     newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                     frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
                 }
-                LoopStruct.sendCurrentLoopInfo();
+//                LoopStruct.sendCurrentLoopInfo();
                 break;
             case NEXT:
                 loopSize = LoopStruct.getStackSize();
@@ -896,7 +888,7 @@ public class ScriptExecute {
                 newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
                 frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
-                LoopStruct.sendCurrentLoopInfo();
+//                LoopStruct.sendCurrentLoopInfo();
                 break;
             case ENDFOR:
                 loopSize = LoopStruct.getStackSize();
@@ -916,7 +908,7 @@ public class ScriptExecute {
                     frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Current Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 }
-                LoopStruct.sendCurrentLoopInfo();
+//                LoopStruct.sendCurrentLoopInfo();
                 break;
             case RUN:
                 // fall through...

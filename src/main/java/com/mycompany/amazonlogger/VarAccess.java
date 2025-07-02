@@ -18,6 +18,7 @@ public class VarAccess {
     private static final String CLASS_NAME = VarAccess.class.getSimpleName();
     private static final String INDENT = "     ";
     
+    private boolean     bUpdate;            // true when a value has been written to
     private String      varName;            // name of variable
     private ParameterStruct.ParamType varType; // the variable data type
     private Variables.AccessType access;    // type of access permitted to variable
@@ -38,6 +39,7 @@ public class VarAccess {
         this.owner     = owner;
         this.writer    = null;
         this.writeTime = "";
+        this.bUpdate   = false;
 
         this.strValue  = null;
         this.intValue  = null;
@@ -106,7 +108,16 @@ public class VarAccess {
             throw new ParserException(functionId + "Invalid data type " + callType + " instead of " + varType);
         }
     }
-        
+
+    public void resetUpdate() {
+        this.bUpdate = false;
+    }
+    
+    // indicates if the variable has been written to since it was allocated
+    public boolean isVarChanged () {
+        return this.bUpdate;
+    }
+
     // these functions get the access info of the variable
     public ParameterStruct.ParamType getType () {
         return this.varType;
@@ -139,6 +150,7 @@ public class VarAccess {
     }
         
     public void setWriteInfo () throws ParserException {
+        this.bUpdate = true;
         this.writer = Subroutine.getCurrentIndex();
         this.writeTime = UIFrame.elapsedTimerGet();
     }

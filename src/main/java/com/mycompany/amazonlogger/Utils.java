@@ -852,6 +852,8 @@ public class Utils {
 
     /**
      * prints the call stack trace for debugging
+     * 
+     * @param msg - the error message to print
      */
     public static void printCallTrace(String msg) {
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
@@ -863,7 +865,7 @@ public class Utils {
     }
 
     /**
-     * throws an addeddum to an exception received to give a stack trace
+     * throws an addendum to an exception received to give a stack trace
      * 
      * @param exMsg  - the message from the caught exception
      * @param addMsg - additional info to report the calling function invocation of the error

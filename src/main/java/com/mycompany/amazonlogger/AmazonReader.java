@@ -42,7 +42,7 @@ public class AmazonReader {
         opMode = mode;
     }
     
-    public static void scriptInit () {
+    private static void scriptInit () {
         frame.reset();          // reset the GUI settings
         FileIO.init();          // reset the File settings
         PreCompile.variables.resetVariables();  // reset all variable values back to default
@@ -222,14 +222,14 @@ public class AmazonReader {
             PreCompile preCompile = new PreCompile();
             Variables variables = preCompile.build(scriptFile);
 
-            if (isOpModeNetwork()) {
-                variables.sendVarAlloc();
-            }
-            
             // compile the program
             frame.outputInfoMsg(STATUS_COMPILE, "\"===== BEGINING PROGRAM COMPILE =====");
             ScriptCompile compiler = new ScriptCompile(variables);
             compiler.build(scriptFile);
+
+            if (isOpModeNetwork()) {
+                variables.sendVarAlloc();
+            }
         } catch (ParserException exMsg) {
             TCPServerThread.sendStatus("ERROR: COMPILE");
             throw new ParserException(exMsg.getMessage());

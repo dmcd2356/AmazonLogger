@@ -7,6 +7,7 @@ package com.mycompany.amazonlogger;
 import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
 import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
+import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,6 +19,9 @@ import java.util.Map;
 public class LoopParam {
     
     private static final String CLASS_NAME = LoopParam.class.getSimpleName();
+    
+    // the chars used to seperate entries in reporting variable contents to the client
+    private static final String DATA_SEP = "::";
     
     Integer value;          // the current value of the loop parameter
     String  paramName;      // the name of the reference Variable (null if no ref param)
@@ -70,6 +74,25 @@ public class LoopParam {
     public static void initVariables () {
         loopParams.clear();
         loopNames.clear();
+    }
+
+    /**
+     * sends the LoopId for the current running loops to the client.
+     * 
+     * @return list of all the loop parameters
+     */
+    public static ArrayList<String> getVarAlloc () {
+        ArrayList<String> response = new ArrayList<>();
+        if (AmazonReader.isOpModeNetwork() && ! loopParams.isEmpty()) {
+            for (Map.Entry pair : loopParams.entrySet()) {
+                LoopId id = (LoopId) pair.getKey();
+                LoopStruct loop = (LoopStruct) pair.getValue();
+                if (loop != null) {
+                    response.add("[" + LoopStruct.getLoopInfo (id, loop) + "]");
+                }
+            }
+        }
+        return response;
     }
 
     public void update (Integer value) {

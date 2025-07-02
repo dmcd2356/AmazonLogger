@@ -49,7 +49,9 @@ public class Variables {
     }
     
     /**
-     * initializes the saved Variables
+     * initializes the saved Variables.
+     * This is done when we start the PreCompile.
+     * It will remove all GLOBAL & LOCAL variable allocations.
      */
     public static void initVariables () {
         VarReserved.initVariables();
@@ -60,7 +62,9 @@ public class Variables {
     }
 
     /**
-     * re-initializes the saved Variables
+     * re-initializes the saved Variables.
+     * This is done at the start of running a Script, so it has to re-initialize
+     *  any previously set values back to initial settings.
      */
     public void resetVariables () {
         VarReserved.initVariables();
@@ -72,65 +76,57 @@ public class Variables {
     }
 
     /**
+     * resets the 'value changed' flags in the saved Variables.
+     * This is done when starting a RUN, RESUME or STEP.
+     */
+    public void resetUpdate () {
+        LoopStruct.resetUpdate();
+        VarReserved.resetUpdate();
+        VarGlobal.resetUpdate();
+        if (varLocal != null) {
+            varLocal.resetUpdate();
+        }
+//        VarArray.resetUpdate();
+    }
+    
+    /**
      * sends the allocation information for all variables to the network client.
      * This is called following the PreCompile after all allocations are generated.
      */
     public void sendVarAlloc() {
-        ArrayList<String> varAllocs = new ArrayList<>();
-        varAllocs.add("<START>");
-        varAllocs.add("<RESERVED>");
-        varAllocs.addAll(VarReserved.getVarAlloc());
-        varAllocs.add("<GLOBAL>");
-        varAllocs.addAll(VarGlobal.getVarAlloc());
-        varAllocs.add("<LOCAL>");
-        varAllocs.addAll(varLocal.getVarAlloc());
-        varAllocs.add("<END>");
-        TCPServerThread.sendAllocations(varAllocs);
+        if (AmazonReader.isOpModeNetwork()) {
+            ArrayList<String> varAllocs = new ArrayList<>();
+            varAllocs.add("<START>");
+            varAllocs.add("<LOOP>");
+            varAllocs.addAll(LoopParam.getVarAlloc());
+            varAllocs.add("<RESERVED>");
+            varAllocs.addAll(VarReserved.getVarAlloc());
+            varAllocs.add("<GLOBAL>");
+            varAllocs.addAll(VarGlobal.getVarAlloc());
+            varAllocs.add("<LOCAL>");
+            varAllocs.addAll(varLocal.getVarAlloc());
+            varAllocs.add("<END>");
+            TCPServerThread.sendAllocations(varAllocs);
+        }
     }
 
     /**
      * sends the variable change info to the network client.
-     * This is called when a LOCAL or GLOBAL variable has been written to
-     * 
-     * @param varName - name of the variable
-     * @param cls     - the variable class (LOCAL or GLOBAL only)
+     * This is called when a RUN or STEP has completed from the NETWORK mode
      * 
      * @throws ParserException 
      */
-    public void sendVarChange (String varName, VarClass cls) throws ParserException {
+    public void sendVarChange () throws ParserException {
         if (AmazonReader.isOpModeNetwork()) {
-            String response;
-            switch (cls) {
-                case LOCAL:
-                    String subName = Subroutine.getSubName();
-                    response = varLocal.getVarInfo(subName, varName);
-                    TCPServerThread.sendVarInfo(response);
-                    break;
-                case GLOBAL:
-                    response = VarGlobal.getVarInfo(varName);
-                    TCPServerThread.sendVarInfo(response);
-                    break;
-            }
+            LoopStruct.sendVarChange();
+            VarReserved.sendVarChange();
+            VarGlobal.sendVarChange();
+            varLocal.sendVarChange();
         }
     }
 
-    /**
-     * handles reporting Array variable changes to the network client.
-     * 
-     * @param varName - name of array variable changed
-     * 
-     * @throws ParserException 
-     */
-    public static void updateNetworkArray (String varName) throws ParserException {
-        if (AmazonReader.isOpModeNetwork()) {
-            Variables.VarClass varClass = PreCompile.variables.getVariableClass(varName);
-            PreCompile.variables.setVarWriter (varName, varClass);
-            PreCompile.variables.sendVarChange(varName, varClass);
-        }
-    }
-    
     // saves the time and script line when the variable was written.
-    private void setVarWriter (String varName, VarClass cls) throws ParserException {
+    private void setVarChange (String varName, VarClass cls) throws ParserException {
         if (AmazonReader.isOpModeNetwork()) {
             switch (cls) {
                 case LOCAL:
@@ -163,7 +159,7 @@ public class Variables {
                 VarGlobal.putStringVariable(name, value);
                 break;
         }
-        sendVarChange (name, cls);
+        setVarChange (name, cls);
     }
 
     /**
@@ -186,7 +182,7 @@ public class Variables {
                 VarGlobal.putIntegerVariable(name, value);
                 break;
         }
-        sendVarChange (name, cls);
+        setVarChange (name, cls);
     }
 
     /**
@@ -209,7 +205,7 @@ public class Variables {
                 VarGlobal.putUnsignedVariable(name, value);
                 break;
         }
-        sendVarChange (name, cls);
+        setVarChange (name, cls);
     }
 
     /**
@@ -232,7 +228,7 @@ public class Variables {
                 VarGlobal.putBooleanVariable(name, value);
                 break;
         }
-        sendVarChange (name, cls);
+        setVarChange (name, cls);
     }
     
     public void setStrArray (String name, ArrayList<String> value) throws ParserException {
@@ -246,7 +242,7 @@ public class Variables {
                 VarGlobal.updateStrArray(name, value);
                 break;
         }
-        sendVarChange (name, cls);
+        setVarChange (name, cls);
     }
     
     public void setIntArray (String name, ArrayList<Long> value) throws ParserException {
@@ -260,7 +256,7 @@ public class Variables {
                 VarGlobal.updateIntArray(name, value);
                 break;
         }
-        sendVarChange (name, cls);
+        setVarChange (name, cls);
     }
 
     public String getStringValue (String name) throws ParserException {

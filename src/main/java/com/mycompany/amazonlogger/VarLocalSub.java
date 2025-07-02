@@ -42,6 +42,17 @@ public class VarLocalSub {
     }
 
     /**
+     * resets the changed status of the variables.
+     * this is done at the start of RESUME and STEP so we know what values have changed
+     */
+    public void resetUpdate () {
+        for (Map.Entry<String, VarAccess> pair : localVar.entrySet()) {
+            VarAccess var = pair.getValue();
+            var.resetUpdate();
+        }
+    }
+    
+    /**
      * returns a list of the variables defined here.
      * 
      * @return a list of the defined variables
@@ -59,48 +70,51 @@ public class VarLocalSub {
     }
     
     /**
-     * returns a list of the variables defined here.
-     * 
-     * @param varName - name of the variable to look up
-     * 
-     * @return a string containing the name, value and other info for the variable
+     * sends a list of the variables that have changed.
      * 
      * @throws ParserException
      */
-    public String getVarInfo (String varName) throws ParserException {
-        VarAccess varInfo = localVar.get(varName);
-        String value = "";
-        switch(varInfo.getType()) {
-            case String:
-                value = varInfo.getValueString();
-                value = Utils.formatNetworkString(value);
-                break;
-            case Integer:
-                value = varInfo.getValueInteger().toString();
-                break;
-            case Unsigned:
-                value = varInfo.getValueUnsigned().toString();
-                break;
-            case Boolean:
-                value = varInfo.getValueBoolean().toString();
-                break;
-            case StrArray:
-                value = varInfo.getValueStrArray().toString();
-                break;
-            case IntArray:
-                value = varInfo.getValueIntArray().toString();
-                break;
+    public void sendVarChange () throws ParserException {
+        for (Map.Entry<String, VarAccess> pair : localVar.entrySet()) {
+            String varName = pair.getKey();
+            VarAccess varInfo = pair.getValue();
+            if (varInfo.isVarChanged()) {
+                String value = "";
+                switch(varInfo.getType()) {
+                    case String:
+                        value = varInfo.getValueString();
+                        value = Utils.formatNetworkString(value);
+                        break;
+                    case Integer:
+                        value = varInfo.getValueInteger().toString();
+                        break;
+                    case Unsigned:
+                        value = varInfo.getValueUnsigned().toString();
+                        break;
+                    case Boolean:
+                        value = varInfo.getValueBoolean().toString();
+                        break;
+                    case StrArray:
+                        value = varInfo.getValueStrArray().toString();
+                        break;
+                    case IntArray:
+                        value = varInfo.getValueIntArray().toString();
+                        break;
+                }
+                String subWriter = Subroutine.findSubName(varInfo.getWriterIndex());
+                String response = "[<section> LOCAL"
+                                + " " + DATA_SEP + " <owner> "  + varInfo.getOwner()
+                                + " " + DATA_SEP + " <name> "   + varName
+                                + " " + DATA_SEP + " <type> "   + varInfo.getType()
+                                + " " + DATA_SEP + " <value> "  + value
+                                + " " + DATA_SEP + " <writer> " + subWriter
+                                + " " + DATA_SEP + " <line> "   + varInfo.getWriterIndex()
+                                + " " + DATA_SEP + " <time> "   + varInfo.getWriterTime() + "]";
+
+                // send the string to the client
+                TCPServerThread.sendVarInfo(response);
+            }
         }
-        String subWriter = Subroutine.findSubName(varInfo.getWriterIndex());
-        String response = "[<section> LOCAL"
-                        + " " + DATA_SEP + " <owner> "  + varInfo.getOwner()
-                        + " " + DATA_SEP + " <name> "   + varName
-                        + " " + DATA_SEP + " <type> "   + varInfo.getType()
-                        + " " + DATA_SEP + " <value> "  + value
-                        + " " + DATA_SEP + " <writer> " + subWriter
-                        + " " + DATA_SEP + " <line> "   + varInfo.getWriterIndex()
-                        + " " + DATA_SEP + " <time> "   + varInfo.getWriterTime() + "]";
-        return response;
     }
     
     private VarAccess checkLocalVar (String varName, ParameterStruct.ParamType callType) throws ParserException {
@@ -133,6 +147,16 @@ public class VarLocalSub {
             throw new ParserException(functionId + "Local variable not found: " + varName);
         }
         return varInfo.isVarInit();
+    }
+
+    // indicates if the variable has been written to since last step
+    public boolean isVarChanged (String varName) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        VarAccess varInfo = localVar.get(varName);
+        if (varInfo == null) {
+            throw new ParserException(functionId + "Local variable not found: " + varName);
+        }
+        return varInfo.isVarChanged();
     }
 
     // saves the time and script line when the variable was written.

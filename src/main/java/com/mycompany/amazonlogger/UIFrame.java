@@ -1084,7 +1084,7 @@ public final class UIFrame extends JFrame implements ActionListener {
             if (offset >= 0) {
                 msg = msg.substring(offset + header.length());
             }
-            msg = "-> " + msg;
+//            msg = "-> " + msg;
         }
         
         // affix prefix to message identifying the type of message
@@ -1103,10 +1103,10 @@ public final class UIFrame extends JFrame implements ActionListener {
                 // not an error or warning, just print or save the line
                 printLine (bError, msg);
             } else {
-                ArrayList<String> array = new ArrayList<>(Arrays.asList(msg.split("->")));
+                ArrayList<String> array = new ArrayList<>(Arrays.asList(msg.split(" -> ")));
                 printLine (bError, array.get(0).stripTrailing());
                 for (int ix = 1; ix < array.size(); ix++) {
-                    printLine (bError, "    -> " + array.get(ix).stripLeading());
+                    printLine (bError, time + msgPrefix + "    -> " + array.get(ix).stripLeading());
                 }
             }
             return;
