@@ -7,22 +7,9 @@ KNOWN BUGS:
  - BUG: eliminate duplicate text data on OCR scan (not sure why this is occurring)
 
 TODO:
- - add a timer function to run a subroutine when the timer goes off. also allow timer to be reset.
-   (e.g. TIMERSET timeSecs SubroutineName , TIMER RESET)
- - add an elapsed time command (ELAPSEDSTART to set start point, $ELAPSED to get current elapsed time in msec)
- - cleanup error handling messages and reporting errors with the stack trace.
- - More thorough error checking
- - Create tests for verifying functionality by specifying test web clips and PDF files to run with
-    certain debug messages enabled. Then capturing the debug output and comparing them to expected
-    results.
 
 FUTURE:
- - add -hyper option command to place a hypertext link in the cell of a spreadsheet
  - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
  - When updating Order Details, make sure on multi-item orders to match the descriptions with the
     current entry item before copying the data.
- - After spreadsheet is loaded, show the last (most recent entry) in Dan and Connie tab to make it
-    easier to find the next page to load without having to look at the spreadsheet directly.
- - add ability to read from port when running in background so commands can be sent from external program
-    that sends commands to port. It could then allow stepping through the program and display current status.
 
