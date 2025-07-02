@@ -74,6 +74,8 @@ public final class UIFrame extends JFrame implements ActionListener {
     private static long    prevElapsed = 0;     // hold current elapsed time for pause durations
     private static boolean showElapsed = false; // indicates if elapsed time to be displayed in logs
     private static int     logCounter = 0;
+    private static boolean bNetPrintEnable = true; // true if network receives all enabled msgs, false for just errors & warnings
+    
 
     private final class MsgControl {
         int       statusId;     // STATUS_ entry
@@ -170,6 +172,16 @@ public final class UIFrame extends JFrame implements ActionListener {
         logCounter = 0;
     }
 
+    /**
+     * sets the flag to enable/disable log messages to the network.
+     * If disabled, only ERROR and WARN messages will be sent.
+     * 
+     * @param enable - true to enable
+     */
+    public static void setNetworkDebugEnable (boolean enable) {
+        bNetPrintEnable = enable;
+    }
+    
     // constructor, to initialize the components
     // with default values.
     public UIFrame(boolean bGUI)
@@ -1084,7 +1096,6 @@ public final class UIFrame extends JFrame implements ActionListener {
             if (offset >= 0) {
                 msg = msg.substring(offset + header.length());
             }
-//            msg = "-> " + msg;
         }
         
         // affix prefix to message identifying the type of message
@@ -1156,8 +1167,10 @@ public final class UIFrame extends JFrame implements ActionListener {
 
         // if network connection, send to client
         if (AmazonReader.isOpModeNetwork()) {
-            TCPServerThread.sendLogMessage(logCounter, msg);
-            logCounter++;
+            if (bNetPrintEnable || bError) {
+                TCPServerThread.sendLogMessage(logCounter, msg);
+                logCounter++;
+            }
         }
     }
     

@@ -153,6 +153,13 @@ public class TCPServerThread implements Runnable {
                     PreCompile.init();
                     AmazonReader.selectScriptFile(fname);
                     break;
+                case "DEBUG":
+                    if (array.size() < 2) {
+                        System.out.println("DEBUG command missing argument");
+                    }
+                    boolean enable = array.get(1).equalsIgnoreCase("true");
+                    UIFrame.setNetworkDebugEnable(enable);
+                    break;
                 case "COMPILE":
                     ScriptThread.enableRun();
                     AmazonReader.compileScript();

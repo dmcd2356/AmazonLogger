@@ -170,7 +170,7 @@ public class LoopStruct {
             try {
                 step = loop.valStep.getIntValue().toString();
             } catch (ParserException exMsg) {  }
-            return "<name> " + id.name + " @ " + id.index
+            return "<name> " + id.name + " @ " + ScriptCompile.getLineNumber(id.index)
                     + " " + DATA_SEP + " <owner> "   + Subroutine.findSubName(loop.ixBegin)
                     + " " + DATA_SEP + " <type> Integer"
                     + " " + DATA_SEP + " <value> "   + loop.value
