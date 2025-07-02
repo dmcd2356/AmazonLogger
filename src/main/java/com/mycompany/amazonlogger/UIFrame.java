@@ -1101,7 +1101,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         // affix prefix to message identifying the type of message
         msg = msgPrefix + msg;
         
-        // this handles the message output for running from command line
+        // this handles the message output for running from command line, script, or network
         if (!bUseGUI) {
             // add the timestamp to the begining of each message
             String time = elapsedTimerGet();
@@ -1161,7 +1161,7 @@ public final class UIFrame extends JFrame implements ActionListener {
             if (bError) {
                 System.out.println(msg);
             }
-        } else {
+        } else if (AmazonReader.isOpModeCommmandLine()) {
             System.out.println(msg);
         }
 
