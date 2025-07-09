@@ -23,7 +23,7 @@ package com.mycompany.amazonlogger;
  * @author dan
  */
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -265,9 +265,7 @@ public class PropertiesFile {
      * non-error message.
      */    
     private void outputMsg (String msg) {
-        if (frame != null) {
-            frame.outputInfoMsg(UIFrame.STATUS_PROPS, msg);
-        }
+        GUILogPanel.outputInfoMsg(MsgType.PROPS, msg);
     }
     
     /**
@@ -275,9 +273,7 @@ public class PropertiesFile {
      * error message.
      */    
     private void errorMsg (String msg) {
-        if (frame != null) {
-            frame.outputInfoMsg(UIFrame.STATUS_WARN, msg);
-        }
+        GUILogPanel.outputInfoMsg(MsgType.WARN, msg);
     }
     
 }

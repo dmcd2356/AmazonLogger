@@ -4,8 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 import java.util.Stack;
 
@@ -48,7 +47,7 @@ public class IFStruct {
 
         String cmdId = "line " + index + " IF ";
         String nestLevel = " (nest level " + loopLevel + ")";
-        frame.outputInfoMsg(STATUS_COMPILE, "    " + cmdId + " @ " + this.ixIf + nestLevel);
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "    " + cmdId + " @ " + this.ixIf + nestLevel);
     }
 
     /**
@@ -215,7 +214,7 @@ public class IFStruct {
             throw new ParserException(functionId + cmdId + "cmd outside of loop level " + this.loopLevel + nestLevel);
         }
         this.ixElse.add(index);
-        frame.outputInfoMsg(STATUS_COMPILE, "    " + cmdId + "    entry " + this.ixElse.size() + " for IF @ " + this.ixIf + nestLevel);
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "    " + cmdId + "    entry " + this.ixElse.size() + " for IF @ " + this.ixIf + nestLevel);
     }
         
     /**
@@ -239,7 +238,7 @@ public class IFStruct {
             throw new ParserException(functionId + cmdId + "cmd outside of loop level " + this.loopLevel + nestLevel);
         }
         this.ixEndIf = index;
-        frame.outputInfoMsg(STATUS_COMPILE, "    " + cmdId + "    for IF @ " + this.ixIf + nestLevel);
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "    " + cmdId + "    for IF @ " + this.ixIf + nestLevel);
     }
 
 }

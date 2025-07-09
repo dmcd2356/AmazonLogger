@@ -4,10 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_INFO;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_SSHEET;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
@@ -93,7 +90,7 @@ public class OpenDoc {
         sheetSel.setRowCount(row, -1);
         sheetSel.ensureColumnCount(col);
         sheetSel.ensureRowCount(row);
-        frame.outputInfoMsg(STATUS_SSHEET, INDENT + "sheet '" + getSheetName() + "' new size: cols " + col + " rows " + row);
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "sheet '" + getSheetName() + "' new size: cols " + col + " rows " + row);
     }
     
     /**
@@ -130,7 +127,7 @@ public class OpenDoc {
 //        if (sheetSel.getName() == null || sheetSel.getName().isEmpty()) {
 //            sheetSel.setName("" + sheetNum);
 //        }
-        frame.outputInfoMsg(STATUS_SSHEET, INDENT + "tab " + sheetNum + " selection: '" + sheetSel.getName() + "'");
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "tab " + sheetNum + " selection: '" + sheetSel.getName() + "'");
     }
 
     /**
@@ -236,7 +233,7 @@ public class OpenDoc {
         }
 
         String strVal = sheetSel.getCellAt(col,row).getTextValue();
-        frame.outputInfoMsg(STATUS_SSHEET, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + strVal);
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + strVal);
         return strVal;
     }
     
@@ -270,7 +267,7 @@ public class OpenDoc {
             throw new ParserException(functionId + "col " + col + " row " + row + " cell value is null");
         }
         BigDecimal bdValue = (BigDecimal) objVal;
-        frame.outputInfoMsg(STATUS_SSHEET, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + objVal.toString());
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + objVal.toString());
         return bdValue;
     }
     
@@ -325,7 +322,7 @@ public class OpenDoc {
             }
         }
 
-        frame.outputInfoMsg(STATUS_SSHEET, INDENT + "write tab " + OpenDoc.getSheetName()
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "write tab " + OpenDoc.getSheetName()
                 + " row " + row + " col " + col + " -> " + objVal.toString() + " (type " + strClass + ")");
     }
     
@@ -356,7 +353,7 @@ public class OpenDoc {
         sheetSel.getCellAt(col,row).setBackgroundColor(color);
 
         String hexColor = String.format("0x%06x", color.getRGB());
-        frame.outputInfoMsg(STATUS_SSHEET, INDENT + "set color " + OpenDoc.getSheetName() + " row " + row + " col " + col + " RGB -> " + hexColor);
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "set color " + OpenDoc.getSheetName() + " row " + row + " col " + col + " RGB -> " + hexColor);
     }
     
     /**    
@@ -407,7 +404,7 @@ public class OpenDoc {
         String loadType = "Loaded";
         if (numSheets == 0) {
             if (sheetArray.isEmpty()) {
-                frame.outputInfoMsg(STATUS_WARN, INDENT + loadType + "No sheets were defined for a reload!");
+                GUILogPanel.outputInfoMsg(MsgType.WARN, INDENT + loadType + "No sheets were defined for a reload!");
                 return true;
             }
             numSheets = sheetArray.size();
@@ -423,10 +420,10 @@ public class OpenDoc {
                 sheet = spreadsheet.getSheet(ix);
                 sheetArray.add(sheet);
             } catch (IOException ex) {
-                frame.outputInfoMsg(STATUS_WARN, INDENT + "tab " + ix + " was unable to be loaded");
+                GUILogPanel.outputInfoMsg(MsgType.WARN, INDENT + "tab " + ix + " was unable to be loaded");
                 return false;
             }
-            frame.outputInfoMsg(STATUS_INFO, INDENT + loadType + " sheet " + ix + " '" + sheet.getName() + "' into memory: "
+            GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + loadType + " sheet " + ix + " '" + sheet.getName() + "' into memory: "
                                         + sheet.getRowCount() + " rows, "
                                         + sheet.getColumnCount() + " cols");
         }
@@ -452,7 +449,7 @@ public class OpenDoc {
         for (int ix = 0; ix < sheetArray.size(); ix++) {
             Sheet sheet = sheetArray.get(ix);
             sheet.getSpreadSheet().saveAs(spreadsheetFile);
-            frame.outputInfoMsg(STATUS_INFO, INDENT + "Saving sheet " + ix + " '" + sheet.getName() + "' to file: "
+            GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Saving sheet " + ix + " '" + sheet.getName() + "' to file: "
                                         + sheet.getRowCount() + " rows, "
                                         + sheet.getColumnCount() + " cols");
         }
@@ -504,7 +501,7 @@ public class OpenDoc {
         
         int rows = getRowSize();
         int cols = getColSize();
-        frame.outputInfoMsg(STATUS_INFO, INDENT + "Spreadsheet size: cols = " + cols + ", rows = " + rows);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Spreadsheet size: cols = " + cols + ", rows = " + rows);
     }
     
     /**
@@ -558,7 +555,7 @@ public class OpenDoc {
         
             int rows = getRowSize();
             int cols = getColSize();
-            frame.outputInfoMsg(STATUS_INFO, INDENT + "sheet[" + ix + "] '" + nextSheet.getName() + "' size: cols = " + cols + ", rows = " + rows);
+            GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "sheet[" + ix + "] '" + nextSheet.getName() + "' size: cols = " + cols + ", rows = " + rows);
         }
         
         // save the initial spreadsheet file

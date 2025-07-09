@@ -4,9 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -84,7 +82,7 @@ public class ScriptThread implements Runnable {
      */
     public static void pauseScript () {
         pause = true;
-        frame.outputInfoMsg (STATUS_PROGRAM, "Script begining PAUSE");
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "Script begining PAUSE");
     }
 
     /**
@@ -94,7 +92,7 @@ public class ScriptThread implements Runnable {
      */
     public static void stopScript () {
         stop = true;
-        frame.outputInfoMsg (STATUS_PROGRAM, "Script begining STOP");
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "Script begining STOP");
     }
 
     /**
@@ -156,7 +154,7 @@ public class ScriptThread implements Runnable {
                     return false;
             }
         } catch (ParserException exMsg) {
-            AmazonReader.frame.outputInfoMsg(STATUS_WARN, exMsg.getMessage());
+            GUILogPanel.outputInfoMsg(MsgType.WARN, exMsg.getMessage());
             TCPServerThread.sendStatus("ERROR: " + array.getFirst() + " " + exMsg.getMessage());
             return false;
         } catch (IOException | SAXException | TikaException exMsg) {
@@ -177,16 +175,16 @@ public class ScriptThread implements Runnable {
     }
     
     private static void scriptInit () {
-        frame.reset();          // reset the GUI settings
-        FileIO.init();          // reset the File settings
+        GUILogPanel.reset();        // reset the GUI settings
+        FileIO.init();              // reset the File settings
         PreCompile.variables.resetVariables();  // reset all variable values back to default
-        LoopStruct.resetStack(); // reset the loop stack
-        Subroutine.resetStack(); // reset subroutine stack
-        Spreadsheet.init();     // reset spreadsheet params
-        OpenDoc.init();         // reset the OpenDoc params
-        frame.elapsedTimerDisable();    // stop the timer for the timestamp
-        frame.outputInfoMsg(STATUS_PROGRAM, "Resetting program index to begining");
-        netCmdIndex = 0;        // reset the command pointer to the begining
+        LoopStruct.resetStack();    // reset the loop stack
+        Subroutine.resetStack();    // reset subroutine stack
+        Spreadsheet.init();         // reset spreadsheet params
+        OpenDoc.init();             // reset the OpenDoc params
+        GUIMain.elapsedTimerDisable();  // stop the timer for the timestamp
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "Resetting program index to begining");
+        netCmdIndex = 0;            // reset the command pointer to the begining
     }
     
     /**
@@ -224,13 +222,13 @@ public class ScriptThread implements Runnable {
     private static void setBreakpoint (String value) {
         if (value.contentEquals("OFF")) {
             breakIndex = CMD_INDEX_EOF;
-            AmazonReader.frame.outputInfoMsg (STATUS_PROGRAM, "Script breakpoint disabled");
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "Script breakpoint disabled");
         } else {
             int line;
             try {
                 line = Integer.parseInt(value);
             } catch (NumberFormatException exMsg) {
-                AmazonReader.frame.outputInfoMsg (STATUS_WARN, "Invalid Script breakpoint value: " + value);
+                GUILogPanel.outputInfoMsg(MsgType.WARN, "Invalid Script breakpoint value: " + value);
                 TCPServerThread.sendStatus("BREAKPT INVALID");
                 return;
             }
@@ -241,7 +239,7 @@ public class ScriptThread implements Runnable {
                 TCPServerThread.sendStatus("BREAKPT INVALID");
                 return;
             }
-            AmazonReader.frame.outputInfoMsg (STATUS_PROGRAM, "Script breakpoint set to line: " + value);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "Script breakpoint set to line: " + value);
             TCPServerThread.sendStatus("BREAKPT SET");
         }
     }
@@ -255,7 +253,7 @@ public class ScriptThread implements Runnable {
      * @throws TikaException
      */
     private static void resumeScript () throws ParserException, IOException, SAXException, TikaException {
-        AmazonReader.frame.outputInfoMsg (STATUS_PROGRAM, "Script begining RESUME");
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "Script begining RESUME");
         TCPServerThread.sendStatus("RESUMED");
 
         // reset the variable change flags
@@ -282,14 +280,14 @@ public class ScriptThread implements Runnable {
 
         // execute the program by running each 'netCompileList' entry
         if (netCmdIndex == 0) {
-            AmazonReader.frame.outputInfoMsg(STATUS_PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
             Subroutine.sendSubStackList();
         } else {
-            AmazonReader.frame.outputInfoMsg(STATUS_PROGRAM, "===== RESUMING PROGRAM EXECUTION =====");
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "===== RESUMING PROGRAM EXECUTION =====");
         }
 
         // enable timestamp on log messages
-        AmazonReader.frame.elapsedTimerEnable();
+        GUIMain.elapsedTimerEnable();
 
         try {
             while (netCmdIndex >= 0 && netCmdIndex < compileSize) {
@@ -308,7 +306,7 @@ public class ScriptThread implements Runnable {
                 if (stop) {
                     stop = false;
                     netCmdIndex = CMD_INDEX_EOF;
-                    frame.outputInfoMsg (STATUS_PROGRAM, "Script STOPPED");
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "Script STOPPED");
                     break;
                 }
             }
@@ -317,7 +315,7 @@ public class ScriptThread implements Runnable {
         }
 
         // pause the timer
-        AmazonReader.frame.elapsedTimerPause();
+        GUIMain.elapsedTimerPause();
 
         // send back the line info of where we stopped
         int lineNumber = ScriptCompile.getLineNumber(netCmdIndex);
@@ -329,7 +327,7 @@ public class ScriptThread implements Runnable {
         // we have completed - if running from network, inform the client and stop the timer
         if (isScriptCompleted()) {
             TCPServerThread.sendStatus("EOF");
-            AmazonReader.frame.elapsedTimerDisable();
+            GUIMain.elapsedTimerDisable();
         }
     }
     
@@ -350,7 +348,7 @@ public class ScriptThread implements Runnable {
         }
 
         if (netCmdIndex == 0) {
-            AmazonReader.frame.outputInfoMsg(STATUS_PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
             Subroutine.sendSubStackList();
         }
 
@@ -358,7 +356,7 @@ public class ScriptThread implements Runnable {
         PreCompile.variables.resetUpdate();
         
         // enable timestamp on log messages
-        AmazonReader.frame.elapsedTimerEnable();
+        GUIMain.elapsedTimerEnable();
         
         // run command instruction
         try {
@@ -370,7 +368,7 @@ public class ScriptThread implements Runnable {
         }
 
         // pause the timer
-        AmazonReader.frame.elapsedTimerPause();
+        GUIMain.elapsedTimerPause();
 
         // send the next line number to the cliend
         int lineNumber = ScriptCompile.getLineNumber(netCmdIndex);

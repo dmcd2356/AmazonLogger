@@ -4,8 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -132,17 +131,17 @@ public final class ParameterStruct {
                         VarExtract paramInfo = new VarExtract(paramName);
                         variableRef = new VarExtensions(paramInfo);
                         paramClass = ParamClass.Reference;
-                        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "Converted Calculation parameter to single Reference value: " + variableRef.getName());
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, msgGap + "Converted Calculation parameter to single Reference value: " + variableRef.getName());
                     } else {
                         Long value = calc.getCalcValue();
                         if (value != null) {
                             longParam = value;
                             paramClass = ParamClass.Discrete;
-                            frame.outputInfoMsg(STATUS_DEBUG, msgGap + "Converted Calculation parameter to single " + paramType + " value: " + value);
+                            GUILogPanel.outputInfoMsg(MsgType.DEBUG, msgGap + "Converted Calculation parameter to single " + paramType + " value: " + value);
                         }
                     }
                 } else {
-                    frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Calculation " + paramType + ": " + strValue);
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, msgGap + "New ParamStruct: Calculation " + paramType + ": " + strValue);
                 }
                 return;
             }
@@ -151,7 +150,7 @@ public final class ParameterStruct {
                 // extract any extension added to the Variable
                 VarExtract paramInfo = new VarExtract(strParam);
                 variableRef = new VarExtensions(paramInfo);
-                frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Reference " + paramType + " name: " + variableRef.getName());
+                GUILogPanel.outputInfoMsg(MsgType.DEBUG, msgGap + "New ParamStruct: Reference " + paramType + " name: " + variableRef.getName());
                 return;
             }
 
@@ -211,12 +210,12 @@ public final class ParameterStruct {
                     // if it was a String Array but was all Integers, reclassify it
                     if (paramType == ParamType.StrArray && bAllInts) {
                         paramType = ParamType.IntArray;
-                        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "Reclassified StrArray as IntArray: " + variableRef.getName());
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, msgGap + "Reclassified StrArray as IntArray: " + variableRef.getName());
                     }
                     if (paramType == ParamType.IntArray) {
-                        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "new " + paramType + " size " + intArrayParam.size());
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, msgGap + "new " + paramType + " size " + intArrayParam.size());
                     } else {
-                        frame.outputInfoMsg(STATUS_DEBUG, msgGap + "new " + paramType + " size " + strArrayParam.size());
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, msgGap + "new " + paramType + " size " + strArrayParam.size());
                     }
                     break;
                 case String:
@@ -225,7 +224,7 @@ public final class ParameterStruct {
                 default:
                     break;
             }
-            frame.outputInfoMsg(STATUS_DEBUG, msgGap + "New ParamStruct: Discreet " + paramType + ": '" + strParam + "'");
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, msgGap + "New ParamStruct: Discreet " + paramType + ": '" + strParam + "'");
         } catch (ParserException exMsg) {
             Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
@@ -444,7 +443,7 @@ public final class ParameterStruct {
             this.paramClass     = value.paramClass;
             this.variableRef    = value.variableRef;
             
-            frame.outputInfoMsg(STATUS_DEBUG, "    unpacked param " + variableRef.getName() + " as type '" + paramType);
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, "    unpacked param " + variableRef.getName() + " as type '" + paramType);
         }
     }
 
@@ -511,9 +510,9 @@ public final class ParameterStruct {
                 String strID = params.get(ix).paramType.toString();
                 paramTypes += " " + strID;
             }
-            frame.outputInfoMsg(STATUS_DEBUG, "     arg dataTypes: " + paramTypes);
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, "     arg dataTypes: " + paramTypes);
         } else {
-            frame.outputInfoMsg(STATUS_DEBUG, "     no args");
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, "     no args");
         }
     }
     
@@ -639,7 +638,7 @@ public final class ParameterStruct {
         ParameterStruct.ParamType ptype = parm.getParamType();
         boolean bValid = ptype == expType;
         if (! bValid) {
-            frame.outputInfoMsg(STATUS_DEBUG, "    Param type " + ptype + " when expected: " + expType);
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, "    Param type " + ptype + " when expected: " + expType);
         }
 
         // check for other alternate types that are allowed and if entry is not null
@@ -689,7 +688,7 @@ public final class ParameterStruct {
                         iArray = new ArrayList<>();
                         iArray.add(entry);
                         parm.setIntArray(iArray);
-                        frame.outputInfoMsg(STATUS_DEBUG, "Param type " + ptype + ": converted from " + expType);
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "Param type " + ptype + ": converted from " + expType);
                         break;
                     default:
                         break;
@@ -710,7 +709,7 @@ public final class ParameterStruct {
                         sArray = new ArrayList<>();
                         sArray.add(entry);
                         parm.setStrArray(sArray);
-                        frame.outputInfoMsg(STATUS_DEBUG, "Param type " + ptype + ": converted from " + expType);
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "Param type " + ptype + ": converted from " + expType);
                         break;
                     case IntArray:
                         if (iArray != null) {
@@ -719,7 +718,7 @@ public final class ParameterStruct {
                                 sArray.add(iArray.get(ix).toString());
                             }
                             parm.setStrArray(sArray);
-                            frame.outputInfoMsg(STATUS_DEBUG, "Param type " + ptype + ": converted from " + expType);
+                            GUILogPanel.outputInfoMsg(MsgType.DEBUG, "Param type " + ptype + ": converted from " + expType);
                         }
                         break;
                     default:
@@ -737,7 +736,7 @@ public final class ParameterStruct {
         if (! bValid) {
             throw new ParserException(functionId + "Param expected type " + expType + ", was type: " + ptype);
         }
-        frame.outputInfoMsg(STATUS_DEBUG, "Param type " + ptype + ": " + value);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "Param type " + ptype + ": " + value);
         return parm;
     }
     
@@ -755,19 +754,19 @@ public final class ParameterStruct {
                 if (longParam == 0L || longParam == 1L) {
                     boolParam = longParam != 0L;
                 }
-                frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
+                GUILogPanel.outputInfoMsg(MsgType.DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case Unsigned:
                 strParam = longParam.toString();
                 if (longParam == 0L || longParam == 1L) {
                     boolParam = longParam != 0L;
                 }
-                frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
+                GUILogPanel.outputInfoMsg(MsgType.DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case Boolean:
                 strParam = boolParam.toString();
                 longParam = (boolParam) ? 1L : 0L;
-                frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
+                GUILogPanel.outputInfoMsg(MsgType.DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case String:
                 if (!strParam.isBlank()) {
@@ -793,7 +792,7 @@ public final class ParameterStruct {
                             // keep param as String type and we can't do any conversions
                         }
                     }
-                    frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 }
                 break;
             case IntArray:
@@ -804,7 +803,7 @@ public final class ParameterStruct {
                     longParam = intArrayParam.getFirst();
                     strParam = longParam.toString();
                 }
-                frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
+                GUILogPanel.outputInfoMsg(MsgType.DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             case StrArray:  // String List type
                 if (strArrayParam.isEmpty()) {
@@ -812,7 +811,7 @@ public final class ParameterStruct {
                 } else {
                     strParam = strArrayParam.getFirst();
                 }
-                frame.outputInfoMsg(STATUS_DEBUG, "    - Converted " + paramType + " value: " + strParam);
+                GUILogPanel.outputInfoMsg(MsgType.DEBUG, "    - Converted " + paramType + " value: " + strParam);
                 break;
             default:
                 break;

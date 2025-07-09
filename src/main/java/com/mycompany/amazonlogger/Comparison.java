@@ -4,9 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 import java.util.Objects;
 
@@ -33,7 +31,7 @@ public class Comparison {
         // check what value types we have to compare to determine if it is valid and what to compare.
         int types1 = getValidTypes(value1);
         int types2 = getValidTypes(value2);
-        frame.outputInfoMsg(STATUS_DEBUG, "    Compare types: param1 = " + types1 + ", param2 = " + types2);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "    Compare types: param1 = " + types1 + ", param2 = " + types2);
         if (types1 == 0) {
             throw new ParserException(functionId + "No valid values in argument 1 of Comparison");
         }
@@ -54,7 +52,7 @@ public class Comparison {
             else
                 size2 = value2.getStrArraySize();
             bStatus = Utils.compareParameterValues (size1, size2, compSign);
-            frame.outputInfoMsg(STATUS_PROGRAM, "    Array Size Compare: " + size1 + " " + compSign + " " + size2 + " => " + bStatus);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Array Size Compare: " + size1 + " " + compSign + " " + size2 + " => " + bStatus);
             return;
         }
         
@@ -84,7 +82,7 @@ public class Comparison {
             }
 
             bStatus = Utils.compareParameterValues (strval1, strval2, compSign);
-            frame.outputInfoMsg(STATUS_PROGRAM, "    String Compare: " + strval1 + " " + compSign + " " + strval2 + " => " + bStatus);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    String Compare: " + strval1 + " " + compSign + " " + strval2 + " => " + bStatus);
             return;
         }
 
@@ -101,7 +99,7 @@ public class Comparison {
                 calc2 = value2.getIntegerValue();
             }
             bStatus = Utils.compareParameterValues (calc1, calc2, compSign);
-            frame.outputInfoMsg(STATUS_PROGRAM, "    Numeric Compare: " + calc1 + " " + compSign + " " + calc2 + " => " + bStatus);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Numeric Compare: " + calc1 + " " + compSign + " " + calc2 + " => " + bStatus);
             return;
         }
         
@@ -113,7 +111,7 @@ public class Comparison {
             boolean boo2 = value1.getBooleanValue();
             boolean bComp = Objects.equals(boo1, boo2);
             bStatus = compSign.contentEquals("==") ? bComp : ! bComp;
-            frame.outputInfoMsg(STATUS_PROGRAM, "    Boolean Compare: " + boo1 + " " + compSign + " " + boo2 + " => " + bStatus);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Boolean Compare: " + boo1 + " " + compSign + " " + boo2 + " => " + bStatus);
             return;
         }
         
@@ -123,7 +121,7 @@ public class Comparison {
             String strval2 = value2.getStringValue();
             if ((types2 & SARRAY) == 0) {
                 bStatus = Utils.compareParameterValues (strval1, strval2, compSign);
-                frame.outputInfoMsg(STATUS_PROGRAM, "    String Compare: " + strval1 + " " + compSign + " " + strval2 + " => " + bStatus);
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    String Compare: " + strval1 + " " + compSign + " " + strval2 + " => " + bStatus);
                 return;
             } else {
                 // we are comparing a String to a list of Strings, but we can only use == or != comparison
@@ -131,14 +129,14 @@ public class Comparison {
                     throw new ParserException(functionId + "Invalid Comparison of String to StrArray using " + compSign);
                 }
                 ArrayList<String> arrval = value2.getStrArray();
-                frame.outputInfoMsg(STATUS_PROGRAM, "    Comparing String to an array of values of size: " + arrval.size());
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Comparing String to an array of values of size: " + arrval.size());
                 bStatus = false;
                 for (int ix = 0; ix < arrval.size() && !bStatus; ix++) {
                     strval2 = arrval.get(ix);
                     bStatus = Utils.compareParameterValues (strval1, strval2, compSign);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "    String Compare ix[" + ix + "]: " + strval1 + " " + compSign + " " + strval2 + " => " + bStatus);
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    String Compare ix[" + ix + "]: " + strval1 + " " + compSign + " " + strval2 + " => " + bStatus);
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, "    String Compare result: " + bStatus);
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    String Compare result: " + bStatus);
                 return;
             }
         }
@@ -156,7 +154,7 @@ public class Comparison {
             calc2 = value2.getIntegerValue();
         }
         bStatus = Utils.compareParameterValues (calc1, calc2, compSign);
-        frame.outputInfoMsg(STATUS_PROGRAM, "    Numeric Compare: " + calc1 + " " + compSign + " " + calc2 + " => " + bStatus);
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Numeric Compare: " + calc1 + " " + compSign + " " + calc2 + " => " + bStatus);
     }
     
     public boolean getStatus() {

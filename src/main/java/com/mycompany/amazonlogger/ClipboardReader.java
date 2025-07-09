@@ -4,7 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
@@ -37,8 +37,8 @@ public class ClipboardReader {
             }
         }
         catch (UnsupportedFlavorException | IOException ex) {
-            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ClipboardReader: " + ex);
-            frame.disableAllButton();
+            GUILogPanel.outputInfoMsg(MsgType.ERROR, "ClipboardReader: " + ex);
+            GUIMain.disableAllButton();
         }
     }
     
@@ -51,8 +51,8 @@ public class ClipboardReader {
             }
         }
         catch (IOException ex) {
-            frame.outputInfoMsg(UIFrame.STATUS_ERROR, "ClipboardReader: " + ex);
-            frame.disableAllButton();
+            GUILogPanel.outputInfoMsg(MsgType.ERROR, "ClipboardReader: " + ex);
+            GUIMain.disableAllButton();
         }
     }
     

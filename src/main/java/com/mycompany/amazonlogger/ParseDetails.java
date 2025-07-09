@@ -4,9 +4,9 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.keyword;
 import static com.mycompany.amazonlogger.AmazonReader.props;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
 import java.io.IOException;
 import java.time.LocalDate;
@@ -22,6 +22,57 @@ public class ParseDetails {
     public ParseDetails() {
     }
     
+    // This creates the order information for the parser
+    class OrderInfo {
+        Keyword.KeyTyp  orderId;    // the order id
+        Keyword.DataTyp dataType;   // type of data (INLINE, NEXTLINE, NONE)
+        int             keyLength;  // length of keyword found
+        
+        // this is used when executing a saved order id
+        OrderInfo (Keyword.KeyTyp order) {
+            Keyword.KeywordInfo keywordInfo = Keyword.findOrdersKey (order);
+            
+            if (keywordInfo != null) {
+                orderId   = order;
+                keyLength = keywordInfo.keyLength;
+                dataType  = Keyword.getDataType (Keyword.ClipTyp.INVOICE, order);
+            } else {
+                orderId   = Keyword.KeyTyp.NONE;
+                keyLength = 0;
+                dataType  = Keyword.DataTyp.NONE;
+            }
+        }
+        
+        // this is used when executing a line read from the clipboard
+        OrderInfo (String line) {
+            Keyword.KeywordInfo keywordInfo = Keyword.getKeyword(Keyword.ClipTyp.INVOICE, line);
+            
+            if (keywordInfo != null) {
+                orderId   = keywordInfo.eKeyId;
+                keyLength = keywordInfo.keyLength;
+                dataType  = Keyword.getDataType (Keyword.ClipTyp.INVOICE, keywordInfo.eKeyId);
+            } else {
+                orderId   = Keyword.KeyTyp.NONE;
+                keyLength = 0;
+                dataType  = Keyword.DataTyp.NONE;
+            }
+        }
+        
+        // this is used to clear out the current order
+        OrderInfo () {
+            orderId   = Keyword.KeyTyp.NONE;
+            keyLength = 0;
+            dataType  = Keyword.DataTyp.NONE;
+        }
+        
+        // this is used to insert a command to execute
+        public void makeOrder (Keyword.KeyTyp order) {
+            orderId   = order;
+            keyLength = 0;
+            dataType  = Keyword.getDataType (Keyword.ClipTyp.INVOICE, order);
+        }
+    }
+    
     /**
      * parses the clipboard data line by line to extract the order information from a "Order Details" clip.
      * 
@@ -34,8 +85,8 @@ public class ParseDetails {
      * @throws IOException 
      */
     public AmazonOrder parseDetails (ClipboardReader clip, String line) throws ParserException, IOException {
-        Keyword.KeywordEntry keywordInfo = null;
-        Keyword.KeywordEntry savedKey = null;
+        OrderInfo keywordInfo = null;
+        OrderInfo savedKey = null;
         boolean bReadData = false;
         boolean bItemFound = false;
         boolean bSkipRead = false;
@@ -56,11 +107,12 @@ public class ParseDetails {
                     continue;
 
                 // parse line to check for command
-                savedKey = keyword.getKeyword(line, Keyword.ClipTyp.DETAILS);
-                if (savedKey.eKeyId == Keyword.KeyTyp.END_OF_RECORD) {
+                savedKey = new OrderInfo(line);
+                if (savedKey.orderId == Keyword.KeyTyp.END_OF_RECORD) {
                     // exit if we completed loop
-                    frame.outputInfoMsg (UIFrame.STATUS_PARSER, "END OF ITEMS");
-                    keywordInfo = keyword.makeKeyword("", Keyword.KeyTyp.COMPLETE, Keyword.DataTyp.NONE);
+                    GUILogPanel.outputInfoMsg (MsgType.PARSER, "END OF ITEMS");
+                    keywordInfo = new OrderInfo();
+                    keywordInfo.makeOrder(Keyword.KeyTyp.COMPLETE);
                     break;
                 }
             }
@@ -70,29 +122,29 @@ public class ParseDetails {
             
             // see if we have a pending command (next line contains the data)
             if (savedKey == null) {
-                savedKey = keyword.makeKeyword("", Keyword.KeyTyp.NONE, Keyword.DataTyp.NONE);
+                keywordInfo = new OrderInfo();
             }
-            if (keywordInfo == null || keywordInfo.eKeyId == Keyword.KeyTyp.NONE) {
+            if (keywordInfo == null || keywordInfo.orderId == Keyword.KeyTyp.NONE) {
                 keywordInfo = savedKey;
-                if (keywordInfo.eKeyId == Keyword.KeyTyp.NONE) {
+                if (keywordInfo.orderId == Keyword.KeyTyp.NONE) {
                     continue;
                 }
             } else {
-                frame.outputInfoMsg (UIFrame.STATUS_DEBUG, "  KeyTyp." + savedKey.eKeyId + " (unparsed line): " + line);
+                GUILogPanel.outputInfoMsg (MsgType.DEBUG, "  KeyTyp." + savedKey.orderId + " (unparsed line): " + line);
             }
 
             // now run the state machine...
 
             // these entries can be processed immediately because the information they need
             // is contained in the same line as the keyword (or they don't need any information)
-            if (keywordInfo.eDataType != Keyword.DataTyp.NEXTLINE) {
+            if (keywordInfo.dataType != Keyword.DataTyp.NEXTLINE) {
                 // if data was inline with the command, advance the string
                 // past the keyword to access the data.
-                if (keywordInfo.eDataType == Keyword.DataTyp.INLINE) {
-                    line = line.substring(keywordInfo.strKeyword.length());
+                if (keywordInfo.dataType == Keyword.DataTyp.INLINE) {
+                    line = line.substring(keywordInfo.keyLength);
                 }
                 
-                switch (keywordInfo.eKeyId) {
+                switch (keywordInfo.orderId) {
                     case Keyword.KeyTyp.ORDER_PLACED:
                         // this contains the date of the order, followed immediatly on the same line with the 'Order#'.
                         String search = "Order# ";
@@ -112,11 +164,11 @@ public class ParseDetails {
                         // now extract date from begining of string
                         LocalDate date = DateFormat.getFormattedDate (line.substring(0, offset), true);
                         if (date == null)
-                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.eKeyId.name() + " date: " + line);
+                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.orderId + " date: " + line);
                         newOrder.setOrderDate(date);
                         newOrder.setOrderNumber(strOrderNum);
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Order date: " + date.toString());
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Order #: " + strOrderNum);
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Order date: " + date.toString());
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Order #: " + strOrderNum);
                         keywordInfo = null; // command complete
                         break;
 
@@ -125,13 +177,13 @@ public class ParseDetails {
                     case Keyword.KeyTyp.NOW_ARRIVING:
                         LocalDate delivered = DateFormat.getFormattedDate(line, true);
                         if (delivered == null) {
-                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.eKeyId.name() + " date: " + line);
+                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.orderId + " date: " + line);
                         }
                         if (newItem.isItemDefined()) {
-                            frame.outputInfoMsg (UIFrame.STATUS_INFO, "* Added new ITEM in multi-item ORDER");
+                            GUILogPanel.outputInfoMsg (MsgType.INFO, "* Added new ITEM in multi-item ORDER");
                             newItem = newOrder.addNewItem();
                         }
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    " + keywordInfo.eKeyId.name() + ": " + delivered);
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    " + keywordInfo.orderId + ": " + delivered);
                         // if the current item has already been defined, create a new one
                         newItem.setDeliveryDate(delivered);
                         lastDeliveryDate = delivered;  // save last delivery date
@@ -140,7 +192,7 @@ public class ParseDetails {
 
                     case Keyword.KeyTyp.SELLER:
                         newItem.setSeller(line);
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Seller: " + line);
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Seller: " + line);
                         keywordInfo = null; // command complete
                         continue;
 
@@ -148,31 +200,38 @@ public class ParseDetails {
                         // we only count it if it follows an item
                         if (bItemFound) {
                             newItem.setItemCost(Utils.getAmountValue(line));
-                            frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Item cost: " + line);
+                            GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Item cost: " + line);
                             bItemFound = false;
                         }
                         else {
-                            frame.outputInfoMsg (UIFrame.STATUS_INFO, "skipping ITEM_COST - item not defined yet");
+                            GUILogPanel.outputInfoMsg (MsgType.INFO, "skipping ITEM_COST - item not defined yet");
                         }
                         keywordInfo = null; // command complete
                         break;
 
+                    case Keyword.KeyTyp.RETURNED:
+                        newItem.setReturned();
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Item returned");
+                        keywordInfo = null; // command complete
+                        break;
+                        
                     case Keyword.KeyTyp.REFUNDED:
                         newItem.setReturned();
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Item refunded");
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Item refunded");
                         keywordInfo = null; // command complete
                         break;
                         
                     case Keyword.KeyTyp.VENDOR_RATING:
                         if (newItem.isItemDefined()) {
-                            frame.outputInfoMsg (UIFrame.STATUS_INFO, "* Added new ITEM in multi-item ORDER");
+                            GUILogPanel.outputInfoMsg (MsgType.INFO, "* Added new ITEM in multi-item ORDER");
                             newItem = newOrder.addNewItem();
                         }
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    (Vendor Rating): " + line);
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    (Vendor Rating): " + line);
                         // the vendor rating is a single character that is one of: A,B,C,D,F,?
                         // we don't need it, but the item description will be in the next line,
                         // so advance to the next state.
-                        keywordInfo = keyword.makeKeyword("", Keyword.KeyTyp.DESCRIPTION, Keyword.DataTyp.INLINE);
+                        keywordInfo = new OrderInfo();
+                        keywordInfo.makeOrder(Keyword.KeyTyp.DESCRIPTION);
                         bReadData = false; // this will prevent us from parsing the command until we've read the next line
                         break;
 
@@ -184,21 +243,22 @@ public class ParseDetails {
                         if (descript1.length() > iMaxDescrLen) descript1 = descript1.substring(0, iMaxDescrLen);
                         newItem.setDescription(descript1);
                         newItem.setQuantity(quantity);
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Description: " + descript1);
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Description: " + descript1);
                         
                         // if delivery date was not presented for the item, use date of last item
                         if (newItem.getDeliveryDate() == null) {
                             if (lastDeliveryDate == null) {
-                                frame.outputInfoMsg (UIFrame.STATUS_WARN, "ParseDetails.parseDetails: Delivery date not found for item!");
+                                GUILogPanel.outputInfoMsg (MsgType.WARN, "ParseDetails.parseDetails: Delivery date not found for item!");
                             } else {
-                                frame.outputInfoMsg (UIFrame.STATUS_PARSER, "      (using last delivery date : " + lastDeliveryDate + ")");
+                                GUILogPanel.outputInfoMsg (MsgType.PARSER, "      (using last delivery date : " + lastDeliveryDate + ")");
                                 newItem.setDeliveryDate(lastDeliveryDate);
                             }
                         }
                         // item has been found, so we can now check for item cost
                         bItemFound = true;
                         // check if we have an optional quantity value in the next line
-                        keywordInfo = keyword.makeKeyword("", Keyword.KeyTyp.QUANTITY, Keyword.DataTyp.INLINE);
+                        keywordInfo = new OrderInfo();
+                        keywordInfo.makeOrder(Keyword.KeyTyp.QUANTITY);
                         break;
 
                     case Keyword.KeyTyp.QUANTITY:
@@ -211,7 +271,7 @@ public class ParseDetails {
                             bSkipRead = true;
                             quantity = 1;
                         }
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Quantity: " + quantity);
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Quantity: " + quantity);
                         keywordInfo = null;
                         break;
 
@@ -225,29 +285,29 @@ public class ParseDetails {
             // if the command has data on a following line and the next line has not yet been read,
             // go fetch the next line before executing command.
             if (!bReadData) {
-                frame.outputInfoMsg (UIFrame.STATUS_DEBUG, "  - setting bReadData true for next line");
+                GUILogPanel.outputInfoMsg (MsgType.DEBUG, "  - setting bReadData true for next line");
                 bReadData = true;
             } else {
                 // these commands must be completed after the next line of input is read,
                 // so the command line parsing is skipped for them
                 bReadData = false;
-                frame.outputInfoMsg (UIFrame.STATUS_DEBUG, "  - bReadData true: parsing data: " + line);
+                GUILogPanel.outputInfoMsg (MsgType.DEBUG, "  - bReadData true: parsing data: " + line);
 
-                switch (keywordInfo.eKeyId) {
+                switch (keywordInfo.orderId) {
                     case Keyword.KeyTyp.TOTAL_COST:
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Total: " + line);
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Total: " + line);
                         newOrder.setTotalCost(Utils.getAmountValue(line));
                         keywordInfo = null; // command complete
                         break;
 
                     case Keyword.KeyTyp.GROSS_COST:
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Gross: " + line);
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Gross: " + line);
                         newOrder.setGrossCost(Utils.getAmountValue(line));
                         keywordInfo = null; // command complete
                         break;
 
                     case Keyword.KeyTyp.TAXES:
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "    Taxes: " + line);
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Taxes: " + line);
                         newOrder.setTaxCost(Utils.getAmountValue(line));
                         keywordInfo = null; // command complete
                         break;
@@ -256,15 +316,15 @@ public class ParseDetails {
                         break;
                 }
             }
-        } while (keywordInfo == null || keywordInfo.eKeyId != Keyword.KeyTyp.COMPLETE);
+        } while (keywordInfo == null || keywordInfo.orderId != Keyword.KeyTyp.COMPLETE);
 
         // check if we were in the middle of a command when we terminated
-        if (keywordInfo != null && keywordInfo.eKeyId != Keyword.KeyTyp.COMPLETE
-                                && keywordInfo.eKeyId != Keyword.KeyTyp.NONE) {
-            throw new ParserException("ParseDetails.parseDetails: EOF while parsing Order Details (state = " + keywordInfo.eKeyId.name() + ")");
+        if (keywordInfo != null && keywordInfo.orderId != Keyword.KeyTyp.COMPLETE
+                                && keywordInfo.orderId != Keyword.KeyTyp.NONE) {
+            throw new ParserException("ParseDetails.parseDetails: EOF while parsing Order Details (state = " + keywordInfo.orderId + ")");
         }
         if (newOrder.item.isEmpty()) {
-            frame.outputInfoMsg(UIFrame.STATUS_WARN, "ParseDetails.parseDetails: Clipboard did not contain any items.");
+            GUILogPanel.outputInfoMsg(MsgType.WARN, "ParseDetails.parseDetails: Clipboard did not contain any items.");
         }
         
         return newOrder;

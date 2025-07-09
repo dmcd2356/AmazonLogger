@@ -4,8 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 import java.util.Objects;
 
@@ -99,7 +98,7 @@ public class VarArray {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
         PreCompile.variables.setStrArray(name, value);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Saved StrArray param: " + name);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Saved StrArray param: " + name);
     }
 
     /**
@@ -121,7 +120,7 @@ public class VarArray {
             throw new ParserException(functionId + "Variable " + name + " not found");
         }
         PreCompile.variables.setIntArray(name, value);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Saved IntArray param: " + name);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Saved IntArray param: " + name);
     }
 
     /**
@@ -144,21 +143,21 @@ public class VarArray {
         if (VarReserved.isArray(name)) {
             int size = VarReserved.getArraySize(name);
             VarReserved.resetVar(name);
-            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Deleted " + size + " entries in Array param: " + name);
+            GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Deleted " + size + " entries in Array param: " + name);
             return true;
         }
         else if (isIntArray(name)) {
             ArrayList<Long> entry = PreCompile.variables.getIntArray(name);
             int size = entry.size();
             entry.clear();
-            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Deleted " + size + " entries in Array param: " + name);
+            GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Deleted " + size + " entries in Array param: " + name);
             return true;
         }
         else if (isStrArray(name)) {
             ArrayList<String> entry = PreCompile.variables.getStrArray(name);
             int size = entry.size();
             entry.clear();
-            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Deleted " + size + " entries in List param: " + name);
+            GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Deleted " + size + " entries in List param: " + name);
             return true;
         }
         return false;
@@ -219,8 +218,8 @@ public class VarArray {
         } else {
             return false;
         }
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Removed " + iCount + " entries from Array param " + name + ": (new size = "+ size  + ")");
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- " + name + ": " + arrayContents);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Removed " + iCount + " entries from Array param " + name + ": (new size = "+ size  + ")");
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- " + name + ": " + arrayContents);
         return true;
     }
 
@@ -263,8 +262,8 @@ public class VarArray {
             } else {
                 return false;
             }
-            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified List param: " + name + " = " + value);
-            frame.outputInfoMsg(STATUS_VARS, INDENT + "- " + name + ": " + arrayContents);
+            GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Modified List param: " + name + " = " + value);
+            GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- " + name + ": " + arrayContents);
         } catch (ParserException exMsg) {
             Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
@@ -321,8 +320,8 @@ public class VarArray {
             } else {
                 return false;
             }
-            frame.outputInfoMsg(STATUS_VARS, INDENT + "- Inserted entry[" + index + "] in param: " + name + " = " + value);
-            frame.outputInfoMsg(STATUS_VARS, INDENT + "- " + name + ": " + arrayContents);
+            GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Inserted entry[" + index + "] in param: " + name + " = " + value);
+            GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- " + name + ": " + arrayContents);
         } catch (ParserException exMsg) {
             Utils.throwAddendum (exMsg.getMessage(), functionId);
         }
@@ -368,8 +367,8 @@ public class VarArray {
             int offset = value.length() - 25;
             value = value.substring(0, 60) + " ... " + value.substring(offset);
         }
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Appended entry to Variable: " + name + " = " + value);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- " + name + ": " + arrayContents);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Appended entry to Variable: " + name + " = " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- " + name + ": " + arrayContents);
         return true;
     }
 

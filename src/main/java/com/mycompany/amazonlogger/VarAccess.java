@@ -4,9 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 
 /**
@@ -66,7 +64,7 @@ public class VarAccess {
                 this.intArray = new ArrayList<>();
                 break;
         }
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + varType + " Variable " + varName + " allocated for subroutine: " + this.owner);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + varType + " Variable " + varName + " allocated for subroutine: " + this.owner);
     }
 
     // clears the data value and writer info from the variable
@@ -99,7 +97,7 @@ public class VarAccess {
                 this.intArray = new ArrayList<>();
                 break;
         }
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + varType + " Variable " + varName + " reset for subroutine: " + this.owner);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + varType + " Variable " + varName + " reset for subroutine: " + this.owner);
     }
     
     private void checkType (ParameterStruct.ParamType callType) throws ParserException {
@@ -152,7 +150,7 @@ public class VarAccess {
     public void setWriteInfo () throws ParserException {
         this.bUpdate = true;
         this.writer = Subroutine.getCurrentIndex();
-        this.writeTime = UIFrame.elapsedTimerGet();
+        this.writeTime = GUIMain.elapsedTimerGet();
     }
 
     // these are the functions to set the value of the variable
@@ -206,7 +204,7 @@ public class VarAccess {
         checkType (ParameterStruct.ParamType.Integer);
         if (! isVarInit()) {
             String subName = Subroutine.getSubName();
-            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
+            GUILogPanel.outputInfoMsg(MsgType.WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
         }
         return this.intValue;
     }
@@ -215,7 +213,7 @@ public class VarAccess {
         checkType (ParameterStruct.ParamType.Unsigned);
         if (! isVarInit()) {
             String subName = Subroutine.getSubName();
-            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
+            GUILogPanel.outputInfoMsg(MsgType.WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
         }
         return this.intValue & 0xFFFFFFFFL;
     }
@@ -224,7 +222,7 @@ public class VarAccess {
         checkType (ParameterStruct.ParamType.Boolean);
         if (! isVarInit()) {
             String subName = Subroutine.getSubName();
-            frame.outputInfoMsg(STATUS_WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
+            GUILogPanel.outputInfoMsg(MsgType.WARN, " - variable: " + varName + " in " + subName + " was not init prior to use");
         }
         return this.boolValue;
     }

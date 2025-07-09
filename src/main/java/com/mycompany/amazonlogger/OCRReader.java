@@ -4,8 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -71,7 +70,7 @@ public class OCRReader {
         parser.parse(stream, handler, metadata, parseContext);
         String content = handler.toString();
         VarReserved.putOcrDataValue(content);
-        frame.outputInfoMsg (STATUS_PROGRAM, "Size of OCR scanned text: " + content.length());
+        GUILogPanel.outputInfoMsg (MsgType.PROGRAM, "Size of OCR scanned text: " + content.length());
     }
 
 }

@@ -4,8 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -100,7 +99,7 @@ public class VarLocal {
             throw new ParserException(functionId + "Subroutine allocations already defined: " + subName);
         }
         locals.put(subName, new VarLocalSub(subName));
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "Local Variable allocation created for subroutine: " + subName);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "Local Variable allocation created for subroutine: " + subName);
     }
     
     /**
@@ -242,7 +241,7 @@ public class VarLocal {
         String subName = Subroutine.getSubName();
         VarLocalSub vars = getSubLocals(subName, varName, type);
         vars.putInteger(varName, value);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " set to: " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " set to: " + value);
     }
     
     public Long getInteger (String varName) throws ParserException {
@@ -250,7 +249,7 @@ public class VarLocal {
         String subName = Subroutine.getSubName();
         VarLocalSub vars = getSubLocals(subName, varName, type);
         Long value = vars.getInteger(varName);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " = " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " = " + value);
         return value;
     }
     
@@ -259,7 +258,7 @@ public class VarLocal {
         String subName = Subroutine.getSubName();
         VarLocalSub vars = getSubLocals(subName, varName, type);
         vars.putUnsigned(varName, value);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " set to: " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " set to: " + value);
     }
     
     public Long getUnsigned (String varName) throws ParserException {
@@ -267,7 +266,7 @@ public class VarLocal {
         String subName = Subroutine.getSubName();
         VarLocalSub vars = getSubLocals(subName, varName, type);
         Long value = vars.getUnsigned(varName);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " = " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " = " + value);
         return value;
     }
     
@@ -276,7 +275,7 @@ public class VarLocal {
         String subName = Subroutine.getSubName();
         VarLocalSub vars = getSubLocals(subName, varName, type);
         vars.putBoolean(varName, value);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " set to: " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " set to: " + value);
     }
     
     public Boolean getBoolean (String varName) throws ParserException {
@@ -284,7 +283,7 @@ public class VarLocal {
         String subName = Subroutine.getSubName();
         VarLocalSub vars = getSubLocals(subName, varName, type);
         Boolean value = vars.getBoolean(varName);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " = " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " = " + value);
         return value;
     }
     
@@ -293,7 +292,7 @@ public class VarLocal {
         String subName = Subroutine.getSubName();
         VarLocalSub vars = getSubLocals(subName, varName, type);
         vars.putString(varName, value);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " set to: " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " set to: " + value);
     }
     
     public String getString (String varName) throws ParserException {
@@ -301,7 +300,7 @@ public class VarLocal {
         String subName = Subroutine.getSubName();
         VarLocalSub vars = getSubLocals(subName, varName, type);
         String value = vars.getString(varName);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " = " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + type + " Variable " + varName + " for subroutine " + subName + " = " + value);
         return value;
     }
     
@@ -314,7 +313,7 @@ public class VarLocal {
         String subName = Subroutine.getSubName();
         VarLocalSub vars = getSubLocals(subName, varName, type);
         vars.updateStrArray(varName, subName, value);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + type + " Variable " + varName + " updated for subroutine: " + subName);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + type + " Variable " + varName + " updated for subroutine: " + subName);
     }
     
     public void updateIntArray (String varName, ArrayList<Long> value) throws ParserException {
@@ -322,7 +321,7 @@ public class VarLocal {
         String subName = Subroutine.getSubName();
         VarLocalSub vars = getSubLocals(subName, varName, type);
         vars.updateIntArray(varName, subName, value);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + type + " Variable " + varName + " updated for subroutine: " + subName);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + type + " Variable " + varName + " updated for subroutine: " + subName);
     }
 
     public boolean isStrArray (String varName) {
@@ -375,7 +374,7 @@ public class VarLocal {
             throw new ParserException(functionId + "Local variable type " + varType + " not same type " + type + " as function " + subName);
         }
 
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "Local Variable " + varName + " found for subroutine: " + subName);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "Local Variable " + varName + " found for subroutine: " + subName);
         return vars;
     }
     

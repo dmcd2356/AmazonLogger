@@ -101,6 +101,15 @@ public class AmazonOrder {
     }
         
     public boolean isOrderComplete() {
-        return order_num != null && trans_date != null && !item.isEmpty();
+        if (order_num == null || trans_date == null || item.isEmpty()) {
+            return false;
+        }
+        for (int ix = 0; ix < item.size(); ix++) {
+            AmazonItem entry = item.get(ix);
+            if (entry.getDescription() == null || entry.getQuantity() == null) {
+                return false;
+            }
+        }
+        return true;
     }
 }

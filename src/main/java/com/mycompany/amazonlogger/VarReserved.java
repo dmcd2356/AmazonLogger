@@ -114,7 +114,7 @@ public class VarReserved {
         }
         
         public void setValue (String value) {
-            String curTime = UIFrame.elapsedTimerGet();
+            String curTime = GUIMain.elapsedTimerGet();
             if (curTime == null || curTime.isEmpty()) {
                 curTime = "00:00.000";
             }

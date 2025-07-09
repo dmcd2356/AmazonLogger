@@ -4,9 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.Stack;
 
 /**
@@ -67,12 +65,12 @@ public class LoopStruct {
         this.ifLevel  = ifLev;
         this.maxLoops = maxLoops;
         if (maxLoops == null) {
-            frame.outputInfoMsg(STATUS_WARN, functionId + "Loop " + name + " @" + index + " level " + LoopStruct.getStackSize() + " is run without safety limit");
+            GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "Loop " + name + " @" + index + " level " + LoopStruct.getStackSize() + " is run without safety limit");
         }
 
         // add entry to the current loop stack
         LoopStruct.pushStack(this.loopId);
-        frame.outputInfoMsg(STATUS_DEBUG, functionId + "Loop " + name + " @" + index + " level " + LoopStruct.getStackSize() + " starts with IF level " + ifLev);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, functionId + "Loop " + name + " @" + index + " level " + LoopStruct.getStackSize() + " starts with IF level " + ifLev);
     }
 
     /**
@@ -137,7 +135,7 @@ public class LoopStruct {
         
         // add entry to the current loop stack
         LoopStruct.pushStack(this.loopId);
-        frame.outputInfoMsg(STATUS_DEBUG, functionId + "Loop " + name + " @" + index + " level " + LoopStruct.getStackSize() + " starts with IF level " + ifLev);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, functionId + "Loop " + name + " @" + index + " level " + LoopStruct.getStackSize() + " starts with IF level " + ifLev);
     }
 
     /**
@@ -375,7 +373,7 @@ public class LoopStruct {
         // increment param by the step value and check if we have completed
         value += valStep.getIntValue();
         bUpdate = true;
-        frame.outputInfoMsg(STATUS_DEBUG, "     LOOP " + name + "@" + loopId.index + " value = " + value);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "     LOOP " + name + "@" + loopId.index + " value = " + value);
         
         // skip checking for exit if running forever
         if (! isForever()) {

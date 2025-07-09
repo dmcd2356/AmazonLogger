@@ -4,8 +4,8 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.keyword;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
@@ -29,6 +29,7 @@ public class AmazonParser {
         clipReader = new ClipboardReader();
         amazonList = new ArrayList<>();
         detailList = new ArrayList<>();
+        GUIOrderPanel.clearMessages();
     }
     
     public AmazonParser (File clipFile) {
@@ -36,6 +37,7 @@ public class AmazonParser {
         clipReader = new ClipboardReader (clipFile);
         amazonList = new ArrayList<>();
         detailList = new ArrayList<>();
+        GUIOrderPanel.clearMessages();
     }
     
     /**
@@ -58,6 +60,7 @@ public class AmazonParser {
         // create a keyword instance to use
         keyword = new Keyword();
 
+        
         // first, we check for which type of file we are reading
         while (eClipType == Keyword.ClipTyp.NONE) {
             // get next line from clipboard
@@ -68,7 +71,7 @@ public class AmazonParser {
             if (line.isBlank())
                 continue;
 
-            Keyword.KeywordClipEntry keywordInfo = keyword.getKeywordClip(line);
+            Keyword.KeywordClipEntry keywordInfo = keyword.getKeywordInit(line);
             eClipType = keywordInfo.eClipType;
             eKeyId = keywordInfo.eKeyId;
             LocalDate startDate, endDate;
@@ -80,8 +83,8 @@ public class AmazonParser {
                     if (strSheetSel == null || strSheetSel.contentEquals("Dan")) {
                         strSheetSel = "Dan";
                         Spreadsheet.selectSpreadsheetTab(strSheetSel);
-                        frame.setTabOwner(strSheetSel.toUpperCase());
-                        frame.outputInfoMsg(UIFrame.STATUS_PARSER, strSheetSel + "'s list selected");
+                        GUIMain.setTabOwner(strSheetSel.toUpperCase());
+                        GUILogPanel.outputInfoMsg(MsgType.PARSER, strSheetSel + "'s list selected");
                     } else {
                         throw new ParserException(functionId + "Invalid clip: current tab selection is Dan but previous clips are " + strSheetSel);
                     }
@@ -90,18 +93,20 @@ public class AmazonParser {
                     if (strSheetSel == null || strSheetSel.contentEquals("Connie")) {
                         strSheetSel = "Connie";
                         Spreadsheet.selectSpreadsheetTab(strSheetSel);
-                        frame.setTabOwner(strSheetSel.toUpperCase());
-                        frame.outputInfoMsg(UIFrame.STATUS_PARSER, strSheetSel + "'s list selected");
+                        GUIMain.setTabOwner(strSheetSel.toUpperCase());
+                        GUILogPanel.outputInfoMsg(MsgType.PARSER, strSheetSel + "'s list selected");
                     } else {
                         throw new ParserException(functionId + "Invalid clip: current tab selection is Connie but previous clips are " + strSheetSel);
                     }
                     break;
                 case Keyword.KeyTyp.ORDER_PLACED:
-                    frame.outputInfoMsg (UIFrame.STATUS_PARSER, "'ORDERS' clipboard");
+                    GUILogPanel.outputInfoMsg (MsgType.PARSER, "'ORDERS' clipboard");
                     ParseOrders parseOrd = new ParseOrders();
+                    GUIOrderPanel.printOrderHeader();
                     newList = parseOrd.parseOrders(clipReader, line, eKeyId);
                     // merge list with current running list (in chronological order)
                     amazonList = addOrdersToList (amazonList, newList);
+
                     int itemCount = 0;
                     for (int ix = 0; ix < amazonList.size(); ix++) {
                         itemCount += amazonList.get(ix).item.size();
@@ -109,12 +114,12 @@ public class AmazonParser {
                     if (itemCount > 0) {
                         startDate = amazonList.get(0).getOrderDate();
                         endDate = amazonList.get(amazonList.size()-1).getOrderDate();
-                        frame.setOrderCount(amazonList.size(), itemCount, startDate, endDate);
-                        frame.outputInfoMsg(UIFrame.STATUS_PARSER, "Total orders in list = " + amazonList.size());
+                        GUIMain.setOrderCount(amazonList.size(), itemCount, startDate, endDate);
+                        GUILogPanel.outputInfoMsg(MsgType.PARSER, "Total orders in list = " + amazonList.size());
                     }
                     break;
-                case Keyword.KeyTyp.DETAILS:
-                    frame.outputInfoMsg (UIFrame.STATUS_PARSER, "'DETAILS' clipboard");
+                case Keyword.KeyTyp.ORDER_DETAILS:
+                    GUILogPanel.outputInfoMsg (MsgType.PARSER, "'INVOICE' clipboard");
                     ParseDetails parseDet = new ParseDetails();
                     AmazonOrder newOrder = parseDet.parseDetails(clipReader, line);
                     // add the new order to the current detailed orders we have accumulated,
@@ -124,14 +129,14 @@ public class AmazonParser {
                         if (newOrder.getOrderDate().isBefore(detailList.get(ix).getOrderDate())) {
                             detailList.add(ix, newOrder);
                             bPlaced = true;
-                            frame.outputInfoMsg (UIFrame.STATUS_PARSER, "- inserted entry at index " + ix);
+                            GUILogPanel.outputInfoMsg (MsgType.PARSER, "- inserted entry at index " + ix);
                             break;
                         }
                     }
                     if (!bPlaced) {
                         // later date than all the rest, add it to the end
                         detailList.add(newOrder);
-                        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "- added entry to end of list");
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "- added entry to end of list");
                     }
                     itemCount = 0;
                     for (int ix = 0; ix < detailList.size(); ix++) {
@@ -140,14 +145,9 @@ public class AmazonParser {
                     if (itemCount > 0) {
                         startDate = detailList.get(0).getOrderDate();
                         endDate = detailList.get(detailList.size()-1).getOrderDate();
-                        frame.setDetailCount(detailList.size(), itemCount, startDate, endDate);
-                        frame.outputInfoMsg(UIFrame.STATUS_PARSER, "Total items in detailed list = " + itemCount);
+                        GUIMain.setDetailCount(detailList.size(), itemCount, startDate, endDate);
+                        GUILogPanel.outputInfoMsg(MsgType.PARSER, "Total items in detailed list = " + itemCount);
                     }
-                    break;
-                case Keyword.KeyTyp.INVOICE:
-                    frame.outputInfoMsg (UIFrame.STATUS_PARSER, "'INVOICE' clipboard");
-//                    parseInvoice();
-                    eClipType = Keyword.ClipTyp.NONE;
                     break;
             }
         }
@@ -157,14 +157,15 @@ public class AmazonParser {
             
         // if we captured any orders, we can now allow the spreadsheet to be updated
         if (! amazonList.isEmpty() || ! detailList.isEmpty()) {
-            frame.enableUpdateButton(true);
+            GUIMain.enableUpdateButton(true);
         }
     }
 
     /**
      * updates the spreadsheet file with the lists of AmazonOrders
      * 
-     * @throws com.mycompany.amazonlogger.ParserException
+     * @throws ParserException
+     * @throws IOException
      */
     public static void updateSpreadsheet () throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
@@ -174,7 +175,7 @@ public class AmazonParser {
         }
 
         if (amazonList.isEmpty() && detailList.isEmpty()) {
-            frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "nothing to update");
+            GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "nothing to update");
             return;
         }
 
@@ -195,9 +196,9 @@ public class AmazonParser {
                 LocalDate dateEnd   = amazonList.get(amazonList.size()-1).getOrderDate();
                 int startDate = DateFormat.convertDateToInteger(dateStart, false);
                 int endDate   = DateFormat.convertDateToInteger(dateEnd, false);
-                frame.outputInfoMsg(UIFrame.STATUS_INFO, "Date of newest entry in page:      "
+                GUILogPanel.outputInfoMsg(MsgType.INFO, "Date of newest entry in page:      "
                                             + DateFormat.convertDateToString(dateStart, false) + " (" + startDate + ")");
-                frame.outputInfoMsg(UIFrame.STATUS_INFO, "Date of oldest entry in page:      "
+                GUILogPanel.outputInfoMsg(MsgType.INFO, "Date of oldest entry in page:      "
                                             + DateFormat.convertDateToString(dateEnd, false) + " (" + endDate + ")");
 
                 // find the last row in the selected sheet. the next line is where we will add entries
@@ -205,10 +206,10 @@ public class AmazonParser {
                 int lastRow = Spreadsheet.getLastRowIndex();
                 int startIx = amazonList.size() - 1;
                 if (Spreadsheet.isSheetEmpty()) {
-                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "This spreadsheet tab is currently empty");
-                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "All Amazon page entries will be copied to spreadsheet.");
+                    GUILogPanel.outputInfoMsg(MsgType.INFO, "This spreadsheet tab is currently empty");
+                    GUILogPanel.outputInfoMsg(MsgType.INFO, "All Amazon page entries will be copied to spreadsheet.");
                 } else {
-                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "spreadsheet " + strSheetSel + " last row: " + lastRow);
+                    GUILogPanel.outputInfoMsg(MsgType.INFO, "spreadsheet " + strSheetSel + " last row: " + lastRow);
                     String ssOrderDate   = Spreadsheet.getDateOrdered (lastRow - 1);
                     if (ssOrderDate == null || (ssOrderDate.length() != 5 && ssOrderDate.length() != 10)) {
                         throw new ParserException(functionId + "Invalid date in spreadsheet on row " + lastRow + ": " + ssOrderDate);
@@ -221,32 +222,32 @@ public class AmazonParser {
                     // (this gets returned in format: "MM-DD")
                     Integer lastOrderDate = DateFormat.cvtSSDateToInteger(ssOrderDate, false);
                     String ssLastOrderNumber = Spreadsheet.getOrderNumber(lastRow - 1);
-                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "Date of last entry in spreadsheet: " + ssOrderDate + " (" + lastOrderDate + ")");
+                    GUILogPanel.outputInfoMsg(MsgType.INFO, "Date of last entry in spreadsheet: " + ssOrderDate + " (" + lastOrderDate + ")");
 
                     if (endDate > lastOrderDate) {
                         // the entire list of the entries in the page occurred after the last entry in
                         // the spreadsheet, so we just copy the entire list.
-                        frame.outputInfoMsg(UIFrame.STATUS_INFO, "All Amazon page entries will be copied to spreadsheet.");
+                        GUILogPanel.outputInfoMsg(MsgType.INFO, "All Amazon page entries will be copied to spreadsheet.");
                     } else if (startDate < lastOrderDate) {
                         // all entries should already be in spreadsheet
-                        frame.outputInfoMsg(UIFrame.STATUS_WARN, "most recent date in clipboard is older than last entry in spreadsheet");
+                        GUILogPanel.outputInfoMsg(MsgType.WARN, "most recent date in clipboard is older than last entry in spreadsheet");
                         bExit = true;
                     } else if (ssLastOrderNumber.contentEquals(amazonList.get(amazonList.size() - 1).getOrderNumber())) {
                         // if the latest entry in the clipboard is the same as the last entry listed in the spreadsheet,
                         // we have already read all the entries, so indicate nothing to do.
-                        frame.outputInfoMsg(UIFrame.STATUS_WARN, "most recent order in clipboard is the last entry already in spreadsheet");
+                        GUILogPanel.outputInfoMsg(MsgType.WARN, "most recent order in clipboard is the last entry already in spreadsheet");
                         bExit = true;
                     } else {
                         // OK, so either this page list contains the last entry or they are all new entries.
                         // search the list for the last entry from the spreadsheet to see if we only copy a partial list.
                         boolean bFound = false;
-                        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Last order # in spreadsheet: " + ssLastOrderNumber);
+                        GUILogPanel.outputInfoMsg(MsgType.INFO, "Last order # in spreadsheet: " + ssLastOrderNumber);
                         for (startIx = amazonList.size() - 1; startIx >= 0; startIx--) {
                             // find matching order number (if it is in there)
                             AmazonOrder ixOrder = amazonList.get(startIx);
                             if (ssLastOrderNumber.contentEquals(ixOrder.getOrderNumber())) {
                                 bFound = true;
-                                frame.outputInfoMsg(UIFrame.STATUS_INFO, "Order # found at index: " + startIx + ", " + ixOrder.item.size() + " items");
+                                GUILogPanel.outputInfoMsg(MsgType.INFO, "Order # found at index: " + startIx + ", " + ixOrder.item.size() + " items");
                                 startIx--;  // go to next item to copy
                                 break;
                             }
@@ -255,7 +256,7 @@ public class AmazonParser {
                             // entry wasn't found in list, so the list must all be just after the current last item
                             //  in spreadsheet, so we copy all entries.
                             startIx = amazonList.size() - 1;
-                            frame.outputInfoMsg(UIFrame.STATUS_INFO, "All Amazon page entries will be copied to spreadsheet.");
+                            GUILogPanel.outputInfoMsg(MsgType.INFO, "All Amazon page entries will be copied to spreadsheet.");
                         }
                     }
                 }
@@ -263,10 +264,10 @@ public class AmazonParser {
                 // to get the entries in chronological order, start with the last entry and work backwards.
                 // let's proceed from the item number that matched and loop backwards to the more recent entries.
                 if (bExit) {
-                    frame.outputInfoMsg(UIFrame.STATUS_INFO, functionId + "All Amazon page entries are already contained in spreadsheet.");
-                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "If there is a more recent page, copy it to the file and try again.");
+                    GUILogPanel.outputInfoMsg(MsgType.INFO, functionId + "All Amazon page entries are already contained in spreadsheet.");
+                    GUILogPanel.outputInfoMsg(MsgType.INFO, "If there is a more recent page, copy it to the file and try again.");
                 } else {
-                    frame.outputInfoMsg(UIFrame.STATUS_NORMAL, "Appending the following rows starting at row: " + (lastRow + 1));
+                    GUILogPanel.outputInfoMsg(MsgType.NORMAL, "Appending the following rows starting at row: " + (lastRow + 1));
                     int row = lastRow;
                     for (int ixOrder = startIx; ixOrder >= 0; ixOrder--) {
                         AmazonOrder order = amazonList.get(ixOrder);
@@ -288,7 +289,7 @@ public class AmazonParser {
                     String strOrderNum = order.getOrderNumber();
                     int row = Spreadsheet.findItemNumber (strOrderNum);
                     if (row < 0) {
-                        frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "Index " + ixOrder +
+                        GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "Index " + ixOrder +
                                             " Order " + strOrderNum + " not found in spreadsheet");
                     } else {
                         // save the detailed info to spreadsheet class
@@ -305,15 +306,15 @@ public class AmazonParser {
             }
 
             // erase the update button until we read in more data
-            frame.enableUpdateButton(false);
+            GUIMain.enableUpdateButton(false);
 
             // reset the lists, since we used it already
             strSheetSel = null;
             amazonList.clear();
             detailList.clear();
-            frame.clearTabOwner();
-            frame.clearOrderCount();
-            frame.clearDetailCount();
+            GUIMain.clearTabOwner();
+            GUIMain.clearOrderCount();
+            GUIMain.clearDetailCount();
 
         } catch (IOException ex) {
             throw new IOException(functionId + ex.getMessage());
@@ -360,7 +361,7 @@ public class AmazonParser {
         if (newList == null || newList.isEmpty())
             return oldList;
 
-        frame.outputInfoMsg (UIFrame.STATUS_PARSER, "Checking validity of the " + newList.size() + " orders in the list...");
+        GUILogPanel.outputInfoMsg (MsgType.PARSER, "Checking validity of the " + newList.size() + " orders in the list...");
 
         // eliminate any entries from new list being added that are from wrong year
         // (work from last to first so we don't get messed up when deleting entries)
@@ -370,9 +371,10 @@ public class AmazonParser {
             String orderNum = order.getOrderNumber();
             LocalDate orderDate = order.getOrderDate();
             String strDate = DateFormat.convertDateToString (orderDate, true);
+            GUIOrderPanel.printOrder(newList.get(ix));
 
             if (! order.isOrderComplete()) {
-                frame.outputInfoMsg (UIFrame.STATUS_WARN, functionId + "Incomplete data in entry " + ix + ": order #: " + orderNum);
+                GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Incomplete data in entry " + ix + ": order #: " + orderNum);
                 bError = true;
             }
             Integer ssYear = Spreadsheet.getSpreadsheetYear();
@@ -380,17 +382,17 @@ public class AmazonParser {
                 throw new ParserException(functionId + "Spreadsheet header is missing year");
             }
             if (orderDate.getYear() != ssYear) {
-                frame.outputInfoMsg(UIFrame.STATUS_PARSER, "skip order # " + orderNum + " - wrong year: " + strDate);
+                GUILogPanel.outputInfoMsg(MsgType.PARSER, "skip order # " + orderNum + " - wrong year: " + strDate);
                 newList.remove(ix);
             }
         }
 
         if (bError) {
-            frame.outputInfoMsg (UIFrame.STATUS_WARN,functionId + "Missing data in list entries");
+            GUILogPanel.outputInfoMsg (MsgType.WARN,functionId + "Missing data in list entries");
             return oldList;
         }
         if (newList.isEmpty()) {
-            frame.outputInfoMsg (UIFrame.STATUS_WARN, functionId + "No valid orders to add");
+            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "No valid orders to add");
             return oldList;
         }
         
@@ -410,14 +412,14 @@ public class AmazonParser {
             // newList is more recent, copy newList first
             finalList = newList;
             appendList = oldList;
-            frame.outputInfoMsg(UIFrame.STATUS_PARSER, "new list is newer than orig list on start dates: "
+            GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is newer than orig list on start dates: "
                         + newDateStart.getYear() + "-" + newDateStart.getMonthValue() + "-" + newDateStart.getDayOfMonth() + "  vs  "
                         + oldDateStart.getYear() + "-" + oldDateStart.getMonthValue() + "-" + oldDateStart.getDayOfMonth()  );
         } else if (newDateStart.isBefore(oldDateStart)) {
             // oldList is more recent, copy oldList first
             finalList = oldList;
             appendList = newList;
-            frame.outputInfoMsg(UIFrame.STATUS_PARSER, "new list is older than orig list on start dates: "
+            GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is older than orig list on start dates: "
                         + newDateStart.getYear() + "-" + newDateStart.getMonthValue() + "-" + newDateStart.getDayOfMonth() + "  vs  "
                         + oldDateStart.getYear() + "-" + oldDateStart.getMonthValue() + "-" + oldDateStart.getDayOfMonth()  );
         } else if (newDateEnd.isAfter(oldDateEnd)) {
@@ -427,14 +429,14 @@ public class AmazonParser {
             // newList is more recent, copy newList first
             finalList = newList;
             appendList = oldList;
-            frame.outputInfoMsg(UIFrame.STATUS_PARSER, "new list is newer than orig list on end dates: "
+            GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is newer than orig list on end dates: "
                         + newDateEnd.getYear() + "-" + newDateEnd.getMonthValue() + "-" + newDateEnd.getDayOfMonth() + "  vs  "
                         + oldDateEnd.getYear() + "-" + oldDateEnd.getMonthValue() + "-" + oldDateEnd.getDayOfMonth()  );
         } else if (newDateEnd.isBefore(oldDateEnd)) {
             // oldList is more recent, copy oldList first
             finalList = oldList;
             appendList = newList;
-            frame.outputInfoMsg(UIFrame.STATUS_PARSER, "new list is older than orig list on end dates: "
+            GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is older than orig list on end dates: "
                         + newDateEnd.getYear() + "-" + newDateEnd.getMonthValue() + "-" + newDateEnd.getDayOfMonth() + "  vs  "
                         + oldDateEnd.getYear() + "-" + oldDateEnd.getMonthValue() + "-" + oldDateEnd.getDayOfMonth()  );
         } else {
@@ -454,7 +456,7 @@ public class AmazonParser {
                 // new entry, add to end of list
                 finalList.add(appendList.get(ix));
             } else {
-                frame.outputInfoMsg(UIFrame.STATUS_PARSER, "skip order # " + orderNum + " - duplicate entry");
+                GUILogPanel.outputInfoMsg(MsgType.PARSER, "skip order # " + orderNum + " - duplicate entry");
             }
         }
 
@@ -465,7 +467,7 @@ public class AmazonParser {
         int multi_count = order.item.size();
         for (int ixItem = 0; ixItem < multi_count; ixItem++) {
             AmazonItem item = order.item.get(ixItem);
-            frame.outputInfoMsg( UIFrame.STATUS_NORMAL,
+            GUILogPanel.outputInfoMsg( MsgType.NORMAL,
                              "Order " + ixOrder + "-" + ixItem
                     + '\t' + DateFormat.convertDateToString(order.getOrderDate(), true)
                     + '\t' + order.getOrderNumber()

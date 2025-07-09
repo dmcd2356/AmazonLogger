@@ -4,9 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 
 /**
@@ -221,7 +219,7 @@ public class Calculation {
                     // if the bracketed section was NOTted, invert the result now.
                     if (entry.isInverted()) {
                         Long newValue = ~value & 0xFFFFFFFF;
-                        frame.outputInfoMsg(STATUS_PROGRAM, "      Calc: ! " + value + " = " + newValue);
+                        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "      Calc: ! " + value + " = " + newValue);
                         value = newValue;
                     }
                     CalcEntry param = new CalcEntry(value);
@@ -263,7 +261,7 @@ public class Calculation {
         if (type == ParameterStruct.ParamType.Unsigned) {
             result &= 0xFFFFFFFF; // truncate result to 32 bits if unsigned
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, "      Calc Result: " + result);
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "      Calc Result: " + result);
         return result;
     }
 
@@ -304,7 +302,7 @@ public class Calculation {
                     Long opValue = entry.getValue();
                     if (entry.isInverted()) {
                         Long newValue = ~opValue & 0xFFFFFFFF;
-                        frame.outputInfoMsg(STATUS_DEBUG, "      Calc: ! " + opValue + " = " + newValue);
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "      Calc: ! " + opValue + " = " + newValue);
                         opValue = newValue;
                     }
                     bracket.add(opValue);
@@ -349,7 +347,7 @@ public class Calculation {
                     + " operations still found and " + bracket.size() + " operands");
         }
         
-        frame.outputInfoMsg(STATUS_PROGRAM, "    Calc block (" + strDebug + ") converted to: " + bracket.getFirst());
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Calc block (" + strDebug + ") converted to: " + bracket.getFirst());
         return bracket.getFirst();
     }
 
@@ -377,7 +375,7 @@ public class Calculation {
                 }
             }
         }
-        frame.outputInfoMsg(STATUS_DEBUG, "    Calc ops for " + filter.toString() + ": " + count);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "    Calc ops for " + filter.toString() + ": " + count);
         if (count == 0) {
             return;
         }
@@ -470,7 +468,7 @@ public class Calculation {
                 // if an entry was found, replace the 1st operand with the result
                 // and remove the second operand and the operator.
                 if (value != null) {
-                    frame.outputInfoMsg(STATUS_DEBUG, "      Calc: " + op1 + " " + strOp + " " + op2 + " = " + value);
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, "      Calc: " + op1 + " " + strOp + " " + op2 + " = " + value);
                     bracket.set(ix, value);
                     bracket.remove(ix+1);
                     ops.remove(ix);

@@ -4,9 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -109,7 +107,7 @@ public class ScriptCompile {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         compiledFilename = scriptFile.getAbsolutePath();
-        frame.outputInfoMsg(STATUS_COMPILE, "Compiling file: " + compiledFilename);
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "Compiling file: " + compiledFilename);
         cmdList = new ArrayList<>();
         int cmdIndex = 0;
         String lineInfo = "";
@@ -187,12 +185,12 @@ public class ScriptCompile {
                 // AND SHOULD ONLY INVOLVE COMMAND OPTIONS THAT WILL SET UP PATHS, ETC.
                 if (command == CommandStruct.CommandTable.ENDSTARTUP) {
                     bStartup = false;
-                    frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + command + " - STARTUP commands completed");
+                    GUILogPanel.outputInfoMsg(MsgType.COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + command + " - STARTUP commands completed");
                     continue;
                 }
                 if (command == CommandStruct.CommandTable.STARTUP) {
                     bStartup = true;
-                    frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + command + " - Ignoring STARTUP commands");
+                    GUILogPanel.outputInfoMsg(MsgType.COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + command + " - Ignoring STARTUP commands");
                     continue;
                 }
                 if (bStartup) {
@@ -209,7 +207,7 @@ public class ScriptCompile {
                 }
                 
                 // extract the arguments to pass to the command
-                frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + command + " " + parmString);
+                GUILogPanel.outputInfoMsg(MsgType.COMPILE, "PROGIX [" + cmdIndex + "] (line " + lineNum + "): " + command + " " + parmString);
                 boolean bParamAssign = (CommandStruct.CommandTable.SET == command);
                 cmdStruct.params = ParseScript.packParameters (parmString, bParamAssign);
 
@@ -566,7 +564,7 @@ public class ScriptCompile {
                         ifInfo = new IFStruct (cmdIndex, LoopStruct.getStackSize(), sname);
                         IFStruct.ifListPush(ifInfo);
                         IFStruct.stackPush(cmdIndex);
-                        frame.outputInfoMsg(STATUS_COMPILE, "   - new IF level " + IFStruct.getStackSize() + " Variable " + ifName);
+                        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "   - new IF level " + IFStruct.getStackSize() + " Variable " + ifName);
                         break;
                     case ELSE:
                         checkNoArgs(command, parmString);
@@ -579,7 +577,7 @@ public class ScriptCompile {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " was outside subroutine of matching IF statement");
                         }
                         ifInfo.setElseIndex(cmdIndex, false, LoopStruct.getStackSize());
-                        frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
+                        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
                         break;
                     case ELSEIF:
                         if (IFStruct.isIfStackEnpty()) {
@@ -597,7 +595,7 @@ public class ScriptCompile {
                             throw new ParserException(functionId + lineInfo + cmdStruct.command + " was outside subroutine of matching IF statement");
                         }
                         ifInfo.setElseIndex(cmdIndex, true, LoopStruct.getStackSize());
-                        frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " Variable " + ifName);
+                        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex + " Variable " + ifName);
                         break;
                     case ENDIF:
                         checkNoArgs(command, parmString);
@@ -611,7 +609,7 @@ public class ScriptCompile {
                         }
                         ifInfo.setEndIfIndex(cmdIndex, LoopStruct.getStackSize());
                         IFStruct.stackPop();
-                        frame.outputInfoMsg(STATUS_COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
+                        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "   - IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
                         break;
                     case FOR:
                         // assumed format is: FOR VarName [=] StartIx TO EndIx [STEP StepVal]
@@ -635,7 +633,7 @@ public class ScriptCompile {
                                 LoopParam.saveLoopParameter (loopInfo);
                                 String newLoopName = loopInfo.getLoopName(); // the name gets changed to make it unique from user defined names
                                 nameParam.setStringValue(newLoopName);
-                                frame.outputInfoMsg(STATUS_COMPILE, "   - new FOR EVER Loop level " + LoopStruct.getStackSize() +
+                                GUILogPanel.outputInfoMsg(MsgType.COMPILE, "   - new FOR EVER Loop level " + LoopStruct.getStackSize() +
                                         " " + newLoopName + " index @ " + cmdIndex);
                             } catch (ParserException exMsg) {
                                 Utils.throwAddendum (exMsg.getMessage(), functionId + lineInfo + "command " + cmdStruct.command);
@@ -688,7 +686,7 @@ public class ScriptCompile {
                             } catch (ParserException exMsg) {
                                 Utils.throwAddendum (exMsg.getMessage(), functionId + lineInfo + "command " + cmdStruct.command);
                             }
-                            frame.outputInfoMsg(STATUS_COMPILE, "   - new FOR Loop level " + LoopStruct.getStackSize() + " Variable " + loopName + " index @ " + cmdIndex);
+                            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "   - new FOR Loop level " + LoopStruct.getStackSize() + " Variable " + loopName + " index @ " + cmdIndex);
                         }
                         break;
                     case BREAK:
@@ -732,7 +730,7 @@ public class ScriptCompile {
                         lineNumbers.add(lineNum);
                         cmdList.add(cmdStruct); // place the NEXT command here and queue up the ENDFOR command
                         cmdStruct = new CommandStruct(CommandStruct.CommandTable.ENDFOR, lineNum);
-                        frame.outputInfoMsg(STATUS_COMPILE, "PROGIX [" + (cmdIndex + 1) + "]: " + cmdStruct.command + " (added to follow NEXT)");
+                        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "PROGIX [" + (cmdIndex + 1) + "]: " + cmdStruct.command + " (added to follow NEXT)");
                         // (this will be added at the end of this switch statement)
 
                         // verify the IF loop level hasn't been exceeded
@@ -770,7 +768,7 @@ public class ScriptCompile {
                 cmdList.add(cmdStruct);
                 
             } catch (ParserException exMsg) {
-                frame.outputInfoMsg(STATUS_ERROR, exMsg.getMessage());
+                GUILogPanel.outputInfoMsg(MsgType.ERROR, exMsg.getMessage());
                 if (! AmazonReader.isRunModeCompileOnly()) {
                     // if running script after compile, exit after logging msg
                     String newMsg = "  -> " + functionId + lineInfo + "PROGIX[" + cmdIndex + "]: " + line;
@@ -811,7 +809,7 @@ public class ScriptCompile {
      */
     private static void compilerError (String errorMsg) throws ParserException {
         if (AmazonReader.isRunModeCompileOnly()) {
-            frame.outputInfoMsg(STATUS_ERROR, errorMsg);
+            GUILogPanel.outputInfoMsg(MsgType.ERROR, errorMsg);
         } else {
             throw new ParserException(errorMsg);
         }

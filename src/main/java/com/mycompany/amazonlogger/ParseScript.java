@@ -4,13 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.ParameterStruct.ParamType.Boolean;
-import static com.mycompany.amazonlogger.ParameterStruct.ParamType.IntArray;
-import static com.mycompany.amazonlogger.ParameterStruct.ParamType.Integer;
-import static com.mycompany.amazonlogger.ParameterStruct.ParamType.StrArray;
-import static com.mycompany.amazonlogger.ParameterStruct.ParamType.Unsigned;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 
 /**
@@ -381,7 +375,7 @@ public class ParseScript {
     public static void showPackedParams (ArrayList<ParameterStruct> params) {
         for (int ix = 0; ix < params.size(); ix++) {
             ParameterStruct paramValue = params.get(ix);
-            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + ix + "]: " +
+            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + ix + "]: " +
                     paramValue.getParamClass() + " " + paramValue.getParamType() + ": '" + paramValue.getStringValue() + "'");
         }
     }
@@ -599,13 +593,13 @@ public class ParseScript {
             throw new ParserException(functionId + "no arguments following parameter name: " + line);
         }
 
-        frame.outputInfoMsg(STATUS_COMPILE, "     * Repacking parameters for Calculation");
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     * Repacking parameters for Calculation");
 
         try {
             // the 1st argument of a SET command is the parameter name to assign the value to
             line = line.substring(paramName.length()).strip();
             parm = new ParameterStruct(paramName, ParameterStruct.ParamClass.Reference, ptype);
-            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + paramName);
+            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + paramName);
             params.add(parm);
 
             // next entry should be the equality sign (except for Arrays)
@@ -635,7 +629,7 @@ public class ParseScript {
                     // this will pack the "=" sign
                     ParameterStruct.ParamType newParam = ParameterStruct.ParamType.String;
                     parm = new ParameterStruct("=", ParameterStruct.ParamClass.Discrete, newParam);
-                    frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + newParam + " value: =");
+                    GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + params.size() + "]: type " + newParam + " value: =");
                     params.add(parm);
 
                     // if there was an operation preceeding the "=" sign, let's sneek the operation in here
@@ -660,7 +654,7 @@ public class ParseScript {
             } else {
                 // else, numeric type: remaining data is a single Calculation
                 parm = new ParameterStruct(line, ParameterStruct.ParamClass.Calculation, ptype);
-                frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
+                GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + params.size() + "]: type " + ptype + " value: " + line);
                 params.add(parm);
             }
         } catch (ParserException exMsg) {
@@ -694,7 +688,7 @@ public class ParseScript {
         ParameterStruct.ParamType ptype1, ptype2;
         ParameterStruct.ParamClass pclass1, pclass2;
         
-        frame.outputInfoMsg(STATUS_COMPILE, "     * Repacking parameters for Comparison");
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     * Repacking parameters for Comparison");
         
         // check for 'NOT' character
         boolean bNot = false;
@@ -735,7 +729,7 @@ public class ParseScript {
             pclass1 = (line.startsWith("$") ? ParameterStruct.ParamClass.Reference : ParameterStruct.ParamClass.Discrete);
             ptype1 = ParameterStruct.ParamType.Boolean;
             parm = new ParameterStruct(line, pclass1, ptype1);
-            frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype1 + " value: " + line);
+            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + params.size() + "]: type " + ptype1 + " value: " + line);
             params.add(parm);
             
             if (bNot) {
@@ -743,7 +737,7 @@ public class ParseScript {
                 pclass2 = ParameterStruct.ParamClass.Discrete;
                 ptype2 = ParameterStruct.ParamType.String;
                 parm = new ParameterStruct(value, pclass2, ptype2);
-                frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype2 + " value: " + value);
+                GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + params.size() + "]: type " + ptype2 + " value: " + value);
                 params.add(parm);
             }
             return params;
@@ -797,17 +791,17 @@ public class ParseScript {
 
         // first add the initial value, which will usually be a Variable or a Discrete value.
         parm = new ParameterStruct(prefix, pclass1, ptype1);
-        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype1 + " value: " + prefix);
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + params.size() + "]: type " + ptype1 + " value: " + prefix);
         params.add(parm);
         
         // now add the comparison sign
         parm = new ParameterStruct(compSign, ParameterStruct.ParamClass.Discrete, ParameterStruct.ParamType.String);
-        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type String value: " + compSign);
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + params.size() + "]: type String value: " + compSign);
         params.add(parm);
             
         // remaining data is the Calculation, which may be a single value or a complex formula
         parm = new ParameterStruct(line, pclass2, ptype2);
-        frame.outputInfoMsg(STATUS_COMPILE, "     packed entry [" + params.size() + "]: type " + ptype2 + " value: " + line);
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + params.size() + "]: type " + ptype2 + " value: " + line);
         params.add(parm);
 
         return params;

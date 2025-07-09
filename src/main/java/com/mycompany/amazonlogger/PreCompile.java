@@ -4,10 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -58,7 +55,7 @@ public class PreCompile {
     public Variables build (File scriptFile) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        frame.outputInfoMsg(STATUS_COMPILE, "Pre-Compiling file: " + scriptFile.getAbsolutePath());
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "Pre-Compiling file: " + scriptFile.getAbsolutePath());
         String lineInfo = "";
 
         // open the file to compile and extract the commands from it
@@ -114,7 +111,7 @@ public class PreCompile {
                     // THIS ALLOWS A SECTION TO BE CREATED THAT IS ONLY RUN DURING PRE-COMPILE,
                     // AND SHOULD ONLY INVOLVE COMMAND OPTIONS THAT WILL SET UP PATHS, ETC.
                     bEnableSetup = true;
-                    frame.outputInfoMsg(STATUS_COMPILE, lineInfo + command + " - Begining STARTUP code");
+                    GUILogPanel.outputInfoMsg(MsgType.COMPILE, lineInfo + command + " - Begining STARTUP code");
                     cmdIndex++;
                     continue;
                 }
@@ -124,22 +121,22 @@ public class PreCompile {
                     switch (command) {
                         case ENDSTARTUP:
                             bEnableSetup = false;
-                            frame.outputInfoMsg(STATUS_COMPILE, lineInfo + command + " - Ending STARTUP code");
+                            GUILogPanel.outputInfoMsg(MsgType.COMPILE, lineInfo + command + " - Ending STARTUP code");
                             break;
                         case TESTPATH:
                             ParseScript.showPackedParams(params);
                             String path;
                             if (params.isEmpty()) {
                                 path = System.getProperty("user.dir");
-                                frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to current running directory: " + path);
+                                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  set Test path to current running directory: " + path);
                             } else {
                                 path = ParseScript.checkArgTypeString (0, params);
-                                frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to: " + path);
+                                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  set Test path to: " + path);
                             }
                             FileIO.setBaseTestPath(path);
                             path = FileIO.getCurrentFilePath(); // make sure we have an absolute path
                             Utils.setDefaultPath(Utils.PathType.Test, path);
-                            frame.outputInfoMsg(STATUS_PROGRAM, "  set Test path to: " + path);
+                            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  set Test path to: " + path);
                             break;
                         case LOGFILE:
                             ParseScript.showPackedParams(params);
@@ -147,7 +144,7 @@ public class PreCompile {
                             boolean bAppend = false;
                             // set the debug filter value
                             Long dbugEnable = ParseScript.checkArgTypeInteger (0, params);
-                            frame.setMessageFlags(dbugEnable.intValue());
+                            GUIMain.setMessageFlags(dbugEnable.intValue());
                             if (params.size() > 2) {
                                 bAppend = ParseScript.checkArgTypeBoolean (1, params);
                                 logname = ParseScript.checkArgTypeString  (2, params);
@@ -156,11 +153,11 @@ public class PreCompile {
                             }
                             if (logname != null) {
                                 logname = subsScriptName(logname);
-                                frame.outputInfoMsg(STATUS_PROGRAM, "  Output messages to file: " + logname);
+                                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  Output messages to file: " + logname);
                             } else {
-                                frame.outputInfoMsg(STATUS_PROGRAM, "  Output messages to stdout");
+                                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  Output messages to stdout");
                             }
-                            frame.setTestOutputFile(logname, bAppend);
+                            GUILogPanel.setTestOutputFile(logname, bAppend);
                             break;
                         default:
                             throw new ParserException(functionId + lineInfo + "Invalid command in STARTUP section: " + command);
@@ -170,7 +167,7 @@ public class PreCompile {
                     // we're only handling allocations and subroutine definitions on this first pass, so that
                     //  we will know all the GLOBALS and subroutine names that may be referenced in
                     //  other code locations that are not sequentail in the script.
-                    frame.outputInfoMsg(STATUS_COMPILE, lineInfo + command + " " + parmString);
+                    GUILogPanel.outputInfoMsg(MsgType.COMPILE, lineInfo + command + " " + parmString);
                     switch (command) {
                         case ALLOCATE:
                             // must be a Data Type followed by a List of Variable name entries
@@ -231,7 +228,7 @@ public class PreCompile {
                 String errMsg = exMsg + "\n  -> " + functionId + lineInfo + line;
                 if (AmazonReader.isRunModeCompileOnly()) {
                     // if only running compiler, just log the messages but don't exit
-                    frame.outputInfoMsg(STATUS_ERROR, errMsg);
+                    GUILogPanel.outputInfoMsg(MsgType.ERROR, errMsg);
                 } else {
                     throw new ParserException(errMsg);
                 }

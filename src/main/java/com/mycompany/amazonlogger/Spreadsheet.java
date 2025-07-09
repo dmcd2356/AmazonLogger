@@ -4,12 +4,9 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_INFO;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_SSHEET;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
 
 import java.awt.Color;
 import java.io.File;
@@ -50,7 +47,7 @@ public class Spreadsheet {
     // these are the names of the column headers.
     // the file must have these defined as they are here, although they may have spaces
     //  separating the words in the name and capitalization is ignored.
-    private static enum Column { 
+    public static enum Column { 
         DateOrdered,
         OrderNumber, 
         Total, 
@@ -65,7 +62,7 @@ public class Spreadsheet {
         CreditCard,
         PreTaxCost,     // (optional) 
         Tax,            // (optional) 
-        Seller          // (optional) 
+        Seller,         // (optional) 
     };
 
     /**
@@ -130,7 +127,7 @@ public class Spreadsheet {
 
         hmSheetColumns.clear();
         if (! bHeader) {
-            frame.outputInfoMsg(STATUS_SSHEET, "No header check performed on spreadsheet");
+            GUILogPanel.outputInfoMsg(MsgType.SSHEET, "No header check performed on spreadsheet");
             return;
         }
         
@@ -157,7 +154,7 @@ public class Spreadsheet {
         }
 
         // the first row for data will be the line following the header
-        frame.outputInfoMsg(STATUS_SSHEET, "Found header on row: " + headerRow);
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Found header on row: " + headerRow);
         firstRow = headerRow + 1;
         
         // now let's run through the header columns to assign each column a value
@@ -169,7 +166,7 @@ public class Spreadsheet {
             boolean bFound = false;
             String cellValue = OpenDoc.getCellTextValue(col,headerRow);
             if (cellValue == null || cellValue.isBlank()) {
-                frame.outputInfoMsg(STATUS_SSHEET, "Header column " + col + " is empty");
+                GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Header column " + col + " is empty");
                 break;
             }
             String colHeader = strToEnum(cellValue);
@@ -180,7 +177,7 @@ public class Spreadsheet {
                     if (hmSheetColumns.containsKey(colEnum)) {
                         throw new ParserException(functionId + "Header column duplicate entry: " + colHeader);
                     }
-                    frame.outputInfoMsg(STATUS_SSHEET, "Found header column: " + col + " -> " + colHeader);
+                    GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Found header column: " + col + " -> " + colHeader);
                     hmSheetColumns.put(colEnum, col);
                     maxColValue = col;
                     bFound = true;
@@ -188,7 +185,7 @@ public class Spreadsheet {
                 }
             }
             if (! bFound) {
-                frame.outputInfoMsg(STATUS_WARN, functionId + "Ignoring unknown header column entry: " + colHeader);
+                GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "Ignoring unknown header column entry: " + colHeader);
             }
         }
         
@@ -197,7 +194,7 @@ public class Spreadsheet {
         // to see if we have all of the required.
         int count = hmSheetColumns.size();
         lastValidColumn = maxColValue;
-        frame.outputInfoMsg(STATUS_SSHEET, "Total entries in header: " + count);
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Total entries in header: " + count);
         if (hmSheetColumns.containsKey(Column.Seller)) count--;
         if (hmSheetColumns.containsKey(Column.PreTaxCost)) count--;
         if (hmSheetColumns.containsKey(Column.Tax)) count--;
@@ -205,7 +202,7 @@ public class Spreadsheet {
             throw new ParserException(functionId + "Header column missing required entry(ies): " + (12 - count));
         }
         
-        frame.outputInfoMsg(STATUS_SSHEET, "Header columns successfully placed in columns");
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Header columns successfully placed in columns");
     }
 
     /**
@@ -264,7 +261,7 @@ public class Spreadsheet {
         int iMult;
         switch (iDecShift) {
             default:
-                frame.outputInfoMsg(STATUS_WARN, functionId + "dec shift out of range: " + iDecShift + " (limit = { 0 - 3 }");
+                GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "dec shift out of range: " + iDecShift + " (limit = { 0 - 3 }");
                 // fall through...
             case 0:
                 iMult = 1;
@@ -361,8 +358,8 @@ public class Spreadsheet {
             throw new ParserException(functionId + "Invalid date format found: " + date);
         }
         String strMonth = (iMonth < 10) ? "0" + Integer.toString(iMonth) : Integer.toString(iMonth);
-        frame.outputInfoMsg(STATUS_WARN, functionId + "Cell formatted as date: " + date);
-        frame.outputInfoMsg(STATUS_WARN, functionId + "Converted to: " + strYear + "-" + strMonth + "-" + strDay);
+        GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "Cell formatted as date: " + date);
+        GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "Converted to: " + strYear + "-" + strMonth + "-" + strDay);
         return strYear + "-" + strMonth + "-" + strDay;
     }
     
@@ -650,7 +647,7 @@ public class Spreadsheet {
         if (! bOverwrite) {
             int iSpreadItems = getItemCount (strOrdNum);
             if (iItemCount != iSpreadItems) {
-                frame.outputInfoMsg(STATUS_WARN, functionId + "# " + strOrdNum + " number of items passed (" +
+                GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "# " + strOrdNum + " number of items passed (" +
                                     order.item.size() + ") != # in spreadsheet (" + iSpreadItems + ")");
                 if (iItemCount > iSpreadItems)
                     iItemCount = iSpreadItems;
@@ -658,7 +655,7 @@ public class Spreadsheet {
         }
 
         // output each item in the order to the spreadsheet
-        frame.outputInfoMsg(STATUS_SSHEET, "outputting to row " + startRow + " -> " + order.item.size() + " items");
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, "outputting to row " + startRow + " -> " + order.item.size() + " items");
         for (int ix = 0; ix < iItemCount; ix++) {
             int row = startRow + ix;
                 
@@ -860,11 +857,11 @@ public class Spreadsheet {
      */
     public static int findItemNumber (String strOrderNum) throws ParserException {
         int rowSize = OpenDoc.getRowSize();
-        frame.outputInfoMsg(STATUS_SSHEET, "Searching for " + strOrderNum + " in rows " + firstRow + " to " + rowSize);
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Searching for " + strOrderNum + " in rows " + firstRow + " to " + rowSize);
         for (int row = firstRow; row < rowSize; row++) {
             String cellOrder = OpenDoc.getCellTextValue(getColumn(Column.OrderNumber),row);
             if (cellOrder.isBlank()) {
-                frame.outputInfoMsg(STATUS_SSHEET, "Order not found. Exiting at row " + row);
+                GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Order not found. Exiting at row " + row);
                 break;
             }
             if (cellOrder.contentEquals(strOrderNum)) {
@@ -900,7 +897,7 @@ public class Spreadsheet {
                 break;
             }
             if (cellValue != null && strPdfName.contentEquals(cellValue)) {
-                frame.outputInfoMsg(STATUS_WARN, functionId + "'" + strPdfName +
+                GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "'" + strPdfName +
                                                     "' was already balanced in the spreadsheet for " + sheetName);
                 return true;
             }
@@ -961,10 +958,10 @@ public class Spreadsheet {
         }
         
         // get current spreadsheet size
-        frame.outputInfoMsg(STATUS_INFO, "Adding array of size " + listVal.size() + " to row " + row + " of sheet " + OpenDoc.getSheetName());
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Adding array of size " + listVal.size() + " to row " + row + " of sheet " + OpenDoc.getSheetName());
         int rowsize = OpenDoc.getRowSize();
         int colsize = OpenDoc.getColSize();
-        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + colsize + ", rows = " + rowsize);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Spreadsheet size: cols = " + colsize + ", rows = " + rowsize);
         
         // resize the spreadsheet image if it isn't large enough for the data
         int colLength = listVal.size();
@@ -1004,10 +1001,10 @@ public class Spreadsheet {
         }
 
         // get current spreadsheet size
-        frame.outputInfoMsg(STATUS_INFO, "Adding array of size " + listVal.size() + " to col " + col + " of sheet " + OpenDoc.getSheetName());
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Adding array of size " + listVal.size() + " to col " + col + " of sheet " + OpenDoc.getSheetName());
         int rowsize = OpenDoc.getRowSize();
         int colsize = OpenDoc.getColSize();
-        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + colsize + ", rows = " + rowsize);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Spreadsheet size: cols = " + colsize + ", rows = " + rowsize);
         
         // resize the spreadsheet image if it isn't large enough for the data
         int rowLength = listVal.size();
@@ -1149,7 +1146,7 @@ public class Spreadsheet {
         OpenDoc.setFileSelection(ssFile);
 
         // check the properties of the spreadsheet file chosen
-        frame.setSpreadsheetSelection(ssFile.getAbsolutePath());
+        GUIMain.setSpreadsheetSelection(ssFile.getAbsolutePath());
         String filePath  = Utils.getFilePath(ssFile);
         String fnameRoot = Utils.getFileRootname(ssFile);
         String fnameExt  = Utils.getFileExtension(ssFile);
@@ -1158,7 +1155,7 @@ public class Spreadsheet {
         if (!filePath.isEmpty()) {
             props.setPropertiesItem(Property.SpreadsheetPath, filePath);
             props.setPropertiesItem(Property.SpreadsheetFile, fnameRoot + fnameExt);
-            frame.outputInfoMsg(STATUS_INFO, "Spreadsheet Path name: " + filePath);
+            GUILogPanel.outputInfoMsg(MsgType.INFO, "Spreadsheet Path name: " + filePath);
         } else {
             throw new ParserException(functionId + "Invalid path: " + filePath);
         }
@@ -1167,11 +1164,11 @@ public class Spreadsheet {
         if (!fnameExt.contentEquals(".ods")) {
             throw new ParserException(functionId + "Invalid filename: " + fnameRoot + fnameExt + " (must be XXX.ods)");
         }
-        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet File name: " + fnameRoot + fnameExt);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Spreadsheet File name: " + fnameRoot + fnameExt);
         
         // enable the Update and Balance buttons
-        frame.enableClipboardButton(true);
-        frame.enableCheckBalanceButton(true);
+        GUIMain.enableClipboardButton(true);
+        GUIMain.enableCheckBalanceButton(true);
     }
 
     /**
@@ -1217,11 +1214,14 @@ public class Spreadsheet {
                 }
             }
             iSheetYear = iYear;
-            frame.outputInfoMsg(STATUS_INFO, "Spreadsheet year: " + iSheetYear);
+            GUILogPanel.outputInfoMsg(MsgType.INFO, "Spreadsheet year: " + iSheetYear);
         }
 
         // get the name of the file to store debug info to (if defined)
-        frame.setDebugOutputFile(props.getPropertiesItem(Property.DebugFileOut, ""));
+        boolean bSuccess = GUIMain.setDebugOutputFile(props.getPropertiesItem(Property.DebugFileOut, ""));
+        if (bSuccess) {
+            GUIMain.enablePrintButton(true);
+        }
     }
 
     /**
@@ -1254,7 +1254,7 @@ public class Spreadsheet {
         
         int rows = OpenDoc.getRowSize();
         int cols = OpenDoc.getColSize();
-        frame.outputInfoMsg(STATUS_INFO, "Spreadsheet size: cols = " + cols + ", rows = " + rows);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Spreadsheet size: cols = " + cols + ", rows = " + rows);
     }
     
     /**
@@ -1271,9 +1271,9 @@ public class Spreadsheet {
         String fnameExt  = Utils.getFileExtension(ssFile);
 
         // make a backup copy of the current file before saving.
-        frame.outputInfoMsg(STATUS_INFO, "Path to spreadsheet file: " + filePath);
-        frame.outputInfoMsg(STATUS_INFO, "Name of spreadsheet file: " + fnameRoot + fnameExt);
-        frame.outputInfoMsg(STATUS_INFO, "Creating backup of spreadsheet as: " + fnameRoot + backupId + fnameExt);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Path to spreadsheet file: " + filePath);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Name of spreadsheet file: " + fnameRoot + fnameExt);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Creating backup of spreadsheet as: " + fnameRoot + backupId + fnameExt);
 
         Path srcPath = FileSystems.getDefault().getPath(filePath, fnameRoot + fnameExt);
         Path dstPath = FileSystems.getDefault().getPath(filePath, fnameRoot + backupId + fnameExt);

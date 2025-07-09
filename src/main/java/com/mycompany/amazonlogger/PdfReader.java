@@ -4,8 +4,8 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
 
 import java.awt.Color;
@@ -85,7 +85,7 @@ public class PdfReader {
             jfc.setVisible(true);
             pdfFile = jfc.getSelectedFile();
             if (pdfFile == null) {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, "PdfReader.readPdfContents: No file chosen");
+                GUILogPanel.outputInfoMsg(MsgType.WARN, "PdfReader.readPdfContents: No file chosen");
                 return;
             }
 
@@ -93,7 +93,7 @@ public class PdfReader {
             pdfPath = Utils.getFilePath(pdfFile);
             if (!pdfPath.isEmpty()) {
                 props.setPropertiesItem(Property.PdfPath, pdfPath);
-                frame.outputInfoMsg(UIFrame.STATUS_INFO, "PDF Path name: " + pdfPath);
+                GUILogPanel.outputInfoMsg(MsgType.INFO, "PDF Path name: " + pdfPath);
             }
         }
 
@@ -147,11 +147,11 @@ public class PdfReader {
     public void processData () throws ParserException, IOException {
         // get the name of the selected file, minus the file extension
         String strPdfName = Utils.getFileRootname(pdfFile);
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "PDF File name: " + strPdfName);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "PDF File name: " + strPdfName);
             
         // check if the file has already been balanced in the spreadsheet
         String strTabSelect = "";
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Checking if file has been already balanced");
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Checking if file has been already balanced");
         if (! Spreadsheet.findCreditCardEntry("Dan", strPdfName)) {
             strTabSelect = "Dan";
         }
@@ -183,7 +183,7 @@ public class PdfReader {
                     // prior to the order number, so just skip to the next line.
                     continue;
                 }
-                frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  order number: " + line);
+                GUILogPanel.outputInfoMsg(MsgType.DEBUG, "  order number: " + line);
                 // we have a valid order number, let's post it to the list of transactions
                     
                 String ordernum = line.substring(19);
@@ -228,7 +228,7 @@ public class PdfReader {
                 }
                 if (bValid) {
                     CardTransaction newEntry = new CardTransaction();
-                    frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  transaction: " + line);
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, "  transaction: " + line);
                             
                     // we have a valid debit/credit line - save useful contents
                     newEntry.completed = false;
@@ -275,7 +275,7 @@ public class PdfReader {
             danList = checkForNewEntries (strTab, transactionList);
             if (danList.isEmpty()) {
                 danList = null;
-                frame.outputInfoMsg(UIFrame.STATUS_INFO, "No entries usable in " + strTab + "'s list...");
+                GUILogPanel.outputInfoMsg(MsgType.INFO, "No entries usable in " + strTab + "'s list...");
             }
         }
         strTab = "Connie";
@@ -283,7 +283,7 @@ public class PdfReader {
             connieList = checkForNewEntries (strTab, transactionList);
             if (connieList.isEmpty()) {
                 connieList = null;
-                frame.outputInfoMsg(UIFrame.STATUS_INFO, "No entries usable in " + strTab + "'s list...");
+                GUILogPanel.outputInfoMsg(MsgType.INFO, "No entries usable in " + strTab + "'s list...");
             }
         }
             
@@ -314,7 +314,7 @@ public class PdfReader {
     private ArrayList<CardTransaction> checkForNewEntries (String sheetName,
                                                            ArrayList<CardTransaction> transactionList) throws ParserException {
         // select the user tab
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Checking for entries in " + sheetName + "'s list...");
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Checking for entries in " + sheetName + "'s list...");
         Spreadsheet.selectSpreadsheetTab (sheetName);
         ArrayList<CardTransaction> newList = new ArrayList<>();
         
@@ -324,7 +324,7 @@ public class PdfReader {
 
             // for each entry from the statement that has not been found...
             if (cardEntry.completed) {
-                frame.outputInfoMsg(UIFrame.STATUS_INFO, 
+                GUILogPanel.outputInfoMsg(MsgType.INFO, 
                                       '\t' + cardEntry.order_num + "\t"
                                            + Utils.cvtAmountToString(cardEntry.amount) + "\t"
                                            + cardEntry.trans_date + "\t"
@@ -335,7 +335,7 @@ public class PdfReader {
             // ...search each entry in the spreadsheet for a matching order number
             int foundRow = Spreadsheet.findItemNumber (cardEntry.order_num);
             if (foundRow <= 0) {
-                frame.outputInfoMsg(UIFrame.STATUS_INFO, 
+                GUILogPanel.outputInfoMsg(MsgType.INFO, 
                                       '\t' + cardEntry.order_num + "\t"
                                            + Utils.cvtAmountToString(cardEntry.amount) + "\t"
                                            + cardEntry.trans_date + "\t"
@@ -381,14 +381,14 @@ public class PdfReader {
         // (this is used to mark the CREDIT_CARD column with the PDF file used for the entries)
         int firstPaymentRow = 999999;
 
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "Checking for entries in " + sheetName + "'s list...");
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Checking for entries in " + sheetName + "'s list...");
 
         // select the specified spreadsheet tab
         Spreadsheet.selectSpreadsheetTab (sheetName);
 
         // find the last row in the selected sheet. the next line is where we will add entries
         int lastRow = Spreadsheet.getLastRowIndex();
-        frame.outputInfoMsg(UIFrame.STATUS_INFO, "spreadsheet " + sheetName + " last row: " + lastRow);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "spreadsheet " + sheetName + " last row: " + lastRow);
 
         // search the spreadsheet for each order found in the credit card statement
         for (int ix = 0; ix < transactionList.size(); ix++) {
@@ -404,7 +404,7 @@ public class PdfReader {
             Integer iTotalCost = Spreadsheet.getTotalCost (foundRow);
             Integer iPayment   = Spreadsheet.getPaymentAmount (foundRow);
             Integer iRefund    = Spreadsheet.getRefundAmount (foundRow);
-            frame.outputInfoMsg(UIFrame.STATUS_INFO, "found match to: " + cardEntry.order_num);
+            GUILogPanel.outputInfoMsg(MsgType.INFO, "found match to: " + cardEntry.order_num);
 
             // if Payment (or Refund) already has a value in the spreadsheet entry, the
             // charge on the card must have been split for multiple items 
@@ -424,7 +424,7 @@ public class PdfReader {
             // 'iAmtAdj' is the payment or refund amount that is currently specified
             //  in the corresponding spreadsheet column, in cents
             if (iAmtAdj != null) {
-                frame.outputInfoMsg(UIFrame.STATUS_INFO, "adjustment amount from current cell: "
+                GUILogPanel.outputInfoMsg(MsgType.INFO, "adjustment amount from current cell: "
                                             + Utils.cvtAmountToString(iAmtAdj));
             } else {
                 iAmtAdj = 0;
@@ -459,7 +459,7 @@ public class PdfReader {
                     if (iRemaining != 0) {
                         bRemaining = true;
                         Spreadsheet.setSpreadsheetPending (foundRow, iRemaining);
-                        frame.outputInfoMsg(UIFrame.STATUS_INFO,
+                        GUILogPanel.outputInfoMsg(MsgType.INFO,
                                 "Total cost: "   + Utils.cvtAmountToString(iTotalCost) +
                                 "Payment: "      + Utils.cvtAmountToString(cardEntry.amount) +
                                 "Prev balance: " + Utils.cvtAmountToString(iAmtAdj) +
@@ -472,10 +472,10 @@ public class PdfReader {
                 // mark row with color of the month to mark as complete
                 Spreadsheet.highlightOrderInfo(foundRow + count, bPayment, bRemaining, colorOfMonth);
                 if (count > 0)
-                    frame.outputInfoMsg(UIFrame.STATUS_INFO, "       (index " + count + ")");
+                    GUILogPanel.outputInfoMsg(MsgType.INFO, "       (index " + count + ")");
             }
 
-            frame.outputInfoMsg(UIFrame.STATUS_NORMAL, 
+            GUILogPanel.outputInfoMsg(MsgType.NORMAL, 
                           '\t' + strTransType + '\t' + cardEntry.order_num + '\t'
                                + Utils.cvtAmountToString(cardEntry.amount) + "\t"
                                + cardEntry.trans_date );

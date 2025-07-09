@@ -4,10 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -260,7 +257,7 @@ public class LoopParam {
                 break;
         }
         
-        frame.outputInfoMsg(STATUS_VARS, command.toString() + " command " + action + " at index: " + nextIndex);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, command.toString() + " command " + action + " at index: " + nextIndex);
         return nextIndex;
     }
 
@@ -296,10 +293,10 @@ public class LoopParam {
         }
         LoopId loopId = loopInfo.getLoopId();
         loopList.add(loopId);
-        frame.outputInfoMsg(STATUS_DEBUG, functionId + "Number of loops with name " + name + ": " + loopList.size());
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, functionId + "Number of loops with name " + name + ": " + loopList.size());
         
         // now add loop entry to hashmap based on name/index ID
-        frame.outputInfoMsg(STATUS_DEBUG, functionId + "loopParams [" + loopParams.size() + "] " + loopId.name + " @ " + loopId.index);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, functionId + "loopParams [" + loopParams.size() + "] " + loopId.name + " @ " + loopId.index);
         loopParams.put(loopId, loopInfo);
     }
 
@@ -314,7 +311,7 @@ public class LoopParam {
         ArrayList<LoopId> loopList = loopNames.get(name);
         if (loopList != null && ! loopList.isEmpty()) {
             // we have one or more uses of the same name, check if this is nested in one
-            frame.outputInfoMsg(STATUS_VARS, "   - checking previous uses of FOR Loop Variable " + name + " to see if we have a nesting problem");
+            GUILogPanel.outputInfoMsg(MsgType.VARS, "   - checking previous uses of FOR Loop Variable " + name + " to see if we have a nesting problem");
             for (int ix = 0; ix < loopList.size(); ix++) {
                 LoopId loopEntry = loopList.get(ix);
                 LoopStruct loopInfo = LoopParam.getLoopStruct (loopEntry);
@@ -322,7 +319,7 @@ public class LoopParam {
                     // nesting error
                     return loopEntry.index;
                 } else {
-                    frame.outputInfoMsg(STATUS_VARS, "   - FOR Loop Variable " + name + " @ " + loopEntry.index + " was complete");
+                    GUILogPanel.outputInfoMsg(MsgType.VARS, "   - FOR Loop Variable " + name + " @ " + loopEntry.index + " was complete");
                 }
             }
         }

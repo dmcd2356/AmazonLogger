@@ -4,11 +4,8 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import static com.mycompany.amazonlogger.Utils.getDefaultPath;
 import java.io.File;
 import java.io.IOException;
@@ -340,7 +337,7 @@ public class CmdOptions {
         }
 
         ArrayList<CommandStruct> commands = new ArrayList<>(); // array of command lines extracted
-        frame.outputInfoMsg(STATUS_COMPILE, showLineNumberInfo(lineNum) + "  splitting command option: " + String.join(" ", argList));
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, showLineNumberInfo(lineNum) + "  splitting command option: " + String.join(" ", argList));
         
         // 1st entry is option, which may have additional args. let's see how many
         String cmdArg = argList.removeFirst();
@@ -357,9 +354,9 @@ public class CmdOptions {
             throw new ParserException(functionId + "option is not valid: " + cmdArg);
         }
         if (optInfo.argTypes.isEmpty()) {
-            frame.outputInfoMsg(STATUS_COMPILE, "  option cmd: " + cmdArg + " (no args)");
+            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "  option cmd: " + cmdArg + " (no args)");
         } else {
-            frame.outputInfoMsg(STATUS_COMPILE, "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
+            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
         }
         int minArgs = 0;
         int maxArgs = (optInfo.argTypes == null || optInfo.argTypes.isEmpty()) ? 0 : optInfo.argTypes.length();
@@ -406,9 +403,9 @@ public class CmdOptions {
                     }
                 }
                 if (optInfo.argTypes.isEmpty()) {
-                    frame.outputInfoMsg(STATUS_COMPILE, showLineNumberInfo(lineNum) + "  option cmd: " + cmdArg + " (no args)");
+                    GUILogPanel.outputInfoMsg(MsgType.COMPILE, showLineNumberInfo(lineNum) + "  option cmd: " + cmdArg + " (no args)");
                 } else {
-                    frame.outputInfoMsg(STATUS_COMPILE, showLineNumberInfo(lineNum) + "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
+                    GUILogPanel.outputInfoMsg(MsgType.COMPILE, showLineNumberInfo(lineNum) + "  option cmd: " + cmdArg + " (arglist: " + optInfo.argTypes + ")");
                 }
             } else {
                 // assume it is a parameter - verify the option takes another parameter
@@ -437,7 +434,7 @@ public class CmdOptions {
             
         // add the remaining entry to the list of commands
         commands.add(newCommand);
-        frame.outputInfoMsg(STATUS_COMPILE, commands.size() + " options found");
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, commands.size() + " options found");
         return commands;
     }
 
@@ -474,9 +471,9 @@ public class CmdOptions {
             throw new ParserException(functionId + "Cmd option is not valid: " + command);
         }
         if (optInfo.argTypes.isEmpty()) {
-            frame.outputInfoMsg(STATUS_COMPILE, "  Cmd option: " + command + " (no args)");
+            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "  Cmd option: " + command + " (no args)");
         } else {
-            frame.outputInfoMsg(STATUS_COMPILE, "  Cmd option: " + command + " (arglist: " + optInfo.argTypes + ")");
+            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "  Cmd option: " + command + " (arglist: " + optInfo.argTypes + ")");
         }
         
         // determine the min and max args allowed
@@ -576,7 +573,7 @@ public class CmdOptions {
                 ParameterStruct.verifyArgEntry (command.params.get(ix), expType);
             }
         } catch (ParserException exMsg) {
-            frame.outputInfoMsg(STATUS_ERROR, exMsg.getMessage());
+            GUILogPanel.outputInfoMsg(MsgType.ERROR, exMsg.getMessage());
             Utils.throwAddendum (exMsg.getMessage(), functionId + command + " - arg[" + ix + "]");
         }
     }
@@ -605,7 +602,7 @@ public class CmdOptions {
         ArrayList<String> arrList;
         Integer iRow, iCol;
 
-        frame.outputInfoMsg(STATUS_PROGRAM, "    Executing option: " + cmdLine.option);
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Executing option: " + cmdLine.option);
 
         String argTypes = getOptionArgs(cmdLine.option);
         if (argTypes == null) {
@@ -619,12 +616,12 @@ public class CmdOptions {
         try {
             switch (option) {
                 case "-debug":
-                    frame.setMessageFlags(getUnsignedValue(params, 0));
+                    GUIMain.setMessageFlags(getUnsignedValue(params, 0));
                     break;
                 case "-spath":
                     String absPath = getStringValue(params, 0);
                     Utils.setDefaultPath(Utils.PathType.Spreadsheet, absPath);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  set Spreadsheet path to: " + absPath);
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  set Spreadsheet path to: " + absPath);
                     break;
                 case "-sfile":
                     pathtype = Utils.PathType.Spreadsheet;
@@ -704,18 +701,18 @@ public class CmdOptions {
                     pathtype = Utils.PathType.Test;
                     fname = getStringValue(params, 0);
                     File fClip = Utils.checkFilename (fname, ".txt", pathtype, false);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  " + pathtype + " file: " + fClip.getAbsolutePath());
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  " + pathtype + " file: " + fClip.getAbsolutePath());
                     AmazonParser amazonParser = new AmazonParser(fClip);
                     amazonParser.parseWebData();
                     break;
                 case "-update":
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  Updating spreadsheet from clipboards");
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  Updating spreadsheet from clipboards");
                     AmazonParser.updateSpreadsheet();
                     break;
                 case "-ppath":
                     absPath = getStringValue(params, 0);
                     Utils.setDefaultPath(Utils.PathType.PDF, absPath);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  set PDF path to: " + absPath);
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  set PDF path to: " + absPath);
                     break;
                 case "-pfile":
                     pathtype = Utils.PathType.PDF;
@@ -726,7 +723,7 @@ public class CmdOptions {
                         fname = fname.substring(absPath.length() + 1);
                     }
                     File pdfFile = Utils.checkFilename (fname, ".pdf", pathtype, false);
-                    frame.outputInfoMsg(STATUS_PROGRAM, "  " + pathtype + " file: " + pdfFile.getAbsolutePath());
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  " + pathtype + " file: " + pdfFile.getAbsolutePath());
                     pdfReader = new PdfReader();
                     pdfReader.readPdfContents(pdfFile);
                     response.addAll(pdfReader.getContents());
@@ -975,15 +972,15 @@ public class CmdOptions {
         System.out.println(" -debug <flags> = the debug messages to enable when running");
         System.out.println("");
         System.out.println("     The debug flag values are hex bit values and defined as:");
-        System.out.println("     x01  =    1 = STATUS_NORMAL");
-        System.out.println("     x02  =    2 = STATUS_PARSER");
-        System.out.println("     x04  =    4 = STATUS_SPREADSHEET");
-        System.out.println("     x08  =    8 = STATUS_INFO");
-        System.out.println("     x10  =   16 = STATUS_PROPS");
-        System.out.println("     x20  =   32 = STATUS_PROGRAM");
-        System.out.println("     x40  =   64 = STATUS_COMPILE");
-        System.out.println("     x80  =  126 = STATUS_VARS");
-        System.out.println("     x800 = 2048 = STATUS_DEBUG");
+        System.out.println("     x01  =    1 = NORMAL");
+        System.out.println("     x02  =    2 = PARSER");
+        System.out.println("     x04  =    4 = SPREADSHEET");
+        System.out.println("     x08  =    8 = INFO");
+        System.out.println("     x10  =   16 = PROPS");
+        System.out.println("     x20  =   32 = PROGRAM");
+        System.out.println("     x40  =   64 = COMPILE");
+        System.out.println("     x80  =  126 = VARS");
+        System.out.println("     x800 = 2048 = DEBUG");
         System.out.println("     e.g. -d xFFFF will enable all msgs");
         System.out.println();
         System.out.println("The following commands test special features:");

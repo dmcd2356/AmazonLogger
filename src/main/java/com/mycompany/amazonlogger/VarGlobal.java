@@ -4,8 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -129,7 +128,7 @@ public class VarGlobal {
     public static void allocVar (String varName, ParameterStruct.ParamType ptype, String subName) throws ParserException {
         VarAccess var = new VarAccess(subName, varName, ptype, Variables.AccessType.GLOBAL);
         globals.put(varName, var);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Allocated GLOBAL " + ptype + " variable: " + varName + " in " + subName);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Allocated GLOBAL " + ptype + " variable: " + varName + " in " + subName);
     }
     
     /**
@@ -277,7 +276,7 @@ public class VarGlobal {
         VarAccess var = globals.get(name);
         var.setValueString(value);
         globals.replace(name, var);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified String param: " + name + " = " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Modified String param: " + name + " = " + value);
     }
 
     /**
@@ -323,7 +322,7 @@ public class VarGlobal {
         VarAccess var = globals.get(name);
         var.setValueInteger(value);
         globals.replace(name, var);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified Integer param: " + name + " = " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Modified Integer param: " + name + " = " + value);
     }
 
     /**
@@ -373,7 +372,7 @@ public class VarGlobal {
         VarAccess var = globals.get(name);
         var.setValueUnsigned(value);
         globals.replace(name, var);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified Unsigned param: " + name + " = " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Modified Unsigned param: " + name + " = " + value);
     }
 
     /**
@@ -419,7 +418,7 @@ public class VarGlobal {
         VarAccess var = globals.get(name);
         var.setValueBoolean(value);
         globals.replace(name, var);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified Boolean param: " + name + " = " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Modified Boolean param: " + name + " = " + value);
     }
 
     /**
@@ -461,7 +460,7 @@ public class VarGlobal {
         VarAccess var = globals.get(name);
         var.setValueStrArray(value);
         globals.replace(name, var);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified StrArray param: " + name);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Modified StrArray param: " + name);
     }
     
     /**
@@ -503,7 +502,7 @@ public class VarGlobal {
         VarAccess var = globals.get(name);
         var.setValueIntArray(value);
         globals.replace(name, var);
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "- Modified IntArray param: " + name);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Modified IntArray param: " + name);
     }
 
 }

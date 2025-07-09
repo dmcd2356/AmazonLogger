@@ -4,10 +4,8 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.AmazonReader.props;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 
 import java.awt.Color;
 import java.io.File;
@@ -25,6 +23,90 @@ public class Utils {
         PDF,
         Spreadsheet,
         Test,
+    }
+
+    /**
+     * makes a String a fixed length String with padding to the left.
+     * (limited to max of 50 chars padding and a minimum of 0 char)
+     * 
+     * @param entry  - the String value
+     * @param length - the desired field length to pad it to
+     * 
+     * @return the left-padded String value
+     */
+    public static String padLeft (String entry, int length) {
+        String padding = "                                                  ";
+
+        // a minimum of 1 space will always be enforced
+        if (length <= entry.length()) {
+            return entry;
+        }
+        // limit max field size to length of string plus max padding
+        int maxlen = entry.length() + padding.length();
+        if (length > maxlen) {
+            length = maxlen;
+        }
+        // amount of padding is field size minus text length
+        length -= entry.length();
+        entry = padding.substring(0, length) + entry;
+        return entry;
+    }
+    
+    /**
+     * makes a String a fixed length String with padding to the right.
+     * (limited to max of 50 chars padding and a minimum of 0 char)
+     * 
+     * @param entry  - the String value
+     * @param length - the desired field length to pad it to
+     * 
+     * @return the right-padded String value
+     */
+    public static String padRight (String entry, int length) {
+        String padding = "                                                  ";
+
+        // a minimum of 1 space will always be enforced
+        if (length <= entry.length()) {
+            return entry;
+        }
+        // limit max field size to length of string plus max padding
+        int maxlen = entry.length() + padding.length();
+        if (length > maxlen) {
+            length = maxlen;
+        }
+        // amount of padding is field size minus text length
+        length -= entry.length();
+        entry = entry + padding.substring(0, length);
+        return entry;
+    }
+    
+    /**
+     * makes a String a fixed length String with padding to the left & right.
+     * (limited to max of 40 chars padding and a minimum of 1 char)
+     * This will center the text in the fixed field length.
+     * 
+     * @param entry  - the String value
+     * @param length - the desired field length to pad it to
+     * 
+     * @return the center-padded String value
+     */
+    public static String padCenter (String entry, int length) {
+        String padding = "                                        ";
+
+        // a minimum of 1 space will always be enforced
+        if (length <= entry.length()) {
+            return entry + " ";
+        }
+        // limit max field size to length of string plus max padding
+        int maxlen = entry.length() + padding.length();
+        if (length > maxlen) {
+            length = maxlen;
+        }
+        // amount of padding is field size minus text length
+        length -= entry.length();
+        int lpad = length / 2;
+        int rpad = length - lpad;
+        entry = padding.substring(0, lpad) + entry + padding.substring(0, rpad);
+        return entry;
     }
     
     /*********************************************************************
@@ -561,7 +643,7 @@ public class Utils {
             if (tempDir.exists() && tempDir.isDirectory()) {
                 validPath = pathName;
             } else {
-                frame.outputInfoMsg(UIFrame.STATUS_WARN, functionId + "Properties file '"
+                GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "Properties file '"
                                 + tag.name() + "' entry not a valid directory: " + pathName);
             }
         }
@@ -662,7 +744,7 @@ public class Utils {
         if (!myPath.isDirectory()) {
             throw new ParserException(functionId + "Path not found: " + dirname);
         }
-        frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  Path param valid: " + dirname);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "  Path param valid: " + dirname);
         return myPath;
     }
 
@@ -699,9 +781,9 @@ public class Utils {
             throw new ParserException(functionId + "Invalid " + filetype + " file - no write access: " + fname);
         }
         if (bWritable) {
-            frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  File exists & is readable and writable: " + fname);
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, "  File exists & is readable and writable: " + fname);
         } else {
-            frame.outputInfoMsg(UIFrame.STATUS_DEBUG, "  File exists & is readable: " + fname);
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, "  File exists & is readable: " + fname);
         }
         return myFile;
     }
@@ -742,7 +824,7 @@ public class Utils {
             default:
                 throw new ParserException(functionId + "Invalid comparison sign: " + compType);
         }
-        frame.outputInfoMsg(STATUS_DEBUG, functionId + " " + param1 + " " + compType + " " + param2 + " " + bExit);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, functionId + " " + param1 + " " + compType + " " + param2 + " " + bExit);
         return bExit;
     }
     
@@ -782,7 +864,7 @@ public class Utils {
             default:
                 throw new ParserException(functionId + "Invalid comparison sign: " + compType);
         }
-        frame.outputInfoMsg(STATUS_DEBUG, functionId + " " + param1 + " " + compType + " " + param2 + " " + bExit);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, functionId + " " + param1 + " " + compType + " " + param2 + " " + bExit);
         return bExit;
     }
     
@@ -822,7 +904,7 @@ public class Utils {
             default:
                 throw new ParserException(functionId + "Invalid comparison sign: " + compType);
         }
-        frame.outputInfoMsg(STATUS_DEBUG, functionId + " '" + param1 + "' " + compType + " '" + param2 + "' " + bExit);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, functionId + " '" + param1 + "' " + compType + " '" + param2 + "' " + bExit);
         return bExit;
     }
 
@@ -861,7 +943,7 @@ public class Utils {
         for (StackTraceElement element : stackTraceElements) {
             traceBuilder.append(element.toString()).append("\n");
         }
-        frame.outputInfoMsg(STATUS_ERROR, "\n  -> " + traceBuilder.toString());
+        GUILogPanel.outputInfoMsg(MsgType.ERROR, "\n  -> " + traceBuilder.toString());
     }
 
     /**
@@ -873,7 +955,7 @@ public class Utils {
      * @throws ParserException 
      */
     public static void throwAddendum (String exMsg, String addMsg) throws ParserException {
-//        frame.outputInfoMsg(STATUS_ERROR, exMsg);
+//        GUILogPanel.outputInfoMsg(MsgType.ERROR, exMsg);
         throw new ParserException(exMsg + " -> " + addMsg);
     }
     

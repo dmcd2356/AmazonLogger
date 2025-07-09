@@ -4,10 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -47,7 +44,7 @@ public class FileIO {
         try {
             exit();
         } catch (IOException exMsg) {
-            frame.outputInfoMsg(STATUS_ERROR, "Error on closing File Reader/Writers");
+            GUILogPanel.outputInfoMsg(MsgType.ERROR, "Error on closing File Reader/Writers");
         }
     }
     
@@ -100,7 +97,7 @@ public class FileIO {
         if (! isWithinTestPath(curpath)) {
             throw new ParserException(functionId + "Path is not within test base path: " + curpath);
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, "Backed up to directory above: " + curpath);
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "Backed up to directory above: " + curpath);
         return curpath;
     }
 
@@ -170,7 +167,7 @@ public class FileIO {
 
         baseDir = path;
         fileDir = path;
-        frame.outputInfoMsg(STATUS_DEBUG, "File IO base path set to: " + path);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "File IO base path set to: " + path);
     }
     
     /**
@@ -192,14 +189,14 @@ public class FileIO {
         if (fileReader != null) {
             fileReader.close();
             fileReader = null;
-            frame.outputInfoMsg(STATUS_DEBUG, "File reader closed: " + fileReadName);
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, "File reader closed: " + fileReadName);
             fileReadName = "";
         }
         if (fileWriter != null) {
             fileWriter.flush();
             fileWriter.close();
             fileWriter = null;
-            frame.outputInfoMsg(STATUS_DEBUG, "File writer flushed & closed: " + fileWriteName);
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, "File writer flushed & closed: " + fileWriteName);
             fileWriteName = "";
         }
     }
@@ -246,7 +243,7 @@ public class FileIO {
     public static java.io.File getFilePath (String path) throws ParserException {
         path = getAbsPath(path);
         java.io.File file = new java.io.File(path);
-        frame.outputInfoMsg(STATUS_PROGRAM, "    Path selection: " + path);
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Path selection: " + path);
         return (file);
     }
     
@@ -276,7 +273,7 @@ public class FileIO {
         if (! file.exists() || ! file.isDirectory()) {
             throw new ParserException(functionId + "Invalid directory selection: " + fileDir);
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, "    File path changed to: " + fileDir);
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    File path changed to: " + fileDir);
     }
 
     /**
@@ -376,11 +373,11 @@ public class FileIO {
             String absname = file.getAbsolutePath();
             fileWriter = new PrintWriter(new FileWriter(absname, true));
             fileWriteName = fname;
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer created for: " + fname);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "File writer created for: " + fname);
         } else {
             fileReader = new BufferedReader(new FileReader(file));
             fileReadName = fname;
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File reader created for: " + fname);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "File reader created for: " + fname);
         }
     }
 
@@ -427,14 +424,14 @@ public class FileIO {
             }
             fileWriter = new PrintWriter(new FileWriter(path, true));
             fileWriteName = fname;
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer opened for: " + fname);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "File writer opened for: " + fname);
         } else {
             if (! file.canRead()) {
                 throw new ParserException(functionId + "Invalid file - no read access: " + fname);
             }
             fileReader = new BufferedReader(new FileReader(file));
             fileReadName = fname;
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File reader opened for: " + fname);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "File reader opened for: " + fname);
         }
     }
 
@@ -464,7 +461,7 @@ public class FileIO {
         }
 
         file.delete();
-        frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File deleted: " + file);
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "File deleted: " + file);
     }
 
     /**
@@ -481,15 +478,15 @@ public class FileIO {
         if (fileWriteName != null && fname.contentEquals(fileWriteName)) {
             fileWriteName = null;
             fileWriter.flush();
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer flushed: " + fname);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "File writer flushed: " + fname);
             fileWriter.close();
             fileWriter = null;
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer closed: " + fname);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "File writer closed: " + fname);
         } else if (fileReadName != null && fname.contentEquals(fileReadName)) {
             fileReadName = null;
             fileReader.close();
             fileReader = null;
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File reader closed: " + fname);
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "File reader closed: " + fname);
         } else {
             throw new ParserException(functionId + "File not open: " + fname);
         }
@@ -522,7 +519,7 @@ public class FileIO {
                 VarReserved.putResponseValue(line);
                 ix++;
             }
-            frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File reader read " + count + " lines from '" + fileReadName + "'");
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "File reader read " + count + " lines from '" + fileReadName + "'");
         } catch (IOException ex) {
             throw new IOException(functionId + ex);
         }
@@ -543,7 +540,7 @@ public class FileIO {
             throw new ParserException(functionId + "File writer not open");
         }
         fileWriter.println(text);
-        frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer wrote 1 line to '" + fileWriteName + "'");
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "File writer wrote 1 line to '" + fileWriteName + "'");
     }
 
     /**
@@ -567,7 +564,7 @@ public class FileIO {
             String text = array.get(ix);
             fileWriter.println(text);
         }
-        frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "File writer wrote " + array.size() + " lines to '" + fileWriteName + "'");
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "File writer wrote " + array.size() + " lines to '" + fileWriteName + "'");
     }
 
     /**

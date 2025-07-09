@@ -4,10 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -361,7 +358,7 @@ public class Subroutine {
             throw new ParserException(functionId + "Missing ENDSUB commands for the following subroutines: " + missingEnd.substring(2));
         }
         if (! unusedList.isEmpty()) {
-            frame.outputInfoMsg(STATUS_WARN, INDENT + "Unused functions: " + unusedList.substring(2));
+            GUILogPanel.outputInfoMsg(MsgType.WARN, INDENT + "Unused functions: " + unusedList.substring(2));
         }
     }
     
@@ -387,7 +384,7 @@ public class Subroutine {
             throw new ParserException(functionId + "Subroutine already defined: " + name);
         }
         subroutines.put(name, cmdIx);
-        frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Added subroutine: " + name + " at location " + cmdIx);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "Added subroutine: " + name + " at location " + cmdIx);
     }
 
     /**
@@ -557,7 +554,7 @@ public class Subroutine {
         }
         
         // push the command index location to return to
-        frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "Subroutine " + name + " index " + cmdIx +
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "Subroutine " + name + " index " + cmdIx +
                 " entered at level " + (1 + subStack.size()));
         SubCall info = new SubCall(cmdIx, name);
         subStack.push(info);
@@ -587,7 +584,7 @@ public class Subroutine {
         // get the command index of the calling function to return to
         SubCall info = subStack.pop();
         int index = info.getIndex();
-        frame.outputInfoMsg(STATUS_PROGRAM, INDENT + "Subroutine returned to index: " + index);
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, INDENT + "Subroutine returned to index: " + index);
         sendSubStackList();
         return index;
     }

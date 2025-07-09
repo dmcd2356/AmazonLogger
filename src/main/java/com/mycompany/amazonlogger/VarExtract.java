@@ -4,8 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 
 /**
  *
@@ -187,12 +186,12 @@ public class VarExtract {
                 indexmax = packIndexValue (leftover.substring(offset+1));
                 String ixStart = index.getValue() != null ? "" + index.getValue() : index.getVariable();
                 String ixEnd = indexmax.getValue() != null ? "" + indexmax.getValue() : indexmax.getVariable();
-                frame.outputInfoMsg(STATUS_VARS, "Variable index range found: " + name + "[" + ixStart + "-" + ixEnd + "]");
+                GUILogPanel.outputInfoMsg(MsgType.VARS, "Variable index range found: " + name + "[" + ixStart + "-" + ixEnd + "]");
             } else {
                 index = packIndexValue(leftover);
                 indexmax = null;
                 String ixStr = index.getValue() != null ? "" + index.getValue() : index.getVariable();
-                frame.outputInfoMsg(STATUS_VARS, "Variable index entry found: " + name + "[" + ixStr + "]");
+                GUILogPanel.outputInfoMsg(MsgType.VARS, "Variable index entry found: " + name + "[" + ixStr + "]");
             }
         } else if (offTrait > 0) {
             if (! bRightSide) {

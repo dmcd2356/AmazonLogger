@@ -5,27 +5,20 @@
 package com.mycompany.amazonlogger;
 
 import static com.mycompany.amazonlogger.AmazonReader.props;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
 
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Font;
-import java.awt.Toolkit;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Stream;
+import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
@@ -34,12 +27,9 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextPane;
 import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.Document;
-import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.StyleConstants;
 import org.apache.tika.exception.TikaException;
 import org.xml.sax.SAXException;
 
@@ -48,152 +38,86 @@ import org.xml.sax.SAXException;
  * 
  * @author dan
  */
-public final class UIFrame extends JFrame implements ActionListener {
+public final class GUIMain extends JFrame implements ActionListener {
 
-    private static final String CLASS_NAME = UIFrame.class.getSimpleName();
+    private static final String CLASS_NAME = GUIMain.class.getSimpleName();
 
-    // type of text characteristics to print with 'outputInfoMsg'
-    public static final int STATUS_NORMAL  = 0x0001;  // output written to spreadsheet
-    public static final int STATUS_PARSER  = 0x0002;  // parser status
-    public static final int STATUS_SSHEET  = 0x0004;  // spreadsheet status
-    public static final int STATUS_INFO    = 0x0008;  // processing of data from web clip and from PDF file
-    public static final int STATUS_PROPS   = 0x0010;  // properties interface messages
-    public static final int STATUS_PROGRAM = 0x0020;  // program interface messages
-    public static final int STATUS_COMPILE = 0x0040;  // compiler messages
-    public static final int STATUS_VARS    = 0x0080;  // compiler messages
-    public static final int STATUS_DEBUG   = 0x0800;  // low-level detailed messages
-    public static final int STATUS_WARN    = 0x4000;  // non-fatal warnings
-    public static final int STATUS_ERROR   = 0x8000;  // fatal errors
-    
-    private static PrintWriter    debugFile = null;
-    private static PrintWriter    testFile = null;
-    private static String  testFname = "";
-    private static int     msgEnable;
     private static boolean bUseGUI = false;
-    private static long    elapsedStart = 0;    // hold start of elapsed time for running from file
-    private static long    prevElapsed = 0;     // hold current elapsed time for pause durations
-    private static boolean showElapsed = false; // indicates if elapsed time to be displayed in logs
-    private static int     logCounter = 0;
-    private static boolean bNetPrintEnable = true; // true if network receives all enabled msgs, false for just errors & warnings
     
-
-    private final class MsgControl {
-        int       statusId;     // STATUS_ entry
-        String    msgName;      // name to insert at begining of the msg to identify it
-        String    font;         // whether the displayed message is Normal, Bold, Italic, or both
-        TextColor color;        // color to use for the text on the screen
-        
-        MsgControl (int status, String name, String font, TextColor color) {
-            this.statusId = status;
-            this.msgName  = name;
-            this.font     = font;       // N=normal, I=italic, B=Bold, BI=Bold+Italic
-            this.color    = color;
-        }
-    }
-    
-    private final MsgControl [] MsgSelectTbl = {
-        new MsgControl (STATUS_ERROR   , "[ERROR ] ", "B", TextColor.Red),
-        new MsgControl (STATUS_WARN    , "[WARN  ] ", "B", TextColor.Orange),
-        new MsgControl (STATUS_DEBUG   , "[DEBUG ] ", "N", TextColor.Brown),
-        new MsgControl (STATUS_VARS    , "[VARS  ] ", "N", TextColor.DkVio),
-        new MsgControl (STATUS_COMPILE , "[COMPIL] ", "N", TextColor.DkVio),
-        new MsgControl (STATUS_PROGRAM , "[PROG  ] ", "N", TextColor.DkVio),
-        new MsgControl (STATUS_PROPS   , "[PROPS ] ", "I", TextColor.Gold),
-        new MsgControl (STATUS_INFO    , "[INFO  ] ", "N", TextColor.DkVio),
-        new MsgControl (STATUS_SSHEET  , "[SSHEET] ", "I", TextColor.Green),
-        new MsgControl (STATUS_PARSER  , "[PARSER] ", "I", TextColor.Blue),
-        new MsgControl (STATUS_NORMAL  , "[NORMAL] ", "N", TextColor.Black),
-    };
-
-    private enum TextColor {
-        Black, DkGrey, DkRed, Red, LtRed, Orange, Brown,
-        Gold, Green, Cyan, LtBlue, Blue, Violet, DkVio;
-    }
-    
-    private static final String NEWLINE = System.getProperty("line.separator");
+    private static long         elapsedStart = 0;       // hold start of elapsed time for running from file
+    private static long         prevElapsed = 0;        // hold current elapsed time for pause durations
+    private static boolean      showElapsed = false;    // indicates if elapsed time to be displayed in logs
+    private static PrintWriter  debugFile = null;       // the log file for non-network mode
 
     // Components of the Form
-    private final Container c;
-    private final JCheckBox cbox_normal;
-    private final JCheckBox cbox_parser;
-    private final JCheckBox cbox_ssheet;
-    private final JCheckBox cbox_info;
-    private final JCheckBox cbox_debug;
-    private final JCheckBox cbox_props;
-    private final ButtonGroup btn_group;
-    private final JButton btn_select;
-    private final JButton btn_clipboard;
-    private final JButton btn_update;
-    private final JButton btn_balance;
-    private final JButton btn_copy;
-    private final JButton btn_print;
-    private final JLabel lbl_select;
-    private final JLabel lbl_clipboard;
-    private final JLabel lbl_update;
-    private final JLabel lbl_balance;
-    private final JLabel lbl_title;
-    private final JLabel lbl_order_tab;
-    private final JLabel lbl_order_title;
-    private final JLabel lbl_orders;
-    private final JLabel lbl_orders_num;
-    private final JLabel lbl_orders_item;
-    private final JLabel lbl_orders_date;
-    private final JLabel lbl_detail;
-    private final JLabel lbl_detail_num;
-    private final JLabel lbl_detail_item;
-    private final JLabel lbl_detail_date;
-    private final JScrollPane scroll_info;
-    private final JPanel txt_panel;
-    private final JTextPane txt_info;
+    private static Container c;
+    private static JCheckBox cbox_normal;
+    private static JCheckBox cbox_parser;
+    private static JCheckBox cbox_ssheet;
+    private static JCheckBox cbox_info;
+    private static JCheckBox cbox_debug;
+    private static JCheckBox cbox_props;
+    private static ButtonGroup btn_group;
+    private static JButton btn_select;
+    private static JButton btn_clipboard;
+    private static JButton btn_update;
+    private static JButton btn_balance;
+    private static JButton btn_clear;
+    private static JButton btn_copy;
+    private static JButton btn_print;
+    private static JLabel lbl_error_msg;
+    private static JLabel lbl_select;
+    private static JLabel lbl_clipboard;
+    private static JLabel lbl_update;
+    private static JLabel lbl_balance;
+    private static JLabel lbl_order_tab;
+    private static JLabel lbl_order_title;
+    private static JLabel lbl_orders;
+    private static JLabel lbl_orders_num;
+    private static JLabel lbl_orders_item;
+    private static JLabel lbl_orders_date;
+    private static JLabel lbl_detail;
+    private static JLabel lbl_detail_num;
+    private static JLabel lbl_detail_item;
+    private static JLabel lbl_detail_date;
+    private static JTextPane log_txtpane;
+    private static JTextPane order_txtpane;
+    private static JTabbedPane tab_panel;
+    private static ArrayList<Tabs> panelId = new ArrayList<>();
 
+    // the IDs for the tabbed panels
+    private enum Tabs {
+        LOG,
+        ORDER,
+    }
+    
+    // actions to perform on the tabbed panels
+    private enum TabAction {
+        CLEAR,
+        COPY,
+        PRINT,
+    }
+    
     /**
      * initializes the GUI state.
      * called prior to compiling a file
      */
-    public void init () {
-        msgEnable = 0;
-        closeTestFile();
-        testFile = null;
-        testFname = "";
-        logCounter = 0;
+    public static void init () {
+        GUILogPanel.init();
+        GUILogPanel.closeTestFile();
         props.setPropertiesItem(Property.TestFileOut, "");
     }
-    
-    /**
-     * resets the GUI state after a script has been run.
-     * called when a script has completed when running from network connection
-     */
-    public void reset() {
-        // close and re-open the test file
-//        closeTestFile();
-//        setTestOutputFile (testFname, false);
-        
-        // reset the log counter to 0
-        logCounter = 0;
-    }
 
-    /**
-     * sets the flag to enable/disable log messages to the network.
-     * If disabled, only ERROR and WARN messages will be sent.
-     * 
-     * @param enable - true to enable
-     */
-    public static void setNetworkDebugEnable (boolean enable) {
-        bNetPrintEnable = enable;
+    public static boolean isGUIMode() {
+        return bUseGUI;
     }
     
     // constructor, to initialize the components
     // with default values.
-    public UIFrame(boolean bGUI)
+    public GUIMain(boolean bGUI)
     {
         bUseGUI = bGUI;
     
-        // reset test file location to none if not running from GUI
-        if (! bGUI) {
-            testFile = null;
-            testFname = "";
-        }
-        
         // setup the control sizes
         int y_pane_height = 700;        // dimensions of the text pane
         int x_pane_width = 1100;
@@ -226,7 +150,7 @@ public final class UIFrame extends JFrame implements ActionListener {
 
         int title_height = 30;
         int title_width = 300;
-        lbl_title = new JLabel("Amazon Expenses");
+        JLabel lbl_title = new JLabel("Amazon Expenses");
         lbl_title.setFont(new Font("Arial", Font.PLAIN, 30));
         lbl_title.setSize(title_width, title_height);
         lbl_title.setLocation((panel_width - title_width) / 2, title_height);
@@ -308,30 +232,90 @@ public final class UIFrame extends JFrame implements ActionListener {
         loc_x = border_size;
         loc_y += y_line_gap;
 
-        txt_info = new JTextPane();
-        txt_info.setText("");
-        txt_info.setFont(new Font("Courier", Font.PLAIN, 15));
-        txt_info.setSize(x_pane_width, y_pane_height);
-        txt_info.setLocation(loc_x, loc_y);
-        txt_info.setEditable(false);
-        c.add(txt_info);
+        // this is the debug log panel
+        order_txtpane = new JTextPane();
+        order_txtpane.setText("");
+        order_txtpane.setFont(new Font("Courier", Font.PLAIN, 15));
+        order_txtpane.setSize(x_pane_width, y_pane_height);
+        order_txtpane.setLocation(loc_x, loc_y);
+        order_txtpane.setEditable(false);
+        c.add(order_txtpane);
         // put it in a panel to make it non-wrap mode, so we can scroll horizontally
-        txt_panel = new JPanel();
-        txt_panel.add(txt_info);
-        txt_panel.setLayout(new BoxLayout(txt_panel, BoxLayout.Y_AXIS));
-        c.add(txt_panel);
+        JPanel order_panel = new JPanel();
+        order_panel.add(order_txtpane);
+        order_panel.setLayout(new BoxLayout(order_panel, BoxLayout.Y_AXIS));
+        c.add(order_panel);
         // need it to be scrollable
-        scroll_info = new JScrollPane (txt_panel);
-        scroll_info.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
-        scroll_info.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
-        scroll_info.setSize(x_pane_width, y_pane_height);
-        scroll_info.setLocation(loc_x, loc_y);
-        c.add(scroll_info);
+        JScrollPane order_scroll = new JScrollPane (order_panel);
+        order_scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
+        order_scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        order_scroll.setSize(x_pane_width, y_pane_height);
+        order_scroll.setLocation(loc_x, loc_y);
+        c.add(order_scroll);
+
+        // this is the debug log panel
+        log_txtpane = new JTextPane();
+        log_txtpane.setText("");
+        log_txtpane.setFont(new Font("Courier", Font.PLAIN, 15));
+        log_txtpane.setSize(x_pane_width, y_pane_height);
+        log_txtpane.setLocation(loc_x, loc_y);
+        log_txtpane.setEditable(false);
+        c.add(log_txtpane);
+        // put it in a panel to make it non-wrap mode, so we can scroll horizontally
+        JPanel log_panel = new JPanel();
+        log_panel.add(log_txtpane);
+        log_panel.setLayout(new BoxLayout(log_panel, BoxLayout.Y_AXIS));
+        c.add(log_panel);
+        // need it to be scrollable
+        JScrollPane log_scroll = new JScrollPane (log_panel);
+        log_scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
+        log_scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        log_scroll.setSize(x_pane_width, y_pane_height);
+        log_scroll.setLocation(loc_x, loc_y);
+        c.add(log_scroll);
+
+        // create the panel and apply constraints
+        tab_panel = new JTabbedPane();
+        tab_panel.setBorder(BorderFactory.createTitledBorder(""));
+        tab_panel.addTab("Order Info", order_scroll);
+        panelId.add(Tabs.ORDER);
+        tab_panel.addTab("Log messages", log_scroll);
+        panelId.add(Tabs.LOG);
+        tab_panel.setSize(x_pane_width, y_pane_height);
+        tab_panel.setLocation(loc_x, loc_y);
+        c.add(tab_panel);
 
         // TOP LEFT OF BOTTOM PANEL
         loc_x = border_size;
         loc_y += y_line_gap + y_pane_height;
+
+        // this will display the error status info
+        lbl_error_msg = new JLabel();
+        lbl_error_msg.setFont(new Font("Arial", Font.BOLD, 15));
+        lbl_error_msg.setForeground(Color.red);
+        lbl_error_msg.setSize(panel_width, y_label_height);
+        lbl_error_msg.setLocation(loc_x, loc_y);
+        lbl_error_msg.setVisible(true);
+        c.add(lbl_error_msg);
+
+        loc_y += y_line_gap;
         int y_bottom_panel = loc_y;
+        
+        btn_clear = new JButton("Clear");
+        btn_clear.setFont(new Font("Arial", Font.BOLD, 15));
+        btn_clear.setSize(x_button_width, y_button_height);
+        btn_clear.setLocation(loc_x, loc_y);
+        btn_clear.setVisible(true);
+        // this provides a way to copy the text to the clipboard
+        btn_clear.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent e){
+                runSelectedTabAction (TabAction.CLEAR);
+            }
+        });    
+        c.add(btn_clear);
+
+        loc_y += y_line_gap;
         btn_copy = new JButton("Copy text");
         btn_copy.setFont(new Font("Arial", Font.BOLD, 15));
         btn_copy.setSize(x_button_width, y_button_height);
@@ -341,10 +325,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         btn_copy.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                String textToCopy = txt_info.getText();
-                StringSelection stringSelection = new StringSelection(textToCopy);
-                Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-                clipboard.setContents(stringSelection, null);
+                runSelectedTabAction (TabAction.COPY);
             }
         });    
         c.add(btn_copy);
@@ -359,14 +340,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         btn_print.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                if (debugFile != null) {
-                    debugFile.println("=== " + getCurrentDateTime() + " ============================================================");
-                    String textToCopy = txt_info.getText();
-                    Stream<String> lines = textToCopy.lines();
-                    lines.forEach(debugFile::println);
-                    debugFile.flush();
-                    debugFile.close();
-                }
+                runSelectedTabAction (TabAction.PRINT);
             }
         });    
         c.add(btn_print);
@@ -381,7 +355,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_normal.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(STATUS_NORMAL);
+                setBitMsgEnableProps(MsgType.NORMAL);
             }
         });    
         c.add(cbox_normal);
@@ -394,7 +368,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_parser.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(STATUS_PARSER);
+                setBitMsgEnableProps(MsgType.PARSER);
             }
         });    
         c.add(cbox_parser);
@@ -407,7 +381,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_ssheet.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(STATUS_SSHEET);
+                setBitMsgEnableProps(MsgType.SSHEET);
             }
         });    
         c.add(cbox_ssheet);
@@ -420,7 +394,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_info.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(STATUS_INFO);
+                setBitMsgEnableProps(MsgType.INFO);
             }
         });    
         c.add(cbox_info);
@@ -433,7 +407,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_debug.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(STATUS_DEBUG);
+                setBitMsgEnableProps(MsgType.DEBUG);
             }
         });    
         c.add(cbox_debug);
@@ -446,7 +420,7 @@ public final class UIFrame extends JFrame implements ActionListener {
         cbox_props.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(STATUS_PROPS);
+                setBitMsgEnableProps(MsgType.PROPS);
             }
         });    
         c.add(cbox_props);
@@ -554,9 +528,13 @@ public final class UIFrame extends JFrame implements ActionListener {
         c.add(lbl_detail_date);
 
         // init the values in the clipboard info
-        this.clearTabOwner();
-        this.clearOrderCount ();
-        this.clearDetailCount ();
+        clearTabOwner();
+        clearOrderCount ();
+        clearDetailCount ();
+        
+        // init the log panels
+        GUILogPanel   logPanel   = new GUILogPanel(log_txtpane);
+        GUIOrderPanel orderPanel = new GUIOrderPanel(order_txtpane);
 
         // default the message enable flags to on
         cbox_parser.setSelected(true);
@@ -578,6 +556,7 @@ public final class UIFrame extends JFrame implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e)
     {
+        clearErrorMsg();
         try {
             if (e.getSource() == btn_select) {
                 outputSeparatorLine("LOAD SPREADSHEET");
@@ -606,26 +585,64 @@ public final class UIFrame extends JFrame implements ActionListener {
             if (offset >= 0) {
                 msg = msg.substring(offset + header.length());
             }
-            outputInfoMsg (STATUS_ERROR, msg);
+            GUILogPanel.outputInfoMsg (MsgType.ERROR, msg);
             disableAllButton();
         }
     }
 
     /**
-     * clear all GUI messages (GUI use only)
+     * outputs a separator line to the output stream
+     * 
+     * @param heading  - a message to display with the line
      */
-    public void clearMessages () {
-        if (!bUseGUI)
-            return;
-        
-        txt_info.setText("");
+    private static void outputSeparatorLine (String heading) {
+        heading = "=====" + heading + "======================================================================";
+        heading = heading.substring(0, 75);
+        GUILogPanel.outputInfoMsg (MsgType.NORMAL, heading);
+    }
+
+    private static void runSelectedTabAction (TabAction action) {
+        clearErrorMsg();
+        int ix = tab_panel.getSelectedIndex();
+        if (ix >= 0 && ix < panelId.size()) {
+            Tabs tabSelect = panelId.get(ix);
+            if (tabSelect == Tabs.ORDER) {
+                switch (action) {
+                    case CLEAR:
+                        GUIOrderPanel.clearMessages();
+                        break;
+                    case COPY:
+                        GUIOrderPanel.saveToClipboard();
+                        break;
+                    case PRINT:
+                        GUIOrderPanel.saveDebugToFile();
+                        break;
+                    default:
+                        break;
+                }
+            } else {
+                switch (action) {
+                    case CLEAR:
+                        GUILogPanel.clearMessages();
+                        break;
+                    case COPY:
+                        GUILogPanel.saveToClipboard();
+                        break;
+                    case PRINT:
+                        GUILogPanel.saveDebugToFile();
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
     }
 
     /**
      * disable all the GUI execute buttons except the SELECT button.
      * Forces a spreadsheet file selection prior to doing anything else.
      */
-    public void disableAllButton () {
+    public static void disableAllButton () {
         if (!bUseGUI)
             return;
         
@@ -636,18 +653,41 @@ public final class UIFrame extends JFrame implements ActionListener {
         btn_update.setVisible(false);
         lbl_update.setVisible(false);
     }
+
+    /**
+     * clears the error message
+     */
+    private static void clearErrorMsg () {
+        lbl_error_msg.setText("");
+    }
+    
+    /**
+     * displays the error message.
+     * 
+     * @param msg - the message to display
+     */
+    public static void showErrorMsg (String msg) {
+        lbl_error_msg.setText(msg);
+    }
     
     /**
      * enables/disables the Clipboard button.
      * 
      * @param status - true to enable
      */
-    public void enableClipboardButton (boolean status) {
+    public static void enableClipboardButton (boolean status) {
         if (!bUseGUI)
             return;
         
         btn_clipboard.setVisible(status);
         lbl_clipboard.setVisible(status);
+    }
+
+    public static void enablePrintButton (boolean status) {
+        if (!bUseGUI)
+            return;
+        
+        btn_print.setVisible(status);
     }
     
     /**
@@ -655,7 +695,7 @@ public final class UIFrame extends JFrame implements ActionListener {
      * 
      * @param status - true to enable
      */
-    public void enableCheckBalanceButton (boolean status) {
+    public static void enableCheckBalanceButton (boolean status) {
         if (!bUseGUI)
             return;
         
@@ -668,7 +708,7 @@ public final class UIFrame extends JFrame implements ActionListener {
      * 
      * @param status - true to enable
      */
-    public void enableUpdateButton (boolean status) {
+    public static void enableUpdateButton (boolean status) {
         if (!bUseGUI)
             return;
         
@@ -681,7 +721,7 @@ public final class UIFrame extends JFrame implements ActionListener {
      * 
      * @param filepath - the spreadsheet file location
      */
-    public void setSpreadsheetSelection (String filepath) {
+    public static void setSpreadsheetSelection (String filepath) {
         if (!bUseGUI)
             return;
         
@@ -694,7 +734,7 @@ public final class UIFrame extends JFrame implements ActionListener {
      * 
      * @param tab - the tab location
      */
-    public void setTabOwner (String tab) {
+    public static void setTabOwner (String tab) {
         if (!bUseGUI)
             return;
         
@@ -705,7 +745,7 @@ public final class UIFrame extends JFrame implements ActionListener {
     /**
      * clears the displayed clipboard tab selection.
      */
-    public void clearTabOwner () {
+    public static void clearTabOwner () {
         if (!bUseGUI)
             return;
         
@@ -721,7 +761,7 @@ public final class UIFrame extends JFrame implements ActionListener {
      * @param startDate - earliest date in the orders
      * @param endDate   - most recent date in the orders
      */
-    public void setOrderCount (int orders, int items, LocalDate startDate, LocalDate endDate) {
+    public static void setOrderCount (int orders, int items, LocalDate startDate, LocalDate endDate) {
         if (!bUseGUI)
             return;
         
@@ -743,7 +783,7 @@ public final class UIFrame extends JFrame implements ActionListener {
     /**
      * clears the Orders information.
      */
-    public void clearOrderCount () {
+    public static void clearOrderCount () {
         if (!bUseGUI)
             return;
         
@@ -760,7 +800,7 @@ public final class UIFrame extends JFrame implements ActionListener {
      * @param startDate - earliest date in the orders
      * @param endDate   - most recent date in the orders
      */
-    public void setDetailCount (int orders, int items, LocalDate startDate, LocalDate endDate) {
+    public static void setDetailCount (int orders, int items, LocalDate startDate, LocalDate endDate) {
         if (!bUseGUI)
             return;
         
@@ -782,7 +822,7 @@ public final class UIFrame extends JFrame implements ActionListener {
     /**
      * clears the Detailed Orders information.
      */
-    public void clearDetailCount () {
+    public static void clearDetailCount () {
         if (!bUseGUI)
             return;
         
@@ -791,134 +831,6 @@ public final class UIFrame extends JFrame implements ActionListener {
         lbl_detail_date.setText("");
     }
 
-    /**
-     * specifies the debug output file to use.
-     * This is the file to save the displayed GUI debug information to
-     *  when the SAVE key is pressed.
-     * 
-     * @param fname - debug output file name
-     */    
-    public void setDebugOutputFile (String fname) {
-        if (!bUseGUI)
-            return;
-        
-        if (fname == null || fname.isBlank()) {
-            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Debug file name missing from PropertiesFile - disabling Print to debug file");
-            debugFile = null;
-            return;
-        }
-        // we always put the file in the same location as where the spreadsheet file is
-        String ssPath = Utils.getPathFromPropertiesFile(Property.SpreadsheetPath);
-        if (ssPath == null) {
-            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Spreadsheet path missing from PropertiesFile - disabling Print to debug file");
-            debugFile = null;
-            return;
-        }
-        fname = ssPath + "/" + fname;
-        File newFile = new File(fname);
-        if (newFile.isDirectory()) {
-            outputInfoMsg (STATUS_WARN, "UIFrame.setDebugOutputFile: Debug file name invalid - disabling Print to debug file");
-            debugFile = null;
-            return;
-        }
-        // create a new file or overwrite the existing one
-        try {
-            outputInfoMsg (STATUS_NORMAL, "Creating debug file: " + fname);
-            newFile.createNewFile();
-            debugFile = new PrintWriter(fname);
-            btn_print.setVisible(true);
-        } catch (IOException ex) {
-            // file inaccessible
-            outputInfoMsg (STATUS_ERROR, "UIFrame.setDebugOutputFile: for file: " + fname + ", " + ex);
-            debugFile = null;
-        }
-    }
-
-    /**
-     * closes the test file output (used in non-GUI mode)
-     */
-    public void closeTestFile () {
-        if (testFile != null) {
-            testFile.flush();
-            testFile.close();
-        }
-    }
-
-    /**
-     * opens the specified test output file (non-GUI use) and places an initial
-     *  header line in it.
-     * 
-     * @param fname - name of the test file
-     * @param bAppend - true to append to existing file, false to create new file
-     */
-    public void setTestOutputFile (String fname, boolean bAppend) {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        
-        String absPath = fname;
-        if (absPath != null && !absPath.isBlank()) {
-            if (absPath.charAt(0) != '/') {
-                absPath = Utils.getDefaultPath (Utils.PathType.Test) + "/" + absPath;
-            }
-            props.setPropertiesItem(Property.TestFileAppend,  bAppend ? 1 : 0);
-            if (testFname.contentEquals(absPath)) {
-                String time = elapsedTimerGet();
-                testFile.println(time + "[DEBUG ] " + functionId + "No change in output file setting");
-                return;
-            }
-            
-            // update the properties file status if we were successful
-            props.setPropertiesItem(Property.TestFileOut, fname);
-            testFname = absPath;
-
-            // if the file already exists and we are not appending, delete it first
-            File file = new File(absPath);
-            if (file.isFile() && ! bAppend) {
-                file.delete();
-            }
-                
-            // if a file isn't already open, do it now
-            closeTestFile ();
-            try {
-                testFile = new PrintWriter(new FileWriter(absPath, true));
-                testFile.println("\n=== " + getCurrentDateTime() + " ============================================================");
-            } catch (IOException ex) {
-                System.out.println(functionId + "creating file: " + absPath + ", " + ex);
-                testFile = null;
-            }
-        } else {
-            testFile = null;
-            props.setPropertiesItem(Property.TestFileOut, "");
-        }
-    }
-    
-    /**
-     * get the current date and time formatted as a String
-     * 
-     * @return the date/time formatted as: "YYYY-MM-DD HH:MM:SS"
-     */
-    private String getCurrentDateTime () {
-        LocalDateTime datetime = LocalDateTime.now();
-        String strDate = "" + datetime.getYear();
-        strDate += "-" + get2DigitString(datetime.getMonthValue());
-        strDate += "-" + get2DigitString(datetime.getDayOfMonth());
-        strDate += " " + get2DigitString(datetime.getHour());
-        strDate += ":" + get2DigitString(datetime.getMinute());
-        strDate += ":" + get2DigitString(datetime.getSecond());
-        return strDate;
-    }
-    
-    /**
-     * converts an integer to a 2-digit decimal String.
-     * 
-     * @param value - the integer value (range 0 to 99)
-     * 
-     * @return a 2 character String: 00 - 99
-     */
-    private static String get2DigitString (int value) {
-        String strVal = (value < 10) ? "0" + value : "" + value;
-        return strVal;
-    }
-    
     /**
      * reads the Property setting for 'MsgEnable'.
      * The value is read as a string entry and converted from hex format
@@ -956,17 +868,75 @@ public final class UIFrame extends JFrame implements ActionListener {
             // ignore the error
         }
     }
+
+    /**
+     * returns access to the file writer that is used for debug output in GUI mode.
+     * 
+     * @return the file to use when the PRINT button is pressed in the GUI
+     */
+    public static PrintWriter getDebugOutputFile() {
+        return debugFile;
+    }
     
+    /**
+     * specifies the debug output file to use.
+     * This is the file to save the displayed GUI debug information to
+     *  when the SAVE key is pressed.
+     * 
+     * @param fname - debug output file name
+     * 
+     * @return true if successful
+     */    
+    public static boolean setDebugOutputFile (String fname) {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (! GUIMain.isGUIMode())
+            return false;
+        
+        if (fname == null || fname.isBlank()) {
+            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file name missing from PropertiesFile - disabling Print to debug file");
+            debugFile = null;
+            return false;
+        }
+        // we always put the file in the same location as where the spreadsheet file is
+        String ssPath = Utils.getPathFromPropertiesFile(PropertiesFile.Property.SpreadsheetPath);
+        if (ssPath == null) {
+            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Spreadsheet path missing from PropertiesFile - disabling Print to debug file");
+            debugFile = null;
+            return false;
+        }
+        fname = ssPath + "/" + fname;
+        File newFile = new File(fname);
+        if (newFile.isDirectory()) {
+            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file name invalid - disabling Print to debug file");
+            debugFile = null;
+            return false;
+        }
+        // create a new file or overwrite the existing one
+        try {
+            GUILogPanel.outputInfoMsg (MsgType.NORMAL, "Creating debug file: " + fname);
+            newFile.createNewFile();
+            debugFile = new PrintWriter(fname);
+        } catch (IOException ex) {
+            // file inaccessible
+            GUILogPanel.outputInfoMsg (MsgType.ERROR, functionId + "for file: " + fname + ", " + ex);
+            debugFile = null;
+            return false;
+        }
+        return true;
+    }
+
     /**
      * sets a single bit of the msgEnable flag to either on or off based on the GUI selection
      * 
      * @param msgType - the message to enable/disable
      */
-    private void setBitMsgEnableProps (int msgType) {
+    private void setBitMsgEnableProps (MsgType msgType) {
+        int msgBitflag = GUILogPanel.getMsgEnableValue(msgType);
         int flags = getPropsMsgEnable();
-        flags &= ~msgType;
+        flags &= ~msgBitflag;
         if (getCboxMessage(msgType)) {
-            flags |= msgType;
+            flags |= msgBitflag;
         }
         setPropsMsgEnable (flags);
     }
@@ -977,14 +947,14 @@ public final class UIFrame extends JFrame implements ActionListener {
      * @param msgType - the checkbox message type selection
      * @param bEnable - the on/off value to set it to
      */
-    private void enableCboxMessage (int msgType, boolean bEnable) {
+    private static void enableCboxMessage (MsgType msgType, boolean bEnable) {
         switch (msgType) {
-            case STATUS_NORMAL -> cbox_normal.setSelected(bEnable);
-            case STATUS_PARSER -> cbox_parser.setSelected(bEnable);
-            case STATUS_SSHEET -> cbox_ssheet.setSelected(bEnable);
-            case STATUS_INFO   -> cbox_info  .setSelected(bEnable);
-            case STATUS_PROPS  -> cbox_props .setSelected(bEnable);
-            case STATUS_DEBUG  -> cbox_debug .setSelected(bEnable);
+            case NORMAL -> cbox_normal.setSelected(bEnable);
+            case PARSER -> cbox_parser.setSelected(bEnable);
+            case SSHEET -> cbox_ssheet.setSelected(bEnable);
+            case INFO   -> cbox_info  .setSelected(bEnable);
+            case PROPS  -> cbox_props .setSelected(bEnable);
+            case DEBUG  -> cbox_debug .setSelected(bEnable);
             default -> {
             }
         }
@@ -997,15 +967,15 @@ public final class UIFrame extends JFrame implements ActionListener {
      * 
      * @return bEnable - the on/off value to set it to
      */
-    private boolean getCboxMessage (int msgType) {
+    private static boolean getCboxMessage (MsgType msgType) {
         boolean bEnable = false;
         switch (msgType) {
-            case STATUS_NORMAL -> bEnable = cbox_normal.isSelected();
-            case STATUS_PARSER -> bEnable = cbox_parser.isSelected();
-            case STATUS_SSHEET -> bEnable = cbox_ssheet.isSelected();
-            case STATUS_INFO   -> bEnable = cbox_info  .isSelected();
-            case STATUS_PROPS  -> bEnable = cbox_props .isSelected();
-            case STATUS_DEBUG  -> bEnable = cbox_debug .isSelected();
+            case NORMAL -> bEnable = cbox_normal.isSelected();
+            case PARSER -> bEnable = cbox_parser.isSelected();
+            case SSHEET -> bEnable = cbox_ssheet.isSelected();
+            case INFO   -> bEnable = cbox_info  .isSelected();
+            case PROPS  -> bEnable = cbox_props .isSelected();
+            case DEBUG  -> bEnable = cbox_debug .isSelected();
             default -> {
             }
         }
@@ -1017,167 +987,41 @@ public final class UIFrame extends JFrame implements ActionListener {
      * 
      * @param debugFlags
      */
-    public void setMessageFlags (int debugFlags) {
+    public static void setMessageFlags (int debugFlags) {
         // save the debug settings
-        msgEnable = debugFlags;
+        GUILogPanel.setMsgEnable(debugFlags);
 
         if (bUseGUI) {
             // set the message enable selections on the GUI
-            for (MsgControl MsgSelectTbl1 : MsgSelectTbl) {
-                boolean bEnable = (MsgSelectTbl1.statusId & debugFlags) != 0;
-                enableCboxMessage (MsgSelectTbl1.statusId, bEnable);
+            for (GUILogPanel.MsgType type : GUILogPanel.MsgType.values()) {
+                int bitval = GUILogPanel.getMsgEnableValue(type);
+                boolean bEnable = (bitval & debugFlags) != 0;
+                enableCboxMessage (type, bEnable);
             }
         } else {
             // update the properties file for the selections
-            setPropsMsgEnable (msgEnable);
+            setPropsMsgEnable (debugFlags);
         }
     }
 
     /**
      * sets the default settings for message control
      */
-    public void setDefaultStatus () {
+    public static void setDefaultStatus () {
         // only default to PropertiesFile selection for test file out if running from GUI.
         // (for program mode, default to using stdout until selection made)
         if (bUseGUI) {
             String testName = props.getPropertiesItem(Property.TestFileOut, "");
             Integer testAppend = props.getPropertiesItem(Property.TestFileAppend, 0);
-            setTestOutputFile(testName, testAppend != 0);
+            GUILogPanel.setTestOutputFile(testName, testAppend != 0);
         }
         setMessageFlags(getPropsMsgEnable());
     }
     
     /**
-     * outputs the specified message based on the message type reported.
-     * 
-     * Some messages can be enabled/disabled based on the 'MsgEnable' flag
-     *  settings from the PropertiesFile, and some of these can also be selected
-     *  from the GUI checkbox controls. The Error and Warning levels will always
-     *  be reported. This will determine where the messages are to be output:
-     *  when running the program from the GUI, the messages will be sent to
-     *  the GUI display area. When run from the command line (also from a script file)
-     *  the messages will be sent to a file, if one is specified in the 
-     *  PropertiesFile as 'TestFileOut' or to stdout if not. For non-GUI use,
-     *  the Error and Warning messages will always be sent to stdout, even if
-     *  a test file output is specified.
-     * A prefix is added to the message specifying the type of message, and
-     *  for non-GUI use, this is preceded with a timestamp value as well.
-     * 
-     * @param errLevel - the message type
-     * @param msg - the message to display
-     */
-    public void outputInfoMsg (int errLevel, String msg) {
-        if (msg == null || msg.isEmpty()) {
-            return;
-        }
-        
-        String msgPrefix = "";
-        String msgFont = "N";
-        TextColor msgColor = TextColor.Black;
-        for (MsgControl MsgSelectTbl1 : MsgSelectTbl) {
-            if (errLevel == MsgSelectTbl1.statusId) {
-                msgPrefix = MsgSelectTbl1.msgName;
-                msgColor  = MsgSelectTbl1.color;
-                msgFont   = MsgSelectTbl1.font;
-            }
-        }
-
-        // determine if the message is enabled
-        int testLevel = msgEnable | STATUS_ERROR | STATUS_WARN;
-        boolean bEnableOutput = ((testLevel & errLevel) != 0);
-        if (! bEnableOutput) {
-            return;
-        }
-
-        // if this contains any Exceptions, remove the extraneous header portion of them.
-        if (errLevel == STATUS_ERROR) {
-            String header = "com.mycompany.amazonlogger.";
-            int offset = msg.lastIndexOf(header);
-            if (offset >= 0) {
-                msg = msg.substring(offset + header.length());
-            }
-        }
-        
-        // affix prefix to message identifying the type of message
-        msg = msgPrefix + msg;
-        
-        // this handles the message output for running from command line, script, or network
-        if (!bUseGUI) {
-            // add the timestamp to the begining of each message
-            String time = elapsedTimerGet();
-            msg = time + msg;
-
-            // for error and warning messages, check for inclusion of call trace
-            //  and separate into individual lines.
-            boolean bError = errLevel == STATUS_ERROR || errLevel == STATUS_WARN;
-            if (!bError) {
-                // not an error or warning, just print or save the line
-                printLine (bError, msg);
-            } else {
-                ArrayList<String> array = new ArrayList<>(Arrays.asList(msg.split(" -> ")));
-                printLine (bError, array.get(0).stripTrailing());
-                for (int ix = 1; ix < array.size(); ix++) {
-                    printLine (bError, time + msgPrefix + "    -> " + array.get(ix).stripLeading());
-                }
-            }
-            return;
-        }
-        
-        // here we handle the GUI output
-        // determine if printing in bold or italic
-        boolean bBold = false;
-        boolean bItalic = false;
-        if (msgFont.contentEquals("B") || msgFont.contentEquals("BI")) {
-            bBold = true;
-        }
-        if (msgFont.contentEquals("I") || msgFont.contentEquals("BI")) {
-            bItalic = true;
-        }
-        
-        SimpleAttributeSet attributes = new SimpleAttributeSet();
-        StyleConstants.setFontFamily(attributes,"Courier");
-        StyleConstants.setFontSize(attributes, 15);
-
-        // set the text color and font characteristics
-        StyleConstants.setForeground(attributes, generateColor (msgColor));
-        StyleConstants.setBold(attributes, bBold);
-        StyleConstants.setItalic(attributes, bItalic);
-
-        txt_info.setCharacterAttributes(attributes, false);
-        Document doc = txt_info.getDocument();
-        try {
-            doc.insertString(doc.getLength(), msg + NEWLINE, attributes);
-            // scroll the text to the bottom of the page
-            txt_info.setCaretPosition(txt_info.getDocument().getLength());
-        } catch (BadLocationException ex) {
-            Logger.getLogger(UIFrame.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-
-    private static void printLine (boolean bError, String msg) {
-        if (testFile != null) {
-            testFile.println(msg);
-            // errors and warnings will always go to console, even if reporting to file
-            if (bError) {
-                System.out.println(msg);
-            }
-        } else if (AmazonReader.isOpModeCommmandLine()) {
-            System.out.println(msg);
-        }
-
-        // if network connection, send to client
-        if (AmazonReader.isOpModeNetwork()) {
-            if (bNetPrintEnable || bError) {
-                TCPServerThread.sendLogMessage(logCounter, msg);
-                logCounter++;
-            }
-        }
-    }
-    
-    /**
      * enable and start the timestamp counter
      */
-    public void elapsedTimerEnable() {
+    public static void elapsedTimerEnable() {
         elapsedStart = System.currentTimeMillis();
         showElapsed = true;
     }
@@ -1185,7 +1029,7 @@ public final class UIFrame extends JFrame implements ActionListener {
     /**
      * save the current elapsed time so we can add it when resumed
      */
-    public void elapsedTimerPause() {
+    public static void elapsedTimerPause() {
         prevElapsed = System.currentTimeMillis() - elapsedStart;
         showElapsed = false;
     }
@@ -1193,7 +1037,7 @@ public final class UIFrame extends JFrame implements ActionListener {
     /**
      * disable the timestamp counter
      */
-    public void elapsedTimerDisable() {
+    public static void elapsedTimerDisable() {
         prevElapsed = 0;
         showElapsed = false;
     }
@@ -1229,56 +1073,4 @@ public final class UIFrame extends JFrame implements ActionListener {
         return strElapsed + " ";
     }
     
-    /**
-     * convert Hue Saturation Brightness color value to a RGB Color format.
-     * 
-     * @param h - the Hue (0 to 360 degrees)
-     * @param s - the Saturation (0 to 100 %)
-     * @param b - the Brightness (0 to 100 %)
-     * 
-     * @return the corresponding RGB Color value
-     */
-    private static Color cvtHSBtoColor (int h, int s, int b) {
-        double hue    = (double) h / 360.0;
-        double sat    = (double) s / 100.0;
-        double bright = (double) b / 100.0;
-        return Color.getHSBColor((float)hue, (float)sat, (float)bright);
-    }
-    
-    /**
-     * generates the specified text color for the debug display.
-     * 
-     * @param colorName - name of the color to generate
-     * @return corresponding Color value representation
-     */
-    private static Color generateColor (TextColor colorName) {
-        switch (colorName) {
-            default:
-            case Black:   return Color.BLACK;
-            case DkGrey:  return Color.DARK_GRAY;
-            case DkRed:   return cvtHSBtoColor (0,   100, 66);
-            case Red:     return cvtHSBtoColor (0,   100, 90);
-            case LtRed:   return cvtHSBtoColor (0,   60,  100);
-            case Orange:  return cvtHSBtoColor (20,  100, 100);
-            case Brown:   return cvtHSBtoColor (20,  80,  66);
-            case Gold:    return cvtHSBtoColor (40,  100, 90);
-            case Green:   return cvtHSBtoColor (128, 100, 45);
-            case Cyan:    return cvtHSBtoColor (190, 80,  45);
-            case LtBlue:  return cvtHSBtoColor (210, 100, 90);
-            case Blue:    return cvtHSBtoColor (240, 100, 100);
-            case Violet:  return cvtHSBtoColor (267, 100, 100);
-            case DkVio:   return cvtHSBtoColor (267, 100, 66);
-        }
-    }
-
-    /**
-     * outputs a separator line to the output stream
-     * 
-     * @param heading  - a message to display with the line
-     */
-    private void outputSeparatorLine (String heading) {
-        heading = "=====" + heading + "======================================================================";
-        heading = heading.substring(0, 75);
-        outputInfoMsg (STATUS_NORMAL, heading);
-    }
 }

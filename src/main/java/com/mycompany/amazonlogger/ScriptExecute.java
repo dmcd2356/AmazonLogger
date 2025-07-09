@@ -4,10 +4,8 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
 import static com.mycompany.amazonlogger.CommandStruct.CommandTable.OCRSCAN;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,7 +36,7 @@ public class ScriptExecute {
         curLoopId = null;
         scriptName = name;
         scriptSize = size;
-        frame.outputInfoMsg(STATUS_PROGRAM, "    Running compiled file: " + scriptName + " (size " + scriptSize + " lines)");
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Running compiled file: " + scriptName + " (size " + scriptSize + " lines)");
     }
 
     public static int getMaxLines() {
@@ -196,7 +194,7 @@ public class ScriptExecute {
         
         // return the value with the pre and post values attached
         String response = prefix + refval + postfix;
-        frame.outputInfoMsg(STATUS_PROGRAM, "    Replaced arg value with expanded value: " + response);
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Replaced arg value with expanded value: " + response);
         return response;
     }
 
@@ -267,7 +265,7 @@ public class ScriptExecute {
             case EXIT:
                 return -1; // this will terminate the program
             case SUB:
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Subroutine entered at level: " + Subroutine.getSubroutineLevel());
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "Subroutine entered at level: " + Subroutine.getSubroutineLevel());
                 break;
             case GOSUB:
                 String subName = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
@@ -361,7 +359,7 @@ public class ScriptExecute {
                         throw new ParserException(exceptPreface + "Unknown file check argument: " + ftype);
                 }
                 VarReserved.putStatusValue(value);
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "File " + file + " exists = " + value);
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "File " + file + " exists = " + value);
                 break;
             case FGETSIZE:
                 // arg 0: filename
@@ -485,7 +483,7 @@ public class ScriptExecute {
                     case ParameterStruct.ParamType.Boolean:
                         Boolean bResult = getComparison(parm1, parm2, parm3);
                         PreCompile.variables.setBooleanVariable(varName, bResult);
-                        frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Boolean Variable " + varName + " = " + bResult);
+                        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "Boolean Variable " + varName + " = " + bResult);
                         break;
 
                     case ParameterStruct.ParamType.IntArray:
@@ -734,18 +732,18 @@ public class ScriptExecute {
                 
                 // add entry to the current loop stack
                 IFStruct.stackPush(cmdIndex);
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + " " +
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + " " +
                         parm1.getStringValue() + " " + ((parm2 != null) ? parm2.getStringValue() : "") +
                                                  " " + ((parm3 != null) ? parm3.getStringValue() : ""));
 
                 IFStruct ifInfo = IFStruct.getIfListEntry(cmdIndex);
                 if (! bResult) {
                     newIndex = ifInfo.getElseIndex(cmdIndex);
-                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION skipped");
-                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "goto next IF case @ " + newIndex);
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "IFCONDITION skipped");
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "goto next IF case @ " + newIndex);
                     ifInfo.clearConditionMet();     // starting new IF and condition was not met
                 } else {
-                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION executed");
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "IFCONDITION executed");
                     ifInfo.setConditionMet();       // we are running the condition, so ELSEs will be skipped
                 }
                 break;
@@ -758,10 +756,10 @@ public class ScriptExecute {
                 ifInfo = IFStruct.getIfListEntry();
                 if (ifInfo.isConditionMet()) {
                     newIndex = ifInfo.getEndIndex();
-                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION already met");
-                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "goto ENDIF @ " + newIndex);
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "IFCONDITION already met");
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "goto ENDIF @ " + newIndex);
                 } else {
-                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
                 }
                 break;
             case ELSEIF:
@@ -773,8 +771,8 @@ public class ScriptExecute {
                 ifInfo = IFStruct.getIfListEntry();
                 if (ifInfo.isConditionMet()) {
                     newIndex = ifInfo.getEndIndex();
-                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION already met");
-                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "goto ENDIF @ " + newIndex);
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "IFCONDITION already met");
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "goto ENDIF @ " + newIndex);
                 } else {
                     // check status to see if true of false.
                     parm1 = cmdStruct.params.get(0);
@@ -783,16 +781,16 @@ public class ScriptExecute {
                     bResult = getComparison(parm1, parm2, parm3);
 
                     // add entry to the current loop stack
-                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + " " +
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + " " +
                             parm1.getStringValue() + " " + ((parm2 != null) ? parm2.getStringValue() : "") +
                                                      " " + ((parm3 != null) ? parm3.getStringValue() : ""));
 
                     if (! bResult) {
                         newIndex = ifInfo.getElseIndex(cmdIndex);
-                        frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION skipped");
-                        frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "goto next IF case @ " + newIndex);
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "IFCONDITION skipped");
+                        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "goto next IF case @ " + newIndex);
                     } else {
-                        frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "IFCONDITION executed");
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "IFCONDITION executed");
                         ifInfo.setConditionMet(); // we are running the condition, so ELSEs will be skipped
                     }
                 }
@@ -807,7 +805,7 @@ public class ScriptExecute {
                 
                 // save the current command index in the current if structure
                 IFStruct.stackPop();
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + ": " + cmdStruct.command + " on line " + cmdIndex);
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + ": " + cmdStruct.command + " on line " + cmdIndex);
                 break;
             case FOR:
                 String loopName  = cmdStruct.params.get(0).getStringValue();
@@ -817,7 +815,7 @@ public class ScriptExecute {
                 // add entry to the current loop stack
                 LoopStruct.pushStack(curLoopId);
                 int loopSize = LoopStruct.getStackSize();
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "new FOR Loop level " + loopSize+ " parameter " + loopName + " index @ " + cmdIndex);
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "new FOR Loop level " + loopSize+ " parameter " + loopName + " index @ " + cmdIndex);
 //                LoopStruct.sendCurrentLoopInfo();
                 break;
             case BREAK:
@@ -826,7 +824,7 @@ public class ScriptExecute {
                     throw new ParserException(exceptPreface + "Received when not in a FOR loop");
                 }
                 newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
 //                LoopStruct.sendCurrentLoopInfo();
                 break;
@@ -836,7 +834,7 @@ public class ScriptExecute {
                     throw new ParserException(exceptPreface + "Received when not in a FOR loop");
                 }
                 newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
 //                LoopStruct.sendCurrentLoopInfo();
                 break;
@@ -852,11 +850,11 @@ public class ScriptExecute {
                 bResult = getComparison(parm1, parm2, parm3);
 
                 if (! bResult) {
-                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "BREAKIF not TRUE - remain in loop");
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "BREAKIF not TRUE - remain in loop");
                 } else {
-                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "BREAKIF is TRUE - exit loop");
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "BREAKIF is TRUE - exit loop");
                     newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
                 }
 //                LoopStruct.sendCurrentLoopInfo();
                 break;
@@ -872,11 +870,11 @@ public class ScriptExecute {
                 bResult = getComparison(parm1, parm2, parm3);
 
                 if (! bResult) {
-                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "SKIPIF not TRUE - do nothing");
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "SKIPIF not TRUE - do nothing");
                 } else {
-                    frame.outputInfoMsg(STATUS_DEBUG, debugPreface + "SKIPIF is TRUE - skip to next iteration");
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "SKIPIF is TRUE - skip to next iteration");
                     newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
                 }
 //                LoopStruct.sendCurrentLoopInfo();
                 break;
@@ -886,7 +884,7 @@ public class ScriptExecute {
                     throw new ParserException(exceptPreface + "Received when not in a FOR loop");
                 }
                 newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
 //                LoopStruct.sendCurrentLoopInfo();
                 break;
@@ -895,7 +893,7 @@ public class ScriptExecute {
                 if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(exceptPreface + "Received when not in a FOR loop");
                 }
-                frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 LoopStruct.popStack();
                 loopSize = LoopStruct.getStackSize();
@@ -903,9 +901,9 @@ public class ScriptExecute {
                     curLoopId = LoopStruct.peekStack();
                 }
                 if (curLoopId == null) {
-                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "All loops completed so far");
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "All loops completed so far");
                 } else {
-                    frame.outputInfoMsg(STATUS_PROGRAM, debugPreface + "Current Loop level " + loopSize
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "Current Loop level " + loopSize
                                     + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
                 }
 //                LoopStruct.sendCurrentLoopInfo();

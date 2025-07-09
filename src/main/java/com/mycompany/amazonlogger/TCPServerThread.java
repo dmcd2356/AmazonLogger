@@ -8,8 +8,13 @@ package com.mycompany.amazonlogger;
  *
  * @author dan
  */
-import static com.mycompany.amazonlogger.UIFrame.STATUS_WARN;
-import java.io.*;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -158,7 +163,7 @@ public class TCPServerThread implements Runnable {
                         System.out.println("DEBUG command missing argument");
                     }
                     boolean enable = array.get(1).equalsIgnoreCase("true");
-                    UIFrame.setNetworkDebugEnable(enable);
+                    GUILogPanel.setNetworkDebugEnable(enable);
                     break;
                 case "COMPILE":
                     ScriptThread.enableRun();
@@ -210,7 +215,7 @@ public class TCPServerThread implements Runnable {
                 buffer.produce(command);
             }
         } catch (ParserException exMsg) {
-            AmazonReader.frame.outputInfoMsg(STATUS_WARN, exMsg.getMessage());
+            GUILogPanel.outputInfoMsg(MsgType.WARN, exMsg.getMessage());
             // ignore for now, but may want to send error indication back to client
             return false;
         } catch (IOException | SAXException | TikaException exMsg) {

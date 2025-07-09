@@ -5,9 +5,7 @@
 package com.mycompany.amazonlogger;
 
 // Importing java input/output classes
-import static com.mycompany.amazonlogger.UIFrame.STATUS_COMPILE;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_ERROR;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_PROGRAM;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.io.File;
 import java.io.IOException;
 import org.apache.tika.exception.TikaException;
@@ -18,10 +16,10 @@ public class AmazonReader {
     private static final String CLASS_NAME = AmazonReader.class.getSimpleName();
     
     // GLOBALS
-    public  static UIFrame frame;
     public  static Keyword keyword;
     public  static PropertiesFile props;
     
+    private static GUIMain frame;
     private static boolean bCompileOnly = false;
     private static OperatingMode opMode;
     private static String  scriptName = "";
@@ -43,13 +41,13 @@ public class AmazonReader {
     }
     
     private static void scriptInit () {
-        frame.reset();          // reset the GUI settings
+        GUILogPanel.reset();    // reset the GUI settings
         FileIO.init();          // reset the File settings
         PreCompile.variables.resetVariables();  // reset all variable values back to default
         Spreadsheet.init();     // reset spreadsheet params
         OpenDoc.init();         // reset the OpenDoc params
-        frame.elapsedTimerDisable();    // stop the timer for the timestamp
-        frame.outputInfoMsg(STATUS_PROGRAM, "Resetting program index to begining");
+        GUIMain.elapsedTimerDisable();    // stop the timer for the timestamp
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "Resetting program index to begining");
         commandIndex = 0;       // reset the command pointer to the begining
     }
     
@@ -86,14 +84,14 @@ public class AmazonReader {
             // GUI mode:
             setOpMode (OperatingMode.GUI);
             // create the user interface to control things
-            frame = new UIFrame(true);
+            frame = new GUIMain(true);
             props = new PropertiesFile();
 
             // enable the messages as they were from prevous run
             frame.setDefaultStatus ();
         } else {
             // command line version for testing
-            frame = new UIFrame(false);
+            frame = new GUIMain(false);
             props = new PropertiesFile();
             
             // set defaults from properties file
@@ -141,17 +139,17 @@ public class AmazonReader {
                     }
                 }
             } catch (ParserException | IOException | SAXException | TikaException ex) {
-                frame.outputInfoMsg (STATUS_ERROR, ex.getMessage());
+                GUILogPanel.outputInfoMsg (MsgType.ERROR, ex.getMessage());
                 try {
                     ScriptExecute.exit();
                 } catch (IOException exIO) {
-                    frame.outputInfoMsg (STATUS_ERROR, exIO.getMessage());
+                    GUILogPanel.outputInfoMsg (MsgType.ERROR, exIO.getMessage());
                 }
-                frame.closeTestFile();
+                GUILogPanel.closeTestFile();
             }
             
             // close the test output file
-            frame.closeTestFile();
+            GUILogPanel.closeTestFile();
             if (isOpModeNetwork()) {
 //                server.exit();
             }
@@ -179,7 +177,7 @@ public class AmazonReader {
             throw new ParserException(functionId + "Invalid file - no read access: " + fname);
         }
             
-        frame.outputInfoMsg(STATUS_COMPILE, "Running from script: " + fname);
+        GUILogPanel.outputInfoMsg(MsgType.COMPILE, "Running from script: " + fname);
         
         // extract base name from script file (no path, no extension)
         scriptName = fname;
@@ -213,17 +211,17 @@ public class AmazonReader {
 
         // enable timestamp on log messages
         frame.init();
-        frame.elapsedTimerEnable();
+        GUIMain.elapsedTimerEnable();
         ScriptThread.initBreakpoint();
 
         try {
             // do the Pre-compile operation
-            frame.outputInfoMsg(STATUS_COMPILE, "===== BEGINING PROGRAM PRE-COMPILE =====");
+            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "===== BEGINING PROGRAM PRE-COMPILE =====");
             PreCompile preCompile = new PreCompile();
             Variables variables = preCompile.build(scriptFile);
 
             // compile the program
-            frame.outputInfoMsg(STATUS_COMPILE, "\"===== BEGINING PROGRAM COMPILE =====");
+            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "\"===== BEGINING PROGRAM COMPILE =====");
             ScriptCompile compiler = new ScriptCompile(variables);
             compiler.build(scriptFile);
 
@@ -235,7 +233,7 @@ public class AmazonReader {
             throw new ParserException(exMsg.getMessage());
         }
 
-        frame.elapsedTimerDisable();
+        GUIMain.elapsedTimerDisable();
         VarReserved.putScriptNameValue(scriptName);
         VarReserved.putCurDirValue(FileIO.getCurrentFilePath());
 
@@ -267,11 +265,11 @@ public class AmazonReader {
             throw new ParserException(functionId + "No script file has been compiled");
         }
         // enable timestamp on log messages
-        frame.elapsedTimerEnable();
+        GUIMain.elapsedTimerEnable();
 
         try {
             // execute the program by running each 'cmdList' entry
-            frame.outputInfoMsg(STATUS_PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
+            GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "===== BEGINING PROGRAM EXECUTION =====");
             while (commandIndex >= 0 && commandIndex < compileSize) {
                 commandIndex = exec.executeProgramCommand (commandIndex, ScriptCompile.getExecCommand(commandIndex));
             }

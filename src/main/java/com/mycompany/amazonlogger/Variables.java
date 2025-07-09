@@ -4,9 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
+import static com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.util.ArrayList;
 
 /**
@@ -524,7 +522,7 @@ public class Variables {
                             }
                             pType = ParameterStruct.ParamType.IntArray;
                         }
-                        frame.outputInfoMsg(STATUS_VARS, INDENT + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getIntegerValue());
+                        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getIntegerValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
@@ -544,7 +542,7 @@ public class Variables {
                             }
                             pType = ParameterStruct.ParamType.StrArray;
                         }
-                        frame.outputInfoMsg(STATUS_VARS, INDENT + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getStringValue());
+                        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + name + "[" + iStart + "] as type " + pType + ": " + paramValue.getStringValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index " + iStart + " exceeds array");
                     }
@@ -552,7 +550,7 @@ public class Variables {
                 case String:
                     if (iStart >= 0 && iEnd < paramValue.getStrArraySize()) {
                         paramValue.setStringValue(paramValue.getStringValue().substring(iStart, iEnd + 1));
-                        frame.outputInfoMsg(STATUS_VARS, INDENT + name + "index" + ixRange + " as type " + pType + ": " + paramValue.getStringValue());
+                        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + name + "index" + ixRange + " as type " + pType + ": " + paramValue.getStringValue());
                     } else {
                         throw new ParserException(functionId + "Parameter " + name + " index" + ixRange + " exceeds array");
                     }
@@ -618,7 +616,7 @@ public class Variables {
                 varValue = LoopParam.getLoopCurValue(name);
                 pType = ParameterStruct.ParamType.Integer;
                 paramValue.setIntegerValue(varValue);
-                frame.outputInfoMsg(STATUS_VARS, INDENT + "- Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
+                GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Lookup Ref '" + name + "' as type " + pType + ": " + varValue);
                 break;
             // otherwise, let's check for standard variables for name match
             default:
@@ -866,7 +864,7 @@ public class Variables {
                         value = refValue.getIntArray().toString();
                         break;
                 }
-                frame.outputInfoMsg(STATUS_VARS, INDENT + "LOCAL " + varType + " Variable " + varName + ": " + value);
+                GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "LOCAL " + varType + " Variable " + varName + ": " + value);
                 return refValue;
             }
         } catch (ParserException exMsg) {
@@ -902,7 +900,7 @@ public class Variables {
                 value = refValue.getIntArray().toString();
                 break;
         }
-        frame.outputInfoMsg(STATUS_VARS, INDENT + "GLOBAL " + varType + " Variable " + varName + ": " + value);
+        GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "GLOBAL " + varType + " Variable " + varName + ": " + value);
         return refValue;
     }
     
@@ -950,7 +948,7 @@ public class Variables {
                         iValue = param.getIntegerValue();
                         break;
                     case Boolean:
-                        frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Converting from Boolean to Integer: " + name);
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "Converting from Boolean to Integer: " + name);
                         iValue = param.getBooleanValue() ? 1L : 0;
                         break;
                     case String:
@@ -959,7 +957,7 @@ public class Variables {
                         if (iValue == null) {
                             String strValue = param.getStringValue();
                             iValue = Utils.getLongOrUnsignedValue(strValue);
-                            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Converting variable " + name + " to Integer: " + iValue);
+                            GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "Converting variable " + name + " to Integer: " + iValue);
                         }
                         break;
                     case StrArray:
@@ -968,7 +966,7 @@ public class Variables {
                         if (iValue == null) {
                             String strValue = param.getStrArray().getFirst();
                             iValue = Utils.getLongOrUnsignedValue(strValue);
-                            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Extracted 1st entry of StrArray " + name + " to Integer: " + iValue);
+                            GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "Extracted 1st entry of StrArray " + name + " to Integer: " + iValue);
                         }
                         break;
                     case IntArray:
@@ -976,7 +974,7 @@ public class Variables {
                         iValue = TraitInfo.getTraitIntValues(traitVal, name, ParameterStruct.ParamType.IntArray);
                         if (iValue == null) {
                             iValue = param.getIntArray().getFirst();
-                            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Extracted 1st entry of IntArray " + name + " to Integer: " + iValue);
+                            GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "Extracted 1st entry of IntArray " + name + " to Integer: " + iValue);
                         }
                         break;
                 }
@@ -1101,7 +1099,7 @@ public class Variables {
      */
     public static boolean verifyVariableFormat (String name) {
         if (name == null || name.isBlank()) {
-            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Variable name is null");
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "Variable name is null");
             return false;
         }
         boolean bRighthand = false;
@@ -1111,7 +1109,7 @@ public class Variables {
         }
         if (! Character.isLetter(name.charAt(0))) {
             // 1st character must be a letter
-            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "invalid initial character in Variable name: " + name);
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "invalid initial character in Variable name: " + name);
             return false;
         }
 
@@ -1123,7 +1121,7 @@ public class Variables {
             // valid char for Variable
             if ( (curch == '_') || Character.isLetterOrDigit(curch) ) {
                 if (ix > NAME_MAXLEN) {
-                    frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name.substring(0, ix));
                     return false;
                 }
             } else {
@@ -1132,7 +1130,7 @@ public class Variables {
                     break;
                 }
                 if (!bRighthand) {
-                    frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Variable assignment should not include '$': " + name);
+                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "Variable assignment should not include '$': " + name);
                     return false;
                 }
                 // check for bracket index on Array, List and String Variable
@@ -1140,13 +1138,13 @@ public class Variables {
                     case '[':
                         int offset = name.indexOf(']');
                         if (offset <= 0 || offset >= name.length() - 1) {
-                            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "missing end bracket in Variable name: " + name);
+                            GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "missing end bracket in Variable name: " + name);
                             return false;
                         }
                         try {
                             indexStart = Utils.getIntValue(name.substring(ix+1)).intValue();
                         } catch (ParserException exMsg) {
-                            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "invalid numeric in brackets");
+                            GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "invalid numeric in brackets");
                             return false;
                         }
                         // TODO: evaluate indexEnd
@@ -1155,17 +1153,17 @@ public class Variables {
                         // TODO:
                         break;
                     default:
-                        frame.outputInfoMsg(STATUS_DEBUG, INDENT + "invalid character '" + curch + "' in Variable name: " + name);
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "invalid character '" + curch + "' in Variable name: " + name);
                         return false;
                 }
             }
         }
         if (indexStart == 0 && name.length() > NAME_MAXLEN) {
-            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name);
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "Variable name too long (max len " + NAME_MAXLEN + ") in name: " + name);
             return false;
         }
         if (indexStart > 0 && indexEnd == 0) {
-            frame.outputInfoMsg(STATUS_DEBUG, INDENT + "Variable name index missing ending bracket: " + name);
+            GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "Variable name index missing ending bracket: " + name);
             return false;
         }
             

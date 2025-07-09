@@ -4,9 +4,7 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.frame;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_DEBUG;
-import static com.mycompany.amazonlogger.UIFrame.STATUS_VARS;
+import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -70,7 +68,7 @@ public class TraitInfo {
         for (Trait entry : Trait.values()) {
             if (entry.toString().contentEquals(traitName)) {
                 traitVal = entry;
-                frame.outputInfoMsg(STATUS_VARS, "Variable trait found: ." + traitVal + " in " + varName);
+                GUILogPanel.outputInfoMsg(MsgType.VARS, "Variable trait found: ." + traitVal + " in " + varName);
                 break;
             }
         }
@@ -258,7 +256,7 @@ public class TraitInfo {
                     break;
             }
             if (iValue != null) {
-                frame.outputInfoMsg(STATUS_DEBUG, "Extracted " + traitVal + " of DATE as: " + iValue);
+                GUILogPanel.outputInfoMsg(MsgType.DEBUG, "Extracted " + traitVal + " of DATE as: " + iValue);
             }
         } else if (traitVal == Trait.SIZE || traitVal == Trait.LENGTH) {
             switch (varType) {
@@ -275,7 +273,7 @@ public class TraitInfo {
                     break;
             }
             if (iValue != null) {
-                frame.outputInfoMsg(STATUS_DEBUG, "Extracted SIZE of " + varType + " " + varName + " as: " + iValue);
+                GUILogPanel.outputInfoMsg(MsgType.DEBUG, "Extracted SIZE of " + varType + " " + varName + " as: " + iValue);
             }
         }
         return iValue;
@@ -429,7 +427,7 @@ public class TraitInfo {
                     default:
                         throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);
                 }
-                frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type " + pType + ": " + strValue);
+                GUILogPanel.outputInfoMsg(MsgType.VARS, "    " + name + "." + trait.toString() + " as type " + pType + ": " + strValue);
                 break;
                 
             case StrArray:
@@ -483,7 +481,7 @@ public class TraitInfo {
                     default:
                         throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType);
                 }
-                frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type " + pType + ": " + strValue);
+                GUILogPanel.outputInfoMsg(MsgType.VARS, "    " + name + "." + trait.toString() + " as type " + pType + ": " + strValue);
                 break;
                 
             case String:
@@ -578,7 +576,7 @@ public class TraitInfo {
                     default:
                         throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType.toString());
                 }
-                frame.outputInfoMsg(STATUS_VARS, "    " + name + "." + trait.toString() + " as type Boolean: " + strValue);
+                GUILogPanel.outputInfoMsg(MsgType.VARS, "    " + name + "." + trait.toString() + " as type Boolean: " + strValue);
                 break;
             default:
                 throw new ParserException(functionId + "Invalid trait " + trait.toString() + " for data type " + pType.toString());
