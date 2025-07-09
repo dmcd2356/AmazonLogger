@@ -4,7 +4,6 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.keyword;
 import static com.mycompany.amazonlogger.AmazonReader.props;
 import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
@@ -35,7 +34,7 @@ public class ParseDetails {
             if (keywordInfo != null) {
                 orderId   = order;
                 keyLength = keywordInfo.keyLength;
-                dataType  = Keyword.getDataType (Keyword.ClipTyp.INVOICE, order);
+                dataType  = Keyword.getDataTypeInvoice (order);
             } else {
                 orderId   = Keyword.KeyTyp.NONE;
                 keyLength = 0;
@@ -45,12 +44,12 @@ public class ParseDetails {
         
         // this is used when executing a line read from the clipboard
         OrderInfo (String line) {
-            Keyword.KeywordInfo keywordInfo = Keyword.getKeyword(Keyword.ClipTyp.INVOICE, line);
+            Keyword.KeywordInfo keywordInfo = Keyword.getKeyword(AmazonParser.ClipTyp.INVOICE, line);
             
             if (keywordInfo != null) {
                 orderId   = keywordInfo.eKeyId;
                 keyLength = keywordInfo.keyLength;
-                dataType  = Keyword.getDataType (Keyword.ClipTyp.INVOICE, keywordInfo.eKeyId);
+                dataType  = Keyword.getDataTypeInvoice (keywordInfo.eKeyId);
             } else {
                 orderId   = Keyword.KeyTyp.NONE;
                 keyLength = 0;
@@ -69,7 +68,7 @@ public class ParseDetails {
         public void makeOrder (Keyword.KeyTyp order) {
             orderId   = order;
             keyLength = 0;
-            dataType  = Keyword.getDataType (Keyword.ClipTyp.INVOICE, order);
+            dataType  = Keyword.getDataTypeInvoice (order);
         }
     }
     
@@ -221,7 +220,7 @@ public class ParseDetails {
                         keywordInfo = null; // command complete
                         break;
                         
-                    case Keyword.KeyTyp.VENDOR_RATING:
+                    case Keyword.KeyTyp.PACKAGE_LEFT:
                         if (newItem.isItemDefined()) {
                             GUILogPanel.outputInfoMsg (MsgType.INFO, "* Added new ITEM in multi-item ORDER");
                             newItem = newOrder.addNewItem();

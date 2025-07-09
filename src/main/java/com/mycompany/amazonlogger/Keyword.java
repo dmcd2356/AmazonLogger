@@ -15,32 +15,23 @@ public class Keyword {
     
     private static final String CLASS_NAME = Keyword.class.getSimpleName();
 
+    // these are the enums for the lines that are of interest to us in the clipboard contents
     public enum KeyTyp { NONE, HELLO_D, HELLO_C, ORDER_PLACED, ORDER_DETAILS, 
-                         TOTAL_COST, ORDER_NUMBER, RETURNED, REFUNDED, DELIVERED, ARRIVING, NOW_ARRIVING,
-                         VENDOR_RATING, PACKAGE_LEFT, DESCRIPTION, DESCRIPTION_2, COMPLETE, GROSS_COST,
-                         TAXES, SHIPPING, ITEM_COST, SELLER, QUANTITY, END_OF_RECORD };
+                         TOTAL_COST, ORDER_NUMBER, RETURNED, REFUNDED,
+                         DELIVERED, ARRIVING, NOW_ARRIVING, PACKAGE_LEFT,
+                         DESCRIPTION, DESCRIPTION_2, COMPLETE, GROSS_COST,
+                         TAXES, SHIPPING, ITEM_COST, SELLER, QUANTITY,
+                         END_OF_RECORD };
 
-    public enum DataTyp { NONE, INLINE, NEXTLINE };
-    public enum ClipTyp { NONE, ORDERS, INVOICE };
+    // the list of how data is packaged for each command
+    public enum DataTyp {
+        NONE,       // no data included with the line, keyword fully defined
+        PARTIAL,    // no data included with the line, keyword partially defined
+        INLINE,     // the data is on the same line, following the keywords
+        NEXTLINE    // the data is on the line following the keywords (keyword must be fully defined)
+    };
     
-    public class KeywordClipEntry {
-        String  strKeyword;     // the keyword string
-        KeyTyp  eKeyId;         // keyword id
-        ClipTyp eClipType;      // indicates the clipboard file type
-        
-        public KeywordClipEntry (String keyword, KeyTyp id, ClipTyp type) {
-            strKeyword = keyword;
-            eKeyId = id;
-            eClipType  = type;
-        }
-        
-        public KeywordClipEntry () {
-            strKeyword = "";
-            eKeyId = KeyTyp.NONE;
-            eClipType  = ClipTyp.NONE;
-        }
-    }
-    
+
     public class KeywordInfo {
         KeyTyp  eKeyId;         // keyword id
         int     keyLength;      // length of keyword
@@ -59,6 +50,10 @@ public class Keyword {
     private static final HashMap <String, KeywordInfo> Keyword_Orders = new HashMap<>();
 
     Keyword () {
+        // these are the items we look for in the Orders and Invoice pages
+        putKeywordInfo ("Hello, Dan"                , KeyTyp.HELLO_D);
+        putKeywordInfo ("Hello, Connie"             , KeyTyp.HELLO_D);
+        putKeywordInfo ("Order Details"             , KeyTyp.ORDER_DETAILS);
         putKeywordInfo ("Order placed"              , KeyTyp.ORDER_PLACED);
         putKeywordInfo ("Total"                     , KeyTyp.TOTAL_COST);
         putKeywordInfo ("Order #"                   , KeyTyp.ORDER_NUMBER);
@@ -77,7 +72,8 @@ public class Keyword {
         putKeywordInfo ("$"                         , KeyTyp.ITEM_COST);
         putKeywordInfo ("Total before tax:"         , KeyTyp.GROSS_COST);
         putKeywordInfo ("Estimated tax to be collected:", KeyTyp.TAXES);
-        
+
+        // these are items that will indicate there are no more orders in the page
         putKeywordInfo ("←Previous"                 , KeyTyp.END_OF_RECORD);
         putKeywordInfo ("Add to cart"               , KeyTyp.END_OF_RECORD);
         putKeywordInfo ("Bargain recommendations"   , KeyTyp.END_OF_RECORD);
@@ -93,110 +89,88 @@ public class Keyword {
         Keyword_Orders.put(keyString, new KeywordInfo (keyString, key));
     }
     
-    private final KeywordClipEntry [] KeywordTable_None = {
-        new KeywordClipEntry ("Hello, Dan"         , KeyTyp.HELLO_D      , ClipTyp.NONE),
-        new KeywordClipEntry ("Hello, Connie"      , KeyTyp.HELLO_C      , ClipTyp.NONE),
-        new KeywordClipEntry ("Order placed"       , KeyTyp.ORDER_PLACED , ClipTyp.ORDERS),
-        new KeywordClipEntry ("Order Details"      , KeyTyp.ORDER_DETAILS, ClipTyp.INVOICE),
-    };
 
-    public static DataTyp getDataType (ClipTyp clipType, KeyTyp keyType) {
-        if (clipType == ClipTyp.ORDERS) {
-            switch (keyType) {
-                case ORDER_NUMBER:
-                case DELIVERED:
-                case ARRIVING:
-                case NOW_ARRIVING:
-                    return Keyword.DataTyp.INLINE;
-                case ORDER_PLACED:
-                case TOTAL_COST:
-                    return Keyword.DataTyp.NEXTLINE;
-                default:
-                    break;
-            }
-        } else {
-            switch (keyType) {
-                case SELLER:
-                case ITEM_COST:
-                case DELIVERED:
-                case ARRIVING:
-                case NOW_ARRIVING:
-                    return Keyword.DataTyp.INLINE;
-                case ORDER_NUMBER:
-                case ORDER_PLACED:
-                case TOTAL_COST:
-                case GROSS_COST:
-                case TAXES:
-                    return Keyword.DataTyp.NEXTLINE;
-                default:
-                    break;
-            }
+    public static DataTyp getDataTypeOrder (KeyTyp keyType) {
+        switch (keyType) {
+            case ORDER_NUMBER:
+            case DELIVERED:
+            case ARRIVING:
+            case NOW_ARRIVING:
+                return Keyword.DataTyp.INLINE;
+            case ORDER_PLACED:
+            case TOTAL_COST:
+                return Keyword.DataTyp.NEXTLINE;
+            case PACKAGE_LEFT:
+            case END_OF_RECORD:
+                return Keyword.DataTyp.PARTIAL;
+            default:
+                break;
+        }
+        return Keyword.DataTyp.NONE;
+    }
+    
+    public static DataTyp getDataTypeInvoice (KeyTyp keyType) {
+        switch (keyType) {
+            case SELLER:
+            case ITEM_COST:
+            case DELIVERED:
+            case ARRIVING:
+            case NOW_ARRIVING:
+                return Keyword.DataTyp.INLINE;
+            case ORDER_NUMBER:
+            case ORDER_PLACED:
+            case TOTAL_COST:
+            case GROSS_COST:
+            case TAXES:
+                return Keyword.DataTyp.NEXTLINE;
+            case PACKAGE_LEFT:
+            case END_OF_RECORD:
+                return Keyword.DataTyp.PARTIAL;
+            default:
+                break;
         }
         return Keyword.DataTyp.NONE;
     }
     
     /**
-     * finds if the current line is one of the keywords to search for before the type of
-     *   clipboard file has been determined.
+     * finds keyword match to current line.
      * 
-     * @param line - the line read from the web page
-     * 
-     * @return the structure indicating the type of keyword that was found
-     *         (a dummy entry is returned indicating NONE if key was not found)
-     */
-    public KeywordClipEntry getKeywordInit (String line) {
-        int linelen = line.length();
-        for (KeywordClipEntry KeywordTable1 : KeywordTable_None) {
-            if (line.startsWith(KeywordTable1.strKeyword)) {
-                int keylen = KeywordTable1.strKeyword.length();
-                // length must match keyword length, or have a space following it
-                if (keylen == linelen || (linelen > keylen && line.charAt(keylen) == ' ')) {
-                    GUILogPanel.outputInfoMsg (MsgType.DEBUG,
-                                            "ClipTyp." + KeywordTable1.eClipType.name() +
-                                          " : KeyTyp." + KeywordTable1.eKeyId.name() +
-                                          " : " + line);
-                    return KeywordTable1;
-                }
-            }
-        }
-        String shortLine = line.substring(0, (line.length() > 20 ? 20 : line.length()));
-        GUILogPanel.outputInfoMsg (MsgType.DEBUG,"ClipTyp.NONT : NO MATCH: "  + shortLine);
-        return new KeywordClipEntry();
-    }
-    
-    /**
-     * finds if the current line is one of the keywords to search for after the type of
-     *   clipboard file has been determined.
-     * 
-     * @param clipType - ORDER or INVOICE
+     * @param clipType - NONE, ORDER, or INVOICE
      * @param line     - the line read from the web page
      * 
      * @return the structure indicating the type of keyword found, null if not found
      */
-    public static KeywordInfo getKeyword (ClipTyp clipType, String line) {
+    public static KeywordInfo getKeyword (AmazonParser.ClipTyp clipType, String line) {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         for (HashMap.Entry<String, KeywordInfo> mapEntry : Keyword_Orders.entrySet()) {
             String keyStr = mapEntry.getKey();
             KeywordInfo keyInfo = mapEntry.getValue();
-            DataTyp dataType = getDataType (clipType, keyInfo.eKeyId);
 
-            // END_OF_RECORD entries are also partial string matches
-            if (dataType != DataTyp.INLINE && keyInfo.eKeyId != KeyTyp.END_OF_RECORD) {
-                if (line.contentEquals(keyStr)) {
-                        GUILogPanel.outputInfoMsg (MsgType.DEBUG, "EXACT : KeyTyp." + keyInfo.eKeyId +
-                                                        " : Length." + keyInfo.keyLength + " : " + line);
-                        return keyInfo;
-                }
+            DataTyp dataType;
+            if (clipType == AmazonParser.ClipTyp.INVOICE) {
+                dataType = getDataTypeInvoice (keyInfo.eKeyId);
             } else {
+                dataType = getDataTypeOrder (keyInfo.eKeyId);
+            }
+
+            if (dataType == DataTyp.INLINE || dataType == DataTyp.PARTIAL) {
+                // INLINE & PARTIAL entries are partial String matches
                 if (line.startsWith(keyStr)) {
                         GUILogPanel.outputInfoMsg (MsgType.DEBUG, "PARTIAL : KeyTyp." + keyInfo.eKeyId +
                                                         " : Length." + keyInfo.keyLength + " : " + line);
                         return keyInfo;
                 }
+            } else {
+                // NEXTLINE & NONE types should be fully defined lines in the table
+                if (line.contentEquals(keyStr)) {
+                        GUILogPanel.outputInfoMsg (MsgType.DEBUG, "EXACT : KeyTyp." + keyInfo.eKeyId +
+                                                        " : Length." + keyInfo.keyLength + " : " + line);
+                        return keyInfo;
+                }
             }
         }
-        String shortLine = line.substring(0, (line.length() > 20 ? 20 : line.length()));
+        String shortLine = line.substring(0, (line.length() > 50 ? 50 : line.length()));
         GUILogPanel.outputInfoMsg (MsgType.DEBUG, functionId + "NO MATCH: "  + shortLine);
         return null;
     }

@@ -4,7 +4,6 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.keyword;
 import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +38,8 @@ public class AmazonParser {
         detailList = new ArrayList<>();
         GUIOrderPanel.clearMessages();
     }
+
+    public enum ClipTyp { NONE, ORDERS, INVOICE };
     
     /**
      * parses the data from the web text file (or clipboard).
@@ -54,15 +55,14 @@ public class AmazonParser {
         
         String line;
         Keyword.KeyTyp eKeyId;
-        Keyword.ClipTyp eClipType = Keyword.ClipTyp.NONE;
+        ClipTyp eClipType = ClipTyp.NONE;
         ArrayList<AmazonOrder> newList;
 
         // create a keyword instance to use
-        keyword = new Keyword();
+        Keyword keyword = new Keyword();
 
-        
         // first, we check for which type of file we are reading
-        while (eClipType == Keyword.ClipTyp.NONE) {
+        while (eClipType == ClipTyp.NONE) {
             // get next line from clipboard
             line = clipReader.getLine();
             if (line == null)
@@ -71,8 +71,10 @@ public class AmazonParser {
             if (line.isBlank())
                 continue;
 
-            Keyword.KeywordClipEntry keywordInfo = keyword.getKeywordInit(line);
-            eClipType = keywordInfo.eClipType;
+            Keyword.KeywordInfo keywordInfo = Keyword.getKeyword(eClipType, line);
+            if (keywordInfo == null) {
+                continue;
+            }
             eKeyId = keywordInfo.eKeyId;
             LocalDate startDate, endDate;
 
@@ -100,6 +102,7 @@ public class AmazonParser {
                     }
                     break;
                 case Keyword.KeyTyp.ORDER_PLACED:
+                    eClipType = ClipTyp.ORDERS;
                     GUILogPanel.outputInfoMsg (MsgType.PARSER, "'ORDERS' clipboard");
                     ParseOrders parseOrd = new ParseOrders();
                     GUIOrderPanel.printOrderHeader();
@@ -119,6 +122,7 @@ public class AmazonParser {
                     }
                     break;
                 case Keyword.KeyTyp.ORDER_DETAILS:
+                    eClipType = ClipTyp.INVOICE;
                     GUILogPanel.outputInfoMsg (MsgType.PARSER, "'INVOICE' clipboard");
                     ParseDetails parseDet = new ParseDetails();
                     AmazonOrder newOrder = parseDet.parseDetails(clipReader, line);

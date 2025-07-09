@@ -16,7 +16,6 @@ public class AmazonReader {
     private static final String CLASS_NAME = AmazonReader.class.getSimpleName();
     
     // GLOBALS
-    public  static Keyword keyword;
     public  static PropertiesFile props;
     
     private static GUIMain frame;

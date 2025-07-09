@@ -4,7 +4,6 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.keyword;
 import static com.mycompany.amazonlogger.AmazonReader.props;
 import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
@@ -39,7 +38,7 @@ public class ParseOrders {
             if (keywordInfo != null) {
                 orderId   = order;
                 keyLength = keywordInfo.keyLength;
-                dataType  = Keyword.getDataType (Keyword.ClipTyp.ORDERS, order);
+                dataType  = Keyword.getDataTypeOrder (order);
             } else {
                 orderId   = Keyword.KeyTyp.NONE;
                 keyLength = 0;
@@ -49,12 +48,12 @@ public class ParseOrders {
         
         // this is used when executing a line read from the clipboard
         OrderInfo (String line) {
-            Keyword.KeywordInfo keywordInfo = Keyword.getKeyword(Keyword.ClipTyp.ORDERS, line);
+            Keyword.KeywordInfo keywordInfo = Keyword.getKeyword(AmazonParser.ClipTyp.ORDERS, line);
             
             if (keywordInfo != null) {
                 orderId   = keywordInfo.eKeyId;
                 keyLength = keywordInfo.keyLength;
-                dataType  = Keyword.getDataType (Keyword.ClipTyp.ORDERS, keywordInfo.eKeyId);
+                dataType  = Keyword.getDataTypeOrder (orderId);
             } else {
                 orderId   = Keyword.KeyTyp.NONE;
                 keyLength = 0;
@@ -73,7 +72,7 @@ public class ParseOrders {
         public void makeOrder (Keyword.KeyTyp order) {
             orderId   = order;
             keyLength = 0;
-            dataType  = Keyword.getDataType (Keyword.ClipTyp.ORDERS, order);
+            dataType  = Keyword.getDataTypeOrder (order);
         }
     }
     
@@ -95,6 +94,7 @@ public class ParseOrders {
         OrderInfo savedKey = null;
         boolean bReadData = false;
         boolean bSkipRead = false;
+        boolean bDescPending = false;
         LocalDate delivered = null;
         LocalDate lastDeliveryDate = null;
         int itemCount = 0;
@@ -150,7 +150,16 @@ public class ParseOrders {
             if (keywordInfo == null || keywordInfo.orderId == Keyword.KeyTyp.NONE) {
                 keywordInfo = savedKey;
                 if (keywordInfo.orderId == Keyword.KeyTyp.NONE) {
-                    continue;
+                    // sometimes the "Package was left" entry is omitted from the record.
+                    // It should be the line following the "Delivered" entry. If it is missing,
+                    //  the line should be the description.
+                    if (bDescPending) {
+                        keywordInfo = new OrderInfo();
+                        keywordInfo.makeOrder(Keyword.KeyTyp.DESCRIPTION);
+                        bDescPending = false;
+                    } else {
+                        continue;
+                    }
                 }
             } else {
                 GUILogPanel.outputInfoMsg (MsgType.DEBUG, "  KeyTyp." + savedKey.orderId + " (unparsed line): " + line);
@@ -167,7 +176,7 @@ public class ParseOrders {
                     line = line.substring(keywordInfo.keyLength);
                 }
                 GUILogPanel.outputInfoMsg (MsgType.INFO, "* Executing KeyTyp." + keywordInfo.orderId + " as " + keywordInfo.dataType);
-                
+
                 switch (keywordInfo.orderId) {
                     case Keyword.KeyTyp.ORDER_NUMBER:
                         String strOrderNum = Utils.getNextWord (line, 19, 19);
@@ -178,6 +187,7 @@ public class ParseOrders {
                         break;
 
                     case Keyword.KeyTyp.DELIVERED: // fall through...
+                        bDescPending = true;
                     case Keyword.KeyTyp.ARRIVING:  // fall through...
                     case Keyword.KeyTyp.NOW_ARRIVING:
                         delivered = DateFormat.getFormattedDate(line, true);
@@ -216,7 +226,6 @@ public class ParseOrders {
                         break;
 
                     case Keyword.KeyTyp.PACKAGE_LEFT:
-                    case Keyword.KeyTyp.VENDOR_RATING:
                         // if the DELIVERED date was skipped, it is another item arriving in the same package
                         //  so the delivery date is the same.
                         if (newItem.isItemDefined()) {
@@ -232,15 +241,15 @@ public class ParseOrders {
                         }
                         GUILogPanel.outputInfoMsg (MsgType.PARSER, "    (Vendor Rating): " + line);
                         
-                        // the vendor rating is a single character that is one of: A,B,C,D,F,?
-                        // we don't need it, but the item description will be in the next line,
-                        // so advance to the next state.
+                        // the item description will be in the next line, so advance to the next state.
                         keywordInfo = new OrderInfo();
                         keywordInfo.makeOrder(Keyword.KeyTyp.DESCRIPTION);
                         bReadData = false; // this will prevent us from parsing the command until we've read the next line
+                        bDescPending = false;
                         break;
 
                     case Keyword.KeyTyp.DESCRIPTION:
+                        bDescPending = false;
                         descript1 = line;
                         int quantity = 1;
                         int maxlen = descript1.length();
