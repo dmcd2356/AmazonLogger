@@ -6,7 +6,5 @@ target/**
 
 src/test/compare/
 src/test/logs/
-
-src/test/.amazonreader/site.properties
-.amazonreader/site.properties
-
+src/test/.amazonreader/
+.amazonreader/
