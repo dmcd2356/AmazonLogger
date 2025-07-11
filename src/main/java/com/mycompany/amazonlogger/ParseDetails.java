@@ -27,24 +27,9 @@ public class ParseDetails {
         Keyword.DataTyp dataType;   // type of data (INLINE, NEXTLINE, NONE)
         int             keyLength;  // length of keyword found
         
-        // this is used when executing a saved order id
-        OrderInfo (Keyword.KeyTyp order) {
-            Keyword.KeywordInfo keywordInfo = Keyword.findOrdersKey (order);
-            
-            if (keywordInfo != null) {
-                orderId   = order;
-                keyLength = keywordInfo.keyLength;
-                dataType  = Keyword.getDataTypeInvoice (order);
-            } else {
-                orderId   = Keyword.KeyTyp.NONE;
-                keyLength = 0;
-                dataType  = Keyword.DataTyp.NONE;
-            }
-        }
-        
         // this is used when executing a line read from the clipboard
         OrderInfo (String line) {
-            Keyword.KeywordInfo keywordInfo = Keyword.getKeyword(AmazonParser.ClipTyp.INVOICE, line);
+            Keyword.KeywordInfo keywordInfo = Keyword.getKeyword(line);
             
             if (keywordInfo != null) {
                 orderId   = keywordInfo.eKeyId;
@@ -144,33 +129,6 @@ public class ParseDetails {
                 }
                 
                 switch (keywordInfo.orderId) {
-                    case Keyword.KeyTyp.ORDER_PLACED:
-                        // this contains the date of the order, followed immediatly on the same line with the 'Order#'.
-                        String search = "Order# ";
-                        int offset = line.indexOf(search);
-                        if (offset < 0) {
-                            search = "Order # ";
-                            offset = line.indexOf(search);
-                        }
-                        if (offset <= 0) {
-                            throw new ParserException("ParseDetails.parseDetails: Order number not found in 'Ordered on' line");
-                        }
-                        String strOrderNum = line.substring(offset + search.length());
-                        strOrderNum = strOrderNum.strip();
-                        if (strOrderNum.length() != 19) {
-                            throw new ParserException("ParseDetails.parseDetails: Order number incorrect length: " + strOrderNum.length());
-                        }
-                        // now extract date from begining of string
-                        LocalDate date = DateFormat.getFormattedDate (line.substring(0, offset), true);
-                        if (date == null)
-                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.orderId + " date: " + line);
-                        newOrder.setOrderDate(date);
-                        newOrder.setOrderNumber(strOrderNum);
-                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Order date: " + date.toString());
-                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Order #: " + strOrderNum);
-                        keywordInfo = null; // command complete
-                        break;
-
                     case Keyword.KeyTyp.DELIVERED: // fall through...
                     case Keyword.KeyTyp.ARRIVING:  // fall through...
                     case Keyword.KeyTyp.NOW_ARRIVING:
@@ -225,10 +183,7 @@ public class ParseDetails {
                             GUILogPanel.outputInfoMsg (MsgType.INFO, "* Added new ITEM in multi-item ORDER");
                             newItem = newOrder.addNewItem();
                         }
-                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    (Vendor Rating): " + line);
-                        // the vendor rating is a single character that is one of: A,B,C,D,F,?
-                        // we don't need it, but the item description will be in the next line,
-                        // so advance to the next state.
+                        // item description should be the next entry, so advance to the next state.
                         keywordInfo = new OrderInfo();
                         keywordInfo.makeOrder(Keyword.KeyTyp.DESCRIPTION);
                         bReadData = false; // this will prevent us from parsing the command until we've read the next line
@@ -293,6 +248,27 @@ public class ParseDetails {
                 GUILogPanel.outputInfoMsg (MsgType.DEBUG, "  - bReadData true: parsing data: " + line);
 
                 switch (keywordInfo.orderId) {
+                    case Keyword.KeyTyp.ORDER_PLACED:
+                        // now extract date from begining of string
+                        LocalDate date = DateFormat.getFormattedDate (line, true);
+                        if (date == null) {
+                            throw new ParserException("ParseDetails.parseDetails: invalid char in " + keywordInfo.orderId + " date: " + line);
+                        }
+                        newOrder.setOrderDate(date);
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Order date: " + date.toString());
+                        keywordInfo = null; // command complete
+                        break;
+
+                    case Keyword.KeyTyp.ORDER_NUMBER:
+                        String strOrderNum = line;
+                        if (strOrderNum.length() != 19) {
+                            throw new ParserException("ParseDetails.parseDetails: Order number incorrect length: " + strOrderNum.length());
+                        }
+                        newOrder.setOrderNumber(strOrderNum);
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Order #: " + strOrderNum);
+                        keywordInfo = null; // command complete
+                        break;
+
                     case Keyword.KeyTyp.TOTAL_COST:
                         GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Total: " + line);
                         newOrder.setTotalCost(Utils.getAmountValue(line));

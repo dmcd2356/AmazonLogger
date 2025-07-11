@@ -30,7 +30,7 @@ public class Keyword {
         INLINE,     // the data is on the same line, following the keywords
         NEXTLINE    // the data is on the line following the keywords (keyword must be fully defined)
     };
-    
+
 
     public class KeywordInfo {
         KeyTyp  eKeyId;         // keyword id
@@ -54,24 +54,24 @@ public class Keyword {
         putKeywordInfo ("Hello, Dan"                , KeyTyp.HELLO_D);
         putKeywordInfo ("Hello, Connie"             , KeyTyp.HELLO_D);
         putKeywordInfo ("Order Details"             , KeyTyp.ORDER_DETAILS);
-        putKeywordInfo ("Order placed"              , KeyTyp.ORDER_PLACED);
-        putKeywordInfo ("Total"                     , KeyTyp.TOTAL_COST);
-        putKeywordInfo ("Order #"                   , KeyTyp.ORDER_NUMBER);
+        putKeywordInfo ("Order placed"              , KeyTyp.ORDER_PLACED);     // date placed
+        putKeywordInfo ("Total"                     , KeyTyp.TOTAL_COST);       // cost of order (with taxes & shipping)
+        putKeywordInfo ("Order #"                   , KeyTyp.ORDER_NUMBER);     // order number
         putKeywordInfo ("Returned"                  , KeyTyp.RETURNED);
         putKeywordInfo ("Return started"            , KeyTyp.RETURNED);
         putKeywordInfo ("Return complete"           , KeyTyp.RETURNED);
         putKeywordInfo ("Refunded"                  , KeyTyp.REFUNDED);
         putKeywordInfo ("Item refunded"             , KeyTyp.REFUNDED);
-        putKeywordInfo ("Delivered"                 , KeyTyp.DELIVERED);
-        putKeywordInfo ("Arriving"                  , KeyTyp.ARRIVING);
-        putKeywordInfo ("Now arriving"              , KeyTyp.NOW_ARRIVING);
+        putKeywordInfo ("Delivered"                 , KeyTyp.DELIVERED);        // date delivered
+        putKeywordInfo ("Arriving"                  , KeyTyp.ARRIVING);         // date arriving
+        putKeywordInfo ("Now arriving"              , KeyTyp.NOW_ARRIVING);     // date arriving
         putKeywordInfo ("Your package was left"     , KeyTyp.PACKAGE_LEFT);
         putKeywordInfo ("Package was left"          , KeyTyp.PACKAGE_LEFT);
-        putKeywordInfo ("Grand Total:"              , KeyTyp.TOTAL_COST);
-        putKeywordInfo ("Sold by:"                  , KeyTyp.SELLER);
-        putKeywordInfo ("$"                         , KeyTyp.ITEM_COST);
-        putKeywordInfo ("Total before tax:"         , KeyTyp.GROSS_COST);
-        putKeywordInfo ("Estimated tax to be collected:", KeyTyp.TAXES);
+        putKeywordInfo ("Grand Total:"              , KeyTyp.TOTAL_COST);       // cost of order (with taxes & shipping)
+        putKeywordInfo ("Sold by:"                  , KeyTyp.SELLER);           // seller
+        putKeywordInfo ("$"                         , KeyTyp.ITEM_COST);        // cost of item
+        putKeywordInfo ("Total before tax:"         , KeyTyp.GROSS_COST);       // cost of order (before taxes & shipping)
+        putKeywordInfo ("Estimated tax to be collected:", KeyTyp.TAXES);        // cost of tax
 
         // these are items that will indicate there are no more orders in the page
         putKeywordInfo ("←Previous"                 , KeyTyp.END_OF_RECORD);
@@ -90,25 +90,6 @@ public class Keyword {
     }
     
 
-    public static DataTyp getDataTypeOrder (KeyTyp keyType) {
-        switch (keyType) {
-            case ORDER_NUMBER:
-            case DELIVERED:
-            case ARRIVING:
-            case NOW_ARRIVING:
-                return Keyword.DataTyp.INLINE;
-            case ORDER_PLACED:
-            case TOTAL_COST:
-                return Keyword.DataTyp.NEXTLINE;
-            case PACKAGE_LEFT:
-            case END_OF_RECORD:
-                return Keyword.DataTyp.PARTIAL;
-            default:
-                break;
-        }
-        return Keyword.DataTyp.NONE;
-    }
-    
     public static DataTyp getDataTypeInvoice (KeyTyp keyType) {
         switch (keyType) {
             case SELLER:
@@ -135,42 +116,35 @@ public class Keyword {
     /**
      * finds keyword match to current line.
      * 
-     * @param clipType - NONE, ORDER, or INVOICE
      * @param line     - the line read from the web page
      * 
      * @return the structure indicating the type of keyword found, null if not found
      */
-    public static KeywordInfo getKeyword (AmazonParser.ClipTyp clipType, String line) {
+    public static KeywordInfo getKeyword (String line) {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         for (HashMap.Entry<String, KeywordInfo> mapEntry : Keyword_Orders.entrySet()) {
             String keyStr = mapEntry.getKey();
             KeywordInfo keyInfo = mapEntry.getValue();
 
-            DataTyp dataType;
-            if (clipType == AmazonParser.ClipTyp.INVOICE) {
-                dataType = getDataTypeInvoice (keyInfo.eKeyId);
-            } else {
-                dataType = getDataTypeOrder (keyInfo.eKeyId);
-            }
-
-            if (dataType == DataTyp.INLINE || dataType == DataTyp.PARTIAL) {
+            DataTyp dataType = getDataTypeInvoice (keyInfo.eKeyId);
+//            if (dataType == DataTyp.INLINE || dataType == DataTyp.PARTIAL) {
                 // INLINE & PARTIAL entries are partial String matches
                 if (line.startsWith(keyStr)) {
                         GUILogPanel.outputInfoMsg (MsgType.DEBUG, "PARTIAL : KeyTyp." + keyInfo.eKeyId +
                                                         " : Length." + keyInfo.keyLength + " : " + line);
                         return keyInfo;
                 }
-            } else {
-                // NEXTLINE & NONE types should be fully defined lines in the table
-                if (line.contentEquals(keyStr)) {
-                        GUILogPanel.outputInfoMsg (MsgType.DEBUG, "EXACT : KeyTyp." + keyInfo.eKeyId +
-                                                        " : Length." + keyInfo.keyLength + " : " + line);
-                        return keyInfo;
-                }
-            }
+//            } else {
+//                // NEXTLINE & NONE types should be fully defined lines in the table
+//                if (line.contentEquals(keyStr)) {
+//                        GUILogPanel.outputInfoMsg (MsgType.DEBUG, "EXACT : KeyTyp." + keyInfo.eKeyId +
+//                                                        " : Length." + keyInfo.keyLength + " : " + line);
+//                        return keyInfo;
+//                }
+//            }
         }
-        String shortLine = line.substring(0, (line.length() > 50 ? 50 : line.length()));
+        String shortLine = line.substring(0, (line.length() > 125 ? 125 : line.length()));
         GUILogPanel.outputInfoMsg (MsgType.DEBUG, functionId + "NO MATCH: "  + shortLine);
         return null;
     }

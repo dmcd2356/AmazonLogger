@@ -20,6 +20,7 @@ public class AmazonOrder {
     private Integer     total_cost;     // the amount of the transaction in cents (credits are -, debits are +)
     private Integer     gross_cost;     // total cost of all items in order less tax (in cents)
     private Integer     tax_cost;       // the estimated amount of tax (in cents)
+    private LocalDate   last_delivery;  // the delivery date of the last item in the order
     ArrayList<AmazonItem> item;         // one or more items in the order
 
     public AmazonOrder() {
@@ -28,8 +29,12 @@ public class AmazonOrder {
         this.total_cost = null;
         this.gross_cost = null;
         this.tax_cost = null;
+        this.last_delivery = null;
 
+        // create the array of items and instantiate the first one
         this.item = new ArrayList<>();
+        AmazonItem newItem = new AmazonItem();
+        item.add(newItem);
     }
         
     public void setOrderNumber(String order_num) {
@@ -38,6 +43,10 @@ public class AmazonOrder {
         
     public void setOrderDate(LocalDate trans_date) {
         this.trans_date = trans_date;
+    }
+        
+    public void setDeliveryDate(LocalDate trans_date) {
+        this.last_delivery = trans_date;
     }
         
     public void setTotalCost(int total_cost) {
@@ -64,6 +73,10 @@ public class AmazonOrder {
         
     public LocalDate getOrderDate() {
         return this.trans_date;
+    }
+        
+    public LocalDate getDeliveryDate() {
+        return this.last_delivery;
     }
         
     public Integer getTotalCost() {

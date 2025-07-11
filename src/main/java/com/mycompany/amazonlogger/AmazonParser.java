@@ -71,7 +71,7 @@ public class AmazonParser {
             if (line.isBlank())
                 continue;
 
-            Keyword.KeywordInfo keywordInfo = Keyword.getKeyword(eClipType, line);
+            Keyword.KeywordInfo keywordInfo = Keyword.getKeyword(line);
             if (keywordInfo == null) {
                 continue;
             }
@@ -104,15 +104,16 @@ public class AmazonParser {
                 case Keyword.KeyTyp.ORDER_PLACED:
                     eClipType = ClipTyp.ORDERS;
                     GUILogPanel.outputInfoMsg (MsgType.PARSER, "'ORDERS' clipboard");
-                    ParseOrders parseOrd = new ParseOrders();
+                    ParseOrders parseOrd = new ParseOrders(clipReader);
                     GUIOrderPanel.printOrderHeader();
-                    newList = parseOrd.parseOrders(clipReader, line, eKeyId);
+                    newList = parseOrd.parseOrders(line, eKeyId);
                     // merge list with current running list (in chronological order)
                     amazonList = addOrdersToList (amazonList, newList);
 
                     int itemCount = 0;
                     for (int ix = 0; ix < amazonList.size(); ix++) {
                         itemCount += amazonList.get(ix).item.size();
+//                        GUIOrderPanel.printOrder(amazonList.get(ix));
                     }
                     if (itemCount > 0) {
                         startDate = amazonList.get(0).getOrderDate();
