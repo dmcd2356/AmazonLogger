@@ -16,20 +16,12 @@ public class Keyword {
     private static final String CLASS_NAME = Keyword.class.getSimpleName();
 
     // these are the enums for the lines that are of interest to us in the clipboard contents
-    public enum KeyTyp { NONE, HELLO_D, HELLO_C, ORDER_PLACED, ORDER_DETAILS, 
-                         TOTAL_COST, ORDER_NUMBER, RETURNED, REFUNDED,
-                         DELIVERED, ARRIVING, NOW_ARRIVING, PACKAGE_LEFT,
-                         DESCRIPTION, DESCRIPTION_2, COMPLETE, GROSS_COST,
-                         TAXES, SHIPPING, ITEM_COST, SELLER, QUANTITY,
-                         END_OF_RECORD };
-
-    // the list of how data is packaged for each command
-    public enum DataTyp {
-        NONE,       // no data included with the line, keyword fully defined
-        PARTIAL,    // no data included with the line, keyword partially defined
-        INLINE,     // the data is on the same line, following the keywords
-        NEXTLINE    // the data is on the line following the keywords (keyword must be fully defined)
-    };
+    public enum KeyTyp { NONE, HELLO_D, HELLO_C,
+                         ORDER_PLACED, ORDER_DETAILS, TOTAL_COST, ORDER_NUMBER, 
+                         RETURNED, REFUNDED, DELIVERED, ARRIVING, NOW_ARRIVING,
+                         GROSS_COST, TAXES, SHIPPING_COST, ITEM_COST, SELLER, SUPPLIER,
+                         DESCRIPTION, DESCRIPTION_2, QUANTITY, SHIP_TO, COMPLETE,
+                         PACKAGE_LEFT, NOTICE, BUTTON, END_OF_RECORD };
 
 
     public class KeywordInfo {
@@ -56,23 +48,44 @@ public class Keyword {
         putKeywordInfo ("Order Details"             , KeyTyp.ORDER_DETAILS);
         putKeywordInfo ("Order placed"              , KeyTyp.ORDER_PLACED);     // date placed
         putKeywordInfo ("Total"                     , KeyTyp.TOTAL_COST);       // cost of order (with taxes & shipping)
+        putKeywordInfo ("Grand Total:"              , KeyTyp.TOTAL_COST);       //  "       " (for INVOICE)
         putKeywordInfo ("Order #"                   , KeyTyp.ORDER_NUMBER);     // order number
         putKeywordInfo ("Returned"                  , KeyTyp.RETURNED);
         putKeywordInfo ("Return started"            , KeyTyp.RETURNED);
         putKeywordInfo ("Return complete"           , KeyTyp.RETURNED);
         putKeywordInfo ("Refunded"                  , KeyTyp.REFUNDED);
         putKeywordInfo ("Item refunded"             , KeyTyp.REFUNDED);
+        putKeywordInfo ("Your package was left"     , KeyTyp.PACKAGE_LEFT);
+        putKeywordInfo ("Package was left"          , KeyTyp.PACKAGE_LEFT);
         putKeywordInfo ("Delivered"                 , KeyTyp.DELIVERED);        // date delivered
         putKeywordInfo ("Arriving"                  , KeyTyp.ARRIVING);         // date arriving
         putKeywordInfo ("Now arriving"              , KeyTyp.NOW_ARRIVING);     // date arriving
-        putKeywordInfo ("Your package was left"     , KeyTyp.PACKAGE_LEFT);
-        putKeywordInfo ("Package was left"          , KeyTyp.PACKAGE_LEFT);
+        putKeywordInfo ("Ship to"                   , KeyTyp.SHIP_TO);          // person
         putKeywordInfo ("Grand Total:"              , KeyTyp.TOTAL_COST);       // cost of order (with taxes & shipping)
         putKeywordInfo ("Sold by:"                  , KeyTyp.SELLER);           // seller
-        putKeywordInfo ("$"                         , KeyTyp.ITEM_COST);        // cost of item
+        putKeywordInfo ("Supplied by:"              , KeyTyp.SUPPLIER);         // supplier
+//        putKeywordInfo ("$"                         , KeyTyp.ITEM_COST);        // cost of item
         putKeywordInfo ("Total before tax:"         , KeyTyp.GROSS_COST);       // cost of order (before taxes & shipping)
         putKeywordInfo ("Estimated tax to be collected:", KeyTyp.TAXES);        // cost of tax
+        putKeywordInfo ("Shipping & Handling:"      , KeyTyp.SHIPPING_COST);    // cost of shipping
 
+        // buttons (these are ignored, but helps us to isolate the description
+        putKeywordInfo ("Buy it again"              , KeyTyp.BUTTON);
+        putKeywordInfo ("View your item"            , KeyTyp.BUTTON);
+        putKeywordInfo ("Problem with order"        , KeyTyp.BUTTON);
+        putKeywordInfo ("Get product support"       , KeyTyp.BUTTON);
+        putKeywordInfo ("Ask Product Question"      , KeyTyp.BUTTON);
+        putKeywordInfo ("Leave seller feedback"     , KeyTyp.BUTTON);
+        putKeywordInfo ("Write a product review"    , KeyTyp.BUTTON);
+        putKeywordInfo ("View order details"        , KeyTyp.BUTTON);
+        putKeywordInfo ("View button"               , KeyTyp.BUTTON);
+        putKeywordInfo ("Track package"             , KeyTyp.BUTTON);
+        
+        // these are notices that are also ignored
+        putKeywordInfo ("Return window closed"      , KeyTyp.NOTICE);
+        putKeywordInfo ("Return or replace item"    , KeyTyp.NOTICE);
+        putKeywordInfo ("Return item"               , KeyTyp.NOTICE);
+        
         // these are items that will indicate there are no more orders in the page
         putKeywordInfo ("←Previous"                 , KeyTyp.END_OF_RECORD);
         putKeywordInfo ("Add to cart"               , KeyTyp.END_OF_RECORD);
@@ -90,29 +103,6 @@ public class Keyword {
     }
     
 
-    public static DataTyp getDataTypeInvoice (KeyTyp keyType) {
-        switch (keyType) {
-            case SELLER:
-            case ITEM_COST:
-            case DELIVERED:
-            case ARRIVING:
-            case NOW_ARRIVING:
-                return Keyword.DataTyp.INLINE;
-            case ORDER_NUMBER:
-            case ORDER_PLACED:
-            case TOTAL_COST:
-            case GROSS_COST:
-            case TAXES:
-                return Keyword.DataTyp.NEXTLINE;
-            case PACKAGE_LEFT:
-            case END_OF_RECORD:
-                return Keyword.DataTyp.PARTIAL;
-            default:
-                break;
-        }
-        return Keyword.DataTyp.NONE;
-    }
-    
     /**
      * finds keyword match to current line.
      * 
@@ -126,23 +116,11 @@ public class Keyword {
         for (HashMap.Entry<String, KeywordInfo> mapEntry : Keyword_Orders.entrySet()) {
             String keyStr = mapEntry.getKey();
             KeywordInfo keyInfo = mapEntry.getValue();
-
-            DataTyp dataType = getDataTypeInvoice (keyInfo.eKeyId);
-//            if (dataType == DataTyp.INLINE || dataType == DataTyp.PARTIAL) {
-                // INLINE & PARTIAL entries are partial String matches
-                if (line.startsWith(keyStr)) {
-                        GUILogPanel.outputInfoMsg (MsgType.DEBUG, "PARTIAL : KeyTyp." + keyInfo.eKeyId +
-                                                        " : Length." + keyInfo.keyLength + " : " + line);
-                        return keyInfo;
-                }
-//            } else {
-//                // NEXTLINE & NONE types should be fully defined lines in the table
-//                if (line.contentEquals(keyStr)) {
-//                        GUILogPanel.outputInfoMsg (MsgType.DEBUG, "EXACT : KeyTyp." + keyInfo.eKeyId +
-//                                                        " : Length." + keyInfo.keyLength + " : " + line);
-//                        return keyInfo;
-//                }
-//            }
+            if (line.startsWith(keyStr)) {
+                    GUILogPanel.outputInfoMsg (MsgType.DEBUG, "PARTIAL : KeyTyp." + keyInfo.eKeyId +
+                                                    " : Length." + keyInfo.keyLength + " : " + line);
+                    return keyInfo;
+            }
         }
         String shortLine = line.substring(0, (line.length() > 125 ? 125 : line.length()));
         GUILogPanel.outputInfoMsg (MsgType.DEBUG, functionId + "NO MATCH: "  + shortLine);

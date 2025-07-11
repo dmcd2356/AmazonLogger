@@ -74,35 +74,37 @@ public class ParseOrders {
     /**
      * reads the next line from the clipboard.
      * 
-     * @return the next line of text, null if EOF
-     * 
-     * @throws IOException 
+     * @return the next line of text, null if EOF or error
      */
-    private String readLine () throws IOException {
+    private String readLine () {
         String line;
-        while ((line = clipReader.getLine()) != null) {
-            line = line.strip();
-            if (! line.isEmpty())
-                break;
+        try {
+            while ((line = clipReader.getLine()) != null) {
+                line = line.strip();
+                if (! line.isEmpty()) {
+                    return line;
+                }
+            }
+        } catch (IOException exMsg) {
+            // ignore
         }
-        return line;
+        return null;
     }
     
     /**
      * parses the clipboard data line by line to extract the order information from a "Your Orders" clip.
      * 
+     * @param type    - type of order: ORDERS or INVOICE
      * @param line    - the line previously caught and passed to this module to execute
      * @param keyType - the Key type associated with the line
      * 
      * @return an array of AmazonOrder entries that were extracted from the clip
-     * 
-     * @throws ParserException 
-     * @throws IOException 
      */
-    public ArrayList<AmazonOrder> parseOrders (String line, Keyword.KeyTyp keyType) throws ParserException, IOException {
+    public ArrayList<AmazonOrder> parseOrders (AmazonParser.ClipTyp type, String line, Keyword.KeyTyp keyType) {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         boolean bSkipRead = false;
+        boolean bDescrFound = false;
         String lastLine = "";
 
         // init the array list of Amazon transactions
@@ -117,29 +119,46 @@ public class ParseOrders {
             bSkipRead = true;
         }
         
-        do {
+        while (line != null) {
             // if we don't have a pending command in the queue, get next line from clipboard
             if (bSkipRead) {
                 bSkipRead = false;
             } else {
                 // read the next line
                 line = readLine();
+                if (line == null) {
+                    break;
+                }
 
                 // check for an end of Amazon Order record indicator
                 keywordInfo = new OrderInfo(line);
+                if (keywordInfo.orderId == Keyword.KeyTyp.BUTTON ||
+                    keywordInfo.orderId == Keyword.KeyTyp.NOTICE ) {
+                    continue; // ignore all buttons and nonsense info
+                }
                 if (keywordInfo.orderId == Keyword.KeyTyp.END_OF_RECORD) {
-                    // if an entry is already in process, it must have been completed, so add completed order to list
-                    if (newOrder.isOrderDefined()) {
-                        amazonList.add(newOrder);
-                        GUILogPanel.outputInfoMsg (MsgType.DEBUG, "* Added new ORDER entry to AMAZON LIST");
-                    }
+                    if (type == AmazonParser.ClipTyp.ORDERS) {
+                        // if an entry is already in process, it must have been completed, so add completed order to list
+                        if (newOrder.isOrderDefined()) {
+                            amazonList.add(newOrder);
+                            GUILogPanel.outputInfoMsg (MsgType.DEBUG, "* Added new ORDER entry to AMAZON LIST");
+                        }
 
-                    // order completed - exit loop to clean up
-                    newOrder = null;
-                    GUILogPanel.outputInfoMsg (MsgType.PARSER, "END OF ORDER (" + amazonList.size() + ")");
-                    GUILogPanel.outputInfoMsg (MsgType.PARSER, "END OF LIST");
+                        // order completed - exit loop to clean up
+                        newOrder = null;
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "END OF ORDER (" + amazonList.size() + ")");
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "END OF LIST");
+                    } else {
+                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "END OF ITEMS");
+                    }
                     break;
                 }
+            }
+
+            // check for item cost, which is the first line that starts with a '$' that follows the description
+            if (line.charAt(0) == '$' && bDescrFound) {
+                parseCommand (Keyword.KeyTyp.ITEM_COST, line, newOrder);
+                continue;
             }
 
             // If we have 2 lines of sufficiet length in a row that match, except
@@ -149,33 +168,66 @@ public class ParseOrders {
             // For some silly reason, the 1st entry limits the description to 125 chars,
             //  but not the second. So if the 2nd entry exceeds 125, just snip it off.
             if (Keyword.KeyTyp.NONE == keywordInfo.orderId) {
+                Integer qtyValue = 1;
                 int linelen = line.length();
-                // for some silly reason, the 
-                if (linelen > 125) {
-                    linelen = 125;
-                    line = line.substring(0, linelen);
-                }
-                int offset = lastLine.lastIndexOf(' ');
-                if (offset > 10) {
-                    if (linelen == offset && line.contentEquals(lastLine.substring(0, offset))) {
+                int prevlen = lastLine.length();
+                // make sure we had 2 NOT FOUND lines in a row
+                if (prevlen > 10) {
+                    // eliminate the extraneous material from the non-truncated entry
+                    if (linelen > 125 && prevlen > 125) {
+                        linelen = 125;
+                        line = line.substring(0, linelen);
+                    }
+                    // check if line 1 and 2 are exact match
+                    if (line.contentEquals(lastLine)) {
+                        // exact match: must be single qty - log entries and exit
+                        GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Exact match of Description entries");
+                        setDescriptionAndQty (line, qtyValue, newOrder);
+                        lastLine = "";
+                        bDescrFound = true;
+                        continue;
+                    }
+                    // else, see if there is a qty number attached to the 1st entry
+                    int offset = lastLine.lastIndexOf(' ');
+                    if (prevlen < offset + 3) { // this would allow for a space & 2 digits for qty
                         String qtystr = lastLine.substring(offset).strip();
                         try {
-                            Integer qtyValue = Integer.valueOf(qtystr);
-                            if (qtyValue >= 1 && qtyValue < 100) {
-                                setDescriptionAndQty (line, qtyValue, newOrder);
-                                line = "";
+                            qtyValue = Integer.valueOf(qtystr);
+                            if (qtyValue < 1 || qtyValue > 100) {
+                                GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Invalid range of Qty value: " + qtystr);
+                                qtyValue = 1;
                             }
                         } catch (NumberFormatException ex) {
-                            GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Invalid Integer value: " + qtystr);
+                            GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Last word of Description was not an Integer value: " + qtystr);
+                            qtyValue = 1;
                         }
-                    } else if (line.contentEquals(lastLine)) {
-                        // exact match: must be single qty
-                        setDescriptionAndQty (line, 1, newOrder);
-                        line = "";
+                    }
+                    // check if 2nd line is an exact substring of 1st line
+                    if (linelen == offset && line.contentEquals(lastLine.substring(0, offset))) {
+                        GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Match of Description entries up to Qty value of " + qtyValue);
+                        setDescriptionAndQty (line, qtyValue, newOrder);
+                        lastLine = "";
+                        bDescrFound = true;
+                        continue;
+                    }
+                    // last ditch attempt, since sometimes they change the wording in the 2 descriptions
+                    int minMatchLen = 6;
+                    if (linelen >= minMatchLen) {
+                        String truncline = line.substring(0, minMatchLen);
+                        if (truncline.contentEquals(lastLine.substring(0, truncline.length()))) {
+                            GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Partial match of Description entries up to length " + minMatchLen);
+                            setDescriptionAndQty (line, qtyValue, newOrder);
+                            lastLine = "";
+                            bDescrFound = true;
+                            continue;
+                        }
                     }
                 }
+                // unsuccessful match - save current line as last line
                 lastLine = line;
                 continue;
+            } else {
+                lastLine = "";
             }
 
             // check for initial command
@@ -184,6 +236,9 @@ public class ParseOrders {
                 String data = keywordInfo.data;
                 if (data == null || data.isEmpty()) {
                     data = readLine();
+                    if (data == null) {
+                        break;
+                    }
                 }
 
                 // if an entry is already in process, it must have been completed, so add completed order to list
@@ -199,10 +254,15 @@ public class ParseOrders {
                 }
 
                 GUILogPanel.outputInfoMsg (MsgType.PARSER, "Order placed: " + data);
-                LocalDate date = DateFormat.getFormattedDate (data, true);
-                newOrder.setOrderDate(date);
+                LocalDate date = null;
+                try {
+                    date = DateFormat.getFormattedDate (data, true);
+                    newOrder.setOrderDate(date);
+                } catch (ParserException exMsg) {
+                    // next line will catch error
+                }
                 if (date == null) {
-                    throw new ParserException(functionId + "invalid char in 'Order placed': " + data);
+                    GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "invalid char in 'Order placed': " + data);
                 }
                 continue;
             }
@@ -212,12 +272,15 @@ public class ParseOrders {
             String data = keywordInfo.data;
             if (data == null || data.isEmpty()) {
                 data = readLine();
+                if (data == null) {
+                    break;
+                }
             }
             GUILogPanel.outputInfoMsg (MsgType.DEBUG, "  - data content: " + line);
             GUILogPanel.outputInfoMsg (MsgType.INFO, "* Executing KeyTyp." + keywordInfo.orderId);
             parseCommand (keywordInfo.orderId, data, newOrder);
 
-        } while (line != null);
+        }
 
         // if an entry is already in process, it must have been completed, so add completed order to list
         if (newOrder != null && newOrder.isOrderDefined()) {
@@ -277,15 +340,12 @@ public class ParseOrders {
      * executes the action for the specified keyword found.
      * 
      * @param key      - the key entry found in the parsed line
-     * @param line     - the contents of the line
+     * @param line     - the contents of the line following the keyword (or the following line)
      * @param newOrder - the current order contents
      * 
      * @return true if the keyword was found and executed
-     * 
-     * @throws ParserException
-     * @throws IOException 
      */    
-    private boolean parseCommand (Keyword.KeyTyp key, String line, AmazonOrder newOrder) throws ParserException, IOException {
+    private boolean parseCommand (Keyword.KeyTyp key, String line, AmazonOrder newOrder) {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // get the item selection in the order
@@ -299,26 +359,27 @@ public class ParseOrders {
                 bSuccess = true;
                 break;
 
-            case TOTAL_COST:
-                // the next line will contain the total amount of the purchase
-                GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Total: " + line);
-                int amount = Utils.getAmountValue(line.substring(1));
-                newOrder.setTotalCost(amount);
-                bSuccess = true;
-                break;
-
             case ORDER_NUMBER:
-                String strOrderNum = Utils.getNextWord (line, 19, 19);
-                newOrder.setOrderNumber(strOrderNum);
-                GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Order #: " + strOrderNum);
-                newOrder.setDeliveryDate(null); // clear delivery date for new order
-                bSuccess = true;
+                try {
+                    String strOrderNum = Utils.getNextWord (line, 19, 19);
+                    newOrder.setOrderNumber(strOrderNum);
+                    GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Order #: " + strOrderNum);
+                    newOrder.setDeliveryDate(null); // clear delivery date for new order
+                    bSuccess = true;
+                } catch (ParserException exMsg) {
+                    GUILogPanel.outputInfoMsg (MsgType.WARN, "invalid format for Order #: " + line);
+                }
                 break;
 
-            case Keyword.KeyTyp.DELIVERED: // fall through...
-            case Keyword.KeyTyp.ARRIVING:  // fall through...
-            case Keyword.KeyTyp.NOW_ARRIVING:
-                LocalDate delivered = DateFormat.getFormattedDate(line, true);
+            case DELIVERED: // fall through...
+            case ARRIVING:
+            case NOW_ARRIVING:
+                LocalDate delivered = null;
+                try {
+                    delivered = DateFormat.getFormattedDate(line, true);
+                } catch (ParserException exMsg) {
+                    // next line will catch
+                }
                 if (delivered == null) {
                     GUILogPanel.outputInfoMsg (MsgType.WARN, "invalid char in " + key + " date: " + line);
                 }
@@ -333,8 +394,8 @@ public class ParseOrders {
                 bSuccess = true;
                 break;
 
-            case Keyword.KeyTyp.RETURNED:
-            case Keyword.KeyTyp.REFUNDED:
+            case RETURNED: // fall through...
+            case REFUNDED:
                 if (itemEntry.isItemDefined()) {
                     itemEntry = newOrder.addNewItem();
                     GUILogPanel.outputInfoMsg (MsgType.INFO, "* Added new ITEM (" + newOrder.getItemCount() + ") in multi-item ORDER");
@@ -344,7 +405,7 @@ public class ParseOrders {
                 bSuccess = true;
                 break;
 
-            case Keyword.KeyTyp.PACKAGE_LEFT:
+            case PACKAGE_LEFT:
                 // if the DELIVERED date was skipped, it is another item arriving in the same package
                 //  so the delivery date is the same.
                 if (itemEntry.isItemDefined()) {
@@ -361,6 +422,55 @@ public class ParseOrders {
                 bSuccess = true;
                 break;
 
+            case SHIP_TO:
+                // we don't care about this
+                GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Ship to: " + line);
+                break;
+
+            case SELLER:
+                itemEntry.setSeller(line);
+                GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Seller: " + line);
+                break;
+
+            case TOTAL_COST:
+                // the next line will contain the total amount of the purchase
+                GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Total: " + line);
+                try {
+                    int amount = Utils.getAmountValue(line.substring(1));
+                    newOrder.setTotalCost(amount);
+                    bSuccess = true;
+                } catch (ParserException exMsg) {
+                    GUILogPanel.outputInfoMsg (MsgType.WARN, "invalid format for Total cost: " + line);
+                }
+                break;
+
+            case GROSS_COST:
+                GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Gross: " + line);
+                try {
+                    newOrder.setGrossCost(Utils.getAmountValue(line));
+                } catch (ParserException exMsg) {
+                    GUILogPanel.outputInfoMsg (MsgType.WARN, "invalid format for Gross cost: " + line);
+                }
+                break;
+
+            case TAXES:
+                GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Taxes: " + line);
+                try {
+                    newOrder.setTaxCost(Utils.getAmountValue(line));
+                } catch (ParserException exMsg) {
+                    GUILogPanel.outputInfoMsg (MsgType.WARN, "invalid format for Taxes: " + line);
+                }
+                break;
+
+            case ITEM_COST:
+                try {
+                    itemEntry.setItemCost(Utils.getAmountValue(line));
+                    GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Item cost: " + line);
+                } catch (ParserException exMsg) {
+                    GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Invalid format for Item cost: " + line);
+                }
+                break;
+                        
             default:
                 break;
         }

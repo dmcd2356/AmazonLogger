@@ -65,13 +65,13 @@ public class GUIOrderPanel {
         msgInfo.put(Column.Description  , new MsgControl (50, "N", TextColor.DkVio));
         // these are gathered by the INVOICE selection
         msgInfo.put(Column.ItemPrice    , new MsgControl ( 7, "N", TextColor.Green));
-        msgInfo.put(Column.PreTaxCost   , new MsgControl ( 7, "N", TextColor.Green));
-        msgInfo.put(Column.Tax          , new MsgControl ( 7, "N", TextColor.Green));
-        msgInfo.put(Column.Pending      , new MsgControl ( 7, "I", TextColor.Green));
-        msgInfo.put(Column.Payment      , new MsgControl ( 7, "I", TextColor.Green));
-        msgInfo.put(Column.Refund       , new MsgControl ( 7, "B", TextColor.Green));
+//        msgInfo.put(Column.PreTaxCost   , new MsgControl ( 7, "N", TextColor.Green));
+        msgInfo.put(Column.Tax          , new MsgControl ( 5, "N", TextColor.Green));
+//        msgInfo.put(Column.Pending      , new MsgControl ( 7, "I", TextColor.Green));
+//        msgInfo.put(Column.Payment      , new MsgControl ( 7, "I", TextColor.Green));
+//        msgInfo.put(Column.Refund       , new MsgControl ( 7, "B", TextColor.Green));
         msgInfo.put(Column.Seller       , new MsgControl (15, "N", TextColor.Green));
-        msgInfo.put(Column.CreditCard   , new MsgControl (20, "I", TextColor.Black));
+//        msgInfo.put(Column.CreditCard   , new MsgControl (20, "I", TextColor.Black));
     }
 
     public static void init() {
@@ -124,8 +124,11 @@ public class GUIOrderPanel {
         printText (Column.ItemIndex    , "Index"       , true, false);        
         printText (Column.Qty          , "Qty"         , true, false);        
         printText (Column.DateDelivered, "Del date"    , true, false);        
+        printText (Column.ItemPrice    , "Cost"        , true, false);
+        printText (Column.Tax          , "Tax"         , true, false);
+        printText (Column.Seller       , "Seller"      , true, false);
         printText (Column.Description  , "Description" , true, true);
-        print ("_______________________________________________________________________________________________________________________________________" + NEWLINE,
+        print ("___________________________________________________________________________________________________________________________________________________________________________________________________" + NEWLINE,
                 TextColor.Black, false, false, false);
     }
     
@@ -147,6 +150,9 @@ public class GUIOrderPanel {
             printItem (Column.ItemIndex    , orderInfo, ix, false);        
             printItem (Column.Qty          , orderInfo, ix, false);        
             printItem (Column.DateDelivered, orderInfo, ix, false);        
+            printItem (Column.ItemPrice    , orderInfo, ix, false);
+            printItem (Column.Tax          , orderInfo, ix, false);
+            printItem (Column.Seller       , orderInfo, ix, false);
             printItem (Column.Description  , orderInfo, ix, true);
         }
     }
@@ -154,21 +160,38 @@ public class GUIOrderPanel {
     private static String getOrderEntry (AmazonOrder orderInfo, Column colName) {
         String entry = null;
         switch (colName) {
+            case OrderNumber:
+                entry = orderInfo.getOrderNumber();
+                break;
             case DateOrdered:
                 LocalDate date = orderInfo.getOrderDate();
                 if (date != null) {
                     entry = date.toString();
                 }
                 break;
-            case OrderNumber:
-                entry = orderInfo.getOrderNumber();
+            case DateDelivered:
+                date = orderInfo.getDeliveryDate();
+                if (date != null) {
+                    entry = date.toString();
+                }
                 break;
             case Total:
                 Integer cost = orderInfo.getTotalCost();
                 if (cost != null) {
                     entry = Utils.cvtAmountToString(cost);
                 }
-                entry = Utils.padLeft(entry, 7); // this will align the dec pt
+                if (entry != null) {
+                    entry = Utils.padLeft(entry, 7); // this will align the dec pt
+                }
+                break;
+            case Tax:
+                cost = orderInfo.getTaxCost();
+                if (cost != null) {
+                    entry = Utils.cvtAmountToString(cost);
+                }
+                if (entry != null) {
+                    entry = Utils.padLeft(entry, 4); // this will align the dec pt
+                }
                 break;
             default:
                 break;
@@ -203,6 +226,15 @@ public class GUIOrderPanel {
                     entry = date.toString();
                 }
                 break;
+            case ItemPrice:
+                Integer cost = item.getItemCost();
+                if (cost != null) {
+                    entry = Utils.cvtAmountToString(cost);
+                }
+                break;
+            case Seller:
+                entry = item.getSeller();
+                break;
             case Description:
                 entry = item.getDescription();
                 break;
@@ -213,6 +245,9 @@ public class GUIOrderPanel {
     }
     
     private static String padEntry (Column colName, String entry) {
+        if (entry == null) {
+            entry = "null";
+        }
         MsgControl font = msgInfo.get(colName);
         if (font != null) {
             int fieldLen = font.fieldSize + 4; // 4 is the gap between fields
@@ -243,8 +278,18 @@ public class GUIOrderPanel {
             entry = getOrderItemEntry (orderInfo, colName, ix);
         }
         if (entry == null) {
-            entry = "null";
-            bError = true;
+            switch (colName) {
+                // non-essential entries
+                case DateDelivered:
+                case ItemPrice:
+                case Tax:
+                case Seller:
+                    break;
+                default:
+                    entry = "null";
+                    bError = true;
+                    break;
+            }
         }
         
         MsgControl font = msgInfo.get(colName);

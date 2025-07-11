@@ -23,23 +23,25 @@ public class AmazonParser {
     private static ArrayList<AmazonOrder> amazonList = new ArrayList<>();
     private static ArrayList<AmazonOrder> detailList = new ArrayList<>();
 
+    public enum ClipTyp { NONE, ORDERS, INVOICE };
+
+
     public AmazonParser () {
         // run using input from system clipboard
         clipReader = new ClipboardReader();
-        amazonList = new ArrayList<>();
-        detailList = new ArrayList<>();
         GUIOrderPanel.clearMessages();
     }
     
     public AmazonParser (File clipFile) {
         // run from using input from file
         clipReader = new ClipboardReader (clipFile);
-        amazonList = new ArrayList<>();
-        detailList = new ArrayList<>();
         GUIOrderPanel.clearMessages();
     }
 
-    public enum ClipTyp { NONE, ORDERS, INVOICE };
+    public static void initLists () {
+        amazonList.clear();
+        detailList.clear();
+    }
     
     /**
      * parses the data from the web text file (or clipboard).
@@ -60,6 +62,7 @@ public class AmazonParser {
 
         // create a keyword instance to use
         Keyword keyword = new Keyword();
+        ParseOrders parseOrd = new ParseOrders(clipReader);
 
         // first, we check for which type of file we are reading
         while (eClipType == ClipTyp.NONE) {
@@ -104,16 +107,16 @@ public class AmazonParser {
                 case Keyword.KeyTyp.ORDER_PLACED:
                     eClipType = ClipTyp.ORDERS;
                     GUILogPanel.outputInfoMsg (MsgType.PARSER, "'ORDERS' clipboard");
-                    ParseOrders parseOrd = new ParseOrders(clipReader);
+//                    ParseOrders parseOrd = new ParseOrders(clipReader);
                     GUIOrderPanel.printOrderHeader();
-                    newList = parseOrd.parseOrders(line, eKeyId);
+                    newList = parseOrd.parseOrders(ClipTyp.ORDERS, line, eKeyId);
                     // merge list with current running list (in chronological order)
                     amazonList = addOrdersToList (amazonList, newList);
 
                     int itemCount = 0;
                     for (int ix = 0; ix < amazonList.size(); ix++) {
                         itemCount += amazonList.get(ix).item.size();
-//                        GUIOrderPanel.printOrder(amazonList.get(ix));
+                        GUIOrderPanel.printOrder(amazonList.get(ix));
                     }
                     if (itemCount > 0) {
                         startDate = amazonList.get(0).getOrderDate();
@@ -125,8 +128,9 @@ public class AmazonParser {
                 case Keyword.KeyTyp.ORDER_DETAILS:
                     eClipType = ClipTyp.INVOICE;
                     GUILogPanel.outputInfoMsg (MsgType.PARSER, "'INVOICE' clipboard");
-                    ParseDetails parseDet = new ParseDetails();
-                    AmazonOrder newOrder = parseDet.parseDetails(clipReader, line);
+                    GUIOrderPanel.printOrderHeader();
+                    newList = parseOrd.parseOrders(ClipTyp.INVOICE, line, Keyword.KeyTyp.NONE);
+                    AmazonOrder newOrder = newList.get(0);
                     // add the new order to the current detailed orders we have accumulated,
                     //  but keep them in chronological order (oldest to newest)
                     boolean bPlaced = false;
@@ -146,6 +150,7 @@ public class AmazonParser {
                     itemCount = 0;
                     for (int ix = 0; ix < detailList.size(); ix++) {
                         itemCount += detailList.get(ix).item.size();
+                        GUIOrderPanel.printOrder(detailList.get(ix));
                     }
                     if (itemCount > 0) {
                         startDate = detailList.get(0).getOrderDate();
@@ -376,7 +381,6 @@ public class AmazonParser {
             String orderNum = order.getOrderNumber();
             LocalDate orderDate = order.getOrderDate();
             String strDate = DateFormat.convertDateToString (orderDate, true);
-            GUIOrderPanel.printOrder(newList.get(ix));
 
             if (! order.isOrderComplete()) {
                 GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Incomplete data in entry " + ix + ": order #: " + orderNum);

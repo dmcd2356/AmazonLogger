@@ -120,7 +120,7 @@ public final class GUIMain extends JFrame implements ActionListener {
     
         // setup the control sizes
         int y_pane_height = 700;        // dimensions of the text pane
-        int x_pane_width = 1100;
+        int x_pane_width = 1400;
         
         int y_button_height = 20;       // dimensions of the buttons
         int x_button_width = 130;
@@ -138,7 +138,7 @@ public final class GUIMain extends JFrame implements ActionListener {
 
         int border_size = 50;
         int panel_width = x_pane_width + (2 * border_size);
-        int panel_height = y_pane_height + y_title_offset + (9 * y_line_gap) + y_button_height + (2 * border_size);
+        int panel_height = y_pane_height + y_title_offset + (10 * y_line_gap) + y_button_height + (2 * border_size);
 
         setTitle("Amazon shopping expenditures");
         setBounds(300, 150, panel_width, panel_height);
