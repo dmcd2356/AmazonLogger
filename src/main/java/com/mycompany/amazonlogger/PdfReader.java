@@ -4,7 +4,6 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.props;
 import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
 
@@ -92,7 +91,7 @@ public class PdfReader {
             // update the Pdf path selection
             pdfPath = Utils.getFilePath(pdfFile);
             if (!pdfPath.isEmpty()) {
-                props.setPropertiesItem(Property.PdfPath, pdfPath);
+                PropertiesFile.setPropertiesItem(Property.PdfPath, pdfPath);
                 GUILogPanel.outputInfoMsg(MsgType.INFO, "PDF Path name: " + pdfPath);
             }
         }

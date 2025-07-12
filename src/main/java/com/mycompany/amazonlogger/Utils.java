@@ -4,7 +4,6 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.props;
 import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 
 import java.awt.Color;
@@ -634,7 +633,7 @@ public class Utils {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         String validPath = null;
-        String pathName = props.getPropertiesItem(tag, "");
+        String pathName = PropertiesFile.getPropertiesItem(tag, "");
         if (pathName != null && !pathName.isEmpty()) {
             if (pathName.charAt(0) == '~') {
                 pathName = System.getProperty("user.home") + pathName.substring(1);
@@ -703,7 +702,7 @@ public class Utils {
                         throw new ParserException(functionId + "Input path name was outside Test Path");
                     }
                 }
-                props.setPropertiesItem (PropertiesFile.Property.PdfPath, pathname);
+                PropertiesFile.setPropertiesItem (PropertiesFile.Property.PdfPath, pathname);
                 break;
             case Spreadsheet:
                 // if running from script, limit path selection to within test path
@@ -712,14 +711,14 @@ public class Utils {
                         throw new ParserException(functionId + "Input path name was outside Test Path");
                     }
                 }
-                props.setPropertiesItem (PropertiesFile.Property.SpreadsheetPath, pathname);
+                PropertiesFile.setPropertiesItem (PropertiesFile.Property.SpreadsheetPath, pathname);
                 break;
             default:
             case Test:
                 // when we set the Test path, init all other paths to it as well
-                props.setPropertiesItem (PropertiesFile.Property.TestPath, pathname);
-                props.setPropertiesItem (PropertiesFile.Property.PdfPath, pathname);
-                props.setPropertiesItem (PropertiesFile.Property.SpreadsheetPath, pathname);
+                PropertiesFile.setPropertiesItem (PropertiesFile.Property.TestPath, pathname);
+                PropertiesFile.setPropertiesItem (PropertiesFile.Property.PdfPath, pathname);
+                PropertiesFile.setPropertiesItem (PropertiesFile.Property.SpreadsheetPath, pathname);
                 break;
         }
     }

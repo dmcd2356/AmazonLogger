@@ -168,7 +168,7 @@ public class LoopStruct {
             try {
                 step = loop.valStep.getIntValue().toString();
             } catch (ParserException exMsg) {  }
-            return "<name> " + id.name + " @ " + ScriptCompile.getLineNumber(id.index)
+            return "<name> " + id.getName() + " @ " + ScriptCompile.getLineNumber(id.getIndex())
                     + " " + DATA_SEP + " <owner> "   + Subroutine.findSubName(loop.ixBegin)
                     + " " + DATA_SEP + " <type> Integer"
                     + " " + DATA_SEP + " <value> "   + loop.value
@@ -373,7 +373,7 @@ public class LoopStruct {
         // increment param by the step value and check if we have completed
         value += valStep.getIntValue();
         bUpdate = true;
-        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "     LOOP " + name + "@" + loopId.index + " value = " + value);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "     LOOP " + loopId.printLoopId() + " value = " + value);
         
         // skip checking for exit if running forever
         if (! isForever()) {
@@ -439,7 +439,7 @@ public class LoopStruct {
         if (!loopStack.empty()) {
             for (int ix = 0; ix < loopStack.size(); ix++) {
                 LoopId loopId = loopStack.get(ix);
-                if (loopId.name.contentEquals(name)) {
+                if (loopId.getName().contentEquals(name)) {
                     return LoopParam.getLoopValue(loopId);
                 }
             }

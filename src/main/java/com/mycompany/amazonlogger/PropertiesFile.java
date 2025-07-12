@@ -40,10 +40,10 @@ public class PropertiesFile {
     private static final String CLASS_NAME = PropertiesFile.class.getSimpleName();
 
     // the location of the properties file for this application
-    final static private String PROPERTIES_PATH = ".amazonreader/";
-    final static private String PROPERTIES_FILE = "site.properties";
+    private final static String PROPERTIES_PATH = ".amazonreader/";
+    private final static String PROPERTIES_FILE = "site.properties";
 
-    private Properties   props;
+    private static Properties   props;
 
     // these are the properties defined for this project
     public static enum Property {
@@ -135,7 +135,7 @@ public class PropertiesFile {
      * 
      * @return the value associated with the property
      */
-    public String getPropertiesItem (Property tag, String dflt) {
+    public static String getPropertiesItem (Property tag, String dflt) {
         if (props == null) {
             return dflt;
         }
@@ -167,7 +167,7 @@ public class PropertiesFile {
      * 
      * @return the value associated with the property
      */
-    public Integer getPropertiesItem (Property tag, Integer dflt) {
+    public static Integer getPropertiesItem (Property tag, Integer dflt) {
         // if properties file does not exist, return the default value
         if (props == null) {
             return dflt;
@@ -209,7 +209,7 @@ public class PropertiesFile {
      * @param tag   - the property tag (name of the property)
      * @param value - the value to set the property to
      */
-    public void setPropertiesItem (Property tag, String value) {
+    public static void setPropertiesItem (Property tag, String value) {
         // save changes to properties file
         if (props == null) {
             return;
@@ -243,14 +243,14 @@ public class PropertiesFile {
      * @param tag   - the property tag (name of the property)
      * @param value - the value to set the property to
      */
-    public void setPropertiesItem (Property tag, Integer value) {
+    public static void setPropertiesItem (Property tag, Integer value) {
         setPropertiesItem (tag, Integer.toString(value));
     }
 
     /**
      * write the properties data to the properties file
      */    
-    private void writePropertiesFile () {
+    private static void writePropertiesFile () {
         try {
             FileOutputStream out = new FileOutputStream(PROPERTIES_PATH + PROPERTIES_FILE);
             props.store(out, "---No Comment---");
@@ -264,7 +264,7 @@ public class PropertiesFile {
      * the local function for interfacing with the method for writing a
      * non-error message.
      */    
-    private void outputMsg (String msg) {
+    private static void outputMsg (String msg) {
         GUILogPanel.outputInfoMsg(MsgType.PROPS, msg);
     }
     
@@ -272,7 +272,7 @@ public class PropertiesFile {
      * the local function for interfacing with the method for writing an
      * error message.
      */    
-    private void errorMsg (String msg) {
+    private static void errorMsg (String msg) {
         GUILogPanel.outputInfoMsg(MsgType.WARN, msg);
     }
     

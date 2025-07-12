@@ -4,7 +4,6 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.props;
 import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
 
@@ -105,7 +104,7 @@ public final class GUIMain extends JFrame implements ActionListener {
     public static void init () {
         GUILogPanel.init();
         GUILogPanel.closeTestFile();
-        props.setPropertiesItem(Property.TestFileOut, "");
+        PropertiesFile.setPropertiesItem(Property.TestFileOut, "");
     }
 
     public static boolean isGUIMode() {
@@ -839,7 +838,7 @@ public final class GUIMain extends JFrame implements ActionListener {
      * @param msgType - the message to enable/disable
      */
     private static int getPropsMsgEnable () {
-        String strFlags = props.getPropertiesItem(Property.MsgEnable, "0");
+        String strFlags = PropertiesFile.getPropertiesItem(Property.MsgEnable, "0");
         Integer intVal = 0;
         try {
             intVal = Utils.getHexValue (strFlags);
@@ -863,7 +862,7 @@ public final class GUIMain extends JFrame implements ActionListener {
     private static void setPropsMsgEnable (int intValue) {
         try {
             String strFlags = Utils.toHexWordValue (intValue);
-            props.setPropertiesItem(Property.MsgEnable, strFlags);
+            PropertiesFile.setPropertiesItem(Property.MsgEnable, strFlags);
         } catch (ParserException exMsg) {
             // ignore the error
         }
@@ -1011,8 +1010,8 @@ public final class GUIMain extends JFrame implements ActionListener {
         // only default to PropertiesFile selection for test file out if running from GUI.
         // (for program mode, default to using stdout until selection made)
         if (bUseGUI) {
-            String testName = props.getPropertiesItem(Property.TestFileOut, "");
-            Integer testAppend = props.getPropertiesItem(Property.TestFileAppend, 0);
+            String testName = PropertiesFile.getPropertiesItem(Property.TestFileOut, "");
+            Integer testAppend = PropertiesFile.getPropertiesItem(Property.TestFileAppend, 0);
             GUILogPanel.setTestOutputFile(testName, testAppend != 0);
         }
         setMessageFlags(getPropsMsgEnable());

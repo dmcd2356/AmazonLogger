@@ -116,17 +116,17 @@ public class ScriptExecute {
     /**
      * extracts the numeric (or Calculation) value from a parameter
      * 
-     * @param parmList - the argument list to parse
-     * @param offset   - the index of the 1st entry for the String value (in case there are multiple entries)
+     * @param cmdStruct - the structure containing the argument list to parse
+     * @param offset    - the index of the 1st entry for the String value (in case there are multiple entries)
      * 
      * @return the string argument (concatenates the entries if there are more than 1)
      * 
      * @throws ParserException 
      */
-    private String getStringArg (ArrayList<ParameterStruct> parmList, int offset) throws ParserException {
+    private String getStringArg (CommandStruct cmdStruct, int offset) throws ParserException {
         String strValue = "";
-        for (int ix = offset; ix < parmList.size(); ix++) {
-            strValue += parmList.get(ix).getStringValue();
+        for (int ix = offset; ix < cmdStruct.getParamSize(); ix++) {
+            strValue += cmdStruct.getParamEntry(ix).getStringValue();
         }
         return strValue;
     }
@@ -232,8 +232,8 @@ public class ScriptExecute {
      */
     public int executeProgramCommand (int cmdIndex, CommandStruct cmdStruct) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        String linePreface = "PROGIX [" + cmdIndex + "]: " + showLineNumberInfo(cmdStruct.line);
-        String exceptPreface = functionId + linePreface + " " + cmdStruct.command;
+        String linePreface = "PROGIX [" + cmdIndex + "]: " + showLineNumberInfo(cmdStruct.getLine());
+        String exceptPreface = functionId + linePreface + " " + cmdStruct.getCommand();
         String debugPreface = "    ";
         int newIndex = -1;
         
@@ -241,9 +241,9 @@ public class ScriptExecute {
         // (skip for SET command so as not to modify the parameter we are setting.
         //  the conversion for this will be done in Calculation)
         cmdStruct.showCommand(linePreface);
-        for (int ix = 0; ix < cmdStruct.params.size(); ix++) {
-            if (ix > 0 || cmdStruct.command != CommandStruct.CommandTable.SET) {
-                ParameterStruct param = cmdStruct.params.get(ix);
+        for (int ix = 0; ix < cmdStruct.getParamSize(); ix++) {
+            if (ix > 0 || cmdStruct.getCommand() != CommandStruct.CommandTable.SET) {
+                ParameterStruct param = cmdStruct.getParamEntry(ix);
                 try {
                     param.updateFromReference();
                 } catch (ParserException exMsg) {
@@ -260,7 +260,7 @@ public class ScriptExecute {
         Subroutine.setCurrentIndex(cmdIndex);
 
         try {
-        switch (cmdStruct.command) {
+        switch (cmdStruct.getCommand()) {
             case ENDMAIN:
             case EXIT:
                 return -1; // this will terminate the program
@@ -268,76 +268,76 @@ public class ScriptExecute {
                 GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "Subroutine entered at level: " + Subroutine.getSubroutineLevel());
                 break;
             case GOSUB:
-                String subName = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                String subName = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                            ParameterStruct.ParamType.String).getStringValue();
                 newIndex = subroutine.subBegin(subName, cmdIndex + 1);
                 break;
             case ENDSUB:
             case RETURN:
                 String retArg = "";
-                if (! cmdStruct.params.isEmpty()) {
-                    retArg = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                if (! cmdStruct.isParamEmpty()) {
+                    retArg = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                            ParameterStruct.ParamType.String).getStringValue();
                 }
                 newIndex = Subroutine.subReturn(retArg);
                 break;
             case PRINT:
                 // arg 0: text to output
-                if (cmdStruct.params.isEmpty()) {
+                if (cmdStruct.isParamEmpty()) {
                     // treat no arguments as outputting an empty newline
                     printUserText(null);
-                } else if (cmdStruct.params.size() > 1) {
+                } else if (cmdStruct.getParamSize() > 1) {
                     // if multiple arguments, must be a concatenated string.
                     //  pull the pieces together and print
                     String text = "";
-                    for (int ix = 0; ix < cmdStruct.params.size(); ix++) {
-                        String entry = cmdStruct.params.get(ix).getStringValue();
+                    for (int ix = 0; ix < cmdStruct.getParamSize(); ix++) {
+                        String entry = cmdStruct.getParamEntry(ix).getStringValue();
                         if (! entry.contentEquals("+")) {
                             text += entry;
                         }
                     }
                     printUserText(text);
-                } else if (cmdStruct.params.get(0).getParamType() == ParameterStruct.ParamType.StrArray) {
+                } else if (cmdStruct.getParamEntry(0).getParamType() == ParameterStruct.ParamType.StrArray) {
                     // if entry is a string array, print each entry on a new line
-                    ArrayList<String> list = cmdStruct.params.get(0).getStrArray();
+                    ArrayList<String> list = cmdStruct.getParamEntry(0).getStrArray();
                     for (int ix = 0; ix < list.size(); ix++) {
                         String text = list.get(ix);
                         printUserText(text);
                     }
-                } else if (cmdStruct.params.get(0).getParamType() == ParameterStruct.ParamType.IntArray) {
+                } else if (cmdStruct.getParamEntry(0).getParamType() == ParameterStruct.ParamType.IntArray) {
                     // if entry is a string array, print each entry on a new line
-                    ArrayList<Long> list = cmdStruct.params.get(0).getIntArray();
+                    ArrayList<Long> list = cmdStruct.getParamEntry(0).getIntArray();
                     for (int ix = 0; ix < list.size(); ix++) {
                         String text = list.get(ix).toString();
                         printUserText(text);
                     }
                 } else {
                     // otherwise, just print the single entry
-                    String text = cmdStruct.params.get(0).getStringValue();
+                    String text = cmdStruct.getParamEntry(0).getStringValue();
                     printUserText(text);
                 }
                 break;
             case DIRECTORY:
                 // arg 0: filter selection (-f -d or blank)
                 // arg 0: directory path
-                String filter = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                String filter = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                    ParameterStruct.ParamType.String).getStringValue();
-                String fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                String fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(1),
                          ParameterStruct.ParamType.String).getStringValue();
                 FileIO.getDirFileList (fname, filter);
                 break;
             case CD:
                 // arg 0: directory path
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                   ParameterStruct.ParamType.String).getStringValue();
                 FileIO.setFilePath (fname);
                 break;
             case FEXISTS:
                 // arg 0: type of check on file
                 // arg 1: filename
-                String ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                String ftype = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(1),
                   ParameterStruct.ParamType.String).getStringValue();
 
                 File file = FileIO.getFilePath(fname);
@@ -363,75 +363,75 @@ public class ScriptExecute {
                 break;
             case FGETSIZE:
                 // arg 0: filename
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                   ParameterStruct.ParamType.String).getStringValue();
                 Long fsize = FileIO.fileGetSize(fname);
                 VarReserved.putResponseValue(fsize.toString());
                 break;
             case FGETLINES:
                 // arg 0: filename
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                   ParameterStruct.ParamType.String).getStringValue();
                 Integer lines = FileIO.fileGetLines(fname);
                 VarReserved.putResponseValue(lines.toString());
                 break;
             case MKDIR:
                 // arg 0: dir name
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                   ParameterStruct.ParamType.String).getStringValue();
                 FileIO.createDir(fname);
                 break;
             case RMDIR:
                 // arg 0: -f if force, else don't remove if not empty
                 // arg 1: dir name
-                ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                ftype = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(1),
                   ParameterStruct.ParamType.String).getStringValue();
                 FileIO.removeDir(fname, ftype.contentEquals("-f"));
                 break;
             case FDELETE:
                 // arg 0: filename
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                   ParameterStruct.ParamType.String).getStringValue();
                 FileIO.delete(fname);
                 break;
             case FCREATE:
                 // arg 0: type (-r / -w)
                 // arg 1: filename
-                ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                ftype = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(1),
                   ParameterStruct.ParamType.String).getStringValue();
                 FileIO.createFile(fname, ftype.contentEquals("-w"));
                 break;
             case FOPEN:
                 // arg 0: type (-r / -w)
                 // arg 1: filename
-                ftype = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                ftype = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                   ParameterStruct.ParamType.String).getStringValue();
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(1),
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(1),
                   ParameterStruct.ParamType.String).getStringValue();
                 FileIO.openFile(fname, ftype.contentEquals("-w"));
                 break;
             case FCLOSE:
                 // arg 0: filename
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                   ParameterStruct.ParamType.String).getStringValue();
                 FileIO.close(fname);
                 break;
             case FREAD:
                 // optional arg 0: number of lines to read
                 Integer count = null;
-                if (! cmdStruct.params.isEmpty()) {
-                    count = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                if (! cmdStruct.isParamEmpty()) {
+                    count = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                           ParameterStruct.ParamType.Integer).getIntegerValue().intValue();
                 }
                 FileIO.read(count);
                 break;
             case FWRITE:
                 // arg 0: text to write
-                ParameterStruct parm = cmdStruct.params.get(0);
+                ParameterStruct parm = cmdStruct.getParamEntry(0);
                 ArrayList<String> strArray = ParameterStruct.verifyArgEntry (parm,
                   ParameterStruct.ParamType.StrArray).getStrArray();
                 if (strArray != null && strArray.size() > 1) {
@@ -442,7 +442,7 @@ public class ScriptExecute {
                 break;
             case OCRSCAN:
                 // verify 1 String argument: file name
-                fname = ParameterStruct.verifyArgEntry (cmdStruct.params.get(0),
+                fname = ParameterStruct.verifyArgEntry (cmdStruct.getParamEntry(0),
                   ParameterStruct.ParamType.String).getStringValue();
                 OCRReader ocr = new OCRReader();
                 ocr.run (fname);
@@ -454,10 +454,10 @@ public class ScriptExecute {
                 // the 1st 3 entries are always required: the param name, the equate sign and the value to set
                 //   and we ignore the equate sign at offset 1.
                 // for Boolean case, we have 1 or 2 additional entries that may be added
-                ParameterStruct parmRef = cmdStruct.params.get(0);
-                ParameterStruct parm1   = cmdStruct.params.get(2);
-                ParameterStruct parm2   = cmdStruct.params.size() > 3 ? cmdStruct.params.get(3) : null;
-                ParameterStruct parm3   = cmdStruct.params.size() > 4 ? cmdStruct.params.get(4) : null;
+                ParameterStruct parmRef = cmdStruct.getParamEntry(0);
+                ParameterStruct parm1   = cmdStruct.getParamEntry(2);
+                ParameterStruct parm2   = cmdStruct.getParamSize() > 3 ? cmdStruct.getParamEntry(3) : null;
+                ParameterStruct parm3   = cmdStruct.getParamSize() > 4 ? cmdStruct.getParamEntry(4) : null;
                 String varName = parmRef.getVariableRefName();
                 ParameterStruct.ParamType varType = parmRef.getVariableRefType();
                 ParameterStruct.ParamType type = varType;
@@ -496,7 +496,7 @@ public class ScriptExecute {
                         // The entries should be a list of 1 or more Strings to concatenate into 1
                         // (any parameter references should have been converted to their appropriate value
                         //  at the begining of the execution phase)
-                        String concat = getStringArg (cmdStruct.params, 2);
+                        String concat = getStringArg (cmdStruct, 2);
                         PreCompile.variables.setStringVariable(varName, concat);
                         break;
                     default:
@@ -506,8 +506,8 @@ public class ScriptExecute {
 
             case INSERT:
                 ParameterStruct parmValue;
-                parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be appended to
-                parmValue = cmdStruct.params.get(1); // element 1 is the value being appended
+                parmRef   = cmdStruct.getParamEntry(0); // element 0 is the param ref to be appended to
+                parmValue = cmdStruct.getParamEntry(1); // element 1 is the value being appended
                 varName = getArrayAssignment(parmRef);
                 ParameterStruct.ParamType parmType = PreCompile.variables.getVariableTypeFromName (varName);
 
@@ -537,7 +537,7 @@ public class ScriptExecute {
                                 bSuccess = VarArray.arrayInsertEntry (varName, 0, strValue);
                             }
                         } else {
-                            strValue = getStringArg (cmdStruct.params, 1);
+                            strValue = getStringArg (cmdStruct, 1);
                             bSuccess = VarArray.arrayInsertEntry (varName, 0, strValue);
                         }
                         break;
@@ -551,8 +551,8 @@ public class ScriptExecute {
                 }
 
             case APPEND:
-                parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be appended to
-                parmValue = cmdStruct.params.get(1); // element 1 is the value being appended
+                parmRef   = cmdStruct.getParamEntry(0); // element 0 is the param ref to be appended to
+                parmValue = cmdStruct.getParamEntry(1); // element 1 is the value being appended
                 varName = getArrayAssignment(parmRef);
                 parmType = PreCompile.variables.getVariableTypeFromName (varName);
 
@@ -579,7 +579,7 @@ public class ScriptExecute {
                                 bSuccess = VarArray.arrayAppendEntry (varName, strValue);
                             }
                         } else {
-                            strValue = getStringArg (cmdStruct.params, 1);
+                            strValue = getStringArg (cmdStruct, 1);
                             bSuccess = VarArray.arrayAppendEntry (varName, strValue);
                         }
                         break;
@@ -594,9 +594,9 @@ public class ScriptExecute {
             case MODIFY:
                 // ParamName, Index (Integer), Value (String or Integer)
                 ParameterStruct parmIndex;
-                parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be modified
-                parmIndex = cmdStruct.params.get(1); // element 1 is the index element being modified
-                parmValue = cmdStruct.params.get(2); // element 2 is the value to set the entry to
+                parmRef   = cmdStruct.getParamEntry(0); // element 0 is the param ref to be modified
+                parmIndex = cmdStruct.getParamEntry(1); // element 1 is the index element being modified
+                parmValue = cmdStruct.getParamEntry(2); // element 2 is the value to set the entry to
                 varName  = getArrayAssignment(parmRef);
                 parmType  = PreCompile.variables.getVariableTypeFromName (varName);
                 int index = parmIndex.getIntegerValue().intValue();
@@ -610,7 +610,7 @@ public class ScriptExecute {
                         strValue = result.toString();
                         break;
                     case StrArray:
-                        strValue = getStringArg (cmdStruct.params, 2);
+                        strValue = getStringArg (cmdStruct, 2);
                         break;
                     default:
                         throw new ParserException(exceptPreface + "Invalid parameter type: " + parmRef.getParamType());
@@ -623,8 +623,8 @@ public class ScriptExecute {
                 break;
             case REMOVE:
                 // ParamName, Index (Integer)
-                parmRef   = cmdStruct.params.get(0); // element 0 is the param ref to be modified
-                parmIndex = cmdStruct.params.get(1); // element 1 is the index element being removed
+                parmRef   = cmdStruct.getParamEntry(0); // element 0 is the param ref to be modified
+                parmIndex = cmdStruct.getParamEntry(1); // element 1 is the index element being removed
                 varName  = getArrayAssignment(parmRef);
                 index = parmIndex.getIntegerValue().intValue();
 
@@ -638,7 +638,7 @@ public class ScriptExecute {
                 break;
             case TRUNCATE:
                 // ParamName, Count (Integer - optional)
-                parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
+                parmRef = cmdStruct.getParamEntry(0); // element 0 is the param ref to be modified
                 varName = getArrayAssignment(parmRef);
 
                 // make sure we have write access to the variable
@@ -646,8 +646,8 @@ public class ScriptExecute {
                 
                 int size = VarArray.getArraySize(varName);
                 int iCount = 1;
-                if (cmdStruct.params.size() > 1) {
-                    parmIndex = cmdStruct.params.get(1); // element 1 is the (optional) number of entries being removed
+                if (cmdStruct.getParamSize() > 1) {
+                    parmIndex = cmdStruct.getParamEntry(1); // element 1 is the (optional) number of entries being removed
                     iCount = parmIndex.getIntegerValue().intValue();
                     if (iCount > size) {
                         throw new ParserException(exceptPreface + "item count " + iCount + " exceeds size of " + varName);
@@ -661,7 +661,7 @@ public class ScriptExecute {
                 break;
             case POP:
                 // ParamName, Index (Integer - optional)
-                parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
+                parmRef = cmdStruct.getParamEntry(0); // element 0 is the param ref to be modified
                 varName = getArrayAssignment(parmRef);
 
                 // make sure we have write access to the variable
@@ -670,8 +670,8 @@ public class ScriptExecute {
                 size = VarArray.getArraySize(parmRef.getStringValue());
                 iCount = 1;
                 iStart = 0;
-                if (cmdStruct.params.size() > 1) {
-                    parmIndex = cmdStruct.params.get(1); // element 1 is the (optional) number of entries being removed
+                if (cmdStruct.getParamSize() > 1) {
+                    parmIndex = cmdStruct.getParamEntry(1); // element 1 is the (optional) number of entries being removed
                     iCount = parmIndex.getIntegerValue().intValue();
                     if (iCount > size) {
                         throw new ParserException(exceptPreface + "item count " + iCount + " exceeds size of " + varName);
@@ -684,7 +684,7 @@ public class ScriptExecute {
                 break;
             case CLEAR:
                 // ParamName
-                parmRef = cmdStruct.params.get(0); // element 0 is the param ref to be modified
+                parmRef = cmdStruct.getParamEntry(0); // element 0 is the param ref to be modified
                 varName = getArrayAssignment(parmRef);
 
                 // make sure we have write access to the variable
@@ -695,7 +695,7 @@ public class ScriptExecute {
                 
             case FILTER:
                 // ParamName or RESET, 1 (optional) the filter string
-                parmRef = cmdStruct.params.get(0); // element 0 is the param ref or RESET
+                parmRef = cmdStruct.getParamEntry(0); // element 0 is the param ref or RESET
                 varName = getArrayAssignment(parmRef);
                 if (varName.contentEquals("RESET")) {
                     VarArray.arrayFilterReset();
@@ -706,16 +706,16 @@ public class ScriptExecute {
                     parmType = PreCompile.variables.getVariableTypeFromName (varName);
                     switch (parmType) {
                         case StrArray:
-                            filter = cmdStruct.params.get(1).getStringValue();
+                            filter = cmdStruct.getParamEntry(1).getStringValue();
                             String opts = "NONE";
-                            if (cmdStruct.params.size() == 3) {
-                                opts = cmdStruct.params.get(2).getStringValue();
+                            if (cmdStruct.getParamSize() == 3) {
+                                opts = cmdStruct.getParamEntry(2).getStringValue();
                             }
                             VarArray.arrayFilterString(varName, filter, opts);
                             break;
                         case IntArray:
-                            String compSign = cmdStruct.params.get(1).getStringValue();
-                            Long iValue = cmdStruct.params.get(2).getIntegerValue();
+                            String compSign = cmdStruct.getParamEntry(1).getStringValue();
+                            Long iValue = cmdStruct.getParamEntry(2).getIntegerValue();
                             VarArray.arrayFilterInt(varName, compSign, iValue);
                             break;
                         default:
@@ -725,9 +725,9 @@ public class ScriptExecute {
                 break;
             case IF:
                 // check status to see if true of false.
-                parm1 = cmdStruct.params.get(0);
-                parm2 = cmdStruct.params.size() > 1 ? cmdStruct.params.get(1) : null;
-                parm3 = cmdStruct.params.size() > 2 ? cmdStruct.params.get(2) : null;
+                parm1 = cmdStruct.getParamEntry(0);
+                parm2 = cmdStruct.getParamSize() > 1 ? cmdStruct.getParamEntry(1) : null;
+                parm3 = cmdStruct.getParamSize() > 2 ? cmdStruct.getParamEntry(2) : null;
                 Boolean bResult = getComparison(parm1, parm2, parm3);
                 
                 // add entry to the current loop stack
@@ -759,7 +759,7 @@ public class ScriptExecute {
                     GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "IFCONDITION already met");
                     GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "goto ENDIF @ " + newIndex);
                 } else {
-                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "IF level " + IFStruct.getStackSize() + " " + cmdStruct.command + " on line " + cmdIndex);
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "IF level " + IFStruct.getStackSize() + " " + cmdStruct.getCommand() + " on line " + cmdIndex);
                 }
                 break;
             case ELSEIF:
@@ -775,9 +775,9 @@ public class ScriptExecute {
                     GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "goto ENDIF @ " + newIndex);
                 } else {
                     // check status to see if true of false.
-                    parm1 = cmdStruct.params.get(0);
-                    parm2 = cmdStruct.params.size() > 1 ? cmdStruct.params.get(1) : null;
-                    parm3 = cmdStruct.params.size() > 2 ? cmdStruct.params.get(2) : null;
+                    parm1 = cmdStruct.getParamEntry(0);
+                    parm2 = cmdStruct.getParamSize() > 1 ? cmdStruct.getParamEntry(1) : null;
+                    parm3 = cmdStruct.getParamSize() > 2 ? cmdStruct.getParamEntry(2) : null;
                     bResult = getComparison(parm1, parm2, parm3);
 
                     // add entry to the current loop stack
@@ -805,12 +805,12 @@ public class ScriptExecute {
                 
                 // save the current command index in the current if structure
                 IFStruct.stackPop();
-                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + ": " + cmdStruct.command + " on line " + cmdIndex);
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "new IF level " + IFStruct.getStackSize() + ": " + cmdStruct.getCommand() + " on line " + cmdIndex);
                 break;
             case FOR:
-                String loopName  = cmdStruct.params.get(0).getStringValue();
+                String loopName  = cmdStruct.getParamEntry(0).getStringValue();
                 curLoopId = new LoopId(loopName, cmdIndex);
-                newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
+                newIndex = LoopParam.getLoopNextIndex (cmdStruct.getCommand(), cmdIndex, curLoopId);
                     
                 // add entry to the current loop stack
                 LoopStruct.pushStack(curLoopId);
@@ -823,9 +823,9 @@ public class ScriptExecute {
                 if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(exceptPreface + "Received when not in a FOR loop");
                 }
-                newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
-                                    + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
+                newIndex = LoopParam.getLoopNextIndex (cmdStruct.getCommand(), cmdIndex, curLoopId);
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.getCommand().toString() + " command for Loop level " + loopSize
+                                    + " parameter " + curLoopId.printLoopId());
 //                LoopStruct.sendCurrentLoopInfo();
                 break;
             case SKIP:
@@ -833,9 +833,9 @@ public class ScriptExecute {
                 if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(exceptPreface + "Received when not in a FOR loop");
                 }
-                newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
-                                    + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
+                newIndex = LoopParam.getLoopNextIndex (cmdStruct.getCommand(), cmdIndex, curLoopId);
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.getCommand().toString() + " command for Loop level " + loopSize
+                                    + " parameter " + curLoopId.printLoopId());
 //                LoopStruct.sendCurrentLoopInfo();
                 break;
             case BREAKIF:
@@ -844,17 +844,17 @@ public class ScriptExecute {
                     throw new ParserException(exceptPreface + "Received when not in a FOR loop");
                 }
                 // check status to see if true of false.
-                parm1 = cmdStruct.params.get(0);
-                parm2 = cmdStruct.params.size() > 1 ? cmdStruct.params.get(1) : null;
-                parm3 = cmdStruct.params.size() > 2 ? cmdStruct.params.get(2) : null;
+                parm1 = cmdStruct.getParamEntry(0);
+                parm2 = cmdStruct.getParamSize() > 1 ? cmdStruct.getParamEntry(1) : null;
+                parm3 = cmdStruct.getParamSize() > 2 ? cmdStruct.getParamEntry(2) : null;
                 bResult = getComparison(parm1, parm2, parm3);
 
                 if (! bResult) {
                     GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "BREAKIF not TRUE - remain in loop");
                 } else {
                     GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "BREAKIF is TRUE - exit loop");
-                    newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
+                    newIndex = LoopParam.getLoopNextIndex (cmdStruct.getCommand(), cmdIndex, curLoopId);
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "Loop " + curLoopId.printLoopId() + " exiting to index " + newIndex);
                 }
 //                LoopStruct.sendCurrentLoopInfo();
                 break;
@@ -864,17 +864,17 @@ public class ScriptExecute {
                     throw new ParserException(exceptPreface + "Received when not in a FOR loop");
                 }
                 // check status to see if true of false.
-                parm1 = cmdStruct.params.get(0);
-                parm2 = cmdStruct.params.size() > 1 ? cmdStruct.params.get(1) : null;
-                parm3 = cmdStruct.params.size() > 2 ? cmdStruct.params.get(2) : null;
+                parm1 = cmdStruct.getParamEntry(0);
+                parm2 = cmdStruct.getParamSize() > 1 ? cmdStruct.getParamEntry(1) : null;
+                parm3 = cmdStruct.getParamSize() > 2 ? cmdStruct.getParamEntry(2) : null;
                 bResult = getComparison(parm1, parm2, parm3);
 
                 if (! bResult) {
                     GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "SKIPIF not TRUE - do nothing");
                 } else {
                     GUILogPanel.outputInfoMsg(MsgType.DEBUG, debugPreface + "SKIPIF is TRUE - skip to next iteration");
-                    newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "Loop " + curLoopId.name + " index @ " + curLoopId.index + " exiting to index " + newIndex);
+                    newIndex = LoopParam.getLoopNextIndex (cmdStruct.getCommand(), cmdIndex, curLoopId);
+                    GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + curLoopId.printLoopId() + " exiting to index " + newIndex);
                 }
 //                LoopStruct.sendCurrentLoopInfo();
                 break;
@@ -883,9 +883,9 @@ public class ScriptExecute {
                 if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(exceptPreface + "Received when not in a FOR loop");
                 }
-                newIndex = LoopParam.getLoopNextIndex (cmdStruct.command, cmdIndex, curLoopId);
-                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
-                                    + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
+                newIndex = LoopParam.getLoopNextIndex (cmdStruct.getCommand(), cmdIndex, curLoopId);
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.getCommand().toString() + " command for Loop level " + loopSize
+                                    + " " + curLoopId.printLoopId());
 //                LoopStruct.sendCurrentLoopInfo();
                 break;
             case ENDFOR:
@@ -893,8 +893,8 @@ public class ScriptExecute {
                 if (loopSize == 0 || curLoopId == null) {
                     throw new ParserException(exceptPreface + "Received when not in a FOR loop");
                 }
-                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.command.toString() + " command for Loop level " + loopSize
-                                    + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
+                GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + cmdStruct.getCommand().toString() + " command for Loop level " + loopSize
+                                    + " " + curLoopId.printLoopId());
                 LoopStruct.popStack();
                 loopSize = LoopStruct.getStackSize();
                 if (loopSize > 0) {
@@ -904,7 +904,7 @@ public class ScriptExecute {
                     GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "All loops completed so far");
                 } else {
                     GUILogPanel.outputInfoMsg(MsgType.PROGRAM, debugPreface + "Current Loop level " + loopSize
-                                    + " parameter " + curLoopId.name + " index @ " + curLoopId.index);
+                                    + " " + curLoopId.printLoopId());
                 }
 //                LoopStruct.sendCurrentLoopInfo();
                 break;

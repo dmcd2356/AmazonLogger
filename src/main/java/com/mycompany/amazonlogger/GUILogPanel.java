@@ -4,7 +4,6 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.props;
 import java.awt.Color;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
@@ -207,7 +206,7 @@ public class GUILogPanel {
             if (absPath.charAt(0) != '/') {
                 absPath = Utils.getDefaultPath (Utils.PathType.Test) + "/" + absPath;
             }
-            props.setPropertiesItem(PropertiesFile.Property.TestFileAppend,  bAppend ? 1 : 0);
+            PropertiesFile.setPropertiesItem(PropertiesFile.Property.TestFileAppend,  bAppend ? 1 : 0);
             if (testFname.contentEquals(absPath)) {
                 String time = GUIMain.elapsedTimerGet();
                 testFile.println(time + "[DEBUG ] " + functionId + "No change in output file setting");
@@ -215,7 +214,7 @@ public class GUILogPanel {
             }
             
             // update the properties file status if we were successful
-            props.setPropertiesItem(PropertiesFile.Property.TestFileOut, fname);
+            PropertiesFile.setPropertiesItem(PropertiesFile.Property.TestFileOut, fname);
             testFname = absPath;
 
             // if the file already exists and we are not appending, delete it first
@@ -235,7 +234,7 @@ public class GUILogPanel {
             }
         } else {
             testFile = null;
-            props.setPropertiesItem(PropertiesFile.Property.TestFileOut, "");
+            PropertiesFile.setPropertiesItem(PropertiesFile.Property.TestFileOut, "");
         }
     }
     

@@ -8,7 +8,6 @@ package com.mycompany.amazonlogger;
  *
  * @author dan
  */
-import static com.mycompany.amazonlogger.AmazonReader.props;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -23,7 +22,7 @@ public class TCPServerMain {
     public TCPServerMain(Integer port) throws IOException {
 
         if (port == null) {
-            port = props.getPropertiesItem(PropertiesFile.Property.Port, SERVER_PORT);
+            port = PropertiesFile.getPropertiesItem(PropertiesFile.Property.Port, SERVER_PORT);
         }
         System.out.println("Starting TCP server port " + port);
         

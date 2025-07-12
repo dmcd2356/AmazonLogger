@@ -4,7 +4,6 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.props;
 import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
 
@@ -936,7 +935,7 @@ public class Spreadsheet {
         }
         OpenDoc.setSheetSelection(sheetNum);
 
-        props.setPropertiesItem(Property.SpreadsheetTab, name);
+        PropertiesFile.setPropertiesItem(Property.SpreadsheetTab, name);
     }
 
     /**    
@@ -1153,8 +1152,8 @@ public class Spreadsheet {
 
         // update the spreadsheet path in the properties file
         if (!filePath.isEmpty()) {
-            props.setPropertiesItem(Property.SpreadsheetPath, filePath);
-            props.setPropertiesItem(Property.SpreadsheetFile, fnameRoot + fnameExt);
+            PropertiesFile.setPropertiesItem(Property.SpreadsheetPath, filePath);
+            PropertiesFile.setPropertiesItem(Property.SpreadsheetFile, fnameRoot + fnameExt);
             GUILogPanel.outputInfoMsg(MsgType.INFO, "Spreadsheet Path name: " + filePath);
         } else {
             throw new ParserException(functionId + "Invalid path: " + filePath);
@@ -1218,7 +1217,7 @@ public class Spreadsheet {
         }
 
         // get the name of the file to store debug info to (if defined)
-        boolean bSuccess = GUIMain.setDebugOutputFile(props.getPropertiesItem(Property.DebugFileOut, ""));
+        boolean bSuccess = GUIMain.setDebugOutputFile(PropertiesFile.getPropertiesItem(Property.DebugFileOut, ""));
         if (bSuccess) {
             GUIMain.enablePrintButton(true);
         }

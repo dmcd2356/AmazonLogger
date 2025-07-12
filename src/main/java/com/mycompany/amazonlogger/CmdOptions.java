@@ -4,7 +4,6 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.props;
 import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import static com.mycompany.amazonlogger.Utils.getDefaultPath;
 import java.io.File;
@@ -141,13 +140,13 @@ public class CmdOptions {
      * 
      * @throws ParserException if not value Unsigned value
      */
-    private Integer getUnsignedValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
+    private Integer getUnsignedValue (CommandStruct cmdStruct, int index) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        if (index > parm.size()) {
-            throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + parm.size());
+        if (index > cmdStruct.getParamSize()) {
+            throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + cmdStruct.getParamSize());
         }
-        ParameterStruct parmVal = parm.get(index);
+        ParameterStruct parmVal = cmdStruct.getParamEntry(index);
         ParameterStruct param = ParameterStruct.verifyArgEntry (parmVal, ParameterStruct.ParamType.Unsigned);
         return param.getIntegerValue().intValue();
     }
@@ -162,13 +161,13 @@ public class CmdOptions {
      * 
      * @throws ParserException if not value Unsigned value
      */
-    private Boolean getBooleanValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
+    private Boolean getBooleanValue (CommandStruct cmdStruct, int index) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        if (index > parm.size()) {
-            throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + parm.size());
+        if (index > cmdStruct.getParamSize()) {
+            throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + cmdStruct.getParamSize());
         }
-        ParameterStruct parmVal = parm.get(index);
+        ParameterStruct parmVal = cmdStruct.getParamEntry(index);
         ParameterStruct param = ParameterStruct.verifyArgEntry (parmVal, ParameterStruct.ParamType.Boolean);
         return param.getBooleanValue();
     }
@@ -183,13 +182,13 @@ public class CmdOptions {
      * 
      * @throws ParserException if not value Unsigned value
      */
-    private String getStringValue (ArrayList<ParameterStruct> parm, int index) throws ParserException {
+    private String getStringValue (CommandStruct cmdStruct, int index) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        if (index > parm.size()) {
-            throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + parm.size());
+        if (index > cmdStruct.getParamSize()) {
+            throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + cmdStruct.getParamSize());
         }
-        ParameterStruct parmVal = parm.get(index);
+        ParameterStruct parmVal = cmdStruct.getParamEntry(index);
         ParameterStruct param = ParameterStruct.verifyArgEntry (parmVal, ParameterStruct.ParamType.String);
         String strValue = ScriptExecute.extractEmbeddedVar(param);
         if (strValue != null) {
@@ -208,13 +207,13 @@ public class CmdOptions {
      * 
      * @throws ParserException if not value Unsigned value
      */
-    private ArrayList<String> getStringArray (ArrayList<ParameterStruct> parm, int index) throws ParserException {
+    private ArrayList<String> getStringArray (CommandStruct cmdStruct, int index) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        if (index > parm.size()) {
-            throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + parm.size());
+        if (index > cmdStruct.getParamSize()) {
+            throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + cmdStruct.getParamSize());
         }
-        ParameterStruct parmVal = parm.get(index);
+        ParameterStruct parmVal = cmdStruct.getParamEntry(index);
         ParameterStruct param = ParameterStruct.verifyArgEntry (parmVal, ParameterStruct.ParamType.StrArray);
         return param.getStrArray();
     }
@@ -229,13 +228,13 @@ public class CmdOptions {
      * 
      * @throws ParserException if not value Unsigned value
      */
-    private ArrayList<Long> getIntegerArray (ArrayList<ParameterStruct> parm, int index) throws ParserException {
+    private ArrayList<Long> getIntegerArray (CommandStruct cmdStruct, int index) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        if (index > parm.size()) {
-            throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + parm.size());
+        if (index > cmdStruct.getParamSize()) {
+            throw new ParserException(functionId + "Index " + index + " exceeds max arg list of " + cmdStruct.getParamSize());
         }
-        ParameterStruct parmVal = parm.get(index);
+        ParameterStruct parmVal = cmdStruct.getParamEntry(index);
         ParameterStruct param = ParameterStruct.verifyArgEntry (parmVal, ParameterStruct.ParamType.IntArray);
         return param.getIntArray();
     }
@@ -301,10 +300,10 @@ public class CmdOptions {
      * @throws TikaException 
      */
     public void runCmdOption (CommandStruct cmdOption) throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": " + showLineNumberInfo(cmdOption.line);
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": " + showLineNumberInfo(cmdOption.getLine());
         
-        if (cmdOption.params == null) {
-            throw new ParserException(functionId + "Null or empty param list");
+        if (cmdOption.isParamNull()) {
+            throw new ParserException(functionId + "Null or empty param list for command: " + cmdOption.getCmdOption());
         }
 
         // now run the command line option command and save any response msg
@@ -410,14 +409,14 @@ public class CmdOptions {
             } else {
                 // assume it is a parameter - verify the option takes another parameter
                 if (maxArgs == 0) {
-                    throw new ParserException(functionId + "Invalid entry: option " + newCommand.command
+                    throw new ParserException(functionId + "Invalid entry: option " + newCommand.getCommand()
                                         + " has no params and " + nextArg + " is not a valid option");
                 }
                 int pix = (parmCnt < maxArgs) ? parmCnt : maxArgs - 1;
                 char nextType = Character.toUpperCase(optInfo.argTypes.charAt(pix));
                 ParameterStruct.ParamType parmType = getParameterType(nextType);
                 if (parmCnt >= maxArgs && (parmType != ParameterStruct.ParamType.StrArray || parmType != ParameterStruct.ParamType.IntArray)) {
-                    throw new ParserException(functionId + "Too many args for option " + newCommand.command
+                    throw new ParserException(functionId + "Too many args for option " + newCommand.getCommand()
                                         + ": " + (parmCnt+1) + ", arglist = " + optInfo.argTypes);
                 }
 
@@ -427,7 +426,7 @@ public class CmdOptions {
                     pClass = ParameterStruct.ParamClass.Reference;
                 }
                 ParameterStruct parmData = new ParameterStruct(nextArg, pClass, parmType);
-                newCommand.params.add(parmData);
+                newCommand.addParamEntry(parmData);
                 parmCnt += 1;
             }
         }
@@ -559,18 +558,18 @@ public class CmdOptions {
         }
         
         // verify we have the correct number of arguments
-        if (command.params.size() < min || command.params.size() > max) {
-            throw new ParserException(functionId + command + " - Invalid number of arguments: " + command.params.size() + " (valid = " + validTypes + ")");
+        if (command.getParamSize() < min || command.getParamSize() > max) {
+            throw new ParserException(functionId + command + " - Invalid number of arguments: " + command.getParamSize() + " (valid = " + validTypes + ")");
         }
         
         // now verify the types
         int ix = 0;
         try {
-            for (ix = 0; ix < command.params.size(); ix++) {
+            for (ix = 0; ix < command.getParamSize(); ix++) {
                 char type = validTypes.charAt(ix);
                 type = Character.toUpperCase(type);
                 ParameterStruct.ParamType expType = CmdOptions.getParameterType(type);
-                ParameterStruct.verifyArgEntry (command.params.get(ix), expType);
+                ParameterStruct.verifyArgEntry (command.getParamEntry(ix), expType);
             }
         } catch (ParserException exMsg) {
             GUILogPanel.outputInfoMsg(MsgType.ERROR, exMsg.getMessage());
@@ -592,21 +591,20 @@ public class CmdOptions {
      * @throws TikaException 
      */
     private ArrayList<String> executeCmdOption (CommandStruct cmdLine) throws ParserException, IOException, SAXException, TikaException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": " + showLineNumberInfo(cmdLine.line);
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": " + showLineNumberInfo(cmdLine.getLine());
         ArrayList<String> response = new ArrayList<>();
         Utils.PathType pathtype;
         String fname;
-        String option = cmdLine.option;
+        String option = cmdLine.getCmdOption();
         PdfReader pdfReader = null;
-        ArrayList<ParameterStruct> params = cmdLine.params;
         ArrayList<String> arrList;
         Integer iRow, iCol;
 
-        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Executing option: " + cmdLine.option);
+        GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "    Executing option: " + cmdLine.getCmdOption());
 
-        String argTypes = getOptionArgs(cmdLine.option);
+        String argTypes = getOptionArgs(cmdLine.getCmdOption());
         if (argTypes == null) {
-            throw new ParserException(functionId + "option is not valid: " + cmdLine.option);
+            throw new ParserException(functionId + "option is not valid: " + cmdLine.getCmdOption());
         }
 
         // verify integrity of params
@@ -616,16 +614,16 @@ public class CmdOptions {
         try {
             switch (option) {
                 case "-debug":
-                    GUIMain.setMessageFlags(getUnsignedValue(params, 0));
+                    GUIMain.setMessageFlags(getUnsignedValue(cmdLine, 0));
                     break;
                 case "-spath":
-                    String absPath = getStringValue(params, 0);
+                    String absPath = getStringValue(cmdLine, 0);
                     Utils.setDefaultPath(Utils.PathType.Spreadsheet, absPath);
                     GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  set Spreadsheet path to: " + absPath);
                     break;
                 case "-sfile":
                     pathtype = Utils.PathType.Spreadsheet;
-                    fname = getStringValue(params, 0);
+                    fname = getStringValue(cmdLine, 0);
                     absPath = getPathFromFilename (fname);
                     if (! absPath.isEmpty() && fname.length() > absPath.length() + 1) {
                         Utils.setDefaultPath(pathtype, absPath);
@@ -637,9 +635,9 @@ public class CmdOptions {
                 case "-snew":
                     String tabName;
                     pathtype = Utils.PathType.Spreadsheet;
-                    fname   = getStringValue(params, 0);
-                    tabName = getStringValue(params, 1);
-                    arrList = getStringArray(params, 2);
+                    fname   = getStringValue(cmdLine, 0);
+                    tabName = getStringValue(cmdLine, 1);
+                    arrList = getStringArray(cmdLine, 2);
                     if (tabName == null || arrList == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -661,9 +659,9 @@ public class CmdOptions {
                 case "-stest":
                     pathtype = Utils.PathType.Spreadsheet;
                     ArrayList<String> tabList, headList;
-                    fname    = getStringValue(params, 0);
-                    tabList  = getStringArray(params, 1);
-                    headList = getStringArray(params, 2);
+                    fname    = getStringValue(cmdLine, 0);
+                    tabList  = getStringArray(cmdLine, 1);
+                    headList = getStringArray(cmdLine, 2);
                     if (fname == null || fname.isBlank()) {
                         throw new ParserException(functionId + "Filename is blank");
                     }
@@ -680,26 +678,26 @@ public class CmdOptions {
                     OpenDoc.fileCreate (file, tabList, headList);
                     break;
                 case "-saddtab":
-                    tabName = getStringValue(params, 0);
-                    if (params.size() > 1)
-                        arrList = getStringArray(params, 1);
+                    tabName = getStringValue(cmdLine, 0);
+                    if (cmdLine.getParamSize() > 1)
+                        arrList = getStringArray(cmdLine, 1);
                     else
                         arrList = null;
                     Spreadsheet.addTab(tabName, arrList);
                     break;
                 case "-load":
-                    Integer numTabs      = getUnsignedValue(params, 0);
-                    boolean bCheckHeader = getBooleanValue (params, 1);
+                    Integer numTabs      = getUnsignedValue(cmdLine, 0);
+                    boolean bCheckHeader = getBooleanValue (cmdLine, 1);
                     Spreadsheet.loadSheets(numTabs, bCheckHeader);
                     break;
                 case "-tab":
-                    String tab = getStringValue(params, 0);
+                    String tab = getStringValue(cmdLine, 0);
                     Spreadsheet.selectSpreadsheetTab (tab);
                     break;
                 case "-cfile":
                     // clipbaord uses the Test path for its base dir
                     pathtype = Utils.PathType.Test;
-                    fname = getStringValue(params, 0);
+                    fname = getStringValue(cmdLine, 0);
                     File fClip = Utils.checkFilename (fname, ".txt", pathtype, false);
                     GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  " + pathtype + " file: " + fClip.getAbsolutePath());
                     AmazonParser amazonParser = new AmazonParser(fClip);
@@ -710,13 +708,13 @@ public class CmdOptions {
                     AmazonParser.updateSpreadsheet();
                     break;
                 case "-ppath":
-                    absPath = getStringValue(params, 0);
+                    absPath = getStringValue(cmdLine, 0);
                     Utils.setDefaultPath(Utils.PathType.PDF, absPath);
                     GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  set PDF path to: " + absPath);
                     break;
                 case "-pfile":
                     pathtype = Utils.PathType.PDF;
-                    fname = getStringValue(params, 0);
+                    fname = getStringValue(cmdLine, 0);
                     absPath = getPathFromFilename (fname);
                     if (! absPath.isEmpty() && fname.length() > absPath.length() + 1) {
                         Utils.setDefaultPath(pathtype, absPath);
@@ -736,8 +734,8 @@ public class CmdOptions {
                     break;
                 case "-clip":
                     boolean bStrip = false;
-                    if (! params.isEmpty()) {
-                        bStrip = getBooleanValue(params, 0);
+                    if (cmdLine.getParamSize() > 0) {
+                        bStrip = getBooleanValue(cmdLine, 0);
                     }
                     
                     // read from clipboard into response
@@ -758,7 +756,7 @@ public class CmdOptions {
                     OpenDoc.saveToFile();
                     break;
                 case "-date":
-                    String strDate = getStringValue(params, 0);
+                    String strDate = getStringValue(cmdLine, 0);
                     LocalDate date = DateFormat.getFormattedDate (strDate, false);
                     String convDate = DateFormat.convertDateToString(date, true);
                     if (convDate == null) {
@@ -767,7 +765,7 @@ public class CmdOptions {
                     response.add(convDate);
                     break;
                 case "-datep":
-                    strDate = getStringValue(params, 0);
+                    strDate = getStringValue(cmdLine, 0);
                     date = DateFormat.getFormattedDate (strDate, true);
                     convDate = DateFormat.convertDateToString(date, true);
                     if (convDate == null) {
@@ -776,16 +774,16 @@ public class CmdOptions {
                     response.add(convDate);
                     break;
                 case "-default":
-                    numTabs      = getUnsignedValue(params, 0);
-                    bCheckHeader = getBooleanValue (params, 1);
+                    numTabs      = getUnsignedValue(cmdLine, 0);
+                    bCheckHeader = getBooleanValue (cmdLine, 1);
                     String ssPath = Utils.getPathFromPropertiesFile(PropertiesFile.Property.SpreadsheetPath);
-                    String ssFname = props.getPropertiesItem(PropertiesFile.Property.SpreadsheetFile, "");
+                    String ssFname = PropertiesFile.getPropertiesItem(PropertiesFile.Property.SpreadsheetFile, "");
                     if (ssPath != null && ssFname != null) {
                         File ssFile = new File(ssPath + "/" + ssFname);
                         Spreadsheet.selectSpreadsheet(ssFile);
                         Spreadsheet.loadSheets(numTabs, bCheckHeader);
                     }
-                    String strTab = props.getPropertiesItem(PropertiesFile.Property.SpreadsheetTab, "0");
+                    String strTab = PropertiesFile.getPropertiesItem(PropertiesFile.Property.SpreadsheetTab, "0");
                     Spreadsheet.selectSpreadsheetTab (strTab);
                     break;
                 case "-maxcol":
@@ -797,8 +795,8 @@ public class CmdOptions {
                     response.add("" + iRow);
                     break;
                 case "-setsize":
-                    iCol = getUnsignedValue(params, 0);
-                    iRow = getUnsignedValue(params, 1);
+                    iCol = getUnsignedValue(cmdLine, 0);
+                    iRow = getUnsignedValue(cmdLine, 1);
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -806,13 +804,13 @@ public class CmdOptions {
                     OpenDoc.saveToFile();
                     break;
                 case "-find":
-                    String order = getStringValue(params, 0);
+                    String order = getStringValue(cmdLine, 0);
                     iRow = Spreadsheet.findItemNumber(order);
                     response.add("" + iRow);
                     break;
                 case "-class":
-                    iCol = getUnsignedValue(params, 0);
-                    iRow = getUnsignedValue(params, 1);
+                    iCol = getUnsignedValue(cmdLine, 0);
+                    iRow = getUnsignedValue(cmdLine, 1);
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -821,9 +819,9 @@ public class CmdOptions {
                     break;
                 case "-color":
                     Integer iColor;
-                    iCol   = getUnsignedValue(params, 0);
-                    iRow   = getUnsignedValue(params, 1);
-                    iColor = getUnsignedValue(params, 2);
+                    iCol   = getUnsignedValue(cmdLine, 0);
+                    iRow   = getUnsignedValue(cmdLine, 1);
+                    iColor = getUnsignedValue(cmdLine, 2);
                     if (iCol == null || iRow == null || iColor == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -831,9 +829,9 @@ public class CmdOptions {
                     break;
                 case "-RGB":
                     Integer iRGB;
-                    iCol = getUnsignedValue(params, 0);
-                    iRow = getUnsignedValue(params, 1);
-                    iRGB = getUnsignedValue(params, 2);
+                    iCol = getUnsignedValue(cmdLine, 0);
+                    iRow = getUnsignedValue(cmdLine, 1);
+                    iRGB = getUnsignedValue(cmdLine, 2);
                     if (iCol == null || iRow == null || iRGB == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -841,17 +839,17 @@ public class CmdOptions {
                     break;
                 case "-HSB":
                     Integer iHSB;
-                    iCol = getUnsignedValue(params, 0);
-                    iRow = getUnsignedValue(params, 1);
-                    iHSB = getUnsignedValue(params, 2);
+                    iCol = getUnsignedValue(cmdLine, 0);
+                    iRow = getUnsignedValue(cmdLine, 1);
+                    iHSB = getUnsignedValue(cmdLine, 2);
                     if (iCol == null || iRow == null || iHSB == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
                     OpenDoc.setCellColor(iCol, iRow, Utils.getColor("HSB", iHSB));
                     break;
                 case "-cellget":
-                    iCol = getUnsignedValue(params, 0);
-                    iRow = getUnsignedValue(params, 1);
+                    iCol = getUnsignedValue(cmdLine, 0);
+                    iRow = getUnsignedValue(cmdLine, 1);
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -859,8 +857,8 @@ public class CmdOptions {
                     response.add(cellValue);
                     break;
                 case "-cellclr":
-                    iCol = getUnsignedValue(params, 0);
-                    iRow = getUnsignedValue(params, 1);
+                    iCol = getUnsignedValue(cmdLine, 0);
+                    iRow = getUnsignedValue(cmdLine, 1);
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -870,9 +868,9 @@ public class CmdOptions {
                     break;
                 case "-cellput":
                     String strText;
-                    iCol    = getUnsignedValue(params, 0);
-                    iRow    = getUnsignedValue(params, 1);
-                    strText = getStringValue  (params, 2);
+                    iCol    = getUnsignedValue(cmdLine, 0);
+                    iRow    = getUnsignedValue(cmdLine, 1);
+                    strText = getStringValue  (cmdLine, 2);
                     if (iCol == null || iRow == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -882,9 +880,9 @@ public class CmdOptions {
                     break;
                 case "-rowget":
                     Integer iCount;
-                    iCol   = getUnsignedValue(params, 0);
-                    iRow   = getUnsignedValue(params, 1);
-                    iCount = getUnsignedValue(params, 2);
+                    iCol   = getUnsignedValue(cmdLine, 0);
+                    iRow   = getUnsignedValue(cmdLine, 1);
+                    iCount = getUnsignedValue(cmdLine, 2);
                     if (iCol == null || iRow == null || iCount == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -892,9 +890,9 @@ public class CmdOptions {
                     response.addAll(arrValue);
                     break;
                 case "-colget":
-                    iCol   = getUnsignedValue(params, 0);
-                    iRow   = getUnsignedValue(params, 1);
-                    iCount = getUnsignedValue(params, 2);
+                    iCol   = getUnsignedValue(cmdLine, 0);
+                    iRow   = getUnsignedValue(cmdLine, 1);
+                    iCount = getUnsignedValue(cmdLine, 2);
                     if (iCol == null || iRow == null || iCount == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -902,18 +900,18 @@ public class CmdOptions {
                     response.addAll(arrValue);
                     break;
                 case "-rowput":
-                    iCol    = getUnsignedValue(params, 0);
-                    iRow    = getUnsignedValue(params, 1);
-                    arrList = getStringArray  (params, 2);
+                    iCol    = getUnsignedValue(cmdLine, 0);
+                    iRow    = getUnsignedValue(cmdLine, 1);
+                    arrList = getStringArray  (cmdLine, 2);
                     if (iCol == null || iRow == null || arrList == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
                     Spreadsheet.putSpreadsheetRow(iCol, iRow, arrList);
                     break;
                 case "-colput":
-                    iCol    = getUnsignedValue(params, 0);
-                    iRow    = getUnsignedValue(params, 1);
-                    arrList = getStringArray  (params, 2);
+                    iCol    = getUnsignedValue(cmdLine, 0);
+                    iRow    = getUnsignedValue(cmdLine, 1);
+                    arrList = getStringArray  (cmdLine, 2);
                     if (iCol == null || iRow == null || arrList == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -921,18 +919,18 @@ public class CmdOptions {
                     break;
                 case "-rowcolor":
                     ArrayList<Long> arrLong;
-                    iCol    = getUnsignedValue(params, 0);
-                    iRow    = getUnsignedValue(params, 1);
-                    arrLong = getIntegerArray (params, 2);
+                    iCol    = getUnsignedValue(cmdLine, 0);
+                    iRow    = getUnsignedValue(cmdLine, 1);
+                    arrLong = getIntegerArray (cmdLine, 2);
                     if (iCol == null || iRow == null || arrLong == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
                     Spreadsheet.putSpreadsheetColorRow(iCol, iRow, arrLong);
                     break;
                 case "-colcolor":
-                    iCol    = getUnsignedValue(params, 0);
-                    iRow    = getUnsignedValue(params, 1);
-                    arrLong = getIntegerArray (params, 2);
+                    iCol    = getUnsignedValue(cmdLine, 0);
+                    iRow    = getUnsignedValue(cmdLine, 1);
+                    arrLong = getIntegerArray (cmdLine, 2);
                     if (iCol == null || iRow == null || arrLong == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
@@ -942,11 +940,11 @@ public class CmdOptions {
                     throw new ParserException(functionId + "Invalid option: " + option);
             }
         } catch (IndexOutOfBoundsException ex) {
-            if (params.isEmpty()) {
+            if (cmdLine.isParamEmpty()) {
                 throw new ParserException(functionId + "Attempt to retrieve parameter when parameter list is empty"
                                     + " for option " + option + "\n  -> " + ex);
             } else {
-                throw new ParserException(functionId + "Parameter index exceeded max of " + (params.size()-1)
+                throw new ParserException(functionId + "Parameter index exceeded max of " + (cmdLine.getParamSize() - 1)
                                     + " for option " + option + "\n  -> " + ex);
             }
         }

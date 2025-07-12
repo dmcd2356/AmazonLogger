@@ -32,7 +32,7 @@ public class GUIOrderPanel {
     // this holds the font color, type, etc for the message types
     private static final HashMap<Spreadsheet.Column, MsgControl> msgInfo  = new HashMap<>();
 
-    public final class MsgControl {
+    private final class MsgControl {
         Integer   fieldSize;    // size of the field on the display
         String    font;         // whether the displayed message is Normal, Bold, Italic, or both
         TextColor color;        // color to use for the text on the screen

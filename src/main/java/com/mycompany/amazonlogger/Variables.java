@@ -16,11 +16,11 @@ public class Variables {
     private static final String CLASS_NAME = Variables.class.getSimpleName();
     private static final String INDENT = "     ";
     
-    static final int NAME_MAXLEN = 20;  // the max # chars in a param name
+    private static final int NAME_MAXLEN = 20;  // the max # chars in a param name
 
 
     // the LOCAL user variables (for main and each subroutine)
-    public final VarLocal varLocal = new VarLocal();
+    private final VarLocal varLocal = new VarLocal();
 
 
     public enum AccessType {
@@ -44,6 +44,14 @@ public class Variables {
     }
 
     Variables () {
+    }
+
+    public void allocateSubroutine(String subName) throws ParserException {
+        varLocal.allocSubroutine(subName);
+    }
+    
+    public boolean isLocalVarDefined (String subName, String varName) throws ParserException {
+        return varLocal.isDefined(subName, varName);
     }
     
     /**
@@ -601,9 +609,8 @@ public class Variables {
             case RESERVED:
                 paramValue = VarReserved.getVariableInfo (name, pType);
                 if (paramValue == null) {
-                    PropertiesFile props = new PropertiesFile();
                     PropertiesFile.Property propItem = PropertiesFile.isValidProperty(name);
-                    String entry = props.getPropertiesItem(propItem, "");
+                    String entry = PropertiesFile.getPropertiesItem(propItem, "");
                     if (! entry.isEmpty()) {
                         paramValue = new ParameterStruct (entry);
                     } else {

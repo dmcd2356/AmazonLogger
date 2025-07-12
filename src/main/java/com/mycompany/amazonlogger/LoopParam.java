@@ -17,11 +17,8 @@ public class LoopParam {
     
     private static final String CLASS_NAME = LoopParam.class.getSimpleName();
     
-    // the chars used to seperate entries in reporting variable contents to the client
-    private static final String DATA_SEP = "::";
-    
-    Integer value;          // the current value of the loop parameter
-    String  paramName;      // the name of the reference Variable (null if no ref param)
+    private Integer value;          // the current value of the loop parameter
+    private String  paramName;      // the name of the reference Variable (null if no ref param)
         
     // for loops, the loopParams will find the loop parameter for the loop at the
     // specified command index. In order to determine if we have a nested loop
@@ -151,7 +148,7 @@ public class LoopParam {
         for (Map.Entry pair : loopParams.entrySet()) {
             LoopId mapId = (LoopId) pair.getKey();
             LoopStruct mapInfo = (LoopStruct) pair.getValue();
-            if (loopId.name.contentEquals(mapId.name) && loopId.index == mapId.index) {
+            if (loopId.getName().contentEquals(mapId.getName()) && loopId.getIndex() == mapId.getIndex()) {
                 return mapInfo;
             }
         }
@@ -187,7 +184,7 @@ public class LoopParam {
         
         LoopStruct loopInfo = getLoopStruct (loopId);
         if (loopInfo == null) {
-            throw new ParserException(functionId + "FOR Loop " + loopId.name + " @ " + loopId.index + " not found");
+            throw new ParserException(functionId + "FOR " + loopId.printLoopId() + " not found");
         }
         loopInfo.checkLoopIfLevelValid(command, level);
     }
@@ -205,7 +202,7 @@ public class LoopParam {
         
         LoopStruct loopInfo = getLoopStruct (loopId);
         if (loopInfo == null) {
-            throw new ParserException(functionId + "FOR Loop " + loopId.name + " @ " + loopId.index + " not found");
+            throw new ParserException(functionId + "FOR " + loopId.printLoopId() + " not found");
         }
         loopInfo.setLoopEnd(index);
     }
@@ -230,7 +227,7 @@ public class LoopParam {
         
         LoopStruct loopInfo = getLoopStruct (loopId);
         if (loopInfo == null) {
-            throw new ParserException(functionId + "FOR Loop " + loopId.name + " @ " + loopId.index + " not found");
+            throw new ParserException(functionId + "FOR " + loopId.printLoopId() + " not found");
         }
         
         String action = "";
@@ -296,7 +293,7 @@ public class LoopParam {
         GUILogPanel.outputInfoMsg(MsgType.DEBUG, functionId + "Number of loops with name " + name + ": " + loopList.size());
         
         // now add loop entry to hashmap based on name/index ID
-        GUILogPanel.outputInfoMsg(MsgType.DEBUG, functionId + "loopParams [" + loopParams.size() + "] " + loopId.name + " @ " + loopId.index);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, functionId + "loopParams [" + loopParams.size() + "] " + loopId.printLoopId());
         loopParams.put(loopId, loopInfo);
     }
 
@@ -317,9 +314,9 @@ public class LoopParam {
                 LoopStruct loopInfo = LoopParam.getLoopStruct (loopEntry);
                 if (loopInfo == null || ! loopInfo.isLoopComplete()) {
                     // nesting error
-                    return loopEntry.index;
+                    return loopEntry.getIndex();
                 } else {
-                    GUILogPanel.outputInfoMsg(MsgType.VARS, "   - FOR Loop Variable " + name + " @ " + loopEntry.index + " was complete");
+                    GUILogPanel.outputInfoMsg(MsgType.VARS, "   - FOR " + loopEntry.printLoopId() + " was complete");
                 }
             }
         }

@@ -78,11 +78,11 @@ public class ParseScript {
     public static void checkMaxArgs (int count, CommandStruct cmdStruct) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (cmdStruct.params.size() > count) {
+        if (cmdStruct.getParamSize() > count) {
             if (count == 0) {
                 throw new ParserException(functionId + "No arguments permitted for this command");
             } else {
-                throw new ParserException(functionId + "Too many arguments for this command. (max = " + count + ", found " + cmdStruct.params.size() + ")");
+                throw new ParserException(functionId + "Too many arguments for this command. (max = " + count + ", found " + cmdStruct.getParamSize() + ")");
             }
         }
     }
@@ -98,8 +98,8 @@ public class ParseScript {
     public static void checkMinArgs (int count, CommandStruct cmdStruct) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (cmdStruct.params.size() < count) {
-            throw new ParserException(functionId + "Missing arguments for this command. (min = " + count + ", found " + cmdStruct.params.size() + ")");
+        if (cmdStruct.getParamSize() < count) {
+            throw new ParserException(functionId + "Missing arguments for this command. (min = " + count + ", found " + cmdStruct.getParamSize() + ")");
         }
     }
     
@@ -367,19 +367,6 @@ public class ParseScript {
         }
     }
 
-    /**
-     * displays the list of parameters that were packed
-     * 
-     * @param params - the parameter list
-     */
-    public static void showPackedParams (ArrayList<ParameterStruct> params) {
-        for (int ix = 0; ix < params.size(); ix++) {
-            ParameterStruct paramValue = params.get(ix);
-            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + ix + "]: " +
-                    paramValue.getParamClass() + " " + paramValue.getParamType() + ": '" + paramValue.getStringValue() + "'");
-        }
-    }
-    
     /**
      * This takes a command line and extracts the parameter list from it.
      * This simply separates the String of arguments into separate parameter

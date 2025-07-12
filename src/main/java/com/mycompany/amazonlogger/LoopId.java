@@ -14,12 +14,24 @@ public class LoopId {
 
     // the key for loops uses both the name and the command index of the FOR statement.
     //  this way, loop names can be reused as long as they aren't nested within each other.
-    String  name;       // name of the loop
-    int     index;      // command index of the start of the loop
+    private final String  name;       // name of the loop
+    private final int     index;      // command index of the start of the loop
         
     LoopId (String name, int index) {
         this.name  = name;
         this.index = index;
     }
 
+    public String getName() {
+        return name;
+    }
+    
+    public int getIndex() {
+        return index;
+    }
+    
+    public String printLoopId () {
+        return "Loop " + name + " index @ " + index;
+    }
+    
 }

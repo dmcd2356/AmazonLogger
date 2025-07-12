@@ -4,7 +4,6 @@
  */
 package com.mycompany.amazonlogger;
 
-import static com.mycompany.amazonlogger.AmazonReader.props;
 import com.mycompany.amazonlogger.GUILogPanel.MsgType;
 import com.mycompany.amazonlogger.PropertiesFile.Property;
 import java.io.IOException;
@@ -318,7 +317,7 @@ public class ParseOrders {
         
         // get the max length of the description to save
         int maxlen = descr.length();
-        int iMaxDescrLen = props.getPropertiesItem(Property.MaxLenDescription, 90);
+        int iMaxDescrLen = PropertiesFile.getPropertiesItem(Property.MaxLenDescription, 90);
         String truncDescript = descr.substring(0, (maxlen > iMaxDescrLen) ? iMaxDescrLen : maxlen);
         itemEntry.setDescription(truncDescript);
         itemEntry.setQuantity(qty);

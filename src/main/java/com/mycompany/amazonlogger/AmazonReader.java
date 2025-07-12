@@ -15,10 +15,6 @@ public class AmazonReader {
 
     private static final String CLASS_NAME = AmazonReader.class.getSimpleName();
     
-    // GLOBALS
-    public  static PropertiesFile props;
-    
-    private static GUIMain frame;
     private static boolean bCompileOnly = false;
     private static OperatingMode opMode;
     private static String  scriptName = "";
@@ -26,7 +22,9 @@ public class AmazonReader {
     private static int     commandIndex = 0;
     private static ScriptExecute exec = null;
     
-    private static TCPServerMain server;
+    private static PropertiesFile props;
+    private static GUIMain        frame;
+    private static TCPServerMain  server;
 
     private enum OperatingMode {
         GUI,
@@ -87,14 +85,14 @@ public class AmazonReader {
             props = new PropertiesFile();
 
             // enable the messages as they were from prevous run
-            frame.setDefaultStatus ();
+            GUIMain.setDefaultStatus ();
         } else {
             // command line version for testing
             frame = new GUIMain(false);
             props = new PropertiesFile();
             
             // set defaults from properties file
-            frame.setDefaultStatus ();
+            GUIMain.setDefaultStatus ();
             bCompileOnly = false;
          
             // run the command line arguments
@@ -209,7 +207,7 @@ public class AmazonReader {
         }
 
         // enable timestamp on log messages
-        frame.init();
+        GUIMain.init();
         GUIMain.elapsedTimerEnable();
         ScriptThread.initBreakpoint();
 

@@ -16,13 +16,13 @@ public class IFStruct {
     
     private static final String CLASS_NAME = IFStruct.class.getSimpleName();
     
-    Integer ixIf;       // command index for IF statement
-    ArrayList<Integer> ixElse;  // command index for ELSE & ELSEIF statement(s)
-    boolean bFinalElse; // true if last entry in ixElse list was an ELSE, so there can be no more
-    Integer ixEndIf;    // command index for ENDIF statement
-    Integer loopLevel;  // loop nest level for start of IF statement
-    String  subName;    // subroutine the IF statement was found in
-    boolean bCondMet;   // set to the IF level condition being executed (null if none)
+    private final Integer ixIf;             // command index for IF statement
+    private final ArrayList<Integer> ixElse; // command index for ELSE & ELSEIF statement(s)
+    private final Integer loopLevel;        // loop nest level for start of IF statement
+    private final String  subName;          // subroutine the IF statement was found in
+    private Integer ixEndIf;        // command index for ENDIF statement
+    private boolean bFinalElse;     // true if last entry in ixElse list was an ELSE, so there can be no more
+    private boolean bCondMet;       // set to the IF level condition being executed (null if none)
 
     // IF List is built during Compile phase and referenced during Execution phase.
     private static ArrayList<IFStruct> ifList  = new ArrayList<>();

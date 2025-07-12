@@ -16,10 +16,10 @@ public class CommandStruct {
     private static final String CLASS_NAME = CommandStruct.class.getSimpleName();
     
     // defines the structure for file commands
-    public int          line;       // source code line number for the command
-    public CommandTable command;    // the command to execute
-    public String       option;     // the command option for command line usage
-    public ArrayList<ParameterStruct> params;   // the arguments associated with the command
+    private int          line;       // source code line number for the command
+    private CommandTable command;    // the command to execute
+    private String       option;     // the command option for command line usage
+    private ArrayList<ParameterStruct> params;   // the arguments associated with the command
         
     public static enum CommandTable {
         EXIT,       // this command is added automatically by the compiler
@@ -106,7 +106,73 @@ public class CommandStruct {
         option  = cmd;
         params  = new ArrayList<>();
     }
-        
+
+    public int getLine() {
+        return line;
+    }
+    
+    public CommandTable getCommand() {
+        return command;
+    }
+    
+    public String getCmdOption() {
+        return option;
+    }
+    
+    public void setCmdOption(String opt) {
+        option = opt;
+    }
+
+    public boolean isParamNull() {
+        return params == null; // this should never be the case
+    }
+    
+    public boolean isParamEmpty() {
+        return params == null || params.isEmpty();
+    }
+    
+    public int getParamSize() {
+        if (params == null) {
+            return 0;
+        }
+        return params.size();
+    }
+    
+    public ParameterStruct getParamEntry (int ix) {
+        if (params == null) {
+            return null;
+        }
+        return params.get(ix);
+    }
+    
+    // adds to end of list
+    public void addParamEntry (ParameterStruct entry) {
+        if (params != null) {
+            params.add(entry);
+        }
+    }
+
+    // insertes at begining of list
+    public void insertParamEntry (ParameterStruct entry) {
+        if (params != null) {
+            params.add(0, entry);
+        }
+    }
+
+    public void removeParamEntry (int ix) {
+        if (params != null) {
+            params.remove(ix);
+        }
+    }
+
+    public ArrayList<ParameterStruct> getParamList() {
+        return params;
+    }
+
+    public void setParamList(ArrayList<ParameterStruct> list) {
+        params = list;
+    }
+    
     void showCommand (String preface) {
         String strCommand = command.toString();
         if (option != null && !option.isEmpty()) {
@@ -120,6 +186,30 @@ public class CommandStruct {
         }
     }
 
+    /**
+     * displays the list of parameters
+     */
+    public void showParams () {
+        for (int ix = 0; ix < params.size(); ix++) {
+            ParameterStruct paramValue = params.get(ix);
+            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + ix + "]: " +
+                paramValue.getParamClass() + " " + paramValue.getParamType() + ": '" + paramValue.getStringValue() + "'");
+        }
+    }
+    
+    /**
+     * displays the list of parameters passed
+     * 
+     * @param params - the parameter list
+     */
+    public static void showParams (ArrayList<ParameterStruct> params) {
+        for (int ix = 0; ix < params.size(); ix++) {
+            ParameterStruct paramValue = params.get(ix);
+            GUILogPanel.outputInfoMsg(MsgType.COMPILE, "     packed entry [" + ix + "]: " +
+                paramValue.getParamClass() + " " + paramValue.getParamType() + ": '" + paramValue.getStringValue() + "'");
+        }
+    }
+    
     /**
      * checks if a string is one of the reserved command values
      * 

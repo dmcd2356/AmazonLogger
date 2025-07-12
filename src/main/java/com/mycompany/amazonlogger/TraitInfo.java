@@ -139,7 +139,7 @@ public class TraitInfo {
             case WRITER:
             case WRITETIME:
                 String subName = Subroutine.getSubName();
-                if (! VarGlobal.isDefined(varName) && ! PreCompile.variables.varLocal.isDefined(subName, varName)) {
+                if (! VarGlobal.isDefined(varName) && ! PreCompile.variables.isLocalVarDefined(subName, varName)) {
                     traitVal = null;
                 }
                 break;

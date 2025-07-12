@@ -124,7 +124,7 @@ public class PreCompile {
                             GUILogPanel.outputInfoMsg(MsgType.COMPILE, lineInfo + command + " - Ending STARTUP code");
                             break;
                         case TESTPATH:
-                            ParseScript.showPackedParams(params);
+                            CommandStruct.showParams(params);
                             String path;
                             if (params.isEmpty()) {
                                 path = System.getProperty("user.dir");
@@ -139,7 +139,7 @@ public class PreCompile {
                             GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  set Test path to: " + path);
                             break;
                         case LOGFILE:
-                            ParseScript.showPackedParams(params);
+                            CommandStruct.showParams(params);
                             String logname = null;
                             boolean bAppend = false;
                             // set the debug filter value
@@ -171,7 +171,7 @@ public class PreCompile {
                     switch (command) {
                         case ALLOCATE:
                             // must be a Data Type followed by a List of Variable name entries
-                            ParseScript.showPackedParams(params);
+                            CommandStruct.showParams(params);
                             String access   = ParseScript.checkArgTypeString (0, params);
                             String dataType = ParseScript.checkArgTypeString (1, params);
                             ArrayList<String> strArray = ParseScript.checkArgTypeStrArray (2, params);
@@ -211,10 +211,10 @@ public class PreCompile {
                             if (params.isEmpty()) {
                                 throw new ParserException(functionId + "Missing argument");
                             }
-                            ParseScript.showPackedParams(params);
+                            CommandStruct.showParams(params);
                             subName = params.get(0).getStringValue();
                             subs.compileSubStart (subName, lineNum);
-                            variables.varLocal.allocSubroutine(subName);
+                            variables.allocateSubroutine(subName);
                             break;
                         case ENDSUB:
                             subs.compileSubEnd (lineNum);
