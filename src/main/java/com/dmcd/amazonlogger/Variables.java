@@ -171,6 +171,21 @@ public class Variables {
             }
         }
     }
+
+    //save the time and script line when the variable was written.
+    public static void setVarChange (String varName) throws ParserException {
+        if (AmazonReader.isOpModeNetwork()) {
+            VarClass cls = getVariableClass (varName);
+            switch (cls) {
+                case LOCAL:
+                    VarLocal.setVarWriter(varName);
+                    break;
+                case GLOBAL:
+                    VarGlobal.setVarWriter(varName);
+                    break;
+            }
+        }
+    }
     
     /**
      * modifies the value of an existing entry in the String Variable table.

@@ -131,24 +131,35 @@ public class VarReserved {
         }
         
         public void sendVarInfo() {
-            String response = "[<section> RESERVED"
-                        + " " + DATA_SEP + " <name> "   + this.name.toString()
-                        + " " + DATA_SEP + " <type> "   + this.type;
             if (this.bUpdate) {
                 String showValue = this.value;
+                if (showValue == null) {
+                    switch (this.type) {
+                        case "String":
+                            showValue = "\"\"";
+                            break;
+                        case "StrArray":
+                        case "IntArray":
+                            showValue = "[]";
+                            break;
+                        default:
+                            break;
+                    }
+                }
                 if (this.type.contentEquals("String") && this.value.isEmpty()) {
                     showValue = "\"\"";
                 }
-                response = response
+                String response = "[<section> RESERVED"
+                        + " " + DATA_SEP + " <name> "   + this.name.toString()
+                        + " " + DATA_SEP + " <type> "   + this.type
                         + " " + DATA_SEP + " <value> "  + showValue
                         + " " + DATA_SEP + " <writer> " + this.writer
                         + " " + DATA_SEP + " <line> "   + this.line
-                        + " " + DATA_SEP + " <time> "   + this.time;
-            }
-            response += "]";
+                        + " " + DATA_SEP + " <time> "   + this.time + "]";
 
-            // send info to client
-            TCPServerThread.sendVarInfo(response);
+                // send info to client
+                TCPServerThread.sendVarInfo(response);
+            }
         }
     }
 
@@ -354,6 +365,7 @@ public class VarReserved {
             switch (reserved) {
                 case RESPONSE:
                     strResponse.clear();
+                    setVarChange (reserved, null);
                     break;
                 default:
                     break;

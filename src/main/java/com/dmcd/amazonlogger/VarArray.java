@@ -150,6 +150,7 @@ public class VarArray {
             ArrayList<Long> entry = Variables.getIntArray(name);
             int size = entry.size();
             entry.clear();
+            Variables.setVarChange (name);
             GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Deleted " + size + " entries in Array param: " + name);
             return true;
         }
@@ -157,6 +158,7 @@ public class VarArray {
             ArrayList<String> entry = Variables.getStrArray(name);
             int size = entry.size();
             entry.clear();
+            Variables.setVarChange (name);
             GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Deleted " + size + " entries in List param: " + name);
             return true;
         }
@@ -218,6 +220,7 @@ public class VarArray {
         } else {
             return false;
         }
+        Variables.setVarChange (name);
         GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Removed " + iCount + " entries from Array param " + name + ": (new size = "+ size  + ")");
         GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- " + name + ": " + arrayContents);
         return true;
@@ -262,6 +265,7 @@ public class VarArray {
             } else {
                 return false;
             }
+            Variables.setVarChange (name);
             GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Modified List param: " + name + " = " + value);
             GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- " + name + ": " + arrayContents);
         } catch (ParserException exMsg) {
@@ -320,6 +324,7 @@ public class VarArray {
             } else {
                 return false;
             }
+            Variables.setVarChange (name);
             GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Inserted entry[" + index + "] in param: " + name + " = " + value);
             GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- " + name + ": " + arrayContents);
         } catch (ParserException exMsg) {
@@ -367,6 +372,7 @@ public class VarArray {
             int offset = value.length() - 25;
             value = value.substring(0, 60) + " ... " + value.substring(offset);
         }
+        Variables.setVarChange (name);
         GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- Appended entry to Variable: " + name + " = " + value);
         GUILogPanel.outputInfoMsg(MsgType.VARS, INDENT + "- " + name + ": " + arrayContents);
         return true;
