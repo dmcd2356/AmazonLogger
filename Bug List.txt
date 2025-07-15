@@ -1,8 +1,5 @@
 KNOWN BUGS:
  - BUG: adding rows to new tab created with -saddtab does not put any data in the tab, although the tab and name are created.
- - BUG: sometimes the description is not correct - there is a numeric value that it reads in place of it.
-     (demonstrated when using file Sample_Your_Orders_Connie.txt as clipboard on Test-list.ods - it read a 2 as the description
-      for item 111-9093528-3857063 because it thought the '?' was the rating, and took the next line ('2') as the description)
  - BUG: get rid of the OCR data that is output when it is run (not sure why this is occurring)
  - BUG: eliminate duplicate text data on OCR scan (not sure why this is occurring)
 
@@ -10,6 +7,4 @@ TODO:
 
 FUTURE:
  - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
- - When updating Order Details, make sure on multi-item orders to match the descriptions with the
-    current entry item before copying the data.
 

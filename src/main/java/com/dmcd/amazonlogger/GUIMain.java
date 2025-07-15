@@ -9,7 +9,9 @@ import com.dmcd.amazonlogger.PropertiesFile.Property;
 
 import java.awt.Color;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -29,6 +31,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextPane;
 import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
+import javax.swing.border.Border;
 import org.apache.tika.exception.TikaException;
 import org.xml.sax.SAXException;
 
@@ -71,14 +74,9 @@ public final class GUIMain extends JFrame implements ActionListener {
     private static JLabel lbl_balance;
     private static JLabel lbl_order_tab;
     private static JLabel lbl_order_title;
-    private static JLabel lbl_orders;
-    private static JLabel lbl_orders_num;
-    private static JLabel lbl_orders_item;
-    private static JLabel lbl_orders_date;
-    private static JLabel lbl_detail;
-    private static JLabel lbl_detail_num;
-    private static JLabel lbl_detail_item;
-    private static JLabel lbl_detail_date;
+    private static JLabel lbl_orders, lbl_orders_num, lbl_orders_item, lbl_orders_date;
+    private static JLabel lbl_detail, lbl_detail_num, lbl_detail_item, lbl_detail_date;
+    private static JLabel lbl_lastline1, lbl_lastline2, lbl_lastline3;
     private static JTextPane log_txtpane;
     private static JTextPane order_txtpane;
     private static JTabbedPane tab_panel;
@@ -118,7 +116,7 @@ public final class GUIMain extends JFrame implements ActionListener {
         bUseGUI = bGUI;
     
         // setup the control sizes
-        int y_pane_height = 700;        // dimensions of the text pane
+        int y_pane_height = 600;        // dimensions of the text pane
         int x_pane_width = 1400;
         
         int y_button_height = 20;       // dimensions of the buttons
@@ -137,7 +135,7 @@ public final class GUIMain extends JFrame implements ActionListener {
 
         int border_size = 50;
         int panel_width = x_pane_width + (2 * border_size);
-        int panel_height = y_pane_height + y_title_offset + (10 * y_line_gap) + y_button_height + (2 * border_size);
+        int panel_height = y_pane_height + y_title_offset + 9 * (y_line_gap + y_button_height) + (2 * border_size);
 
         setTitle("Amazon shopping expenditures");
         setBounds(300, 150, panel_width, panel_height);
@@ -229,7 +227,7 @@ public final class GUIMain extends JFrame implements ActionListener {
         // MIDDLE PANEL
         // this displays progress and debug msgs
         loc_x = border_size;
-        loc_y += y_line_gap;
+        loc_y += 2 * y_line_gap;
 
         // this is the debug log panel
         order_txtpane = new JTextPane();
@@ -288,6 +286,36 @@ public final class GUIMain extends JFrame implements ActionListener {
         loc_x = border_size;
         loc_y += y_line_gap + y_pane_height;
 
+        // this will display the last line of the 1st tab of the loaded spreadsheet
+        lbl_lastline1 = new JLabel();
+        lbl_lastline1.setFont(new Font("Courier", Font.BOLD, 15));
+        lbl_lastline1.setForeground(Color.black);
+        lbl_lastline1.setSize(x_pane_width, y_label_height);
+        lbl_lastline1.setLocation(loc_x, loc_y);
+        lbl_lastline1.setVisible(false);
+        lbl_lastline1.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
+        c.add(lbl_lastline1);
+
+        loc_y += y_line_gap;
+        lbl_lastline2 = new JLabel();
+        lbl_lastline2.setFont(new Font("Courier", Font.PLAIN, 15));
+        lbl_lastline2.setForeground(Color.black);
+        lbl_lastline2.setSize(panel_width, y_label_height);
+        lbl_lastline2.setLocation(loc_x, loc_y);
+        lbl_lastline2.setVisible(false);
+        c.add(lbl_lastline2);
+
+        loc_y += y_line_gap;
+        lbl_lastline3 = new JLabel();
+        lbl_lastline3.setFont(new Font("Courier", Font.PLAIN, 15));
+        lbl_lastline3.setForeground(Color.black);
+        lbl_lastline3.setSize(panel_width, y_label_height);
+        lbl_lastline3.setLocation(loc_x, loc_y);
+        lbl_lastline3.setVisible(false);
+        c.add(lbl_lastline3);
+
+        loc_y += y_line_gap;
+        
         // this will display the error status info
         lbl_error_msg = new JLabel();
         lbl_error_msg.setFont(new Font("Arial", Font.BOLD, 15));
@@ -668,6 +696,42 @@ public final class GUIMain extends JFrame implements ActionListener {
     public static void showErrorMsg (String msg) {
         lbl_error_msg.setText(msg);
     }
+
+    public static void enableLastLineInfo (boolean status) {
+        if (!bUseGUI)
+            return;
+        
+        lbl_lastline1.setVisible(status);
+        lbl_lastline2.setVisible(status);
+        lbl_lastline3.setVisible(status);
+    }
+
+    private static String formatLastLine (String tab, String line, String date, String desc) {
+        int tab1 = 8;
+        int tab2 = 10;
+        int tab3 = 10;
+        
+        String data = Utils.padRight (tab , tab1) + "  "
+                    + Utils.padRight (line, tab2) + "  "
+                    + Utils.padRight (date, tab3) + "  "
+                    + desc;
+        return data;
+    }
+    
+    public static void setLastLineInfo (int ix, String tab, String lineNum, String dateOrd, String descr) {
+        if (!bUseGUI)
+            return;
+
+        String header = formatLastLine("Tab", "Last line", "Order date", "Description");
+        String data   = formatLastLine(tab, lineNum, dateOrd, descr);
+        lbl_lastline1.setText (header);
+        if (ix == 1) {
+            lbl_lastline2.setText(data);
+        } else {
+            lbl_lastline3.setText(data);
+        }
+        enableLastLineInfo (true);
+    }
     
     /**
      * enables/disables the Clipboard button.
@@ -893,21 +957,33 @@ public final class GUIMain extends JFrame implements ActionListener {
             return false;
         
         if (fname == null || fname.isBlank()) {
-            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file name missing from PropertiesFile - disabling Print to debug file");
+            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file failure: DebugFileOut entry missing from PropertiesFile");
+            debugFile = null;
+            return false;
+        }
+        int offset = fname.indexOf('/');
+        if (offset >= 0) {
+            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file failure: DebugFileOut contains path: " + fname + " (must be filename only)");
             debugFile = null;
             return false;
         }
         // we always put the file in the same location as where the spreadsheet file is
         String ssPath = Utils.getPathFromPropertiesFile(PropertiesFile.Property.SpreadsheetPath);
         if (ssPath == null) {
-            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Spreadsheet path missing from PropertiesFile - disabling Print to debug file");
+            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file failure: SpreadsheetPath entry missing from PropertiesFile");
+            debugFile = null;
+            return false;
+        }
+        File logPath = new File(ssPath);
+        if (! logPath.isDirectory()) {
+            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file failure: SpreadsheetPath not a directory: " + ssPath);
             debugFile = null;
             return false;
         }
         fname = ssPath + "/" + fname;
         File newFile = new File(fname);
         if (newFile.isDirectory()) {
-            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file name invalid - disabling Print to debug file");
+            GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file failure: DebugFileOut entry is a directory");
             debugFile = null;
             return false;
         }

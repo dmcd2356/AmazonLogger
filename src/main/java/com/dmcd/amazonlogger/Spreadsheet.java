@@ -1120,6 +1120,9 @@ public class Spreadsheet {
     public static void selectSpreadsheet(File ssFile) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        // disable the last line info until we have loaded a spreadsheet
+        GUIMain.enableLastLineInfo(false);
+        
         if (ssFile == null) {
             // see if we have a properties file that has a previously saved spreadsheet directory
             // if so, let's start the file selection process from there
@@ -1216,6 +1219,21 @@ public class Spreadsheet {
             GUILogPanel.outputInfoMsg(MsgType.INFO, "Spreadsheet year: " + iSheetYear);
         }
 
+        // get the last line of each tab and display info on main GUI screen
+        for (int ix = 1; ix <= numSheets; ix++) {
+            OpenDoc.setSheetSelection(ix - 1);
+            if (! isSheetEmpty()) {
+                String tab = OpenDoc.getSheetName();
+                Integer row = getLastRowIndex();
+                String date = OpenDoc.getCellTextValue (getColumn(Column.DateOrdered), row - 1);
+                String desc = OpenDoc.getCellTextValue (getColumn(Column.Description), row - 1);
+                if (desc.length() > 100) {
+                    desc = desc.substring(0, 100);
+                }
+                GUIMain.setLastLineInfo (ix, tab, row.toString(), date, desc);
+            }
+        }
+        
         // get the name of the file to store debug info to (if defined)
         boolean bSuccess = GUIMain.setDebugOutputFile(PropertiesFile.getPropertiesItem(Property.DebugFileOut, ""));
         if (bSuccess) {
