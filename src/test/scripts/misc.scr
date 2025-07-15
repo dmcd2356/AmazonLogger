@@ -51,12 +51,6 @@ ALLOCATE GLOBAL Boolean  { B_COMPVAL }
 ALLOCATE GLOBAL IntArray { A_NUMBERS }
 ALLOCATE GLOBAL StrArray { L_LIST }
 
--spath ../input
--sfile NewTest.ods
--load 1 false
--tab 0
-
-# -pfile chase-3996-2025-04.pdf
 -clip
 PRINT $RESPONSE
 
@@ -72,11 +66,6 @@ B_COMPVAL = $STRING == "some funny"
 B_COMPVAL = $STRING == "some  funny  words   HAHA"
 B_COMPVAL = $STRING > "some funny"
 B_COMPVAL = $I_COL < $STRVAL % 25
-
--default 1 false
-CLEAR RESPONSE
--colget 0 2 64
-PRINT $RESPONSE
 CLEAR RESPONSE
 
 STRING += " more stuff"
@@ -107,8 +96,6 @@ FOR LOOPIX = 0 UPTO 9
     POP A_NUMBERS
   ENDIF
 NEXT
-
--save
 
 ENDMAIN
 
