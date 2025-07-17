@@ -45,8 +45,8 @@ public class GUIOrderPanel {
     }
     
     private enum TextColor {
-        Black, DkGrey, DkRed, Red, LtRed, Orange, Brown,
-        Gold, Green, Cyan, LtBlue, Blue, Violet, DkVio;
+        Black, White, LtGrey, DkGrey, DkRed, Red, LtRed, Orange, Brown,
+        Yellow, Gold, Green, Cyan, LtBlue, Blue, Violet, DkVio;
     }
     
     private static final String NEWLINE = System.getProperty("line.separator");
@@ -129,31 +129,32 @@ public class GUIOrderPanel {
         printText (Column.Seller       , "Seller"      , true, false);
         printText (Column.Description  , "Description" , true, true);
         print ("___________________________________________________________________________________________________________________________________________________________________________________________________" + NEWLINE,
-                TextColor.Black, false, false, false);
+                TextColor.Black, false, false, Color.WHITE);
     }
     
     /**
      * displays the order information.
      * 
      * @param orderInfo - the order information to display
+     * @param bInvalid  - true if entry is already listed in the spreadsheet
      */
-    public static void printOrder (AmazonOrder orderInfo) {
+    public static void printOrder (AmazonOrder orderInfo, boolean bInvalid) {
         if (! GUIMain.isGUIMode() || orderInfo == null) {
             return;
         }
 
         int itemCount = orderInfo.getItemCount();
         for (int ix = 0; ix < itemCount; ix++) {
-            printItem (Column.DateOrdered  , orderInfo, ix, false);        
-            printItem (Column.OrderNumber  , orderInfo, ix, false);        
-            printItem (Column.Total        , orderInfo, ix, false);        
-            printItem (Column.ItemIndex    , orderInfo, ix, false);        
-            printItem (Column.Qty          , orderInfo, ix, false);        
-            printItem (Column.DateDelivered, orderInfo, ix, false);        
-            printItem (Column.ItemPrice    , orderInfo, ix, false);
-            printItem (Column.Tax          , orderInfo, ix, false);
-            printItem (Column.Seller       , orderInfo, ix, false);
-            printItem (Column.Description  , orderInfo, ix, true);
+            printItem (Column.DateOrdered  , orderInfo, ix, bInvalid, false);        
+            printItem (Column.OrderNumber  , orderInfo, ix, bInvalid, false);        
+            printItem (Column.Total        , orderInfo, ix, bInvalid, false);        
+            printItem (Column.ItemIndex    , orderInfo, ix, bInvalid, false);        
+            printItem (Column.Qty          , orderInfo, ix, bInvalid, false);        
+            printItem (Column.DateDelivered, orderInfo, ix, bInvalid, false);        
+            printItem (Column.ItemPrice    , orderInfo, ix, bInvalid, false);
+            printItem (Column.Tax          , orderInfo, ix, bInvalid, false);
+            printItem (Column.Seller       , orderInfo, ix, bInvalid, false);
+            printItem (Column.Description  , orderInfo, ix, bInvalid, true);
         }
     }
 
@@ -262,9 +263,10 @@ public class GUIOrderPanel {
      * @param colName   - the name of the item we are placing
      * @param orderInfo - the order information to display
      * @param ix        - index of item in order (if more than 1)
+     * @param bInvalid  - true if entry is already listed in the spreadsheet
      * @param term      - true if end of line
      */
-    private static void printItem (Spreadsheet.Column colName, AmazonOrder orderInfo, int ix, boolean term) {
+    private static void printItem (Spreadsheet.Column colName, AmazonOrder orderInfo, int ix, boolean bInvalid, boolean term) {
         if (! GUIMain.isGUIMode()) {
             return;
         }
@@ -312,7 +314,14 @@ public class GUIOrderPanel {
             bItalic = true;
         }
 
-        print (entry, msgColor, bBold, bItalic, bError);
+        // get background color
+        Color bkColor = Color.WHITE;
+        if (bInvalid) {
+            bkColor = Color.LIGHT_GRAY;
+        } else if (bError) {
+            bkColor = Color.YELLOW;
+        }
+        print (entry, msgColor, bBold, bItalic, bkColor);
     }
 
     /**
@@ -327,9 +336,9 @@ public class GUIOrderPanel {
         if (term) {
             text += NEWLINE;
         }
-        print (text, TextColor.Black, bBold, false, false);
+        print (text, TextColor.Black, bBold, false, Color.WHITE);
     }
-    
+
     /**
      * displays a line of text.
      * 
@@ -338,14 +347,14 @@ public class GUIOrderPanel {
      * @param bBold   - true if BOLD
      * @param bItalic - true if ITALIC
      */
-    private static void print (String line, TextColor color, boolean bBold, boolean bItalic, boolean bHighlight) {
+    private static void print (String line, TextColor color, boolean bBold, boolean bItalic, Color bkColor) {
         SimpleAttributeSet attributes = new SimpleAttributeSet();
         StyleConstants.setFontFamily(attributes,"Courier");
         StyleConstants.setFontSize(attributes, 15);
 
         // set the text color and font characteristics
         StyleConstants.setForeground(attributes, generateColor (color));
-        StyleConstants.setBackground(attributes, bHighlight ? Color.YELLOW : Color.WHITE);
+        StyleConstants.setBackground(attributes, bkColor);
         StyleConstants.setBold(attributes, bBold);
         StyleConstants.setItalic(attributes, bItalic);
 
@@ -386,7 +395,10 @@ public class GUIOrderPanel {
         switch (colorName) {
             default:
             case Black:   return Color.BLACK;
+            case White:   return Color.WHITE;
+            case LtGrey:  return Color.LIGHT_GRAY;
             case DkGrey:  return Color.DARK_GRAY;
+            case Yellow:  return Color.YELLOW;
             case DkRed:   return cvtHSBtoColor (0,   100, 66);
             case Red:     return cvtHSBtoColor (0,   100, 90);
             case LtRed:   return cvtHSBtoColor (0,   60,  100);

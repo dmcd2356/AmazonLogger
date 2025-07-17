@@ -905,6 +905,68 @@ public class Spreadsheet {
         return false;
     }
 
+    /**
+     * finds the last recorded date in the selected spreadsheet.
+     * 
+     * @param sheetName  - the sheet to search
+     * 
+     * @return the date (in MMDD format) of the last order in the sheet
+     * 
+     * @throws ParserException 
+     */
+    public static String getLastDate (String sheetName) throws ParserException {
+        // load the spreadsheet sheets into memory for each account
+        selectSpreadsheetTab (sheetName);
+
+        // find the last row in each sheet
+        String lastdate = null;
+        try {
+            int rowSize = OpenDoc.getRowSize();
+            for (int row = firstRow; row < rowSize; row++) {
+                String cellDate  = OpenDoc.getCellTextValue(getColumn(Column.DateOrdered),row);
+                String cellOrder = OpenDoc.getCellTextValue(getColumn(Column.OrderNumber),row);
+                if (cellDate != null && ! cellDate.isEmpty()) {
+                    lastdate = cellDate;
+                }
+                // check for no more entries
+                if (cellOrder.isBlank()) {
+                    return lastdate;
+                }
+            }
+        } catch (ParserException exMsg) {
+            return null;
+        }
+
+        return lastdate;
+    }
+    /**
+     * returns the last credit card entry used for the current tab.
+     * 
+     * @return the last credit card id in the current sheet, null if none or error
+     */
+    public static String getLastCreditCardEntry () {
+        // find the last row in each sheet
+        String cardid = "";
+        try {
+            int rowSize = OpenDoc.getRowSize();
+            for (int row = firstRow; row < rowSize; row++) {
+                String cellValue = OpenDoc.getCellTextValue(getColumn(Column.CreditCard),row);
+                String cellOrder = OpenDoc.getCellTextValue(getColumn(Column.OrderNumber),row);
+                if (cellValue != null && ! cellValue.isEmpty()) {
+                    cardid = cellValue;
+                }
+                // check for no more entries
+                if (cellOrder.isBlank()) {
+                    return cardid;
+                }
+            }
+        } catch (ParserException exMsg) {
+            return null;
+        }
+
+        return cardid;
+    }
+
     /**    
      * sets the spreadsheet tab selection for many of the spreadsheet functions to use.
      * 
@@ -1171,6 +1233,9 @@ public class Spreadsheet {
         // enable the Update and Balance buttons
         GUIMain.enableClipboardButton(true);
         GUIMain.enableCheckBalanceButton(true);
+        
+        // reset the orders lists
+        AmazonParser.initLists();
     }
 
     /**
@@ -1220,19 +1285,8 @@ public class Spreadsheet {
         }
 
         // get the last line of each tab and display info on main GUI screen
-        for (int ix = 1; ix <= numSheets; ix++) {
-            OpenDoc.setSheetSelection(ix - 1);
-            if (! isSheetEmpty()) {
-                String tab = OpenDoc.getSheetName();
-                Integer row = getLastRowIndex();
-                String date = OpenDoc.getCellTextValue (getColumn(Column.DateOrdered), row - 1);
-                String desc = OpenDoc.getCellTextValue (getColumn(Column.Description), row - 1);
-                if (desc.length() > 100) {
-                    desc = desc.substring(0, 100);
-                }
-                GUIMain.setLastLineInfo (ix, tab, row.toString(), date, desc);
-            }
-        }
+        String lastBalance = showLastLineInfo();
+        GUIMain.showLastBalance(lastBalance);
         
         // get the name of the file to store debug info to (if defined)
         boolean bSuccess = GUIMain.setDebugOutputFile(PropertiesFile.getPropertiesItem(Property.DebugFileOut, ""));
@@ -1241,6 +1295,34 @@ public class Spreadsheet {
         }
     }
 
+    public static String showLastLineInfo() throws ParserException {
+        String lastBalance = "";
+        int numSheets = OpenDoc.getNumberOfSheets();
+        numSheets = (numSheets > 2) ? 2 : numSheets;
+        
+        for (int ix = 0; ix < numSheets; ix++) {
+            OpenDoc.setSheetSelection(ix);
+            if (! isSheetEmpty()) {
+                String tab   = OpenDoc.getSheetName();
+                Integer row  = getLastRowIndex();
+                String date  = OpenDoc.getCellTextValue (getColumn(Column.DateOrdered), row - 1);
+                String order = OpenDoc.getCellTextValue (getColumn(Column.OrderNumber), row - 1);
+                String desc  = OpenDoc.getCellTextValue (getColumn(Column.Description), row - 1);
+                if (desc.length() > 100) {
+                    desc = desc.substring(0, 100);
+                }
+                GUIMain.setLastLineInfo (ix + 1, tab, row.toString(), order, date, desc);
+
+                // get the last credit card balance for each tab
+                String balance = Spreadsheet.getLastCreditCardEntry();
+                if (balance != null) {
+                    lastBalance += tab + ": " + balance + "   ";
+                }
+            }
+        }
+        return lastBalance;
+    }
+    
     /**
      * adds a new tab to the current spreadsheet file with the specified column header.
      * 

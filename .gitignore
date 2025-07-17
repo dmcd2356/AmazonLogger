@@ -8,3 +8,5 @@ src/test/compare/
 src/test/logs/
 src/test/.amazonreader/
 .amazonreader/
+
+screens/

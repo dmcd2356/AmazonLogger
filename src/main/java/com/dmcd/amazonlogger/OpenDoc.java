@@ -25,8 +25,9 @@ public class OpenDoc {
     private static final String CLASS_NAME = OpenDoc.class.getSimpleName();
     private static final String INDENT = "     ";
     
-    private static File  spreadsheetFile;                // the spreadsheet file
-    private static Sheet sheetSel = null;                // the current spreadsheet tab selection
+    private static File  spreadsheetFile;               // the spreadsheet file
+    private static Sheet sheetSel = null;               // the current spreadsheet tab selection
+    private static int   sheetIx = -1;                  // the current spreadsheet selection index
     private static final ArrayList<Sheet> sheetArray = new ArrayList<>(); // the list of sheets (tabs) loaded in memory
 
     /**
@@ -35,7 +36,17 @@ public class OpenDoc {
     public static void init() {
         spreadsheetFile = null;
         sheetSel = null;
+        sheetIx = -1;
         sheetArray.clear();
+    }
+
+    /**
+     * returns the number of sheets loaded.
+     * 
+     * @return number of sheets loaded
+     */
+    public static int getNumberOfSheets() {
+        return sheetArray.size();
     }
     
     /**
@@ -124,6 +135,7 @@ public class OpenDoc {
         }
 
         sheetSel = sheetArray.get(sheetNum);
+        sheetIx = sheetNum;
 //        if (sheetSel.getName() == null || sheetSel.getName().isEmpty()) {
 //            sheetSel.setName("" + sheetNum);
 //        }
@@ -453,6 +465,32 @@ public class OpenDoc {
                                         + sheet.getRowCount() + " rows, "
                                         + sheet.getColumnCount() + " cols");
         }
+        
+        // reload the spreadsheet sheets into memory, or we lose the info for one of the tabs
+        loadFromFile (0);
+    }
+
+    /**
+     * saves the modified spreadsheet data written to the spreadsheet file.
+     * 
+     * @param tabName - name of tab to update
+     * 
+     * @throws ParserException
+     * @throws IOException 
+     */
+    public static void saveToFile (String tabName) throws ParserException, IOException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (spreadsheetFile == null) {
+            throw new ParserException(functionId + "Spreadsheet file is not defined");
+        }
+        
+        int ix = findSheetByName (tabName);
+        Sheet sheet = sheetArray.get(ix);
+        sheet.getSpreadSheet().saveAs(spreadsheetFile);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Saving sheet " + ix + " '" + sheet.getName() + "' to file: "
+                                    + sheet.getRowCount() + " rows, "
+                                    + sheet.getColumnCount() + " cols");
         
         // reload the spreadsheet sheets into memory, or we lose the info for one of the tabs
         loadFromFile (0);

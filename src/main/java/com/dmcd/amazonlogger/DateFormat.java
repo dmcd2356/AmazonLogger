@@ -212,6 +212,7 @@ public class DateFormat {
         }
         return iDate;
     }
+    
     /*********************************************************************
     ** returns a Date value for the given date string.
     * 
@@ -331,5 +332,4 @@ public class DateFormat {
         LocalDate date = LocalDate.parse(strDate, formatter);
         return date;
     }
-
 }

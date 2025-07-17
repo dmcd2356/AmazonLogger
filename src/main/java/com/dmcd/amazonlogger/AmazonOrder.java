@@ -15,6 +15,7 @@ public class AmazonOrder {
 
     private static final String CLASS_NAME = AmazonOrder.class.getSimpleName();
     
+    private boolean     bOldDate;       // the date is from last year or is already included in spreadsheet
     private String      order_num;      // the Amazon order number
     private LocalDate   trans_date;     // the date of the transaction
     private Integer     total_cost;     // the amount of the transaction in cents (credits are -, debits are +)
@@ -24,6 +25,7 @@ public class AmazonOrder {
     private ArrayList<AmazonItem> item;         // one or more items in the order
 
     public AmazonOrder() {
+        this.bOldDate = false;
         this.order_num = null;
         this.trans_date = null;
         this.total_cost = null;
@@ -36,7 +38,11 @@ public class AmazonOrder {
         AmazonItem newItem = new AmazonItem();
         item.add(newItem);
     }
-        
+    
+    public void setInvalidDate() {
+        this.bOldDate = true;
+    }
+    
     public void setOrderNumber(String order_num) {
         this.order_num = order_num;
     }
@@ -67,6 +73,10 @@ public class AmazonOrder {
         return newItem;
     }
         
+    public boolean isInvalidDate() {
+        return this.bOldDate;
+    }
+    
     public String getOrderNumber() {
         return this.order_num;
     }

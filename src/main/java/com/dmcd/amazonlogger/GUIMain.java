@@ -72,6 +72,7 @@ public final class GUIMain extends JFrame implements ActionListener {
     private static JLabel lbl_clipboard;
     private static JLabel lbl_update;
     private static JLabel lbl_balance;
+    private static JLabel lbl_lastbal;
     private static JLabel lbl_order_tab;
     private static JLabel lbl_order_title;
     private static JLabel lbl_orders, lbl_orders_num, lbl_orders_item, lbl_orders_date;
@@ -122,7 +123,8 @@ public final class GUIMain extends JFrame implements ActionListener {
         int y_button_height = 20;       // dimensions of the buttons
         int x_button_width = 130;
         int y_label_height = 20;        // dimensions of the button labels
-        int x_label_width = 800;
+        int x_label_width = 500;
+        int x_filename_width = 1400;
         int y_cbox_height = 20;         // dimensions of the checkboxes
         int x_cbox_width = 200;
 
@@ -167,7 +169,7 @@ public final class GUIMain extends JFrame implements ActionListener {
 
         lbl_select = new JLabel("Selects the Amazon-list.ods spreadsheet file to work on");
         lbl_select.setFont(new Font("Arial", Font.PLAIN, 15));
-        lbl_select.setSize(x_label_width, y_label_height);
+        lbl_select.setSize(x_filename_width, y_label_height);
         lbl_select.setLocation(loc_xlab, loc_y);
         c.add(lbl_select);
 
@@ -219,6 +221,14 @@ public final class GUIMain extends JFrame implements ActionListener {
         lbl_balance.setVisible(false);
         c.add(lbl_balance);
 
+        loc_x = loc_xlab + x_label_width + (2 * x_label_gap);
+        lbl_lastbal = new JLabel("");
+        lbl_lastbal.setFont(new Font("Arial", Font.PLAIN, 15));
+        lbl_lastbal.setSize(x_label_width, y_label_height);
+        lbl_lastbal.setLocation(loc_x, loc_y);
+        lbl_lastbal.setVisible(true);
+        c.add(lbl_lastbal);
+        
         btn_group = new ButtonGroup();
         btn_group.add(btn_select);
         btn_group.add(btn_update);
@@ -706,24 +716,26 @@ public final class GUIMain extends JFrame implements ActionListener {
         lbl_lastline3.setVisible(status);
     }
 
-    private static String formatLastLine (String tab, String line, String date, String desc) {
+    private static String formatLastLine (String tab, String line, String order, String date, String desc) {
         int tab1 = 8;
-        int tab2 = 10;
-        int tab3 = 10;
+        int tab2 = 7;
+        int tab3 = 21;
+        int tab4 = 10;
         
-        String data = Utils.padRight (tab , tab1) + "  "
-                    + Utils.padRight (line, tab2) + "  "
-                    + Utils.padRight (date, tab3) + "  "
+        String data = Utils.padRight (tab  , tab1) + "  "
+                    + Utils.padRight (line , tab2) + "  "
+                    + Utils.padRight (order, tab3) + "  "
+                    + Utils.padRight (date , tab4) + "  "
                     + desc;
         return data;
     }
     
-    public static void setLastLineInfo (int ix, String tab, String lineNum, String dateOrd, String descr) {
+    public static void setLastLineInfo (int ix, String tab, String lineNum, String orderNum, String dateOrd, String descr) {
         if (!bUseGUI)
             return;
 
-        String header = formatLastLine("Tab", "Last line", "Order date", "Description");
-        String data   = formatLastLine(tab, lineNum, dateOrd, descr);
+        String header = formatLastLine("Tab", "Line #", "Order #", "Ordered", "Description");
+        String data   = formatLastLine(tab, lineNum, orderNum, dateOrd, descr);
         lbl_lastline1.setText (header);
         if (ix == 1) {
             lbl_lastline2.setText(data);
@@ -731,6 +743,10 @@ public final class GUIMain extends JFrame implements ActionListener {
             lbl_lastline3.setText(data);
         }
         enableLastLineInfo (true);
+    }
+
+    public static void showLastBalance (String balance) {
+        lbl_lastbal.setText(balance);
     }
     
     /**
