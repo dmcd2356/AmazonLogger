@@ -451,7 +451,7 @@ public class OpenDoc {
      * @throws ParserException
      * @throws IOException 
      */
-    public static void saveToFile () throws ParserException, IOException {
+    public static void saveToFileAllSheets () throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (spreadsheetFile == null) {
@@ -473,7 +473,7 @@ public class OpenDoc {
     /**
      * saves the modified spreadsheet data written to the spreadsheet file.
      * 
-     * @param tabName - name of tab to update
+     * @param tabName - name of tab to update (null if use current one)
      * 
      * @throws ParserException
      * @throws IOException 
@@ -485,14 +485,17 @@ public class OpenDoc {
             throw new ParserException(functionId + "Spreadsheet file is not defined");
         }
         
-        int ix = findSheetByName (tabName);
-        Sheet sheet = sheetArray.get(ix);
+        Sheet sheet = sheetSel;
+        if (tabName != null) {
+            int ix = findSheetByName (tabName);
+            sheet = sheetArray.get(ix);
+        }
         sheet.getSpreadSheet().saveAs(spreadsheetFile);
-        GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Saving sheet " + ix + " '" + sheet.getName() + "' to file: "
+        GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Saving sheet '" + sheet.getName() + "' to file: "
                                     + sheet.getRowCount() + " rows, "
                                     + sheet.getColumnCount() + " cols");
         
-        // reload the spreadsheet sheets into memory, or we lose the info for one of the tabs
+        // reload all spreadsheet sheets into memory, or we can lose the info for one of the tabs
         loadFromFile (0);
     }
 
@@ -535,7 +538,7 @@ public class OpenDoc {
         sheetArray.add(sheetSel);
 
         // save the initial spreadsheet file
-        saveToFile();
+        saveToFile(null);
         
         int rows = getRowSize();
         int cols = getColSize();
@@ -597,7 +600,7 @@ public class OpenDoc {
         }
         
         // save the initial spreadsheet file
-        saveToFile();
+        saveToFileAllSheets();
     }
     
     /**

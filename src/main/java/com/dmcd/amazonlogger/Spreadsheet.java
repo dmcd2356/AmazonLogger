@@ -1034,7 +1034,7 @@ public class Spreadsheet {
                 colsize = col + colLength;
             }
             OpenDoc.setSize(colsize, rowsize);
-            OpenDoc.saveToFile();
+            OpenDoc.saveToFile(null);
         }
         
         // add the data
@@ -1077,7 +1077,7 @@ public class Spreadsheet {
                 colsize = col + 1;
             }
             OpenDoc.setSize(colsize, rowsize);
-            OpenDoc.saveToFile();
+            OpenDoc.saveToFile(null);
         }
         
         // add the data
@@ -1349,7 +1349,7 @@ public class Spreadsheet {
         }
 
         // save the initial spreadsheet file
-        OpenDoc.saveToFile();
+        OpenDoc.saveToFile(tabName);
         
         int rows = OpenDoc.getRowSize();
         int cols = OpenDoc.getColSize();

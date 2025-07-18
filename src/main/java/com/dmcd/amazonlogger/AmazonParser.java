@@ -23,7 +23,6 @@ public class AmazonParser {
     private ClipboardReader clipReader = null;
     private static String strSheetSel = null;
     private static ArrayList<AmazonOrder> amazonList = new ArrayList<>();
-    private static ArrayList<AmazonOrder> detailList = new ArrayList<>();
 
     public enum ClipTyp { NONE, ORDERS, INVOICE };
 
@@ -42,7 +41,6 @@ public class AmazonParser {
 
     public static void initLists () {
         amazonList.clear();
-        detailList.clear();
         GUIOrderPanel.clearMessages();
     }
     
@@ -82,8 +80,6 @@ public class AmazonParser {
                 continue;
             }
             eKeyId = keywordInfo.getKeyType();
-            LocalDate startDate = null;
-            LocalDate endDate   = null;
 
             switch (eKeyId) {
                 default:
@@ -110,74 +106,38 @@ public class AmazonParser {
                     break;
                 case Keyword.KeyTyp.ORDER_PLACED:
                     eClipType = ClipTyp.ORDERS;
-                    GUILogPanel.outputInfoMsg (MsgType.PARSER, "'ORDERS' clipboard");
-//                    ParseOrders parseOrd = new ParseOrders(clipReader);
-                    GUIOrderPanel.printOrderHeader();
-                    newList = parseOrd.parseOrders(ClipTyp.ORDERS, line, eKeyId);
-                    // reverse the order so the oldest entry is first and newest is last (this is how the spreadsheet is ordered)
-                    Collections.reverse(newList);
-                    // merge list with current running list (in chronological order)
-                    amazonList = addOrdersToList (amazonList, newList);
-
-                    int itemCount = 0;
-                    int orderCount = 0;
-                    // count and display the entries found.
-                    for (int ix = 0; ix < amazonList.size(); ix++) {
-                        AmazonOrder entry = amazonList.get(ix);
-                        boolean bIsListed = entry.isInvalidDate();
-                        if (! bIsListed) {
-                            orderCount++;
-                            itemCount += entry.getItemCount();
-                            if (startDate == null) {
-                                startDate = entry.getOrderDate();
-                            }
+                    GUILogPanel.outputInfoMsg (MsgType.PARSER, "'" + eClipType + "' clipboard");
+                    try {
+                        newList = parseOrd.parseOrders(eClipType, line, eKeyId);
+                        if (newList != null && ! newList.isEmpty()) {
+                            // reverse the order so the oldest entry is first and newest is last (this is how the spreadsheet is ordered)
+                            Collections.reverse(newList);
+                            // merge list with current running list (in chronological order)
+                            amazonList = addOrdersToList (amazonList, newList);
                         }
-                        GUIOrderPanel.printOrder(entry, bIsListed);
-                    }
-                    if (itemCount > 0) {
-                        endDate = amazonList.getLast().getOrderDate();
-                        GUIMain.setOrderCount(orderCount, itemCount, startDate, endDate);
-                        GUILogPanel.outputInfoMsg(MsgType.PARSER, "Total orders in list = " + amazonList.size());
+                        // update the current order info
+                        updateOrderListing();
+                    } catch (ParserException exMsg) {
+                        updateOrderListing();
+                        Utils.throwAddendum(line, "ORDER_PLACED failure");
                     }
                     break;
                 case Keyword.KeyTyp.ORDER_DETAILS:
+                case Keyword.KeyTyp.ORDER_SUMMARY:
                     eClipType = ClipTyp.INVOICE;
-                    GUILogPanel.outputInfoMsg (MsgType.PARSER, "'INVOICE' clipboard");
-                    GUIOrderPanel.printOrderHeader();
-                    newList = parseOrd.parseOrders(ClipTyp.INVOICE, line, Keyword.KeyTyp.NONE);
-                    AmazonOrder newOrder = newList.get(0);
-                    // add the new order to the current detailed orders we have accumulated,
-                    //  but keep them in chronological order (oldest to newest)
-                    boolean bPlaced = false;
-                    for (int ix = 0; ix < detailList.size(); ix++) {
-                        if (newOrder.getOrderDate().isBefore(detailList.get(ix).getOrderDate())) {
-                            detailList.add(ix, newOrder);
-                            bPlaced = true;
-                            GUILogPanel.outputInfoMsg (MsgType.PARSER, "- inserted entry at index " + ix);
-                            break;
-                        }
-                    }
-                    if (!bPlaced) {
-                        // later date than all the rest, add it to the end
-                        detailList.add(newOrder);
-                        GUILogPanel.outputInfoMsg (MsgType.PARSER, "- added entry to end of list");
-                    }
-                    itemCount = 0;
-                    orderCount = 0;
-                    for (int ix = 0; ix < detailList.size(); ix++) {
-                        AmazonOrder entry = detailList.get(ix);
-                        boolean bIsListed =  entry.isInvalidDate();
-                        if (! bIsListed) {
-                            orderCount++;
-                            itemCount += entry.getItemCount();
-                        }
-                        GUIOrderPanel.printOrder(entry, bIsListed);
-                    }
-                    if (itemCount > 0) {
-                        startDate = detailList.getFirst().getOrderDate();
-                        endDate   = detailList.getLast().getOrderDate();
-                        GUIMain.setDetailCount(orderCount, itemCount, startDate, endDate);
-                        GUILogPanel.outputInfoMsg(MsgType.PARSER, "Total items in detailed list = " + itemCount);
+                    eKeyId = Keyword.KeyTyp.NONE; // we don't need to re-process this keyword
+                    GUILogPanel.outputInfoMsg (MsgType.PARSER, "'" + eClipType + "' clipboard");
+                    try {
+                        newList = parseOrd.parseOrders(eClipType, line, eKeyId);
+                        AmazonOrder newOrder = newList.get(0); // there should only be 1 order entry in the list
+
+                        // add the new order to the current orders we have accumulated
+                        addDetailsToList (newOrder);
+                        // update the current order info
+                        updateOrderListing();
+                    } catch (ParserException exMsg) {
+                        updateOrderListing();
+                        Utils.throwAddendum(line, "ORDER_PLACED failure");
                     }
                     break;
             }
@@ -187,11 +147,38 @@ public class AmazonParser {
         clipReader.close();
             
         // if we captured any orders, we can now allow the spreadsheet to be updated
-        if (! amazonList.isEmpty() || ! detailList.isEmpty()) {
+        if (! amazonList.isEmpty()) {
             GUIMain.enableUpdateButton(true);
         }
     }
 
+    private static void updateOrderListing() {
+        int itemCount = 0;
+        int orderCount = 0;
+        LocalDate startDate = null;
+
+        GUIOrderPanel.printOrderHeader();
+
+        // count and display the entries found.
+        for (int ix = 0; ix < amazonList.size(); ix++) {
+            AmazonOrder entry = amazonList.get(ix);
+            boolean bIsListed = entry.isInvalidDate();
+            if (! bIsListed) {
+                orderCount++;
+                itemCount += entry.getItemCount();
+                if (startDate == null) {
+                    startDate = entry.getOrderDate();
+                }
+            }
+            GUIOrderPanel.printOrder(entry, bIsListed);
+        }
+        if (itemCount > 0) {
+            LocalDate endDate = amazonList.getLast().getOrderDate();
+            GUIMain.setOrderCount(orderCount, itemCount, startDate, endDate);
+            GUILogPanel.outputInfoMsg(MsgType.PARSER, "Total orders in list = " + amazonList.size());
+        }
+    }
+    
     /**
      * updates the spreadsheet file with the lists of AmazonOrders
      * 
@@ -205,7 +192,7 @@ public class AmazonParser {
             throw new ParserException(functionId + "spreadsheet sheet selection not made");
         }
 
-        if (amazonList.isEmpty() && detailList.isEmpty()) {
+        if (amazonList.isEmpty()) {
             GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "nothing to update");
             return;
         }
@@ -279,25 +266,6 @@ public class AmazonParser {
                 }
             }
 
-            // now process the 'Order Details' pages if any
-            if (! detailList.isEmpty()) {
-                for (int ixOrder = 0; ixOrder < detailList.size(); ixOrder++) {
-                    // find the row entry in the spreadsheet to the order we are amending
-                    AmazonOrder order = detailList.get(ixOrder);
-                    String strOrderNum = order.getOrderNumber();
-                    int row = Spreadsheet.findItemNumber (strOrderNum);
-                    if (row < 0) {
-                        GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "Index " + ixOrder +
-                                            " Order " + strOrderNum + " not found in spreadsheet");
-                    } else {
-                        // save the detailed info to spreadsheet class
-                        showItemListing(ixOrder, order);
-                        Spreadsheet.setSpreadsheetOrderInfo (row, order, false);
-                        bUpdate = true;
-                    }
-                }
-            }
-
             // output changes to file, if any
             if (bUpdate) {
                 // update display that shows the last entries in the spreadsheet
@@ -326,10 +294,8 @@ public class AmazonParser {
             // reset the lists, since we used it already
             strSheetSel = null;
             amazonList.clear();
-            detailList.clear();
             GUIMain.clearTabOwner();
             GUIMain.clearOrderCount();
-            GUIMain.clearDetailCount();
 
         } catch (IOException ex) {
             throw new IOException(functionId + ex.getMessage());
@@ -443,48 +409,41 @@ public class AmazonParser {
 
         // both lists are valid...
         // determine which list is older - we want the oldest orders first in the list
-        LocalDate newDateStart = newList.get(0).getOrderDate();
-        LocalDate newDateEnd   = newList.get(newList.size()-1).getOrderDate();
-        LocalDate oldDateStart = oldList.get(0).getOrderDate();
-        LocalDate oldDateEnd   = oldList.get(oldList.size()-1).getOrderDate();
+        LocalDate newDateStart = newList.getFirst().getOrderDate();
+        LocalDate newDateEnd   = newList.getLast().getOrderDate();
+        LocalDate oldDateStart = oldList.getFirst().getOrderDate();
+        LocalDate oldDateEnd   = oldList.getLast().getOrderDate();
         if (newDateStart.isAfter(oldDateStart)) {
-            // starting dates check...
             // newList is more recent, copy newList first
             appendList = newList;
-            finalList = oldList;
+            finalList  = oldList;
             GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is newer than orig list on start dates: "
-                        + newDateStart.getYear() + "-" + newDateStart.getMonthValue() + "-" + newDateStart.getDayOfMonth() + "  vs  "
-                        + oldDateStart.getYear() + "-" + oldDateStart.getMonthValue() + "-" + oldDateStart.getDayOfMonth()  );
+                        + getYYYYMMDD(newDateStart) + "  vs  " + getYYYYMMDD(oldDateStart));
         } else if (newDateStart.isBefore(oldDateStart)) {
             // oldList is more recent, copy oldList first
             appendList = oldList;
-            finalList = newList;
+            finalList  = newList;
             GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is older than orig list on start dates: "
-                        + newDateStart.getYear() + "-" + newDateStart.getMonthValue() + "-" + newDateStart.getDayOfMonth() + "  vs  "
-                        + oldDateStart.getYear() + "-" + oldDateStart.getMonthValue() + "-" + oldDateStart.getDayOfMonth()  );
+                        + getYYYYMMDD(newDateStart) + "  vs  " + getYYYYMMDD(oldDateStart));
         } else if (newDateEnd.isAfter(oldDateEnd)) {
-            // the starting dates are the same, so the ending dates must be different
-            //   or they are the same date ranges, which means we could do either.
-            // ending dates check
+            // the starting dates are the same, so the ending dates may be different
             // newList is more recent, copy newList first
             appendList = newList;
-            finalList = oldList;
+            finalList  = oldList;
             GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is newer than orig list on end dates: "
-                        + newDateEnd.getYear() + "-" + newDateEnd.getMonthValue() + "-" + newDateEnd.getDayOfMonth() + "  vs  "
-                        + oldDateEnd.getYear() + "-" + oldDateEnd.getMonthValue() + "-" + oldDateEnd.getDayOfMonth()  );
+                        + getYYYYMMDD(newDateEnd) + "  vs  " + getYYYYMMDD(oldDateEnd));
         } else if (newDateEnd.isBefore(oldDateEnd)) {
             // oldList is more recent, copy oldList first
             appendList = oldList;
-            finalList = newList;
+            finalList  = newList;
             GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is older than orig list on end dates: "
-                        + newDateEnd.getYear() + "-" + newDateEnd.getMonthValue() + "-" + newDateEnd.getDayOfMonth() + "  vs  "
-                        + oldDateEnd.getYear() + "-" + oldDateEnd.getMonthValue() + "-" + oldDateEnd.getDayOfMonth()  );
+                        + getYYYYMMDD(newDateEnd) + "  vs  " + getYYYYMMDD(oldDateEnd));
         } else {
             // both have the same date ranges (must either be the same list repeated or all purchases
             // are on the same date, so it doesn't matter because we will throw out all duplicate entries.
             // let's just copy the newList first.
             appendList = newList;
-            finalList = oldList;
+            finalList  = oldList;
         }
 
         // append the newer entries to the end of the older list
@@ -503,6 +462,78 @@ public class AmazonParser {
         return finalList;
     }
 
+    /**
+     * adds the specified AmazonOrder list containing detail info to amazonList.
+     * If amazonList is not empty, this will search for a match to the order number and
+     *  and its additional info to that entry, if found.
+     * If not found, it will find the location in the array in which to place it to keep
+     *  entries in order of oldest to newest dates.
+     * If amazonList is empty, it simply adds the entry to it.
+     * 
+     * @param entry - the detailed order info
+     * 
+     * @return true if entry was added, false if an entry was modified or not added
+     */
+    private boolean addDetailsToList (AmazonOrder newOrder) throws ParserException {
+        String orderNum = newOrder.getOrderNumber();
+        LocalDate orderDate = newOrder.getOrderDate();
+        int length = amazonList.size();
+        boolean bFound = false;
+
+        if (! amazonList.isEmpty()) {
+            int newDate = DateFormat.convertDateToInteger (orderDate, false);
+            AmazonOrder entry = findOrderInList (orderNum);
+            if (entry != null) {
+                // update the added info not included in order info
+                entry.addDetails (newOrder);
+                GUILogPanel.outputInfoMsg(MsgType.PARSER, "modified order # " + orderNum + " in order list");
+                return false;
+            }
+            
+            if (newDate >= 0) {
+                // find location to add entry to list
+                for (int ix = 0; ix < length; ix++) {
+                    int entryDate = DateFormat.convertDateToInteger (amazonList.get(ix).getOrderDate(), false);
+                    if (newDate <= entryDate) {
+                        amazonList.set(ix, newOrder);
+                        GUILogPanel.outputInfoMsg(MsgType.PARSER, "inserted order # " + orderNum + " into order list at index " + ix);
+                        length = ix;
+                        bFound = true;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        boolean bEntryAdded = true;
+        if (! bFound) {
+            // date is past all entries, so add to end of list
+            amazonList.add(newOrder);
+            GUILogPanel.outputInfoMsg(MsgType.PARSER, "added order # " + orderNum + " to order list at index " + length);
+        }
+        
+        // new entry added, check if the item is already in the spreadsheet
+        if (Spreadsheet.findItemNumber(orderNum) >= 0) {
+            amazonList.get(length).setInvalidDate();
+            bEntryAdded = false;
+        }
+        
+        return bEntryAdded;
+    }
+    
+    private static AmazonOrder findOrderInList (String orderNumber) {
+        for (int ix = 0; ix < amazonList.size(); ix++) {
+            if (orderNumber.contentEquals(amazonList.get(ix).getOrderNumber())) {
+                return amazonList.get(ix);
+            }
+        }
+        return null;
+    }
+    
+    private static String getYYYYMMDD (LocalDate date) {
+        return date.getYear() + "-" + date.getMonthValue() + "-" + date.getDayOfMonth();
+    }
+    
     private static void showItemListing (int ixOrder, AmazonOrder order) {
         int multi_count = order.getItemCount();
         for (int ixItem = 0; ixItem < multi_count; ixItem++) {

@@ -591,6 +591,7 @@ public class CmdOptions {
      */
     private ArrayList<String> executeCmdOption (CommandStruct cmdLine) throws ParserException, IOException, SAXException, TikaException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": " + showLineNumberInfo(cmdLine.getLine());
+
         ArrayList<String> response = new ArrayList<>();
         Utils.PathType pathtype;
         String fname;
@@ -752,7 +753,7 @@ public class CmdOptions {
                     break;
                 case "-save":
                     // save the spreadsheet and reload so another spreadsheet change can be made
-                    OpenDoc.saveToFile();
+                    OpenDoc.saveToFile(null);
                     break;
                 case "-date":
                     String strDate = getStringValue(cmdLine, 0);
@@ -800,7 +801,7 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Null argument value");
                     }
                     OpenDoc.setSize(iCol, iRow);
-                    OpenDoc.saveToFile();
+                    OpenDoc.saveToFile(null);
                     break;
                 case "-find":
                     String order = getStringValue(cmdLine, 0);

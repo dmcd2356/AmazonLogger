@@ -16,8 +16,8 @@ public class Keyword {
     private static final String CLASS_NAME = Keyword.class.getSimpleName();
 
     // these are the enums for the lines that are of interest to us in the clipboard contents
-    public enum KeyTyp { NONE, HELLO_D, HELLO_C,
-                         ORDER_PLACED, ORDER_DETAILS, TOTAL_COST, ORDER_NUMBER, 
+    public enum KeyTyp { NONE, HELLO_D, HELLO_C, ORDER_PLACED, ORDER_SUMMARY, ORDER_DETAILS,
+                         TOTAL_COST, ORDER_NUMBER, 
                          RETURNED, REFUNDED, DELIVERED, ARRIVING, NOW_ARRIVING,
                          GROSS_COST, TAXES, SHIPPING_COST, ITEM_COST, SELLER, SUPPLIER,
                          DESCRIPTION, DESCRIPTION_2, QUANTITY, SHIP_TO, COMPLETE,
@@ -55,6 +55,7 @@ public class Keyword {
         putKeywordInfo ("Hello, Dan"                , KeyTyp.HELLO_D);
         putKeywordInfo ("Hello, Connie"             , KeyTyp.HELLO_D);
         putKeywordInfo ("Order Details"             , KeyTyp.ORDER_DETAILS);
+        putKeywordInfo ("Order Summary"             , KeyTyp.ORDER_SUMMARY);
         putKeywordInfo ("Order placed"              , KeyTyp.ORDER_PLACED);     // date placed
         putKeywordInfo ("Total"                     , KeyTyp.TOTAL_COST);       // cost of order (with taxes & shipping)
         putKeywordInfo ("Grand Total:"              , KeyTyp.TOTAL_COST);       //  "       " (for INVOICE)

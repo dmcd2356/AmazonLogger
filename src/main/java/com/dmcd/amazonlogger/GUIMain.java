@@ -76,7 +76,6 @@ public final class GUIMain extends JFrame implements ActionListener {
     private static JLabel lbl_order_tab;
     private static JLabel lbl_order_title;
     private static JLabel lbl_orders, lbl_orders_num, lbl_orders_item, lbl_orders_date;
-    private static JLabel lbl_detail, lbl_detail_num, lbl_detail_item, lbl_detail_date;
     private static JLabel lbl_lastline1, lbl_lastline2, lbl_lastline3;
     private static JTextPane log_txtpane;
     private static JTextPane order_txtpane;
@@ -527,47 +526,9 @@ public final class GUIMain extends JFrame implements ActionListener {
         lbl_orders_date.setVisible(true);
         c.add(lbl_orders_date);
 
-        // this displays the clipboard stats on what is loaded from the Details
-        loc_x = x_info_offset;
-        loc_y += y_line_gap;
-        lbl_width = x_order_lbl_width;
-        lbl_detail = new JLabel("DETAILS:");
-        lbl_detail.setFont(new Font("Arial", Font.BOLD, 15));
-        lbl_detail.setSize(lbl_width, y_label_height);
-        lbl_detail.setLocation(loc_x, loc_y);
-        lbl_detail.setVisible(true);
-        c.add(lbl_detail);
-        loc_x += lbl_width + x_order_gap_width;
-        lbl_width = x_order_num_width;
-        lbl_detail_num = new JLabel();
-        lbl_detail_num.setFont(new Font("Arial", Font.BOLD, 15));
-        lbl_detail_num.setSize(lbl_width, y_label_height);
-        lbl_detail_num.setLocation(loc_x, loc_y);
-        lbl_detail_num.setForeground(Color.blue);
-        lbl_detail_num.setVisible(true);
-        c.add(lbl_detail_num);
-        loc_x += lbl_width + x_order_gap_width;
-        lbl_detail_item = new JLabel();
-        lbl_detail_item.setFont(new Font("Arial", Font.BOLD, 15));
-        lbl_detail_item.setSize(lbl_width, y_label_height);
-        lbl_detail_item.setLocation(loc_x, loc_y);
-        lbl_detail_item.setForeground(Color.blue);
-        lbl_detail_item.setVisible(true);
-        c.add(lbl_detail_item);
-        loc_x += lbl_width + x_order_gap_width;
-        lbl_width = x_order_date_width;
-        lbl_detail_date = new JLabel();
-        lbl_detail_date.setFont(new Font("Arial", Font.BOLD, 15));
-        lbl_detail_date.setSize(lbl_width, y_label_height);
-        lbl_detail_date.setLocation(loc_x, loc_y);
-        lbl_detail_date.setForeground(Color.blue);
-        lbl_detail_date.setVisible(true);
-        c.add(lbl_detail_date);
-
         // init the values in the clipboard info
         clearTabOwner();
         clearOrderCount ();
-        clearDetailCount ();
         
         // init the log panels
         GUILogPanel   logPanel   = new GUILogPanel(log_txtpane);
@@ -871,45 +832,6 @@ public final class GUIMain extends JFrame implements ActionListener {
         lbl_orders_date.setText("");
     }
     
-    /**
-     * displays the Detailed Orders information loaded from the clipboard.
-     * 
-     * @param orders    - number of orders
-     * @param items     - number of items in all the orders
-     * @param startDate - earliest date in the orders
-     * @param endDate   - most recent date in the orders
-     */
-    public static void setDetailCount (int orders, int items, LocalDate startDate, LocalDate endDate) {
-        if (!bUseGUI)
-            return;
-        
-        String dateRange = "";
-        if (startDate != null && endDate != null) {
-            if (startDate.isAfter(endDate)) {
-                LocalDate tempDate = startDate;
-                startDate = endDate;
-                endDate = tempDate;
-            }
-            dateRange = DateFormat.convertDateToString(startDate, false) + "  to  " +
-                        DateFormat.convertDateToString(endDate, false);
-        }
-        lbl_detail_num.setText (orders + "");
-        lbl_detail_item.setText(items + "");
-        lbl_detail_date.setText(dateRange);
-    }
-
-    /**
-     * clears the Detailed Orders information.
-     */
-    public static void clearDetailCount () {
-        if (!bUseGUI)
-            return;
-        
-        lbl_detail_num.setText ("0");
-        lbl_detail_item.setText("0");
-        lbl_detail_date.setText("");
-    }
-
     /**
      * reads the Property setting for 'MsgEnable'.
      * The value is read as a string entry and converted from hex format

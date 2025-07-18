@@ -72,7 +72,46 @@ public class AmazonOrder {
         item.add(newItem);
         return newItem;
     }
+
+    // this copies the extra info gathered  from an invoice and adds it to the setting
+    public void addDetails (AmazonOrder details) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
+        // first, verify the order number matches and the number of items also matches
+        if (! this.order_num.contentEquals(details.order_num)) {
+            throw new ParserException(functionId + "Invoice order " + details.order_num + " does not match order " + this.order_num);
+        }
+        if (this.item.size() != details.item.size()) {
+            throw new ParserException(functionId + "Invoice item count " + details.item.size() + " does not match order item count " + this.item.size());
+        }
+
+        if (details.last_delivery != null) {
+            this.last_delivery = details.last_delivery;
+        }
+        if (details.gross_cost != null) {
+            this.gross_cost = details.gross_cost;
+        }
+        if (details.tax_cost != null) {
+            this.tax_cost = details.tax_cost;
+        }
+        for (int ix = 0; ix < this.item.size(); ix++) {
+            AmazonItem thisItem = this.item.get(ix);
+            AmazonItem detItem  = details.item.get(ix);
+            thisItem.setDeliveryDate(detItem.getDeliveryDate());
+            thisItem.setItemCost(detItem.getItemCost());
+            thisItem.setSeller(detItem.getSeller());
+            if (detItem.getReturned()) {
+                thisItem.setReturned();
+            }
+            if (thisItem.getDescription() == null || thisItem.getDescription().isEmpty()) {
+                thisItem.setDescription(detItem.getDescription());
+            }
+            if (thisItem.getQuantity() == null) {
+                thisItem.setQuantity(detItem.getQuantity());
+            }
+        }
+    }
+    
     public boolean isInvalidDate() {
         return this.bOldDate;
     }

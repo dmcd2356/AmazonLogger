@@ -356,7 +356,7 @@ public class PdfReader {
     *    order numbers and modifies the spreadsheet file to highlight the rows that
     *    match up with the charges/credits.
     * 
-    * @param sheetName       - the name of the sheet in the spreadsheet (Dan or Connie)
+    * @param sheetName       - the name of the tab selection for the sheet
     * @param transactionList - the list of credit card transactions pulled from the PDF file
     * @param strPdfName      - the name of the PDF file
     * 
@@ -489,7 +489,7 @@ public class PdfReader {
         }
 
         // save the data to the spreadsheet file
-        OpenDoc.saveToFile();
+        OpenDoc.saveToFile(sheetName);
     }
 
 }

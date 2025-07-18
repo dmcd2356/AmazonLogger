@@ -33,16 +33,31 @@ public class GUIOrderPanel {
     private static final HashMap<Spreadsheet.Column, MsgControl> msgInfo  = new HashMap<>();
 
     private final class MsgControl {
-        Integer   fieldSize;    // size of the field on the display
-        String    font;         // whether the displayed message is Normal, Bold, Italic, or both
-        TextColor color;        // color to use for the text on the screen
+        private final Integer   fieldSize;    // size of the field on the display
+        private final String    font;         // whether the displayed message is Normal, Bold, Italic, or both
+        private final TextColor color;        // color to use for the text on the screen
         
         MsgControl (int size, String font, TextColor color) {
             this.fieldSize = size;
             this.font      = font;       // N=normal, I=italic, B=Bold, BI=Bold+Italic
             this.color     = color;
         }
+        
+        public int getFieldSize() {
+            return this.fieldSize;
+        }
+        
+        public String getFont() {
+            return this.font;
+        }
+        
+        public TextColor getColor() {
+            return this.color;
+        }
     }
+    
+    // this is the spacing used between fireld
+    private static final int FIELD_GAP = 3;
     
     private enum TextColor {
         Black, White, LtGrey, DkGrey, DkRed, Red, LtRed, Orange, Brown,
@@ -70,7 +85,7 @@ public class GUIOrderPanel {
 //        msgInfo.put(Column.Pending      , new MsgControl ( 7, "I", TextColor.Green));
 //        msgInfo.put(Column.Payment      , new MsgControl ( 7, "I", TextColor.Green));
 //        msgInfo.put(Column.Refund       , new MsgControl ( 7, "B", TextColor.Green));
-        msgInfo.put(Column.Seller       , new MsgControl (15, "N", TextColor.Green));
+        msgInfo.put(Column.Seller       , new MsgControl (20, "N", TextColor.Green));
 //        msgInfo.put(Column.CreditCard   , new MsgControl (20, "I", TextColor.Black));
     }
 
@@ -182,7 +197,9 @@ public class GUIOrderPanel {
                     entry = Utils.cvtAmountToString(cost);
                 }
                 if (entry != null) {
-                    entry = Utils.padLeft(entry, 7); // this will align the dec pt
+                    // this will align the dec pt by aligning it to the right
+                    int fieldlen = msgInfo.get(colName).getFieldSize();
+                    entry = Utils.padLeft(entry, fieldlen);
                 }
                 break;
             case Tax:
@@ -191,7 +208,9 @@ public class GUIOrderPanel {
                     entry = Utils.cvtAmountToString(cost);
                 }
                 if (entry != null) {
-                    entry = Utils.padLeft(entry, 4); // this will align the dec pt
+                    // this will align the dec pt by aligning it to the right
+                    int fieldlen = msgInfo.get(colName).getFieldSize();
+                    entry = Utils.padLeft(entry, fieldlen);
                 }
                 break;
             default:
@@ -251,7 +270,7 @@ public class GUIOrderPanel {
         }
         MsgControl font = msgInfo.get(colName);
         if (font != null) {
-            int fieldLen = font.fieldSize + 4; // 4 is the gap between fields
+            int fieldLen = font.getFieldSize() + FIELD_GAP; // add the gap between fields
             entry = Utils.padRight(entry, fieldLen);
         }
         return entry;
@@ -280,15 +299,15 @@ public class GUIOrderPanel {
             entry = getOrderItemEntry (orderInfo, colName, ix);
         }
         if (entry == null) {
+            entry = "null";
             switch (colName) {
-                // non-essential entries
+                // non-essential entries (these are supplied by invoice or details clips, which are not required)
                 case DateDelivered:
                 case ItemPrice:
                 case Tax:
                 case Seller:
                     break;
                 default:
-                    entry = "null";
                     bError = true;
                     break;
             }
@@ -298,10 +317,15 @@ public class GUIOrderPanel {
         String    msgFont  = "N";
         TextColor msgColor = TextColor.Black;
         if (font != null) {
-            msgColor = font.color;
-            msgFont  = font.font;
+            msgColor = font.getColor();
+            msgFont  = font.getFont();
         }
 
+        // limit the field data to the max field size + field gap size - 1
+        int maxlen = msgInfo.get(colName).getFieldSize();
+        if (entry.length() > maxlen) {
+            entry = entry.substring(0, maxlen);
+        }
         entry = padEntry (colName, entry);
         if (term) {
             entry = entry + NEWLINE;
