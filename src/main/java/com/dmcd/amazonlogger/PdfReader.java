@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Scanner;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -149,19 +150,9 @@ public class PdfReader {
         GUILogPanel.outputInfoMsg(MsgType.INFO, "PDF File name: " + strPdfName);
             
         // check if the file has already been balanced in the spreadsheet
-        String strTabSelect = "";
         GUILogPanel.outputInfoMsg(MsgType.INFO, "Checking if file has been already balanced");
-        if (! Spreadsheet.findCreditCardEntry("Dan", strPdfName)) {
-            strTabSelect = "Dan";
-        }
-        if (! Spreadsheet.findCreditCardEntry("Connie", strPdfName)) {
-            if (strTabSelect.isBlank()) {
-                strTabSelect = "Connie";
-            } else {
-                strTabSelect = "Both";
-            }
-        }
-        if (strTabSelect.isEmpty()) {
+        ArrayList<String> tabSelect = Spreadsheet.findCreditCardEntry (strPdfName);
+        if (tabSelect.isEmpty()) {
             return;
         }
             
@@ -267,36 +258,31 @@ public class PdfReader {
         }
 
         // find the valid entries for each user
-        ArrayList<CardTransaction> danList = null;
-        ArrayList<CardTransaction> connieList = null;
-        String strTab = "Dan";
-        if (strTabSelect.contentEquals(strTab) || strTabSelect.contentEquals("Both")) {
-            danList = checkForNewEntries (strTab, transactionList);
-            if (danList.isEmpty()) {
-                danList = null;
+        HashMap<String, ArrayList<CardTransaction>> mapList = new HashMap<>();
+        ArrayList<CardTransaction> cardList = null;
+        for (int ix = 0; ix < tabSelect.size(); ix++) {
+            String strTab = tabSelect.get(ix);
+            cardList = checkForNewEntries (strTab, transactionList);
+            if (cardList.isEmpty()) {
+                cardList = null;
                 GUILogPanel.outputInfoMsg(MsgType.INFO, "No entries usable in " + strTab + "'s list...");
+            } else {
+                mapList.put(strTab, cardList);
             }
         }
-        strTab = "Connie";
-        if (strTabSelect.contentEquals(strTab) || strTabSelect.contentEquals("Both")) {
-            connieList = checkForNewEntries (strTab, transactionList);
-            if (connieList.isEmpty()) {
-                connieList = null;
-                GUILogPanel.outputInfoMsg(MsgType.INFO, "No entries usable in " + strTab + "'s list...");
-            }
-        }
-            
-        if (danList != null || connieList != null) {
-            // make a backup copy of the current file before saving.
+        
+        // something changed - so first make a backup copy of the current file before saving.
+        if (! mapList.isEmpty()) {
             Spreadsheet.makeBackupCopy("-pdf-bak");
-            
-            // process the applicable sheets
-            if (danList != null) {
-                balanceSpreadsheetEntries("Dan", danList, strPdfName);
-            }
-            if (connieList != null) {
-                balanceSpreadsheetEntries("Connie", connieList, strPdfName);
-            }
+        } else {
+            GUILogPanel.outputInfoMsg(MsgType.INFO, "No changes were made.");
+        }
+        
+        // now process the applicable sheets
+        for (HashMap.Entry<String, ArrayList<CardTransaction>> entry : mapList.entrySet()) {
+            String tabName = entry.getKey();
+            ArrayList<CardTransaction> list = entry.getValue();
+            balanceSpreadsheetEntries(tabName, list, strPdfName);
         }
     }
     

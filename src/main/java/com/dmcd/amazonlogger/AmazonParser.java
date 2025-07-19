@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Objects;
+import javax.swing.JOptionPane;
 
 /**
  *
@@ -184,7 +185,9 @@ public class AmazonParser {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (strSheetSel == null) {
-            throw new ParserException(functionId + "spreadsheet sheet selection not made");
+            String name = JOptionPane.showInputDialog("Which tab to update ?");
+            strSheetSel = name;
+//            throw new ParserException(functionId + "spreadsheet sheet selection not made");
         }
 
         if (amazonList.isEmpty()) {

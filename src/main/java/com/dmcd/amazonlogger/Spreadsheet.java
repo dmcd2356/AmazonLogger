@@ -42,6 +42,9 @@ public class Spreadsheet {
 
     // the map of column names to column indices in the sheet
     private static final HashMap<Column, Integer> hmSheetColumns = new HashMap<>();
+    
+    // list of the tab names of the spreadsheet
+    private static ArrayList<String> tabNames = new ArrayList<>();
 
     // these are the names of the column headers.
     // the file must have these defined as they are here, although they may have spaces
@@ -69,6 +72,7 @@ public class Spreadsheet {
      */
     public static void init() {
         hmSheetColumns.clear();
+        tabNames.clear();
         iSheetYear = null;
         firstRow = -1;
         lastValidColumn = 0;
@@ -906,6 +910,28 @@ public class Spreadsheet {
     }
 
     /**
+     * Finds which tabs have the selected credit card entry selection.
+     * 
+     * @param strPdfName - name of the credit card file to search for
+     * 
+     * @return a list of the tab names that contain the specified credit card entry
+     * 
+     * @throws IOException
+     * @throws ParserException 
+     */
+    public static ArrayList<String> findCreditCardEntry (String strPdfName) throws IOException, ParserException {
+        ArrayList<String> tabs = new ArrayList<>();
+        
+        for (int ix = 0; ix < tabNames.size(); ix++) {
+            String tabName = tabNames.get(ix);
+            if (findCreditCardEntry(tabName, strPdfName)) {
+                tabs.add(tabName);
+            }
+        }
+        return tabs;
+    }
+    
+    /**
      * finds the last recorded date in the selected spreadsheet.
      * 
      * @param sheetName  - the sheet to search
@@ -1236,6 +1262,7 @@ public class Spreadsheet {
         
         // reset the orders lists
         AmazonParser.initLists();
+        tabNames.clear();
     }
 
     /**
@@ -1259,7 +1286,12 @@ public class Spreadsheet {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // load the specified number of tabs of the spreadsheet into memory
+        tabNames.clear();
         OpenDoc.loadFromFile (numSheets);
+        numSheets = OpenDoc.getNumberOfSheets();
+        for (int ix = 0; ix < numSheets; ix++) {
+            tabNames.add(OpenDoc.getSheetName(ix));
+        }
 
         // check if spreadsheet header is valid and setup column selections if so
         setupColumns(bCheckHeader);

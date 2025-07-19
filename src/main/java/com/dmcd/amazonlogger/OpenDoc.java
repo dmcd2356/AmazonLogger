@@ -161,6 +161,25 @@ public class OpenDoc {
     }
 
     /**
+     * get the name of the selected tab.
+     * 
+     * @param ix - the tab number to check (1st entry is ix of 0)
+     * 
+     * @return name associated with specified tab
+     * 
+     * @throws ParserException
+     */
+    public static String getSheetName (int ix) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (ix >= sheetArray.size()) {
+            throw new ParserException(functionId + "tab index " + ix + " exceeds max tabs: " + sheetArray.size());
+        }
+
+        return sheetArray.get(ix).getName();
+    }
+
+    /**
      * get the state of whether the specified cell location is not defined (null).
      * 
      * @param col - the column selection
