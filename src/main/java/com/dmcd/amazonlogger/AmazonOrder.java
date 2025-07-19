@@ -94,7 +94,13 @@ public class AmazonOrder {
         if (details.tax_cost != null) {
             this.tax_cost = details.tax_cost;
         }
-        for (int ix = 0; ix < this.item.size(); ix++) {
+        int size = this.item.size();
+        int newsize = details.item.size();
+        if (size != newsize) {
+            GUILogPanel.outputInfoMsg (GUILogPanel.MsgType.WARN, "Details has " + newsize + " entries while OrderList shows " + size);
+            size = (size < newsize) ? size : newsize;
+        }
+        for (int ix = 0; ix < size; ix++) {
             AmazonItem thisItem = this.item.get(ix);
             AmazonItem detItem  = details.item.get(ix);
             thisItem.setDeliveryDate(detItem.getDeliveryDate());

@@ -25,6 +25,7 @@ public class ClipboardReader {
 
     private static StringTokenizer clipReader = null;
     private static BufferedReader  fileReader = null;
+    private static int lineNum = 0;
     
     public ClipboardReader () {
         // read the contents of the clipboard so we can parse it line by line
@@ -34,6 +35,7 @@ public class ClipboardReader {
             if (clipObject != null) {
                 String strClipboard = clipboard .getData(DataFlavor.stringFlavor).toString();
                 clipReader = new StringTokenizer(strClipboard,"\n");
+                lineNum = 0;
             }
         }
         catch (UnsupportedFlavorException | IOException ex) {
@@ -48,6 +50,7 @@ public class ClipboardReader {
             if (clipFile != null) {
                 FileReader fReader = new FileReader(clipFile);
                 fileReader = new BufferedReader(fReader);
+                lineNum = 0;
             }
         }
         catch (IOException ex) {
@@ -55,7 +58,7 @@ public class ClipboardReader {
             GUIMain.disableAllButton();
         }
     }
-    
+
     /*********************************************************************
     ** reads the next line from the web text file (or clipboard).
     * 
@@ -83,9 +86,19 @@ public class ClipboardReader {
             this.close();
         }
 
+        lineNum++;
         return line;
     }
-    
+
+    /**
+     * returns the line number read.
+     * 
+     * @return the line number last read
+     */    
+    public static int getLineNumber() {
+        return lineNum;
+    }    
+
     /*********************************************************************
     ** closes the Amazon web page file (or clipboard).
     * 

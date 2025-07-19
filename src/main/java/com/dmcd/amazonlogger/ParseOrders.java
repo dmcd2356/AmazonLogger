@@ -18,6 +18,14 @@ public class ParseOrders {
 
     private static final String CLASS_NAME = ParseOrders.class.getSimpleName();
 
+    // these pertain to extracting the description from the clipboard.
+    // the 1st is the length the description MAY be truncated in one of the entries.
+    // the 2nd is the minimum expected length of a description
+    // the 3rd is the min length that must match before we indicate it is the description.
+    private static final int DESCRIPT_LEN_TRUNC = 125;
+    private static final int DESCRIPT_LEN_MIN   = 15;
+    private static final int DESCRIPT_LEN_MIN_MATCH = 6;
+            
     private ClipboardReader clipReader;
     
     public ParseOrders(ClipboardReader clip) {
@@ -103,8 +111,8 @@ public class ParseOrders {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         boolean bSkipRead = false;
-        boolean bDescrFound = false;
         String lastLine = "";
+        Integer qtyValue = null;
 
         // init the array list of Amazon transactions
         ArrayList<AmazonOrder> amazonList = new ArrayList<>();
@@ -154,27 +162,83 @@ public class ParseOrders {
                 }
             }
 
+            //--------------------------------------------------------------------------------
+            // THIS IS ONE OF THE KLUDGY PARTS, SINCE THERE IS NO KEYWORD FOR ITEM COST.
+            //  THE WAY TO FIND THE ITEM COST IS THAT IT IS THE FIRST LINE THAT STARTS
+            //  WITH A '$' THAT FOLLOWS THE DESCRIPTION. 
+            // THEREFORE, THE DESCRIPTION MUST HAVE BEEN COMPETED AND NO ITEM COST FOUND YET WHEN
+            //  WE SEE THE LINE STARTING WITH A '$'.
+            //--------------------------------------------------------------------------------
+
+            boolean bDescript  = newOrder.getLastItem().getDescription()  != null;
+            boolean bItemCost  = newOrder.getLastItem().getItemCost()     != null;
+            boolean bDelDate   = newOrder.getLastItem().getDeliveryDate() != null;
+            boolean bOrdDate   = newOrder.getOrderDate()   != null;
+            boolean bOrdNumber = newOrder.getOrderNumber() != null;
+            GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Status: " + (bDescript  ? "Descript "  : "") +
+                                                                         (bOrdNumber ? "OrdNumber " : "") +
+                                                                         (bOrdDate   ? "OrdDate "   : "") +
+                                                                         (bDelDate   ? "DelDate "   : "") +
+                                                                         (bItemCost  ? "ItemCost "  : "")  );
+
             // check for item cost, which is the first line that starts with a '$' that follows the description
-            if (line.charAt(0) == '$' && bDescrFound) {
-                parseCommand (Keyword.KeyTyp.ITEM_COST, line, newOrder);
-                continue;
+            if (line.charAt(0) == '$') {
+                GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Item cost check");
+                if (bDescript && ! bItemCost) {
+                    parseCommand (Keyword.KeyTyp.ITEM_COST, line, newOrder);
+                    continue;
+                }
             }
 
+            //--------------------------------------------------------------------------------
+            // THIS IS ANOTHER OF THE KLUDGY PARTS, SINCE THERE IS NO KEYWORD FOR DESCRIPTION.
+            //  THE WAY TO FIND THE IT IS THAT IT WILL HAVE 2 CONSECUTIVE LINES SOMEWHERE AFTER
+            //  AN ORDER NUMBER, ORDER DATE AND DELIVERY DATE THAT ARE VERY SIMILAR.
+            //  USUALLY THEY ARE IDENTICAL EXCEPT THE FIRST WILL HAVE THE QUANTITY VALUE ADDED
+            //   TO THE END (SOMETIMES, THE DESCRIPTION ITSELF IS CHANGED FOR SOME STRANGE REASON).
+            // ANOTHER POSSIBILITY IS THAT THE DESCRIPTION IS LISTED TWICE WITH THE QUANTITY ON
+            //  A SEPERATE LINE BETWEEN THEM, SO WE HAVE TO ALSO CHECK FOR THIS CASE.
+            //  IF MULTIPLE ITEMS ARE IN THE 'ORDER' CLIP, THERE WILL BE SOME BUTTON ENTRIES
+            //   BETWEEN THE SELECTION. IF IT IS AN'INVOICE' CLIP, THERE WILL BE THE 'SELLER',
+            //   'SUPPLIER' AND 'ITEM COST' ENTRIES BETWEEN THE DESCRIPTIONS.
+            //  A 'BACK_TO_TOP' WILL END BOTH TYPES OF SEARCHING FOR DESCRIPTION, AND FOR 'ORDERS'
+            //   IT WILL END WHE  A NEW 'ORDER_NUMBER' IS FOUND.
+            //--------------------------------------------------------------------------------
+
+            // this will allow multiple descriptions in the ORDERS case for multiple items in an order.
+            if (AmazonParser.ClipTyp.ORDERS == type) {
+                bDelDate = true;
+            }
+            
             // If we have 2 lines of sufficiet length in a row that match, except
             //  possibly for the last couple of chars, this must be the description.
             // The 1st line will have a space and the quantity added to it and the
             //  second one won't.
             // For some silly reason, the 1st entry limits the description to 125 chars,
             //  but not the second. So if the 2nd entry exceeds 125, just snip it off.
-            if (Keyword.KeyTyp.NONE == keywordInfo.orderId) {
-                Integer qtyValue = 1;
+            if (Keyword.KeyTyp.NONE == keywordInfo.orderId && bOrdNumber && bOrdDate) {
+                GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Description check");
+                qtyValue = 1;
                 int linelen = line.length();
                 int prevlen = lastLine.length();
-                // make sure we had 2 NOT FOUND lines in a row
-                if (prevlen > 10) {
+                if (linelen < DESCRIPT_LEN_MIN && prevlen >= DESCRIPT_LEN_MIN) {
+                    // if we have an intervening line that is simpl a numeric value < 99,
+                    //  let's assume it is the quantity and the next line should be the match for the description.
+                    try {
+                        qtyValue = Integer.valueOf(line);
+                        GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Description followed by Quantity found");
+                        setDescriptionAndQty (line, qtyValue, newOrder);
+                        lastLine = "";
+                        continue;
+                    } catch (NumberFormatException exMsg) {
+                        // not a numeric, must stick to prev rule of 2 matching line
+                    }
+                }
+                // make sure we had 2 NOT_FOUND lines in a row
+                if (linelen >= DESCRIPT_LEN_MIN && prevlen >= DESCRIPT_LEN_MIN) {
                     // eliminate the extraneous material from the non-truncated entry
-                    if (linelen > 125 && prevlen > 125) {
-                        linelen = 125;
+                    if (linelen > DESCRIPT_LEN_TRUNC && prevlen > DESCRIPT_LEN_TRUNC) {
+                        linelen = DESCRIPT_LEN_TRUNC;
                         line = line.substring(0, linelen);
                     }
                     // check if line 1 and 2 are exact match
@@ -183,7 +247,6 @@ public class ParseOrders {
                         GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Exact match of Description entries");
                         setDescriptionAndQty (line, qtyValue, newOrder);
                         lastLine = "";
-                        bDescrFound = true;
                         continue;
                     }
                     // else, see if there is a qty number attached to the 1st entry
@@ -206,18 +269,16 @@ public class ParseOrders {
                         GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Match of Description entries up to Qty value of " + qtyValue);
                         setDescriptionAndQty (line, qtyValue, newOrder);
                         lastLine = "";
-                        bDescrFound = true;
                         continue;
                     }
                     // last ditch attempt, since sometimes they change the wording in the 2 descriptions
-                    int minMatchLen = 6;
+                    int minMatchLen = DESCRIPT_LEN_MIN_MATCH;
                     if (linelen >= minMatchLen) {
                         String truncline = line.substring(0, minMatchLen);
                         if (truncline.contentEquals(lastLine.substring(0, truncline.length()))) {
                             GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Partial match of Description entries up to length " + minMatchLen);
                             setDescriptionAndQty (line, qtyValue, newOrder);
                             lastLine = "";
-                            bDescrFound = true;
                             continue;
                         }
                     }
@@ -329,7 +390,7 @@ public class ParseOrders {
         // entries may change this value on the previous item entries if we set the value
         // before we have instantiated a new newOrder object
         if (lastDeliveryDate == null && ! itemEntry.getReturned()) {
-            GUILogPanel.outputInfoMsg (MsgType.WARN, "Delivery date not setup prior to item description");
+            GUILogPanel.outputInfoMsg (MsgType.WARN, "WARNING: Delivery date not setup prior to item description");
         }
         itemEntry.setDeliveryDate(lastDeliveryDate);
         GUILogPanel.outputInfoMsg (MsgType.PARSER, "END OF ITEM (" + newOrder.getItemCount() + ")");
@@ -424,6 +485,11 @@ public class ParseOrders {
             case SHIP_TO:
                 // we don't care about this
                 GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Ship to: " + line);
+                break;
+
+            case SUPPLIER:
+                // we don't care about this
+                GUILogPanel.outputInfoMsg (MsgType.PARSER, "    Supplier: " + line);
                 break;
 
             case SELLER:

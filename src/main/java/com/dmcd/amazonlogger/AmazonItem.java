@@ -32,7 +32,7 @@ public class AmazonItem {
         returned = false;
     }
     
-    public void setQuantity(int quantity) {
+    public void setQuantity(Integer quantity) {
         this.quantity = quantity;
     }
         
@@ -44,7 +44,7 @@ public class AmazonItem {
         this.description = description;
     }
         
-    public void setItemCost(int item_cost) {
+    public void setItemCost(Integer item_cost) {
         this.item_cost = item_cost;
     }
         

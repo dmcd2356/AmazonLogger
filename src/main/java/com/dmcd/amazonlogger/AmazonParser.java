@@ -84,27 +84,21 @@ public class AmazonParser {
             switch (eKeyId) {
                 default:
                     break;
-                case Keyword.KeyTyp.HELLO_D:
-                    if (strSheetSel == null || strSheetSel.contentEquals("Dan")) {
-                        strSheetSel = "Dan";
+                case Keyword.KeyTyp.HELLO:
+                    // this will identify the owner of the Amazon Orders clip
+                    int offset = line.indexOf(' ');
+                    String name = line.substring(offset).strip();
+                    if (!name.isEmpty() && (strSheetSel == null || strSheetSel.contentEquals(name))) {
+                        strSheetSel = name;
                         Spreadsheet.selectSpreadsheetTab(strSheetSel);
                         GUIMain.setTabOwner(strSheetSel.toUpperCase());
                         GUILogPanel.outputInfoMsg(MsgType.PARSER, strSheetSel + "'s list selected");
                     } else {
-                        throw new ParserException(functionId + "Invalid clip: current tab selection is Dan but previous clips are " + strSheetSel);
-                    }
-                    break;
-                case Keyword.KeyTyp.HELLO_C:
-                    if (strSheetSel == null || strSheetSel.contentEquals("Connie")) {
-                        strSheetSel = "Connie";
-                        Spreadsheet.selectSpreadsheetTab(strSheetSel);
-                        GUIMain.setTabOwner(strSheetSel.toUpperCase());
-                        GUILogPanel.outputInfoMsg(MsgType.PARSER, strSheetSel + "'s list selected");
-                    } else {
-                        throw new ParserException(functionId + "Invalid clip: current tab selection is Connie but previous clips are " + strSheetSel);
+                        throw new ParserException(functionId + "Invalid clip: current tab selection is " + strSheetSel + " but previous clips are " + strSheetSel);
                     }
                     break;
                 case Keyword.KeyTyp.ORDER_PLACED:
+                    // this indicates the clip was an Amazon Orders type, which usually contains 10 orders
                     eClipType = ClipTyp.ORDERS;
                     GUILogPanel.outputInfoMsg (MsgType.PARSER, "'" + eClipType + "' clipboard");
                     try {
@@ -119,11 +113,12 @@ public class AmazonParser {
                         updateOrderListing();
                     } catch (ParserException exMsg) {
                         updateOrderListing();
-                        Utils.throwAddendum(line, "ORDER_PLACED failure");
+                        Utils.throwAddendum(exMsg.getMessage(), "ORDER_PLACED failure");
                     }
                     break;
                 case Keyword.KeyTyp.ORDER_DETAILS:
                 case Keyword.KeyTyp.ORDER_SUMMARY:
+                    // this indicates the clip was an Invoice type, which contains more details of a single order
                     eClipType = ClipTyp.INVOICE;
                     eKeyId = Keyword.KeyTyp.NONE; // we don't need to re-process this keyword
                     GUILogPanel.outputInfoMsg (MsgType.PARSER, "'" + eClipType + "' clipboard");
@@ -137,7 +132,7 @@ public class AmazonParser {
                         updateOrderListing();
                     } catch (ParserException exMsg) {
                         updateOrderListing();
-                        Utils.throwAddendum(line, "ORDER_PLACED failure");
+                        Utils.throwAddendum(exMsg.getMessage(), "ORDER_PLACED failure");
                     }
                     break;
             }
@@ -395,67 +390,68 @@ public class AmazonParser {
 
         if (bError) {
             GUILogPanel.outputInfoMsg (MsgType.WARN,functionId + "Missing required data in list entries");
-            return oldList;
+            finalList = oldList;
         }
-        if (newList.isEmpty()) {
+        else if (newList.isEmpty()) {
             GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "No valid orders to add");
-            return oldList;
+            finalList = oldList;
         }
         
         // if old list is empty, we can just use the new list as is
-        if (oldList == null || oldList.isEmpty()) {
-            return newList;
+        else if (oldList == null || oldList.isEmpty()) {
+            finalList = newList;
         }
-
-        // both lists are valid...
-        // determine which list is older - we want the oldest orders first in the list
-        LocalDate newDateStart = newList.getFirst().getOrderDate();
-        LocalDate newDateEnd   = newList.getLast().getOrderDate();
-        LocalDate oldDateStart = oldList.getFirst().getOrderDate();
-        LocalDate oldDateEnd   = oldList.getLast().getOrderDate();
-        if (newDateStart.isAfter(oldDateStart)) {
-            // newList is more recent, copy newList first
-            appendList = newList;
-            finalList  = oldList;
-            GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is newer than orig list on start dates: "
-                        + getYYYYMMDD(newDateStart) + "  vs  " + getYYYYMMDD(oldDateStart));
-        } else if (newDateStart.isBefore(oldDateStart)) {
-            // oldList is more recent, copy oldList first
-            appendList = oldList;
-            finalList  = newList;
-            GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is older than orig list on start dates: "
-                        + getYYYYMMDD(newDateStart) + "  vs  " + getYYYYMMDD(oldDateStart));
-        } else if (newDateEnd.isAfter(oldDateEnd)) {
-            // the starting dates are the same, so the ending dates may be different
-            // newList is more recent, copy newList first
-            appendList = newList;
-            finalList  = oldList;
-            GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is newer than orig list on end dates: "
-                        + getYYYYMMDD(newDateEnd) + "  vs  " + getYYYYMMDD(oldDateEnd));
-        } else if (newDateEnd.isBefore(oldDateEnd)) {
-            // oldList is more recent, copy oldList first
-            appendList = oldList;
-            finalList  = newList;
-            GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is older than orig list on end dates: "
-                        + getYYYYMMDD(newDateEnd) + "  vs  " + getYYYYMMDD(oldDateEnd));
-        } else {
-            // both have the same date ranges (must either be the same list repeated or all purchases
-            // are on the same date, so it doesn't matter because we will throw out all duplicate entries.
-            // let's just copy the newList first.
-            appendList = newList;
-            finalList  = oldList;
-        }
-
-        // append the newer entries to the end of the older list
-        for (int ix = 0; ix < appendList.size(); ix++) {
-            // skip any entries already in list
-            String orderNum = appendList.get(ix).getOrderNumber();
-            int entry = findOrderNumberInList (orderNum, finalList);
-            if (entry < 0) {
-                // new entry, add to end of list
-                finalList.add(appendList.get(ix));
+        else {
+            // both lists are valid...
+            // determine which list is older - we want the oldest orders first in the list
+            LocalDate newDateStart = newList.getFirst().getOrderDate();
+            LocalDate newDateEnd   = newList.getLast().getOrderDate();
+            LocalDate oldDateStart = oldList.getFirst().getOrderDate();
+            LocalDate oldDateEnd   = oldList.getLast().getOrderDate();
+            if (newDateStart.isAfter(oldDateStart)) {
+                // newList is more recent, copy newList first
+                appendList = newList;
+                finalList  = oldList;
+                GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is newer than orig list on start dates: "
+                            + getYYYYMMDD(newDateStart) + "  vs  " + getYYYYMMDD(oldDateStart));
+            } else if (newDateStart.isBefore(oldDateStart)) {
+                // oldList is more recent, copy oldList first
+                appendList = oldList;
+                finalList  = newList;
+                GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is older than orig list on start dates: "
+                            + getYYYYMMDD(newDateStart) + "  vs  " + getYYYYMMDD(oldDateStart));
+            } else if (newDateEnd.isAfter(oldDateEnd)) {
+                // the starting dates are the same, so the ending dates may be different
+                // newList is more recent, copy newList first
+                appendList = newList;
+                finalList  = oldList;
+                GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is newer than orig list on end dates: "
+                            + getYYYYMMDD(newDateEnd) + "  vs  " + getYYYYMMDD(oldDateEnd));
+            } else if (newDateEnd.isBefore(oldDateEnd)) {
+                // oldList is more recent, copy oldList first
+                appendList = oldList;
+                finalList  = newList;
+                GUILogPanel.outputInfoMsg(MsgType.PARSER, "new list is older than orig list on end dates: "
+                            + getYYYYMMDD(newDateEnd) + "  vs  " + getYYYYMMDD(oldDateEnd));
             } else {
-                GUILogPanel.outputInfoMsg(MsgType.PARSER, "skip order # " + orderNum + " - duplicate entry");
+                // both have the same date ranges (must either be the same list repeated or all purchases
+                // are on the same date, so it doesn't matter because we will throw out all duplicate entries.
+                // let's just copy the newList first.
+                appendList = newList;
+                finalList  = oldList;
+            }
+
+            // append the newer entries to the end of the older list
+            for (int ix = 0; ix < appendList.size(); ix++) {
+                // skip any entries already in list
+                String orderNum = appendList.get(ix).getOrderNumber();
+                int entry = findOrderNumberInList (orderNum, finalList);
+                if (entry < 0) {
+                    // new entry, add to end of list
+                    finalList.add(appendList.get(ix));
+                } else {
+                    GUILogPanel.outputInfoMsg(MsgType.PARSER, "skip order # " + orderNum + " - duplicate entry");
+                }
             }
         }
 
@@ -495,7 +491,7 @@ public class AmazonParser {
                 for (int ix = 0; ix < length; ix++) {
                     int entryDate = DateFormat.convertDateToInteger (amazonList.get(ix).getOrderDate(), false);
                     if (newDate <= entryDate) {
-                        amazonList.set(ix, newOrder);
+                        amazonList.add(ix, newOrder);
                         GUILogPanel.outputInfoMsg(MsgType.PARSER, "inserted order # " + orderNum + " into order list at index " + ix);
                         length = ix;
                         bFound = true;

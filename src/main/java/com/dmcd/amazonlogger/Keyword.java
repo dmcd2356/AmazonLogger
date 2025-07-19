@@ -16,7 +16,7 @@ public class Keyword {
     private static final String CLASS_NAME = Keyword.class.getSimpleName();
 
     // these are the enums for the lines that are of interest to us in the clipboard contents
-    public enum KeyTyp { NONE, HELLO_D, HELLO_C, ORDER_PLACED, ORDER_SUMMARY, ORDER_DETAILS,
+    public enum KeyTyp { NONE, HELLO, ORDER_PLACED, ORDER_SUMMARY, ORDER_DETAILS,
                          TOTAL_COST, ORDER_NUMBER, 
                          RETURNED, REFUNDED, DELIVERED, ARRIVING, NOW_ARRIVING,
                          GROSS_COST, TAXES, SHIPPING_COST, ITEM_COST, SELLER, SUPPLIER,
@@ -52,8 +52,7 @@ public class Keyword {
 
     Keyword () {
         // these are the items we look for in the Orders and Invoice pages
-        putKeywordInfo ("Hello, Dan"                , KeyTyp.HELLO_D);
-        putKeywordInfo ("Hello, Connie"             , KeyTyp.HELLO_D);
+        putKeywordInfo ("Hello, "                   , KeyTyp.HELLO);
         putKeywordInfo ("Order Details"             , KeyTyp.ORDER_DETAILS);
         putKeywordInfo ("Order Summary"             , KeyTyp.ORDER_SUMMARY);
         putKeywordInfo ("Order placed"              , KeyTyp.ORDER_PLACED);     // date placed
@@ -97,6 +96,7 @@ public class Keyword {
         putKeywordInfo ("Return item"               , KeyTyp.NOTICE);
         
         // these are items that will indicate there are no more orders in the page
+        putKeywordInfo ("Back to top"               , KeyTyp.END_OF_RECORD);
         putKeywordInfo ("←Previous"                 , KeyTyp.END_OF_RECORD);
         putKeywordInfo ("Add to cart"               , KeyTyp.END_OF_RECORD);
         putKeywordInfo ("Bargain recommendations"   , KeyTyp.END_OF_RECORD);
@@ -123,12 +123,13 @@ public class Keyword {
     public static KeywordInfo getKeyword (String line) {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
+        int lineNum = ClipboardReader.getLineNumber();
         for (HashMap.Entry<String, KeywordInfo> mapEntry : Keyword_Orders.entrySet()) {
             String keyStr = mapEntry.getKey();
             KeywordInfo keyInfo = mapEntry.getValue();
             if (line.startsWith(keyStr)) {
                     GUILogPanel.outputInfoMsg (MsgType.DEBUG, "PARTIAL : KeyTyp." + keyInfo.eKeyId +
-                                                    " : Length." + keyInfo.keyLength + " : " + line);
+                                                    " : Length." + keyInfo.keyLength + " : Line." + lineNum + " : " + line);
                     return keyInfo;
             }
         }
