@@ -44,7 +44,7 @@ public class Spreadsheet {
     private static final HashMap<Column, Integer> hmSheetColumns = new HashMap<>();
     
     // list of the tab names of the spreadsheet
-    private static ArrayList<String> tabNames = new ArrayList<>();
+    private static final ArrayList<String> tabNames = new ArrayList<>();
 
     // these are the names of the column headers.
     // the file must have these defined as they are here, although they may have spaces
@@ -76,6 +76,30 @@ public class Spreadsheet {
         iSheetYear = null;
         firstRow = -1;
         lastValidColumn = 0;
+    }
+
+    /**
+     * returns the number of tabs defined in the current spreadsheet.
+     * 
+     * @return the number of tabs in the current spreadsheet
+     */
+    public static int getTabCount() {
+        return tabNames.size();
+    }
+    
+    /**
+     * returns the selected tab name.
+     * (null if the index selection is not valid or there isn't a spreadsheet loaded)
+     * 
+     * @param ix - the tab index selection (starting at 0)
+     * 
+     * @return the name of the selected tab
+     */
+    public static String getTabName (int ix) {
+        if (ix < tabNames.size()) {
+            return tabNames.get(ix);
+        }
+        return null;
     }
     
     /**
@@ -888,10 +912,12 @@ public class Spreadsheet {
     public static boolean findCreditCardEntry (String sheetName, String strPdfName) throws IOException, ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        // load the spreadsheet sheets into memory for each account
+        // load the spreadsheet sheets into memory for each account (save current tab selection)
+        int curSheet = OpenDoc.getSheetSelection();
         selectSpreadsheetTab (sheetName);
 
         // find the last row in each sheet
+        boolean bFound = false;
         int rowSize = OpenDoc.getRowSize();
         for (int row = firstRow; row < rowSize; row++) {
             String cellValue = OpenDoc.getCellTextValue(getColumn(Column.CreditCard),row);
@@ -902,11 +928,14 @@ public class Spreadsheet {
             if (cellValue != null && strPdfName.contentEquals(cellValue)) {
                 GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "'" + strPdfName +
                                                     "' was already balanced in the spreadsheet for " + sheetName);
-                return true;
+                bFound = true;
+                break;
             }
         }
 
-        return false;
+        // restore selection to what it was on entry
+        OpenDoc.setSheetSelection(curSheet);
+        return bFound;
     }
 
     /**
@@ -942,6 +971,7 @@ public class Spreadsheet {
      */
     public static String getLastDate (String sheetName) throws ParserException {
         // load the spreadsheet sheets into memory for each account
+        int curSheet = OpenDoc.getSheetSelection();
         selectSpreadsheetTab (sheetName);
 
         // find the last row in each sheet
@@ -956,13 +986,15 @@ public class Spreadsheet {
                 }
                 // check for no more entries
                 if (cellOrder.isBlank()) {
-                    return lastdate;
+                    break;
                 }
             }
         } catch (ParserException exMsg) {
-            return null;
+            lastdate = null;
         }
 
+        // restore selection to what it was on entry
+        OpenDoc.setSheetSelection(curSheet);
         return lastdate;
     }
     /**

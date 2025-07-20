@@ -121,6 +121,16 @@ public class OpenDoc {
     }
 
     /**
+     * returns the current sheet selection index value.
+     * 
+     * @return the current sheet selection index (-1 if no selection)
+     */
+    public static int getSheetSelection() {
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "currently tab selection: " + sheetIx + " = '" + sheetSel.getName() + "'");
+        return sheetIx;
+    }
+    
+    /**
      * sets the file selection to use for the spreadsheet file.
      * 
      * @param sheetNum  - the sheet selection to use
@@ -134,12 +144,16 @@ public class OpenDoc {
             throw new ParserException(functionId + "tab index " + sheetNum + " exceeds max tabs: " + sheetArray.size());
         }
 
-        sheetSel = sheetArray.get(sheetNum);
         sheetIx = sheetNum;
-//        if (sheetSel.getName() == null || sheetSel.getName().isEmpty()) {
-//            sheetSel.setName("" + sheetNum);
-//        }
-        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "tab " + sheetNum + " selection: '" + sheetSel.getName() + "'");
+        if (sheetNum >= 0) {
+            sheetSel = sheetArray.get(sheetNum);
+//            if (sheetSel.getName() == null || sheetSel.getName().isEmpty()) {
+//                sheetSel.setName("" + sheetNum);
+//            }
+            GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "tab " + sheetNum + " selection: '" + sheetSel.getName() + "'");
+        } else {
+            GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "tab selection disabled");
+        }
     }
 
     /**
@@ -408,6 +422,7 @@ public class OpenDoc {
         // search for tab name
         for (int ix = 0; ix < sheetArray.size(); ix++) {
             if (name.contentEquals(sheetArray.get(ix).getName())) {
+                GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "'" + sheetSel.getName() + "' = index " + ix);
                 return ix;
             }
         }

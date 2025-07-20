@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Objects;
 import javax.swing.JOptionPane;
+import static javax.swing.JOptionPane.OK_CANCEL_OPTION;
+import static javax.swing.JOptionPane.QUESTION_MESSAGE;
 
 /**
  *
@@ -113,7 +115,6 @@ public class AmazonParser {
                         // update the current order info
                         updateOrderListing();
                     } catch (ParserException exMsg) {
-                        updateOrderListing();
                         Utils.throwAddendum(exMsg.getMessage(), "ORDER_PLACED failure");
                     }
                     break;
@@ -132,7 +133,6 @@ public class AmazonParser {
                         // update the current order info
                         updateOrderListing();
                     } catch (ParserException exMsg) {
-                        updateOrderListing();
                         Utils.throwAddendum(exMsg.getMessage(), "ORDER_PLACED failure");
                     }
                     break;
@@ -148,33 +148,6 @@ public class AmazonParser {
         }
     }
 
-    private static void updateOrderListing() {
-        int itemCount = 0;
-        int orderCount = 0;
-        LocalDate startDate = null;
-
-        GUIOrderPanel.printOrderHeader();
-
-        // count and display the entries found.
-        for (int ix = 0; ix < amazonList.size(); ix++) {
-            AmazonOrder entry = amazonList.get(ix);
-            boolean bIsListed = entry.isInvalidDate();
-            if (! bIsListed) {
-                orderCount++;
-                itemCount += entry.getItemCount();
-                if (startDate == null) {
-                    startDate = entry.getOrderDate();
-                }
-            }
-            GUIOrderPanel.printOrder(entry, bIsListed);
-        }
-        if (itemCount > 0) {
-            LocalDate endDate = amazonList.getLast().getOrderDate();
-            GUIMain.setOrderCount(orderCount, itemCount, startDate, endDate);
-            GUILogPanel.outputInfoMsg(MsgType.PARSER, "Total orders in list = " + amazonList.size());
-        }
-    }
-    
     /**
      * updates the spreadsheet file with the lists of AmazonOrders
      * 
@@ -184,15 +157,14 @@ public class AmazonParser {
     public static void updateSpreadsheet () throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        if (strSheetSel == null) {
-            String name = JOptionPane.showInputDialog("Which tab to update ?");
-            strSheetSel = name;
-//            throw new ParserException(functionId + "spreadsheet sheet selection not made");
-        }
-
         if (amazonList.isEmpty()) {
             GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "nothing to update");
             return;
+        }
+
+        // no tab selection made. If GUI mode, let the user choose. Else this is a failure.
+        if (strSheetSel == null) {
+            userSelectSpreadsheetTab();
         }
 
         try {
@@ -280,10 +252,13 @@ public class AmazonParser {
                 
                 // TODO: verify the updates took place (last lines are correct) before clearing display
                 if (!Objects.equals(newLastLine, actLastLine)) {
-                    GUILogPanel.outputInfoMsg(MsgType.WARN, "Spreadsheet file was not updated correctly - last line is " + actLastLine + " instead of " + newLastLine);
+                    GUILogPanel.outputInfoMsg(MsgType.WARN, "WARNING: Spreadsheet file was not updated correctly - last line is " + actLastLine + " instead of " + newLastLine);
                 } else {
                     GUIOrderPanel.clearMessages();
                 }
+            } else {
+                GUILogPanel.outputInfoMsg(MsgType.WARN, "NOTE: No order entries were valid to add to spreadsheet");
+                GUIOrderPanel.clearMessages();
             }
 
             // erase the update button until we read in more data
@@ -301,22 +276,70 @@ public class AmazonParser {
     }
 
     /**
-     * finds the specified order number entry in the list
+     * Allows the user to select the tab for output if this is being run from the GUI.
+     * If not, it indicates an error.
      * 
-     * @param strOrdNum - the order number to search for
-     * @param aList     - the list to search
-     * 
-     * @return the index of the order (-1 if not found)
+     * @throws ParserException 
      */
-    private int findOrderNumberInList (String strOrdNum, ArrayList<AmazonOrder> aList) {
-        for (int ix = 0; ix < aList.size(); ix++) {
-            if (strOrdNum.contentEquals(aList.get(ix).getOrderNumber())) {
-                return ix;
-            }
+    private static void userSelectSpreadsheetTab() throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        if (!AmazonReader.isOpModeGUI()) {
+            throw new ParserException(functionId + "spreadsheet sheet selection not made");
         }
-        return -1;
+
+        int count = Spreadsheet.getTabCount();
+        if (count <= 0) {
+            throw new ParserException(functionId + "spreadsheet not selected");
+        }
+        ArrayList<String> nameSelection = new ArrayList<>();
+        for (int ix = 0; ix < count; ix++) {
+            nameSelection.add(Spreadsheet.getTabName(ix));
+        }
+        int select = JOptionPane.showOptionDialog(null, "Please select which account this belongs to",
+                "No spreadsheet tab selection made", OK_CANCEL_OPTION, QUESTION_MESSAGE, null,
+                nameSelection.toArray(), nameSelection.getFirst());
+        if (select < 0 || select >= count) {
+            throw new ParserException(functionId + "spreadsheet sheet selection not made");
+        }
+        strSheetSel = nameSelection.get(select);
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, "USER ENTRY: Spreadsheet tab selection manually set to: " + strSheetSel);
     }
-    
+
+    /**
+     * updates the GUI display with the order information loaded from the clipboard.
+     */
+    private static void updateOrderListing() {
+        int itemCount = 0;
+        int orderCount = 0;
+        LocalDate startDate = null;
+
+        if (!AmazonReader.isOpModeGUI()) {
+            return;
+        }
+        
+        GUIOrderPanel.printOrderHeader();
+
+        // count and display the entries found.
+        for (int ix = 0; ix < amazonList.size(); ix++) {
+            AmazonOrder entry = amazonList.get(ix);
+            boolean bIsListed = entry.isInvalidDate();
+            if (! bIsListed) {
+                orderCount++;
+                itemCount += entry.getItemCount();
+                if (startDate == null) {
+                    startDate = entry.getOrderDate();
+                }
+            }
+            GUIOrderPanel.printOrder(entry, bIsListed);
+        }
+        if (itemCount > 0) {
+            LocalDate endDate = amazonList.getLast().getOrderDate();
+            GUIMain.setOrderCount(orderCount, itemCount, startDate, endDate);
+            GUILogPanel.outputInfoMsg(MsgType.PARSER, "Total orders in list = " + amazonList.size());
+        }
+    }
+
     /**
      * adds the specified AmazonOrder list to another.
      * The lists as they are read from the web pages are from newest entry to oldest.
@@ -479,11 +502,18 @@ public class AmazonParser {
         int length = amazonList.size();
         boolean bFound = false;
 
+        if (strSheetSel == null) {
+            // no tab selection made. If GUI mode, let the user choose. Else this is a failure.
+            userSelectSpreadsheetTab();
+            Spreadsheet.selectSpreadsheetTab (strSheetSel);
+        }
+        
         if (! amazonList.isEmpty()) {
             int newDate = DateFormat.convertDateToInteger (orderDate, false);
-            AmazonOrder entry = findOrderInList (orderNum);
-            if (entry != null) {
+            int index = findOrderNumberInList (orderNum, amazonList);
+            if (index >= 0) {
                 // update the added info not included in order info
+                AmazonOrder entry = amazonList.get(index);
                 entry.addDetails (newOrder);
                 GUILogPanel.outputInfoMsg(MsgType.PARSER, "modified order # " + orderNum + " in order list");
                 return false;
@@ -520,16 +550,34 @@ public class AmazonParser {
         return bEntryAdded;
     }
     
-    private static AmazonOrder findOrderInList (String orderNumber) {
-        for (int ix = 0; ix < amazonList.size(); ix++) {
-            if (orderNumber.contentEquals(amazonList.get(ix).getOrderNumber())) {
-                return amazonList.get(ix);
+    /**
+     * finds the specified order number entry in the list
+     * 
+     * @param orderNumber - the order number to search for
+     * @param aList       - the list to search
+     * 
+     * @return the index of the order (-1 if not found)
+     */
+    private int findOrderNumberInList (String orderNumber, ArrayList<AmazonOrder> aList) {
+        for (int ix = 0; ix < aList.size(); ix++) {
+            if (orderNumber.contentEquals(aList.get(ix).getOrderNumber())) {
+                return ix;
             }
         }
-        return null;
+        return -1;
     }
-    
+
+    /**
+     * convert LocalDate entry into a String of format: "YYYY-MM-DD".
+     * 
+     * @param date the date to convert
+     * 
+     * @return the formatted string as "YYYY-MM-DD" (empty string if null entry)
+     */
     private static String getYYYYMMDD (LocalDate date) {
+        if (date == null) {
+            return "";
+        }
         return date.getYear() + "-" + date.getMonthValue() + "-" + date.getDayOfMonth();
     }
     
