@@ -1363,7 +1363,9 @@ public class Spreadsheet {
         String lastBalance = "";
         int numSheets = OpenDoc.getNumberOfSheets();
         numSheets = (numSheets > 2) ? 2 : numSheets;
-        
+
+        int curSheet = OpenDoc.getSheetSelection();
+
         for (int ix = 0; ix < numSheets; ix++) {
             OpenDoc.setSheetSelection(ix);
             if (! isSheetEmpty()) {
@@ -1384,6 +1386,9 @@ public class Spreadsheet {
                 }
             }
         }
+        
+        // remember to save the original sheet selection
+        OpenDoc.setSheetSelection(curSheet);
         return lastBalance;
     }
     

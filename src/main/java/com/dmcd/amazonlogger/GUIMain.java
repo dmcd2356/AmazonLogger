@@ -69,19 +69,26 @@ public final class GUIMain extends JFrame implements ActionListener {
     private static JButton btn_print;
     private static JLabel lbl_error_msg;
     private static JLabel lbl_select;
-    private static JLabel lbl_clipboard;
-    private static JLabel lbl_update;
-    private static JLabel lbl_balance;
     private static JLabel lbl_lastbal;
     private static JLabel lbl_order_tab;
-    private static JLabel lbl_order_title;
-    private static JLabel lbl_orders, lbl_orders_num, lbl_orders_item, lbl_orders_date;
+    private static JLabel lbl_orders_num, lbl_orders_item, lbl_orders_date;
     private static JLabel lbl_lastline1, lbl_lastline2, lbl_lastline3;
     private static JTextPane log_txtpane;
     private static JTextPane order_txtpane;
     private static JTabbedPane tab_panel;
-    private static ArrayList<Tabs> panelId = new ArrayList<>();
+    private static final ArrayList<Tabs> panelId = new ArrayList<>();
 
+    private static final int BUTTON_WIDTH    = 130;     // width of buttons
+    private static final int BUTTON_COL_GAP  = 30 + BUTTON_WIDTH; // spacing between side by side buttons
+    private static final int LABEL_WIDTH_NUM = 40;      // width of a label with numeric contents
+    private static final int CBOX_WIDTH      = 200;     // width of checkboxes
+    private static final int TEXT_HEIGHT     = 20;      // height of buttons, labels and checkboxes
+    private static final int LINE_GAP        = 10;      // amount of vertical gap between lines
+    private static final int LINE_SPACING    = TEXT_HEIGHT + LINE_GAP; // spacing between lines (rows)
+    private static final int TAB_PANE_WIDTH  = 1400;    // width  of the tabbed panel
+    private static final int TAB_PANE_HEIGHT = 600;     // height of the tabbed panel
+    private static final int BORDER_SIZE     = 50;      // top, bottom, left, right border size
+    
     // the IDs for the tabbed panels
     private enum Tabs {
         LOG,
@@ -116,27 +123,11 @@ public final class GUIMain extends JFrame implements ActionListener {
         bUseGUI = bGUI;
     
         // setup the control sizes
-        int y_pane_height = 600;        // dimensions of the text pane
-        int x_pane_width = 1400;
-        
-        int y_button_height = 20;       // dimensions of the buttons
-        int x_button_width = 130;
-        int y_label_height = 20;        // dimensions of the button labels
-        int x_label_width = 500;
-        int x_filename_width = 1400;
-        int y_cbox_height = 20;         // dimensions of the checkboxes
-        int x_cbox_width = 200;
-
-        int y_line_gap = 30;            // y gap between buttons and checkboxes
-        int x_label_gap = 20;           // x gap between button and its corresponding label
-        int x_cbox_offset = 250;        // x location for checkboxes
         int x_info_offset = 600;        // x location for orders/items information labels
-        
         int y_title_offset = 80;        // starting y offset beneath title
 
-        int border_size = 50;
-        int panel_width = x_pane_width + (2 * border_size);
-        int panel_height = y_pane_height + y_title_offset + 9 * (y_line_gap + y_button_height) + (2 * border_size);
+        int panel_width  = TAB_PANE_WIDTH + (2 * BORDER_SIZE);
+        int panel_height = TAB_PANE_HEIGHT + y_title_offset + (13 * LINE_SPACING) + (2 * BORDER_SIZE);
 
         setTitle("Amazon shopping expenditures");
         setBounds(300, 150, panel_width, panel_height);
@@ -154,380 +145,129 @@ public final class GUIMain extends JFrame implements ActionListener {
         lbl_title.setLocation((panel_width - title_width) / 2, title_height);
         c.add(lbl_title);
 
-        // TOP LEFT OF TOP PANEL
-        int loc_y = y_title_offset;
-        int loc_x = border_size;
-        int loc_xlab = loc_x + x_button_width + x_label_gap;
+        //==========================================
+        // FIRST (TOP) PANEL
+        //==========================================
+        // starting locations for this section
+        int section1_start  = y_title_offset;
+        int section1_height = 3 * LINE_SPACING;
+
+        int y_row = section1_start;
+        int x_col1 = BORDER_SIZE;               // left-most column of buttons
+        int x_col2 = x_col1 + BUTTON_COL_GAP;   // next column of buttons
+        int x_col3 = x_col2 + BUTTON_COL_GAP;   // column offset for text info to right of buttons
         
-        btn_select = new JButton("Select");
-        btn_select.setFont(new Font("Arial", Font.BOLD, 15));
-        btn_select.setSize(x_button_width, y_button_height);
-        btn_select.setLocation(loc_x, loc_y);
-        btn_select.addActionListener((ActionListener) this);
-        c.add(btn_select);
-
-        lbl_select = new JLabel("Selects the Amazon-list.ods spreadsheet file to work on");
-        lbl_select.setFont(new Font("Arial", Font.PLAIN, 15));
-        lbl_select.setSize(x_filename_width, y_label_height);
-        lbl_select.setLocation(loc_xlab, loc_y);
-        c.add(lbl_select);
-
-        loc_y += y_line_gap;
-        btn_clipboard = new JButton("Clipboard");
-        btn_clipboard.setFont(new Font("Arial", Font.BOLD, 15));
-        btn_clipboard.setSize(x_button_width, y_button_height);
-        btn_clipboard.setLocation(loc_x, loc_y);
-        btn_clipboard.addActionListener((ActionListener) this);
-        btn_clipboard.setVisible(false);
-        c.add(btn_clipboard);
-
-        lbl_clipboard = new JLabel("Loads the clipboard data selection");
-        lbl_clipboard.setFont(new Font("Arial", Font.PLAIN, 15));
-        lbl_clipboard.setSize(x_label_width, y_label_height);
-        lbl_clipboard.setLocation(loc_xlab, loc_y);
-        lbl_clipboard.setVisible(false);
-        c.add(lbl_clipboard);
-
-        loc_y += y_line_gap;
-        btn_update = new JButton("Update");
-        btn_update.setFont(new Font("Arial", Font.BOLD, 15));
-        btn_update.setSize(x_button_width, y_button_height);
-        btn_update.setLocation(loc_x, loc_y);
-        btn_update.addActionListener((ActionListener) this);
-        btn_update.setVisible(false);
-        c.add(btn_update);
-
-        lbl_update = new JLabel("Updates the spreadsheet from clipboard selection");
-        lbl_update.setFont(new Font("Arial", Font.PLAIN, 15));
-        lbl_update.setSize(x_label_width, y_label_height);
-        lbl_update.setLocation(loc_xlab, loc_y);
-        lbl_update.setVisible(false);
-        c.add(lbl_update);
-
-        loc_y += y_line_gap;
-        btn_balance = new JButton("Balance");
-        btn_balance.setFont(new Font("Arial", Font.BOLD, 15));
-        btn_balance.setSize(x_button_width, y_button_height);
-        btn_balance.setLocation(loc_x, loc_y);
-        btn_balance.addActionListener((ActionListener) this);
-        btn_balance.setVisible(false);
-        c.add(btn_balance);
-
-        lbl_balance = new JLabel("Marks the spreadsheet paid items from the credit card summary");
-        lbl_balance.setFont(new Font("Arial", Font.PLAIN, 15));
-        lbl_balance.setSize(x_label_width, y_label_height);
-        lbl_balance.setLocation(loc_xlab, loc_y);
-        lbl_balance.setVisible(false);
-        c.add(lbl_balance);
-
-        loc_x = loc_xlab + x_label_width + (2 * x_label_gap);
-        lbl_lastbal = new JLabel("");
-        lbl_lastbal.setFont(new Font("Arial", Font.PLAIN, 15));
-        lbl_lastbal.setSize(x_label_width, y_label_height);
-        lbl_lastbal.setLocation(loc_x, loc_y);
-        lbl_lastbal.setVisible(true);
-        c.add(lbl_lastbal);
+        btn_select    = addButton("Select"     , x_col1, y_row, true, null);
+        lbl_select    = addLabel("", x_col2, y_row, 500, true);
+        y_row += LINE_SPACING;
+        btn_clipboard = addButton("Read Clip"  , x_col1, y_row, false, null);
+        btn_update    = addButton("Update File", x_col2, y_row, false, null);
+        y_row += LINE_SPACING;
+        btn_balance   = addButton("Read Pdf"   , x_col1, y_row, false, null);
+        lbl_lastbal   = addLabel("", x_col3, y_row, 500, true);
         
+        // init the select label to indicate what to do
+        lbl_select.setText("Select the spreadsheet file to work on");
+
         btn_group = new ButtonGroup();
         btn_group.add(btn_select);
         btn_group.add(btn_update);
         btn_group.add(btn_balance);
        
-        // MIDDLE PANEL
-        // this displays progress and debug msgs
-        loc_x = border_size;
-        loc_y += 2 * y_line_gap;
+        //==========================================
+        // SECOND PANEL
+        //==========================================
+        // starting locations for this section
+        int section2_start  = section1_start + section1_height + LINE_GAP;
+        int section2_height = TAB_PANE_HEIGHT;
 
-        // this is the debug log panel
-        order_txtpane = new JTextPane();
-        order_txtpane.setText("");
-        order_txtpane.setFont(new Font("Courier", Font.PLAIN, 15));
-        order_txtpane.setSize(x_pane_width, y_pane_height);
-        order_txtpane.setLocation(loc_x, loc_y);
-        order_txtpane.setEditable(false);
-        c.add(order_txtpane);
-        // put it in a panel to make it non-wrap mode, so we can scroll horizontally
-        JPanel order_panel = new JPanel();
-        order_panel.add(order_txtpane);
-        order_panel.setLayout(new BoxLayout(order_panel, BoxLayout.Y_AXIS));
-        c.add(order_panel);
-        // need it to be scrollable
-        JScrollPane order_scroll = new JScrollPane (order_panel);
-        order_scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
-        order_scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
-        order_scroll.setSize(x_pane_width, y_pane_height);
-        order_scroll.setLocation(loc_x, loc_y);
-        c.add(order_scroll);
+        x_col1 = BORDER_SIZE;
+        y_row = section2_start;
 
-        // this is the debug log panel
-        log_txtpane = new JTextPane();
-        log_txtpane.setText("");
-        log_txtpane.setFont(new Font("Courier", Font.PLAIN, 15));
-        log_txtpane.setSize(x_pane_width, y_pane_height);
-        log_txtpane.setLocation(loc_x, loc_y);
-        log_txtpane.setEditable(false);
-        c.add(log_txtpane);
-        // put it in a panel to make it non-wrap mode, so we can scroll horizontally
-        JPanel log_panel = new JPanel();
-        log_panel.add(log_txtpane);
-        log_panel.setLayout(new BoxLayout(log_panel, BoxLayout.Y_AXIS));
-        c.add(log_panel);
-        // need it to be scrollable
-        JScrollPane log_scroll = new JScrollPane (log_panel);
-        log_scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
-        log_scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
-        log_scroll.setSize(x_pane_width, y_pane_height);
-        log_scroll.setLocation(loc_x, loc_y);
-        c.add(log_scroll);
+        // create the panel and add the Orders and Debug panels to it
+        tab_panel = addTabbedPane (x_col1, y_row, TAB_PANE_WIDTH, TAB_PANE_HEIGHT);
+        order_txtpane = addScrollTextToTab (tab_panel, "Order Info"  , Tabs.ORDER);
+        log_txtpane   = addScrollTextToTab (tab_panel, "Log messages", Tabs.LOG);
 
-        // create the panel and apply constraints
-        tab_panel = new JTabbedPane();
-        tab_panel.setBorder(BorderFactory.createTitledBorder(""));
-        tab_panel.addTab("Order Info", order_scroll);
-        panelId.add(Tabs.ORDER);
-        tab_panel.addTab("Log messages", log_scroll);
-        panelId.add(Tabs.LOG);
-        tab_panel.setSize(x_pane_width, y_pane_height);
-        tab_panel.setLocation(loc_x, loc_y);
-        c.add(tab_panel);
+        //==========================================
+        // THIRD PANEL
+        //==========================================
+        // starting locations for this section
+        int section3_start  = section2_start + section2_height + LINE_GAP;
+        int section3_height = 4 * LINE_SPACING; // 4 text lines here
 
-        // TOP LEFT OF BOTTOM PANEL
-        loc_x = border_size;
-        loc_y += y_line_gap + y_pane_height;
+        x_col1 = BORDER_SIZE;
+        y_row = section3_start;
 
         // this will display the last line of the 1st tab of the loaded spreadsheet
-        lbl_lastline1 = new JLabel();
-        lbl_lastline1.setFont(new Font("Courier", Font.BOLD, 15));
-        lbl_lastline1.setForeground(Color.black);
-        lbl_lastline1.setSize(x_pane_width, y_label_height);
-        lbl_lastline1.setLocation(loc_x, loc_y);
-        lbl_lastline1.setVisible(false);
+        int width = TAB_PANE_WIDTH;
+        lbl_lastline1 = addLabel("", x_col1, y_row, width, true, Font.BOLD, false);
         lbl_lastline1.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-        c.add(lbl_lastline1);
-
-        loc_y += y_line_gap;
-        lbl_lastline2 = new JLabel();
-        lbl_lastline2.setFont(new Font("Courier", Font.PLAIN, 15));
-        lbl_lastline2.setForeground(Color.black);
-        lbl_lastline2.setSize(panel_width, y_label_height);
-        lbl_lastline2.setLocation(loc_x, loc_y);
-        lbl_lastline2.setVisible(false);
-        c.add(lbl_lastline2);
-
-        loc_y += y_line_gap;
-        lbl_lastline3 = new JLabel();
-        lbl_lastline3.setFont(new Font("Courier", Font.PLAIN, 15));
-        lbl_lastline3.setForeground(Color.black);
-        lbl_lastline3.setSize(panel_width, y_label_height);
-        lbl_lastline3.setLocation(loc_x, loc_y);
-        lbl_lastline3.setVisible(false);
-        c.add(lbl_lastline3);
-
-        loc_y += y_line_gap;
+        y_row += LINE_SPACING;
+        lbl_lastline2 = addLabel("", x_col1, y_row, width, true, Font.PLAIN, false);
+        y_row += LINE_SPACING;
+        lbl_lastline3 = addLabel("", x_col1, y_row, width, true, Font.PLAIN, false);
+        y_row += LINE_SPACING;
         
         // this will display the error status info
-        lbl_error_msg = new JLabel();
-        lbl_error_msg.setFont(new Font("Arial", Font.BOLD, 15));
-        lbl_error_msg.setForeground(Color.red);
-        lbl_error_msg.setSize(panel_width, y_label_height);
-        lbl_error_msg.setLocation(loc_x, loc_y);
-        lbl_error_msg.setVisible(true);
-        c.add(lbl_error_msg);
+        lbl_error_msg = addLabel("", x_col1, y_row, width, false, Font.BOLD, true);
 
-        loc_y += y_line_gap;
-        int y_bottom_panel = loc_y;
-        
-        btn_clear = new JButton("Clear");
-        btn_clear.setFont(new Font("Arial", Font.BOLD, 15));
-        btn_clear.setSize(x_button_width, y_button_height);
-        btn_clear.setLocation(loc_x, loc_y);
-        btn_clear.setVisible(true);
-        // this provides a way to copy the text to the clipboard
-        btn_clear.addActionListener(new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e){
-                runSelectedTabAction (TabAction.CLEAR);
-            }
-        });    
-        c.add(btn_clear);
+        //==========================================
+        // FOURTH (BOTTOM) PANEL
+        //==========================================
+        // starting locations for this section
+        int section4_start  = section3_start + section3_height + LINE_GAP;
 
-        loc_y += y_line_gap;
-        btn_copy = new JButton("Copy text");
-        btn_copy.setFont(new Font("Arial", Font.BOLD, 15));
-        btn_copy.setSize(x_button_width, y_button_height);
-        btn_copy.setLocation(loc_x, loc_y);
-        btn_copy.setVisible(true);
-        // this provides a way to copy the text to the clipboard
-        btn_copy.addActionListener(new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e){
-                runSelectedTabAction (TabAction.COPY);
-            }
-        });    
-        c.add(btn_copy);
+        y_row += LINE_SPACING;
+        x_col1 = BORDER_SIZE;
 
-        loc_y += y_line_gap;
-        btn_print = new JButton("Print text");
-        btn_print.setFont(new Font("Arial", Font.BOLD, 15));
-        btn_print.setSize(x_button_width, y_button_height);
-        btn_print.setLocation(loc_x, loc_y);
-        btn_print.setVisible(false);
-        // this provides a way to copy the text to the clipboard
-        btn_print.addActionListener(new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e){
-                runSelectedTabAction (TabAction.PRINT);
-            }
-        });    
-        c.add(btn_print);
+        btn_clear = addButton("Clear"     , x_col1, y_row, true, TabAction.CLEAR);
+        y_row += LINE_SPACING;
+        btn_copy  = addButton("Copy text" , x_col1, y_row, true, TabAction.COPY);
+        y_row += LINE_SPACING;
+        btn_print = addButton("Print text", x_col1, y_row, false, TabAction.PRINT);
 
-        // NEXT COLUMN OF BOTTOM PANEL
-        loc_x = x_cbox_offset;
-        loc_y = y_bottom_panel;
-        cbox_normal = new JCheckBox("Normal msgs");
-        cbox_normal.setFont(new Font("Arial", Font.BOLD, 15));
-        cbox_normal.setSize(x_cbox_width, y_cbox_height);
-        cbox_normal.setLocation(loc_x, loc_y);
-        cbox_normal.addActionListener(new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(MsgType.NORMAL);
-            }
-        });    
-        c.add(cbox_normal);
-        
-        loc_y += y_line_gap;
-        cbox_parser = new JCheckBox("Parser msgs");
-        cbox_parser.setFont(new Font("Arial", Font.BOLD, 15));
-        cbox_parser.setSize(x_cbox_width, y_cbox_height);
-        cbox_parser.setLocation(loc_x, loc_y);
-        cbox_parser.addActionListener(new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(MsgType.PARSER);
-            }
-        });    
-        c.add(cbox_parser);
-        
-        loc_y += y_line_gap;
-        cbox_ssheet = new JCheckBox("Spreadsheet msgs");
-        cbox_ssheet.setFont(new Font("Arial", Font.BOLD, 15));
-        cbox_ssheet.setSize(x_cbox_width, y_cbox_height);
-        cbox_ssheet.setLocation(loc_x, loc_y);
-        cbox_ssheet.addActionListener(new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(MsgType.SSHEET);
-            }
-        });    
-        c.add(cbox_ssheet);
-        
-        loc_y += y_line_gap;
-        cbox_info = new JCheckBox("Info msgs");
-        cbox_info.setFont(new Font("Arial", Font.BOLD, 15));
-        cbox_info.setSize(x_cbox_width, y_cbox_height);
-        cbox_info.setLocation(loc_x, loc_y);
-        cbox_info.addActionListener(new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(MsgType.INFO);
-            }
-        });    
-        c.add(cbox_info);
-        
-        loc_y += y_line_gap;
-        cbox_debug = new JCheckBox("Debug msgs");
-        cbox_debug.setFont(new Font("Arial", Font.BOLD, 15));
-        cbox_debug.setSize(x_cbox_width, y_cbox_height);
-        cbox_debug.setLocation(loc_x, loc_y);
-        cbox_debug.addActionListener(new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(MsgType.DEBUG);
-            }
-        });    
-        c.add(cbox_debug);
-        
-        loc_y += y_line_gap;
-        cbox_props = new JCheckBox("Properties msgs");
-        cbox_props.setFont(new Font("Arial", Font.BOLD, 15));
-        cbox_props.setSize(x_cbox_width, y_cbox_height);
-        cbox_props.setLocation(loc_x, loc_y);
-        cbox_props.addActionListener(new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e){
-                setBitMsgEnableProps(MsgType.PROPS);
-            }
-        });    
-        c.add(cbox_props);
+        // NEXT COLUMN OF BOTTOM PANEL: CHECKBOX OF LOG MESSAGE ENABLES
+        int x_cbox_offset = 250;        // x location for checkboxes
+        x_col1 = x_cbox_offset;
+        y_row = section4_start;
+        cbox_normal = addCheckBox ("Normal msgs"     , x_col1, y_row, CBOX_WIDTH, MsgType.NORMAL);
+        y_row += LINE_SPACING;
+        cbox_parser = addCheckBox ("Parser msgs"     , x_col1, y_row, CBOX_WIDTH, MsgType.PARSER);
+        y_row += LINE_SPACING;
+        cbox_ssheet = addCheckBox ("Spreadsheet msgs", x_col1, y_row, CBOX_WIDTH, MsgType.SSHEET);
+        y_row += LINE_SPACING;
+        cbox_info   = addCheckBox ("Info msgs"       , x_col1, y_row, CBOX_WIDTH, MsgType.INFO);
+        y_row += LINE_SPACING;
+        cbox_debug  = addCheckBox ("Debug msgs"      , x_col1, y_row, CBOX_WIDTH, MsgType.DEBUG);
+        y_row += LINE_SPACING;
+        cbox_props  = addCheckBox ("Properties msgs" , x_col1, y_row, CBOX_WIDTH, MsgType.PROPS);
         
         // TOP RIGHT OF BOTTOM PANEL
-        loc_x = x_info_offset;
-        loc_y = y_bottom_panel;
-        x_label_width = 500;
-        int lbl_width;
-        int x_order_lbl_width  = 80;
-        int x_order_num_width  = 40;
-        int x_order_date_width = 200;
         int x_order_gap_width  = 20;
+        int heading_width      = 100;
+
+        y_row = section4_start;
+        x_col1 = x_info_offset;
+        x_col2 = x_col1 + heading_width + x_order_gap_width;
         
-        // this will display the tab owner of the clipboard data loaded
-        lbl_order_tab = new JLabel();
-        lbl_order_tab.setFont(new Font("Arial", Font.BOLD, 15));
-        lbl_order_tab.setSize(x_label_width, y_label_height);
-        lbl_order_tab.setLocation(loc_x, loc_y);
-        lbl_order_tab.setVisible(true);
-        c.add(lbl_order_tab);
-
-        // this will display the tab owner of the clipboard data loaded
-        loc_x = x_info_offset + x_order_lbl_width + x_order_num_width + x_order_gap_width;
-        loc_y += y_line_gap;
-        lbl_order_title = new JLabel("Items");
-        lbl_order_title.setFont(new Font("Arial", Font.BOLD, 15));
-        lbl_order_title.setSize(x_label_width, y_label_height);
-        lbl_order_title.setLocation(loc_x, loc_y);
-        lbl_order_title.setVisible(true);
-        c.add(lbl_order_title);
-
-        // this displays the clipboard stats on what is loaded from the Orders
-        loc_x = x_info_offset;
-        loc_y += y_line_gap;
-        lbl_width = x_order_lbl_width;
-        lbl_orders = new JLabel("ORDERS :");
-        lbl_orders.setFont(new Font("Arial", Font.BOLD, 15));
-        lbl_orders.setSize(lbl_width, y_label_height);
-        lbl_orders.setLocation(loc_x, loc_y);
-        lbl_orders.setVisible(true);
-        c.add(lbl_orders);
-        loc_x += lbl_width + x_order_gap_width;
-        lbl_width = x_order_num_width;
-        lbl_orders_num = new JLabel();
-        lbl_orders_num.setFont(new Font("Arial", Font.BOLD, 15));
-        lbl_orders_num.setSize(lbl_width, y_label_height);
-        lbl_orders_num.setLocation(loc_x, loc_y);
-        lbl_orders_num.setForeground(Color.blue);
-        lbl_orders_num.setVisible(true);
-        c.add(lbl_orders_num);
-        loc_x += lbl_width + x_order_gap_width;
-        lbl_orders_item = new JLabel();
-        lbl_orders_item.setFont(new Font("Arial", Font.BOLD, 15));
-        lbl_orders_item.setSize(lbl_width, y_label_height);
-        lbl_orders_item.setLocation(loc_x, loc_y);
-        lbl_orders_item.setForeground(Color.blue);
-        lbl_orders_item.setVisible(true);
-        c.add(lbl_orders_item);
-        loc_x += lbl_width + x_order_gap_width;
-        lbl_width = x_order_date_width;
-        lbl_orders_date = new JLabel();
-        lbl_orders_date.setFont(new Font("Arial", Font.BOLD, 15));
-        lbl_orders_date.setSize(lbl_width, y_label_height);
-        lbl_orders_date.setLocation(loc_x, loc_y);
-        lbl_orders_date.setForeground(Color.blue);
-        lbl_orders_date.setVisible(true);
-        c.add(lbl_orders_date);
+        // this displays the tab selection of the clipboard data loaded
+        int x_width = 150;
+        addLabel("Clipboard Selection:", x_col1, y_row, x_width, true);
+        lbl_order_tab   = addLabel("", x_col1 + x_width + x_order_gap_width, y_row, x_width, true, Font.BOLD, true);
+        // this group displays the summary of the valid clipboard data loaded
+        y_row += LINE_SPACING;
+        addLabel("ORDERS:", x_col1, y_row, heading_width, true);
+        lbl_orders_num   = addLabel("", x_col2, y_row, LABEL_WIDTH_NUM, true, Font.BOLD, true);
+        y_row += LINE_SPACING;
+        addLabel("ITEMS :", x_col1, y_row, heading_width, true);
+        lbl_orders_item  = addLabel("", x_col2, y_row, LABEL_WIDTH_NUM, true, Font.BOLD, true);
+        y_row += LINE_SPACING;
+        addLabel("DATES :", x_col1, y_row, heading_width, true);
+        lbl_orders_date  = addLabel("", x_col2, y_row, 200, true, Font.BOLD, true);
 
         // init the values in the clipboard info
-        clearTabOwner();
+        setTabOwner(null);
         clearOrderCount ();
         
         // init the log panels
@@ -544,6 +284,171 @@ public final class GUIMain extends JFrame implements ActionListener {
         if (bUseGUI) {
             setVisible(true);
         }
+    }
+
+    /**
+     * adds a button to the frame.
+     * 
+     * @param name      - name to place in button
+     * @param x         - x location to place it
+     * @param y         - y location to place it
+     * @param visible   - true if make it visible
+     * @param eventType - the TabAction associated with it for the function runSelectedTabAction()
+     * 
+     * @return the JButton definition
+     */
+    private JButton addButton(String name, int x, int y, boolean visible, TabAction eventType) {
+        JButton button = new JButton(name);
+        button.setFont(new Font("Arial", Font.BOLD, 15));
+        button.setSize(BUTTON_WIDTH, TEXT_HEIGHT);
+        button.setLocation(x, y);
+        button.setVisible(visible);
+        if (eventType == null) {
+            button.addActionListener((ActionListener) this);
+        } else {
+            button.addActionListener(new ActionListener(){
+                @Override
+                public void actionPerformed(ActionEvent e){
+                    runSelectedTabAction(eventType);
+                }
+            });    
+        }
+        c.add(button);
+        return button;
+    }
+
+    /**
+     * adds a label to the frame.
+     * 
+     * @param name      - String to place in label
+     * @param x         - x location to place it
+     * @param y         - y location to place it
+     * @param width     - the width to make it
+     * @param visible   - true if make it visible
+     * 
+     * @return the JLabel definition
+     */
+    private JLabel addLabel (String name, int x, int y, int width, boolean visible) {
+        JLabel label = new JLabel(name);
+        label.setFont(new Font("Arial", Font.PLAIN, 15));
+        label.setSize(width, TEXT_HEIGHT);
+        label.setLocation(x, y);
+        label.setVisible(visible);
+        c.add(label);
+        return label;
+    }
+    
+    /**
+     * adds a label to the frame.
+     * 
+     * @param name      - String to place in label
+     * @param x         - x location to place it
+     * @param y         - y location to place it
+     * @param width     - the width to make it
+     * @param courier   - true for Courier font, false for Arial
+     * @param style     - style of text (Font.PLAIN, Font.BOLD, Font.ITALIC, etc)
+     * @param visible   - true if make it visible
+     * 
+     * @return the JLabel definition
+     */
+    private JLabel addLabel (String name, int x, int y, int width, boolean courier, int style, boolean visible) {
+        JLabel label = new JLabel(name);
+        String fontType = courier ? "Courier" : "Arial";
+        label.setFont(new Font(fontType, style, 15));
+        label.setSize(width, TEXT_HEIGHT);
+        label.setLocation(x, y);
+        label.setVisible(visible);
+        c.add(label);
+        return label;
+    }
+
+    /**
+     * adds a checkbox to the frame.
+     * 
+     * @param name      - Name to place next to the checkbox
+     * @param x         - x location to place it
+     * @param y         - y location to place it
+     * @param width     - the width to make it
+     * @param eventType - name of the event setting it controls
+     * 
+     * @return the JCheckBox definition
+     */
+    private JCheckBox addCheckBox (String name, int x, int y, int width, MsgType eventType) {
+        JCheckBox cbox = new JCheckBox(name);
+        cbox.setFont(new Font("Arial", Font.BOLD, 15));
+        cbox.setSize(width, TEXT_HEIGHT);
+        cbox.setLocation(x, y);
+        cbox.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent e){
+                setBitMsgEnableProps(eventType);
+            }
+        });    
+        c.add(cbox);
+        return cbox;
+    }
+
+    /**
+     * adds a tabbed pane to the frame.
+     * 
+     * @param x      - x location to place it
+     * @param y      - y location to place it
+     * @param width  - the width to make it
+     * @param height - the height to make it
+     * 
+     * @return the JTabbedPane definition
+     */
+    private JTabbedPane addTabbedPane (int x, int y, int width, int height) {
+        JTabbedPane tabPane = new JTabbedPane();
+        tabPane.setBorder(BorderFactory.createTitledBorder(""));
+        tabPane.setSize(width, height);
+        tabPane.setLocation(x, y);
+        c.add(tabPane);
+        return tabPane;
+    }
+    
+    /**
+     * adds a scrollable text pane to the specified tabbed pane.
+     * It gets the size and location info from the tabbed pane.
+     * 
+     * @param tabPane - the tabbed pane in which to place it
+     * @param title   - the title to place in the tab for it
+     * @param tabId   - the identifier of which tab it is in
+     * 
+     * @return the JTextPane definition
+     */
+    private JTextPane addScrollTextToTab (JTabbedPane tabPane, String title, Tabs tabId) {
+        // get location and size from the tab pane we are applying them to
+        int x = tabPane.getX();
+        int y = tabPane.getY();
+        int width  = tabPane.getWidth();
+        int height = tabPane.getHeight();
+        
+        JTextPane txtpane = new JTextPane();
+        txtpane.setText("");
+        txtpane.setFont(new Font("Courier", Font.PLAIN, 15));
+        txtpane.setSize(width, height);
+        txtpane.setLocation(x, y);
+        txtpane.setEditable(false);
+        c.add(txtpane);
+        
+        // put it in a panel to make it non-wrap mode, so we can scroll horizontally
+        JPanel panel = new JPanel();
+        panel.add(txtpane);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        c.add(panel);
+        
+        // need it to be scrollable
+        JScrollPane scrollPane = new JScrollPane (panel);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        scrollPane.setSize(width, height);
+        scrollPane.setLocation(x, y);
+        c.add(scrollPane);
+        
+        tabPane.addTab(title, scrollPane);
+        panelId.add(tabId);
+        return txtpane;
     }
     
     /**
@@ -589,16 +494,10 @@ public final class GUIMain extends JFrame implements ActionListener {
     }
 
     /**
-     * outputs a separator line to the output stream
+     * executes the action specified by the 'action' input and which tab is currently active.
      * 
-     * @param heading  - a message to display with the line
+     * @param action - an action id to specify the action to take.
      */
-    private static void outputSeparatorLine (String heading) {
-        heading = "=====" + heading + "======================================================================";
-        heading = heading.substring(0, 75);
-        GUILogPanel.outputInfoMsg (MsgType.NORMAL, heading);
-    }
-
     private static void runSelectedTabAction (TabAction action) {
         clearErrorMsg();
         int ix = tab_panel.getSelectedIndex();
@@ -637,6 +536,17 @@ public final class GUIMain extends JFrame implements ActionListener {
     }
 
     /**
+     * outputs a separator line to the output stream
+     * 
+     * @param heading  - a message to display with the line
+     */
+    private static void outputSeparatorLine (String heading) {
+        heading = "=====" + heading + "======================================================================";
+        heading = heading.substring(0, 75);
+        GUILogPanel.outputInfoMsg (MsgType.NORMAL, heading);
+    }
+
+    /**
      * disable all the GUI execute buttons except the SELECT button.
      * Forces a spreadsheet file selection prior to doing anything else.
      */
@@ -645,11 +555,8 @@ public final class GUIMain extends JFrame implements ActionListener {
             return;
         
         btn_clipboard.setVisible(false);
-        lbl_clipboard.setVisible(false);
         btn_balance.setVisible(false);
-        lbl_balance.setVisible(false);
         btn_update.setVisible(false);
-        lbl_update.setVisible(false);
     }
 
     /**
@@ -665,6 +572,7 @@ public final class GUIMain extends JFrame implements ActionListener {
      * @param msg - the message to display
      */
     public static void showErrorMsg (String msg) {
+        lbl_error_msg.setForeground(Color.red);
         lbl_error_msg.setText(msg);
     }
 
@@ -720,7 +628,6 @@ public final class GUIMain extends JFrame implements ActionListener {
             return;
         
         btn_clipboard.setVisible(status);
-        lbl_clipboard.setVisible(status);
     }
 
     public static void enablePrintButton (boolean status) {
@@ -740,7 +647,6 @@ public final class GUIMain extends JFrame implements ActionListener {
             return;
         
         btn_balance.setVisible(status);
-        lbl_balance.setVisible(status);
     }
     
     /**
@@ -753,7 +659,6 @@ public final class GUIMain extends JFrame implements ActionListener {
             return;
         
         btn_update.setVisible(status);
-        lbl_update.setVisible(status);
     }
 
     /**
@@ -778,21 +683,15 @@ public final class GUIMain extends JFrame implements ActionListener {
         if (!bUseGUI)
             return;
         
-        lbl_order_tab.setText("Clipboard Selection:  " + tab);
-        lbl_order_tab.setForeground(Color.blue);
+        if (tab == null) {
+            lbl_order_tab.setText("<none>");
+            lbl_order_tab.setForeground(Color.black);
+        } else {
+            lbl_order_tab.setText(tab);
+            lbl_order_tab.setForeground(Color.blue);
+        }
     }
     
-    /**
-     * clears the displayed clipboard tab selection.
-     */
-    public static void clearTabOwner () {
-        if (!bUseGUI)
-            return;
-        
-        lbl_order_tab.setText("Clipboard Selection:  <none>");
-        lbl_order_tab.setForeground(Color.black);
-    }
-
     /**
      * displays the Orders information loaded from the clipboard.
      * 
@@ -815,6 +714,10 @@ public final class GUIMain extends JFrame implements ActionListener {
             dateRange = DateFormat.convertDateToString(startDate, false) + "  to  " +
                         DateFormat.convertDateToString(endDate, false);
         }
+        lbl_orders_num.setForeground(Color.blue);
+        lbl_orders_item.setForeground(Color.blue);
+        lbl_orders_date.setForeground(Color.blue);
+        
         lbl_orders_num.setText (orders + "");
         lbl_orders_item.setText(items + "");
         lbl_orders_date.setText(dateRange);
@@ -827,6 +730,10 @@ public final class GUIMain extends JFrame implements ActionListener {
         if (!bUseGUI)
             return;
         
+        lbl_orders_num.setForeground(Color.black);
+        lbl_orders_item.setForeground(Color.black);
+        lbl_orders_date.setForeground(Color.black);
+
         lbl_orders_num.setText ("0");
         lbl_orders_item.setText("0");
         lbl_orders_date.setText("");

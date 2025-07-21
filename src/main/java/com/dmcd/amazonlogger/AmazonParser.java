@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Objects;
 import javax.swing.JOptionPane;
+import static javax.swing.JOptionPane.DEFAULT_OPTION;
+import static javax.swing.JOptionPane.ERROR_MESSAGE;
 import static javax.swing.JOptionPane.OK_CANCEL_OPTION;
 import static javax.swing.JOptionPane.QUESTION_MESSAGE;
 
@@ -113,7 +115,7 @@ public class AmazonParser {
                             amazonList = addOrdersToList (amazonList, newList);
                         }
                         // update the current order info
-                        updateOrderListing();
+                        updateOrderListing(amazonList);
                     } catch (ParserException exMsg) {
                         Utils.throwAddendum(exMsg.getMessage(), "ORDER_PLACED failure");
                     }
@@ -131,7 +133,7 @@ public class AmazonParser {
                         // add the new order to the current orders we have accumulated
                         addDetailsToList (newOrder);
                         // update the current order info
-                        updateOrderListing();
+                        updateOrderListing(amazonList);
                     } catch (ParserException exMsg) {
                         Utils.throwAddendum(exMsg.getMessage(), "ORDER_PLACED failure");
                     }
@@ -248,6 +250,7 @@ public class AmazonParser {
                 
                 // now save the updates to the file
                 OpenDoc.saveToFile(strSheetSel);
+                Spreadsheet.selectSpreadsheetTab (strSheetSel);
                 Integer actLastLine = Spreadsheet.getLastRowIndex();
                 
                 // TODO: verify the updates took place (last lines are correct) before clearing display
@@ -267,7 +270,7 @@ public class AmazonParser {
             // reset the lists, since we used it already
             strSheetSel = null;
             amazonList.clear();
-            GUIMain.clearTabOwner();
+            GUIMain.setTabOwner(null);
             GUIMain.clearOrderCount();
 
         } catch (IOException ex) {
@@ -307,9 +310,33 @@ public class AmazonParser {
     }
 
     /**
+     * Allows the user to acknowledge an error that he can view on the screen before continuing.
+     * 
+     * @return true if user accepts the data as it is
+     * 
+     * @throws ParserException 
+     */
+    private static boolean userSelectAcknowledgeError(String message) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+        
+        GUILogPanel.outputInfoMsg (MsgType.WARN,functionId + message);
+
+        // check if user wants to use the data as is (he will have to manually make corrections in the spreadsheet)
+        if (AmazonReader.isOpModeGUI()) {
+            String[] selections = { "Accept", "Reject" };
+            int select = JOptionPane.showOptionDialog(null, "Error in Clipboard Parsing",
+                message, DEFAULT_OPTION, ERROR_MESSAGE, null, selections, "Reject");
+            if (select == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
      * updates the GUI display with the order information loaded from the clipboard.
      */
-    private static void updateOrderListing() {
+    private static void updateOrderListing(ArrayList<AmazonOrder> orderList) {
         int itemCount = 0;
         int orderCount = 0;
         LocalDate startDate = null;
@@ -321,8 +348,8 @@ public class AmazonParser {
         GUIOrderPanel.printOrderHeader();
 
         // count and display the entries found.
-        for (int ix = 0; ix < amazonList.size(); ix++) {
-            AmazonOrder entry = amazonList.get(ix);
+        for (int ix = 0; ix < orderList.size(); ix++) {
+            AmazonOrder entry = orderList.get(ix);
             boolean bIsListed = entry.isInvalidDate();
             if (! bIsListed) {
                 orderCount++;
@@ -334,9 +361,9 @@ public class AmazonParser {
             GUIOrderPanel.printOrder(entry, bIsListed);
         }
         if (itemCount > 0) {
-            LocalDate endDate = amazonList.getLast().getOrderDate();
+            LocalDate endDate = orderList.getLast().getOrderDate();
             GUIMain.setOrderCount(orderCount, itemCount, startDate, endDate);
-            GUILogPanel.outputInfoMsg(MsgType.PARSER, "Total orders in list = " + amazonList.size());
+            GUILogPanel.outputInfoMsg(MsgType.PARSER, "Total orders in list = " + orderList.size());
         }
     }
 
@@ -377,6 +404,7 @@ public class AmazonParser {
 
         // mark entries as invalid that are from wrong year or are already in the spreadsheet
         boolean bError = false;
+        int invalidDates = 0;
         for (int ix = 0; ix < newList.size(); ix++) {
             AmazonOrder order = newList.get(ix);
             String orderNum = order.getOrderNumber();
@@ -391,6 +419,7 @@ public class AmazonParser {
             if (orderDate.getYear() != ssYear) {
                 GUILogPanel.outputInfoMsg(MsgType.PARSER, "skip order # " + orderNum + " - wrong year: " + strDate);
                 order.setInvalidDate();
+                invalidDates++;
             }
             // mark invalid those entries prior to the last date in the spreadsheet
             int entryDate = DateFormat.convertDateToInteger (order.getOrderDate(), false);
@@ -398,6 +427,7 @@ public class AmazonParser {
                 if (entryDate < lastOrderDate) {
                     GUILogPanel.outputInfoMsg(MsgType.PARSER, "skip order # " + orderNum + " - already in spreadsheet: " + strDate);
                     order.setInvalidDate();
+                    invalidDates++;
                 } else if (entryDate == lastOrderDate) {
                     // if the date matches the last entry in the spreadsheet, we must verify whether the order number is found.
                     // if so, eliminate it
@@ -406,6 +436,7 @@ public class AmazonParser {
                         if (row > 0) {
                             GUILogPanel.outputInfoMsg(MsgType.PARSER, "skip order # " + orderNum + " - already in spreadsheet: " + strDate);
                             order.setInvalidDate();
+                            invalidDates++;
                         }
                     } catch (ParserException exMsg) {
                         // ignore error
@@ -414,13 +445,18 @@ public class AmazonParser {
             }
         }
 
-        if (bError) {
-            GUILogPanel.outputInfoMsg (MsgType.WARN,functionId + "Missing required data in list entries");
-            finalList = oldList;
-        }
-        else if (newList.isEmpty()) {
+        if (newList.isEmpty() || newList.size() == invalidDates) {
             GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "No valid orders to add");
             finalList = oldList;
+        }
+        else if (bError) {
+            updateOrderListing(newList); // show the errors
+            boolean bAccept = userSelectAcknowledgeError("Missing required data in one or more list entries");
+            if (bAccept) {
+                finalList = newList;
+            } else {
+                finalList = oldList;
+            }
         }
         
         // if old list is empty, we can just use the new list as is

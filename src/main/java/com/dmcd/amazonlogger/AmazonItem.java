@@ -25,7 +25,7 @@ public class AmazonItem {
     
     public AmazonItem() {
         description = null;
-        quantity = null;
+        quantity = 0;
         delivery_date = null;
         item_cost = null;
         seller = null;
