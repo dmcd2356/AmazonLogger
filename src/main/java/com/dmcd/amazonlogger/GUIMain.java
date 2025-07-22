@@ -5,13 +5,17 @@
 package com.dmcd.amazonlogger;
 
 import com.dmcd.amazonlogger.GUILogPanel.MsgType;
+import static com.dmcd.amazonlogger.GUILogPanel.MsgType.DEBUG;
+import static com.dmcd.amazonlogger.GUILogPanel.MsgType.INFO;
+import static com.dmcd.amazonlogger.GUILogPanel.MsgType.NORMAL;
+import static com.dmcd.amazonlogger.GUILogPanel.MsgType.PARSER;
+import static com.dmcd.amazonlogger.GUILogPanel.MsgType.PROPS;
+import static com.dmcd.amazonlogger.GUILogPanel.MsgType.SSHEET;
 import com.dmcd.amazonlogger.PropertiesFile.Property;
 
 import java.awt.Color;
 import java.awt.Container;
-import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -31,7 +35,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextPane;
 import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
-import javax.swing.border.Border;
 import org.apache.tika.exception.TikaException;
 import org.xml.sax.SAXException;
 
@@ -53,28 +56,16 @@ public final class GUIMain extends JFrame implements ActionListener {
 
     // Components of the Form
     private static Container c;
-    private static JCheckBox cbox_normal;
-    private static JCheckBox cbox_parser;
-    private static JCheckBox cbox_ssheet;
-    private static JCheckBox cbox_info;
-    private static JCheckBox cbox_debug;
-    private static JCheckBox cbox_props;
+    private static JCheckBox cbox_normal, cbox_parser, cbox_ssheet;
+    private static JCheckBox cbox_info, cbox_debug, cbox_props;
     private static ButtonGroup btn_group;
-    private static JButton btn_select;
-    private static JButton btn_clipboard;
-    private static JButton btn_update;
-    private static JButton btn_balance;
-    private static JButton btn_clear;
-    private static JButton btn_copy;
-    private static JButton btn_print;
-    private static JLabel lbl_error_msg;
-    private static JLabel lbl_select;
-    private static JLabel lbl_lastbal;
-    private static JLabel lbl_order_tab;
-    private static JLabel lbl_orders_num, lbl_orders_item, lbl_orders_date;
+    private static JButton btn_select, btn_clipboard, btn_update;
+    private static JButton btn_pdf, btn_balance;
+    private static JButton btn_clear, btn_copy, btn_print;
+    private static JLabel lbl_error_msg, lbl_select, lbl_lastbal;
+    private static JLabel lbl_order_tab, lbl_orders_num, lbl_orders_item, lbl_orders_date;
     private static JLabel lbl_lastline1, lbl_lastline2, lbl_lastline3;
-    private static JTextPane log_txtpane;
-    private static JTextPane order_txtpane;
+    private static JTextPane log_txtpane, order_txtpane;
     private static JTabbedPane tab_panel;
     private static final ArrayList<Tabs> panelId = new ArrayList<>();
 
@@ -157,13 +148,17 @@ public final class GUIMain extends JFrame implements ActionListener {
         int x_col2 = x_col1 + BUTTON_COL_GAP;   // next column of buttons
         int x_col3 = x_col2 + BUTTON_COL_GAP;   // column offset for text info to right of buttons
         
+        // these are the command buttons for executing the operations on the psreadsheet
         btn_select    = addButton("Select"     , x_col1, y_row, true, null);
         lbl_select    = addLabel("", x_col2, y_row, 500, true);
         y_row += LINE_SPACING;
         btn_clipboard = addButton("Read Clip"  , x_col1, y_row, false, null);
         btn_update    = addButton("Update File", x_col2, y_row, false, null);
         y_row += LINE_SPACING;
-        btn_balance   = addButton("Read Pdf"   , x_col1, y_row, false, null);
+        btn_pdf       = addButton("Read Pdf"   , x_col1, y_row, false, null);
+        btn_balance   = addButton("Balance"    , x_col2, y_row, false, null);
+        
+        // this shows the information of the spreadsheet that was loaded
         lbl_lastbal   = addLabel("", x_col3, y_row, 500, true);
         
         // init the select label to indicate what to do
@@ -171,7 +166,9 @@ public final class GUIMain extends JFrame implements ActionListener {
 
         btn_group = new ButtonGroup();
         btn_group.add(btn_select);
+        btn_group.add(btn_clipboard);
         btn_group.add(btn_update);
+        btn_group.add(btn_pdf);
         btn_group.add(btn_balance);
        
         //==========================================
@@ -286,6 +283,246 @@ public final class GUIMain extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * Get the action performed by the user and act accordingly
+     * 
+     * @param e
+     */
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        clearErrorMsg();
+        try {
+            if (e.getSource() == btn_select) {
+                outputSeparatorLine("LOAD SPREADSHEET");
+
+                // disable the last line info until we have loaded a spreadsheet
+                enableLastLineInfo(false);
+        
+                // load the spreadsheet into memory
+                Spreadsheet.selectSpreadsheet(null);
+                Spreadsheet.loadSheets(2, true);
+        
+                // get the name of the file to store debug info to (if defined)
+                boolean bSuccess = setDebugOutputFile(PropertiesFile.getPropertiesItem(Property.DebugFileOut, ""));
+                if (bSuccess) {
+                    btn_print.setVisible(true);
+                }
+        
+                // enable the CLIPBOARD and PDF buttons
+                btn_clipboard.setVisible(true);
+                btn_pdf.setVisible(true);
+             }
+            else if (e.getSource() == btn_clipboard) {
+                outputSeparatorLine("PARSE CLIPBOARD");
+                // read the clipboard info and parse the data to extract the orders
+                AmazonParser amazonParser = new AmazonParser();
+                boolean bSuccess = amazonParser.parseWebData();
+                if (bSuccess) {
+                    // if there is now data in the Orders list, enable the UPDATE button
+                    btn_update.setVisible(true);
+                }
+            }
+            else if (e.getSource() == btn_update) {
+                outputSeparatorLine("UPDATE FROM CLIPS");
+                // update the spreadsheet from the orders read from the clipboard
+                AmazonParser.updateSpreadsheet();
+                
+                // erase the UPDATE button until we read in more data
+                btn_update.setVisible(false);
+            }
+            else if (e.getSource() == btn_pdf) {
+                outputSeparatorLine("PARSE PDF");
+                // read and process the PDF file for orders that are in the spreadsheet
+                PdfReader pdfReader = new PdfReader();
+                if (pdfReader == null) {
+                    throw new ParserException(functionId + "Unable to start PdfReader");
+                }
+                PdfReader.readPdfContents(null);
+                boolean bSuccess = pdfReader.processData();
+                if (bSuccess) {
+                    // if there is now data to be balanced, enable the BALANCE button
+                    btn_balance.setVisible(true);
+                }
+            }
+            else if (e.getSource() == btn_balance) {
+                outputSeparatorLine("BALANCE FROM PDF");
+                // add the balancing info from the PDF file to the spreadsheet
+                PdfReader.balanceSpreadsheet();
+
+                // erase the BALANCE button until we read in more data
+                btn_balance.setVisible(false);
+            }
+        } catch (ParserException | IOException | SAXException | TikaException ex) {
+            String msg = ex.getMessage();
+            String header = "com.dmcd.amazonlogger.";
+            int offset = msg.lastIndexOf(header);
+            if (offset >= 0) {
+                msg = msg.substring(offset + header.length());
+            }
+            GUILogPanel.outputInfoMsg (MsgType.ERROR, msg);
+            disableAllButton();
+        }
+    }
+
+    /**
+     * executes the action specified by the 'action' input and which tab is currently active.
+     * 
+     * @param action - an action id to specify the action to take.
+     */
+    private static void runSelectedTabAction (TabAction action) {
+        clearErrorMsg();
+        int ix = tab_panel.getSelectedIndex();
+        if (ix >= 0 && ix < panelId.size()) {
+            Tabs tabSelect = panelId.get(ix);
+            if (tabSelect == Tabs.ORDER) {
+                switch (action) {
+                    case CLEAR:
+                        GUIOrderPanel.clearMessages();
+                        break;
+                    case COPY:
+                        GUIOrderPanel.saveToClipboard();
+                        break;
+                    case PRINT:
+                        GUIOrderPanel.saveDebugToFile();
+                        break;
+                    default:
+                        break;
+                }
+            } else {
+                switch (action) {
+                    case CLEAR:
+                        GUILogPanel.clearMessages();
+                        break;
+                    case COPY:
+                        GUILogPanel.saveToClipboard();
+                        break;
+                    case PRINT:
+                        GUILogPanel.saveDebugToFile();
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+
+    /**
+     * clears the error message
+     */
+    private static void clearErrorMsg () {
+        lbl_error_msg.setText("");
+    }
+    
+    private static String formatLastLine (String tab, String line, String order, String date, String desc) {
+        int tab1 = 8;
+        int tab2 = 7;
+        int tab3 = 21;
+        int tab4 = 10;
+        
+        String data = Utils.padRight (tab  , tab1) + "  "
+                    + Utils.padRight (line , tab2) + "  "
+                    + Utils.padRight (order, tab3) + "  "
+                    + Utils.padRight (date , tab4) + "  "
+                    + desc;
+        return data;
+    }
+    
+    /**
+     * reads the Property setting for 'MsgEnable'.
+     * The value is read as a string entry and converted from hex format
+     * if it starts with either an 'x' or '0x', or as an integer value otherwise.
+     * 
+     * @param msgType - the message to enable/disable
+     */
+    private static int getPropsMsgEnable () {
+        String strFlags = PropertiesFile.getPropertiesItem(Property.MsgEnable, "0");
+        Integer intVal = 0;
+        try {
+            intVal = Utils.getHexValue (strFlags);
+            if (intVal == null) {
+                intVal = Utils.getIntValue (strFlags).intValue();
+            }
+        } catch (ParserException ex) {
+            // the Propertiy value was neither Integer or hexadecimal format.
+            // we'll just default to 0;
+        }
+
+        return intVal;
+    }
+
+    /**
+     * sets a the Property setting for 'MsgEnable' to the specified value.
+     * The value is set in hex format for easier reading
+     * 
+     * @param msgType - the message to enable/disable
+     */
+    private static void setPropsMsgEnable (int intValue) {
+        try {
+            String strFlags = Utils.toHexWordValue (intValue);
+            PropertiesFile.setPropertiesItem(Property.MsgEnable, strFlags);
+        } catch (ParserException exMsg) {
+            // ignore the error
+        }
+    }
+
+    /**
+     * sets a single bit of the msgEnable flag to either on or off based on the GUI selection
+     * 
+     * @param msgType - the message to enable/disable
+     */
+    private void setBitMsgEnableProps (MsgType msgType) {
+        int msgBitflag = GUILogPanel.getMsgEnableValue(msgType);
+        int flags = getPropsMsgEnable();
+        flags &= ~msgBitflag;
+        if (getCboxMessage(msgType)) {
+            flags |= msgBitflag;
+        }
+        setPropsMsgEnable (flags);
+    }
+
+    /**
+     * sets the selected checkbox on the GUI to the specified on/off value.
+     * 
+     * @param msgType - the checkbox message type selection
+     * @param bEnable - the on/off value to set it to
+     */
+    private static void enableCboxMessage (MsgType msgType, boolean bEnable) {
+        switch (msgType) {
+            case NORMAL -> cbox_normal.setSelected(bEnable);
+            case PARSER -> cbox_parser.setSelected(bEnable);
+            case SSHEET -> cbox_ssheet.setSelected(bEnable);
+            case INFO   -> cbox_info  .setSelected(bEnable);
+            case PROPS  -> cbox_props .setSelected(bEnable);
+            case DEBUG  -> cbox_debug .setSelected(bEnable);
+            default -> {
+            }
+        }
+    }
+
+    /**
+     * gets the on/off status of the selected checkbox on the GUI.
+     * 
+     * @param msgType - the checkbox message type selection
+     * 
+     * @return bEnable - the on/off value to set it to
+     */
+    private static boolean getCboxMessage (MsgType msgType) {
+        boolean bEnable = false;
+        switch (msgType) {
+            case NORMAL -> bEnable = cbox_normal.isSelected();
+            case PARSER -> bEnable = cbox_parser.isSelected();
+            case SSHEET -> bEnable = cbox_ssheet.isSelected();
+            case INFO   -> bEnable = cbox_info  .isSelected();
+            case PROPS  -> bEnable = cbox_props .isSelected();
+            case DEBUG  -> bEnable = cbox_debug .isSelected();
+            default -> {
+            }
+        }
+        return bEnable;
+    }
+    
     /**
      * adds a button to the frame.
      * 
@@ -452,90 +689,6 @@ public final class GUIMain extends JFrame implements ActionListener {
     }
     
     /**
-     * Get the action performed by the user and act accordingly
-     * 
-     * @param e
-     */
-    @Override
-    public void actionPerformed(ActionEvent e)
-    {
-        clearErrorMsg();
-        try {
-            if (e.getSource() == btn_select) {
-                outputSeparatorLine("LOAD SPREADSHEET");
-                Spreadsheet.selectSpreadsheet(null);
-                Spreadsheet.loadSheets(2, true);
-             }
-            else if (e.getSource() == btn_clipboard) {
-                outputSeparatorLine("PARSE CLIPBOARD");
-                AmazonParser amazonParser = new AmazonParser();
-                amazonParser.parseWebData();
-            }
-            else if (e.getSource() == btn_update) {
-                outputSeparatorLine("UPDATE FROM CLIPS");
-                AmazonParser.updateSpreadsheet();
-            }
-            else if (e.getSource() == btn_balance) {
-                outputSeparatorLine("BALANCE FROM PDF");
-                PdfReader pdfReader = new PdfReader();
-                pdfReader.readPdfContents(null);
-                pdfReader.processData();
-            }
-        } catch (ParserException | IOException | SAXException | TikaException ex) {
-            String msg = ex.getMessage();
-            String header = "com.dmcd.amazonlogger.";
-            int offset = msg.lastIndexOf(header);
-            if (offset >= 0) {
-                msg = msg.substring(offset + header.length());
-            }
-            GUILogPanel.outputInfoMsg (MsgType.ERROR, msg);
-            disableAllButton();
-        }
-    }
-
-    /**
-     * executes the action specified by the 'action' input and which tab is currently active.
-     * 
-     * @param action - an action id to specify the action to take.
-     */
-    private static void runSelectedTabAction (TabAction action) {
-        clearErrorMsg();
-        int ix = tab_panel.getSelectedIndex();
-        if (ix >= 0 && ix < panelId.size()) {
-            Tabs tabSelect = panelId.get(ix);
-            if (tabSelect == Tabs.ORDER) {
-                switch (action) {
-                    case CLEAR:
-                        GUIOrderPanel.clearMessages();
-                        break;
-                    case COPY:
-                        GUIOrderPanel.saveToClipboard();
-                        break;
-                    case PRINT:
-                        GUIOrderPanel.saveDebugToFile();
-                        break;
-                    default:
-                        break;
-                }
-            } else {
-                switch (action) {
-                    case CLEAR:
-                        GUILogPanel.clearMessages();
-                        break;
-                    case COPY:
-                        GUILogPanel.saveToClipboard();
-                        break;
-                    case PRINT:
-                        GUILogPanel.saveDebugToFile();
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-    }
-
-    /**
      * outputs a separator line to the output stream
      * 
      * @param heading  - a message to display with the line
@@ -556,16 +709,10 @@ public final class GUIMain extends JFrame implements ActionListener {
         
         btn_clipboard.setVisible(false);
         btn_balance.setVisible(false);
+        btn_pdf.setVisible(false);
         btn_update.setVisible(false);
     }
 
-    /**
-     * clears the error message
-     */
-    private static void clearErrorMsg () {
-        lbl_error_msg.setText("");
-    }
-    
     /**
      * displays the error message.
      * 
@@ -585,20 +732,6 @@ public final class GUIMain extends JFrame implements ActionListener {
         lbl_lastline3.setVisible(status);
     }
 
-    private static String formatLastLine (String tab, String line, String order, String date, String desc) {
-        int tab1 = 8;
-        int tab2 = 7;
-        int tab3 = 21;
-        int tab4 = 10;
-        
-        String data = Utils.padRight (tab  , tab1) + "  "
-                    + Utils.padRight (line , tab2) + "  "
-                    + Utils.padRight (order, tab3) + "  "
-                    + Utils.padRight (date , tab4) + "  "
-                    + desc;
-        return data;
-    }
-    
     public static void setLastLineInfo (int ix, String tab, String lineNum, String orderNum, String dateOrd, String descr) {
         if (!bUseGUI)
             return;
@@ -618,49 +751,6 @@ public final class GUIMain extends JFrame implements ActionListener {
         lbl_lastbal.setText(balance);
     }
     
-    /**
-     * enables/disables the Clipboard button.
-     * 
-     * @param status - true to enable
-     */
-    public static void enableClipboardButton (boolean status) {
-        if (!bUseGUI)
-            return;
-        
-        btn_clipboard.setVisible(status);
-    }
-
-    public static void enablePrintButton (boolean status) {
-        if (!bUseGUI)
-            return;
-        
-        btn_print.setVisible(status);
-    }
-    
-    /**
-     * enables/disables the Balance button.
-     * 
-     * @param status - true to enable
-     */
-    public static void enableCheckBalanceButton (boolean status) {
-        if (!bUseGUI)
-            return;
-        
-        btn_balance.setVisible(status);
-    }
-    
-    /**
-     * enables/disables the Update button.
-     * 
-     * @param status - true to enable
-     */
-    public static void enableUpdateButton (boolean status) {
-        if (!bUseGUI)
-            return;
-        
-        btn_update.setVisible(status);
-    }
-
     /**
      * displays the spreadsheet file location selected.
      * 
@@ -740,44 +830,6 @@ public final class GUIMain extends JFrame implements ActionListener {
     }
     
     /**
-     * reads the Property setting for 'MsgEnable'.
-     * The value is read as a string entry and converted from hex format
-     * if it starts with either an 'x' or '0x', or as an integer value otherwise.
-     * 
-     * @param msgType - the message to enable/disable
-     */
-    private static int getPropsMsgEnable () {
-        String strFlags = PropertiesFile.getPropertiesItem(Property.MsgEnable, "0");
-        Integer intVal = 0;
-        try {
-            intVal = Utils.getHexValue (strFlags);
-            if (intVal == null) {
-                intVal = Utils.getIntValue (strFlags).intValue();
-            }
-        } catch (ParserException ex) {
-            // the Propertiy value was neither Integer or hexadecimal format.
-            // we'll just default to 0;
-        }
-
-        return intVal;
-    }
-
-    /**
-     * sets a the Property setting for 'MsgEnable' to the specified value.
-     * The value is set in hex format for easier reading
-     * 
-     * @param msgType - the message to enable/disable
-     */
-    private static void setPropsMsgEnable (int intValue) {
-        try {
-            String strFlags = Utils.toHexWordValue (intValue);
-            PropertiesFile.setPropertiesItem(Property.MsgEnable, strFlags);
-        } catch (ParserException exMsg) {
-            // ignore the error
-        }
-    }
-
-    /**
      * returns access to the file writer that is used for debug output in GUI mode.
      * 
      * @return the file to use when the PRINT button is pressed in the GUI
@@ -844,62 +896,6 @@ public final class GUIMain extends JFrame implements ActionListener {
             return false;
         }
         return true;
-    }
-
-    /**
-     * sets a single bit of the msgEnable flag to either on or off based on the GUI selection
-     * 
-     * @param msgType - the message to enable/disable
-     */
-    private void setBitMsgEnableProps (MsgType msgType) {
-        int msgBitflag = GUILogPanel.getMsgEnableValue(msgType);
-        int flags = getPropsMsgEnable();
-        flags &= ~msgBitflag;
-        if (getCboxMessage(msgType)) {
-            flags |= msgBitflag;
-        }
-        setPropsMsgEnable (flags);
-    }
-
-    /**
-     * sets the selected checkbox on the GUI to the specified on/off value.
-     * 
-     * @param msgType - the checkbox message type selection
-     * @param bEnable - the on/off value to set it to
-     */
-    private static void enableCboxMessage (MsgType msgType, boolean bEnable) {
-        switch (msgType) {
-            case NORMAL -> cbox_normal.setSelected(bEnable);
-            case PARSER -> cbox_parser.setSelected(bEnable);
-            case SSHEET -> cbox_ssheet.setSelected(bEnable);
-            case INFO   -> cbox_info  .setSelected(bEnable);
-            case PROPS  -> cbox_props .setSelected(bEnable);
-            case DEBUG  -> cbox_debug .setSelected(bEnable);
-            default -> {
-            }
-        }
-    }
-
-    /**
-     * gets the on/off status of the selected checkbox on the GUI.
-     * 
-     * @param msgType - the checkbox message type selection
-     * 
-     * @return bEnable - the on/off value to set it to
-     */
-    private static boolean getCboxMessage (MsgType msgType) {
-        boolean bEnable = false;
-        switch (msgType) {
-            case NORMAL -> bEnable = cbox_normal.isSelected();
-            case PARSER -> bEnable = cbox_parser.isSelected();
-            case SSHEET -> bEnable = cbox_ssheet.isSelected();
-            case INFO   -> bEnable = cbox_info  .isSelected();
-            case PROPS  -> bEnable = cbox_props .isSelected();
-            case DEBUG  -> bEnable = cbox_debug .isSelected();
-            default -> {
-            }
-        }
-        return bEnable;
     }
 
     /**

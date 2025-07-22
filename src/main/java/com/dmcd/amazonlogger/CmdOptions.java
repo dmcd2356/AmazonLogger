@@ -21,6 +21,7 @@ public class CmdOptions {
     
     private static final String CLASS_NAME = CmdOptions.class.getSimpleName();
     
+        PdfReader pdfReader = null;
     // List of all the command line options and the argument types each takes
     // S = String, L = String array, U = Unsigned Int, I = Int, A = Int array, B = Boolean
     //   (lowercase if optional, but must be at end of list)
@@ -39,6 +40,7 @@ public class CmdOptions {
         new OptionList ("-ppath"    , "S"),
         new OptionList ("-pfile"    , "S"),
         new OptionList ("-prun"     , ""),
+        new OptionList ("-pbalance" , ""),
         new OptionList ("-update"   , ""),
         new OptionList ("-save"     , ""),
 
@@ -596,7 +598,6 @@ public class CmdOptions {
         Utils.PathType pathtype;
         String fname;
         String option = cmdLine.getCmdOption();
-        PdfReader pdfReader = null;
         ArrayList<String> arrList;
         Integer iRow, iCol;
 
@@ -722,15 +723,18 @@ public class CmdOptions {
                     }
                     File pdfFile = Utils.checkFilename (fname, ".pdf", pathtype, false);
                     GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "  " + pathtype + " file: " + pdfFile.getAbsolutePath());
-                    pdfReader = new PdfReader();
-                    pdfReader.readPdfContents(pdfFile);
-                    response.addAll(pdfReader.getContents());
+                    PdfReader.readPdfContents(pdfFile);
+                    response.addAll(PdfReader.getContents());
                     break;
                 case "-prun":
+                    pdfReader = new PdfReader();
                     if (pdfReader == null) {
-                        throw new ParserException(functionId + "Invalid date conversion");
+                        throw new ParserException(functionId + "Unable to start PdfReader");
                     }
                     pdfReader.processData();
+                    break;
+                case "-pbalance":
+                    PdfReader.balanceSpreadsheet();
                     break;
                 case "-clip":
                     boolean bStrip = false;

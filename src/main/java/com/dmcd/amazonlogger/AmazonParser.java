@@ -55,10 +55,12 @@ public class AmazonParser {
      *  It then determines which page of the spreadsheet the page referred to and
      *   appends the data to the end of that spreadsheet page.
      * 
+     * @returns true if there is info in the Orders list
+     * 
      * @throws ParserException
      * @throws IOException
      */
-    public void parseWebData () throws ParserException, IOException {
+    public boolean parseWebData () throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         String line;
@@ -144,10 +146,8 @@ public class AmazonParser {
         // file has been parsed, close the file
         clipReader.close();
             
-        // if we captured any orders, we can now allow the spreadsheet to be updated
-        if (! amazonList.isEmpty()) {
-            GUIMain.enableUpdateButton(true);
-        }
+        // indicate if we placed any orders in the list
+        return ! amazonList.isEmpty();
     }
 
     /**
@@ -263,9 +263,6 @@ public class AmazonParser {
                 GUILogPanel.outputInfoMsg(MsgType.WARN, "NOTE: No order entries were valid to add to spreadsheet");
                 GUIOrderPanel.clearMessages();
             }
-
-            // erase the update button until we read in more data
-            GUIMain.enableUpdateButton(false);
 
             // reset the lists, since we used it already
             strSheetSel = null;

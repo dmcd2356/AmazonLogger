@@ -1240,9 +1240,6 @@ public class Spreadsheet {
     public static void selectSpreadsheet(File ssFile) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        // disable the last line info until we have loaded a spreadsheet
-        GUIMain.enableLastLineInfo(false);
-        
         if (ssFile == null) {
             // see if we have a properties file that has a previously saved spreadsheet directory
             // if so, let's start the file selection process from there
@@ -1287,10 +1284,6 @@ public class Spreadsheet {
             throw new ParserException(functionId + "Invalid filename: " + fnameRoot + fnameExt + " (must be XXX.ods)");
         }
         GUILogPanel.outputInfoMsg(MsgType.INFO, "Spreadsheet File name: " + fnameRoot + fnameExt);
-        
-        // enable the Update and Balance buttons
-        GUIMain.enableClipboardButton(true);
-        GUIMain.enableCheckBalanceButton(true);
         
         // reset the orders lists
         AmazonParser.initLists();
@@ -1351,12 +1344,6 @@ public class Spreadsheet {
         // get the last line of each tab and display info on main GUI screen
         String lastBalance = showLastLineInfo();
         GUIMain.showLastBalance(lastBalance);
-        
-        // get the name of the file to store debug info to (if defined)
-        boolean bSuccess = GUIMain.setDebugOutputFile(PropertiesFile.getPropertiesItem(Property.DebugFileOut, ""));
-        if (bSuccess) {
-            GUIMain.enablePrintButton(true);
-        }
     }
 
     public static String showLastLineInfo() throws ParserException {

@@ -311,6 +311,8 @@ public class GUIOrderPanel {
                     bError = true;
                     break;
             }
+        } else if (colName == Spreadsheet.Column.Qty && entry.contentEquals("0")) {
+            bError = true;
         }
         
         MsgControl font = msgInfo.get(colName);

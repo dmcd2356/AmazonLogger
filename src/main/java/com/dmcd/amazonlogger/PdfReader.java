@@ -33,6 +33,7 @@ public class PdfReader {
 
     private static File pdfFile = null;
     private static ArrayList<String> contents = new ArrayList<>();  // the contents of the pdf file read
+    private static HashMap<String, ArrayList<CardTransaction>> mapList = new HashMap<>();
 
     // this class is the information that is extracted from the charge card PDF file for
     // balancing the amounts charged to the account with the Amazon purchases.
@@ -49,7 +50,7 @@ public class PdfReader {
         contents = new ArrayList<>();
     }
 
-    public ArrayList<String> getContents () {
+    public static ArrayList<String> getContents () {
         return contents;
     }
     
@@ -63,7 +64,7 @@ public class PdfReader {
     * @throws SAXException
     * @throws TikaException
     */
-    public void readPdfContents (File pFile) throws IOException, ParserException, SAXException, TikaException {
+    public static void readPdfContents (File pFile) throws IOException, ParserException, SAXException, TikaException {
 
         pdfFile = pFile;
         
@@ -141,10 +142,12 @@ public class PdfReader {
     * 
     * It assumes the pdf file data has been placed in the array 'contents'.
     * 
+    * @return true if entries were added to the list of items to balance, false if not
+    * 
     * @throws ParserException
     * @throws IOException
     */
-    public void processData () throws ParserException, IOException {
+    public boolean processData () throws ParserException, IOException {
         // get the name of the selected file, minus the file extension
         String strPdfName = Utils.getFileRootname(pdfFile);
         GUILogPanel.outputInfoMsg(MsgType.INFO, "PDF File name: " + strPdfName);
@@ -153,7 +156,7 @@ public class PdfReader {
         GUILogPanel.outputInfoMsg(MsgType.INFO, "Checking if file has been already balanced");
         ArrayList<String> tabSelect = Spreadsheet.findCreditCardEntry (strPdfName);
         if (tabSelect.isEmpty()) {
-            return;
+            return false;
         }
             
         // init the array list of Amazon transactions
@@ -258,27 +261,36 @@ public class PdfReader {
         }
 
         // find the valid entries for each user
-        HashMap<String, ArrayList<CardTransaction>> mapList = new HashMap<>();
-        ArrayList<CardTransaction> cardList = null;
+        ArrayList<CardTransaction> cardList;
         for (int ix = 0; ix < tabSelect.size(); ix++) {
             String strTab = tabSelect.get(ix);
             cardList = checkForNewEntries (strTab, transactionList);
             if (cardList.isEmpty()) {
-                cardList = null;
                 GUILogPanel.outputInfoMsg(MsgType.INFO, "No entries usable in " + strTab + "'s list...");
             } else {
                 mapList.put(strTab, cardList);
             }
         }
-        
+        return ! mapList.isEmpty();
+    }
+
+    /**
+     * makes the changes to the spreadsheet file to add in the balancing info from the pdf file.
+     * 
+     * @throws ParserException
+     * @throws java.io.IOException
+     */
+    public static void balanceSpreadsheet() throws IOException, ParserException {
         // something changed - so first make a backup copy of the current file before saving.
         if (! mapList.isEmpty()) {
             Spreadsheet.makeBackupCopy("-pdf-bak");
         } else {
             GUILogPanel.outputInfoMsg(MsgType.INFO, "No changes were made.");
+            return;
         }
-        
-        // now process the applicable sheets
+
+        String strPdfName = Utils.getFileRootname(pdfFile);
+
         for (HashMap.Entry<String, ArrayList<CardTransaction>> entry : mapList.entrySet()) {
             String tabName = entry.getKey();
             ArrayList<CardTransaction> list = entry.getValue();
@@ -296,7 +308,7 @@ public class PdfReader {
      * 
      * @throws ParserException 
      */
-    private ArrayList<CardTransaction> checkForNewEntries (String sheetName,
+    private static ArrayList<CardTransaction> checkForNewEntries (String sheetName,
                                                            ArrayList<CardTransaction> transactionList) throws ParserException {
         // select the user tab
         GUILogPanel.outputInfoMsg(MsgType.INFO, "Checking for entries in " + sheetName + "'s list...");
@@ -350,7 +362,7 @@ public class PdfReader {
     * @throws IOException
     * @throws NumberFormatException
     */
-    private void balanceSpreadsheetEntries(String sheetName,
+    private static void balanceSpreadsheetEntries(String sheetName,
                                               ArrayList<CardTransaction> transactionList,
                                               String strPdfName) throws ParserException, IOException, NumberFormatException {
 
