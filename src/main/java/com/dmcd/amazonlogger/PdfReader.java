@@ -35,15 +35,6 @@ public class PdfReader {
     private static ArrayList<String> contents = new ArrayList<>();  // the contents of the pdf file read
     private static HashMap<String, ArrayList<CardTransaction>> mapList = new HashMap<>();
 
-    // this class is the information that is extracted from the charge card PDF file for
-    // balancing the amounts charged to the account with the Amazon purchases.
-    private class CardTransaction {
-        String  trans_date;     // the date of the transaction
-        String  order_num;      // the Amazon order number
-        int     amount;         // the amount of the transaction in cents (credits are -, debits are +)
-        String  vendor;         // the vendor name
-        boolean completed;      // true when the item has been found in the spreadsheet
-    }
 
     public PdfReader () {
         pdfFile = null;
@@ -52,6 +43,57 @@ public class PdfReader {
 
     public static ArrayList<String> getContents () {
         return contents;
+    }
+
+    public static boolean isBalanceListEmpty() {
+        return mapList.isEmpty();
+    }
+    
+    public static int getBalanceListSize(String tabSelect) {
+        return mapList.get(tabSelect).size();
+    }
+    
+    public static CardTransaction getBalanceListEntry(String tabSelect, int ix) {
+        return mapList.get(tabSelect).get(ix);
+    }
+    
+    private static Integer isValidEntry (String line) throws ParserException {
+        Integer amountVal = null;
+
+        // line must have min number of chars in it
+        Integer amountIx = line.length();
+        if (amountIx <= 16) {
+            return amountVal;
+        }
+        
+        // this is checking for the date section and the gap preceding the vendor name
+        boolean bValid = true;
+        for (int ix = 0; ix < 9; ix++) {
+            char c = line.charAt(ix);
+            if ((ix < 2 && (c < '0' || c > '9')) ||
+                (ix == 2 && c != '/') ||
+                (ix > 2 && ix < 5 && (c < '0' || c > '9')) ||
+                (ix >= 5 && c != ' ') ) {
+                bValid = false;
+                break;
+            }
+        }
+
+        // this is checking for the cost at the end of the string
+        if (bValid) {
+            while (line.charAt(amountIx - 1) != ' ') {
+                char c = line.charAt(amountIx - 1);
+                if (c != '.' && c != '-' && (c < '0' || c > '9')) {
+                    bValid = false;
+                    break;
+                }
+                amountIx--;
+            }
+            String amountStr = line.substring(amountIx);
+            amountVal = Utils.getAmountValue(amountStr);
+        }
+        
+        return amountVal;
     }
     
     /**
@@ -155,7 +197,8 @@ public class PdfReader {
         // check if the file has already been balanced in the spreadsheet
         GUILogPanel.outputInfoMsg(MsgType.INFO, "Checking if file has been already balanced");
         ArrayList<String> tabSelect = Spreadsheet.findCreditCardEntry (strPdfName);
-        if (tabSelect.isEmpty()) {
+        if (tabSelect.size() == Spreadsheet.getTabCount()) {
+            GUILogPanel.outputInfoMsg(MsgType.WARN, "PDF File already balanced in tabs: " + tabSelect);
             return false;
         }
             
@@ -184,8 +227,8 @@ public class PdfReader {
                     throw new ParserException("PdfReader.readPdfContents: Order # " + ordernum + " received prior to any transactions");
                 }
                 CardTransaction newEntry = transactionList.removeLast();
-                if (newEntry.order_num == null || newEntry.order_num.isEmpty()) {
-                    newEntry.order_num = ordernum;
+                if (newEntry.getOrderNumber() == null || newEntry.getOrderNumber().isEmpty()) {
+                    newEntry.setOrderNumber(ordernum);
                 } else {
                     throw new ParserException("PdfReader.readPdfContents: Order # " + ordernum + " received with no preceding data");
                 }
@@ -193,47 +236,18 @@ public class PdfReader {
                 bValid = false;
             }
                     
-            // let's weed out the unimportant lines
-            Integer amountIx = line.length();
-            if (amountIx > 16) {
-                // this is checking for the date section and the gap preceding the vendor name
-                bValid = true;
-                for (int ix = 0; ix < 9; ix++) {
-                    char c = line.charAt(ix);
-                    if ((ix < 2 && (c < '0' || c > '9')) ||
-                            (ix == 2 && c != '/') ||
-                            (ix > 2 && ix < 5 && (c < '0' || c > '9')) ||
-                            (ix >= 5 && c != ' ') ) {
-                        bValid = false;
-                        break;
-                    }
-                }
-                // this is checking for the cost at the end of the string
-                if (bValid) {
-                    while (line.charAt(amountIx - 1) != ' ') {
-                        char c = line.charAt(amountIx - 1);
-                        if (c != '.' && c != '-' && (c < '0' || c > '9')) {
-                            bValid = false;
-                            break;
-                        }
-                        amountIx--;
-                    }
-                }
-                if (bValid) {
-                    CardTransaction newEntry = new CardTransaction();
-                    GUILogPanel.outputInfoMsg(MsgType.DEBUG, "  transaction: " + line);
-                            
-                    // we have a valid debit/credit line - save useful contents
-                    newEntry.completed = false;
-                    newEntry.vendor = line.substring(10, 20);
-                    newEntry.trans_date = line.substring(0, 5);
-                    newEntry.amount = Utils.getAmountValue(line.substring(amountIx));
-                            
-                    // now let's check for Amazon receipts only
-                    if (newEntry.vendor.contentEquals("AMAZON MKT") ||
-                        newEntry.vendor.contentEquals("AMZN Mktp ") ||
-                        newEntry.vendor.contentEquals("Amazon.com") ) {
+            // let's weed out the unimportant lines and put valid ones in transaction list
+            if (! bValid) {
+                Integer amountVal = isValidEntry (line);
+                if (amountVal != null) {
+                    String strDate   = line.substring(0, 5);
+                    String strVendor = line.substring(10, 20);
+                    CardTransaction newEntry = new CardTransaction (strDate, strVendor, amountVal);
+                    
+                    if (newEntry.isAmazonEntry()) {
                         transactionList.add(newEntry);
+                        GUILogPanel.outputInfoMsg(MsgType.DEBUG, "  transaction: " + line);
+                        bValid = true;
                     } else {
                         bValid = false;
                     }
@@ -246,31 +260,63 @@ public class PdfReader {
             CardTransaction newEntry = transactionList.get(ix);
             for (int icmp = ix + 1; icmp < transactionList.size(); icmp++) {
                 CardTransaction cmpEntry = transactionList.get(icmp);
-                if (newEntry.order_num.equals(cmpEntry.order_num) &&
-                    newEntry.amount > 0 && cmpEntry.amount > 0) {
-                    newEntry.amount += cmpEntry.amount;
-                    cmpEntry.order_num = "";
+                if (newEntry.getOrderNumber().equals(cmpEntry.getOrderNumber()) &&
+                    newEntry.getAmount() > 0 && cmpEntry.getAmount() > 0) {
+                    newEntry.modifyAmount(cmpEntry.getAmount());
+                    cmpEntry.setOrderNumber("");
                 }
             }
         }
+        // now eliminate the extraneous entries that were combined
         for (int ix = transactionList.size() - 1; ix >= 0; ix--) {
             CardTransaction newEntry = transactionList.get(ix);
-            if (newEntry.order_num.isEmpty()) {
+            if (newEntry.getOrderNumber().isEmpty()) {
                 transactionList.remove(ix);
             }
         }
 
         // find the valid entries for each user
         ArrayList<CardTransaction> cardList;
-        for (int ix = 0; ix < tabSelect.size(); ix++) {
-            String strTab = tabSelect.get(ix);
+        boolean bFirstTime = true;
+        for (int ix = 0; ix < Spreadsheet.getTabCount(); ix++) {
+            String strTab = Spreadsheet.getTabName(ix);
+            if (tabSelect.indexOf(strTab) >= 0) {
+                // skip entry if this tab has already been processed
+                GUILogPanel.outputInfoMsg(MsgType.INFO, "Skipping " + strTab + "'s list, since it was already balanced");
+                continue;
+            }
             cardList = checkForNewEntries (strTab, transactionList);
             if (cardList.isEmpty()) {
                 GUILogPanel.outputInfoMsg(MsgType.INFO, "No entries usable in " + strTab + "'s list...");
             } else {
                 mapList.put(strTab, cardList);
+
+                // now output info to the GUI display
+                if (GUIMain.isGUIMode()) {
+                    GUIOrderPanel.printBalanceHeader(bFirstTime);
+                    bFirstTime = false;
+                    int col = Spreadsheet.getColumn(Spreadsheet.Column.OrderNumber);
+                    for (int cardix = 0; cardix < cardList.size(); cardix++) {
+                        CardTransaction trans = cardList.get(cardix);
+                        // add in the corresponding order info from the spreadsheet
+                        int row = OpenDoc.findColumnEntry (strTab, col, 2, trans.getOrderNumber());
+                        if (row >= 0) {
+                            trans.setPaid   (OpenDoc.getCellTextValue (strTab, 
+                                    Spreadsheet.getColumn(Spreadsheet.Column.Payment), row));
+                            trans.setTotal  (OpenDoc.getCellTextValue (strTab, 
+                                    Spreadsheet.getColumn(Spreadsheet.Column.Total)  , row));
+                            trans.setPending(OpenDoc.getCellTextValue (strTab, 
+                                    Spreadsheet.getColumn(Spreadsheet.Column.Pending), row));
+                            trans.setRefund (OpenDoc.getCellTextValue (strTab, 
+                                    Spreadsheet.getColumn(Spreadsheet.Column.Refund) , row));
+                        }
+                        GUIOrderPanel.printBalance (strTab, trans);
+                    }
+                    GUIOrderPanel.printNewLine();
+                }
             }
         }
+        
         return ! mapList.isEmpty();
     }
 
@@ -285,7 +331,7 @@ public class PdfReader {
         if (! mapList.isEmpty()) {
             Spreadsheet.makeBackupCopy("-pdf-bak");
         } else {
-            GUILogPanel.outputInfoMsg(MsgType.INFO, "No changes were made.");
+            GUILogPanel.outputInfoMsg(MsgType.WARN, "No changes were made.");
             return;
         }
 
@@ -320,22 +366,22 @@ public class PdfReader {
             CardTransaction cardEntry = transactionList.get(ix);
 
             // for each entry from the statement that has not been found...
-            if (cardEntry.completed) {
+            if (cardEntry.isCompleted()) {
                 GUILogPanel.outputInfoMsg(MsgType.INFO, 
-                                      '\t' + cardEntry.order_num + "\t"
-                                           + Utils.cvtAmountToString(cardEntry.amount) + "\t"
-                                           + cardEntry.trans_date + "\t"
+                                      '\t' + cardEntry.getOrderNumber() + "\t"
+                                           + Utils.cvtAmountToString(cardEntry.getAmount()) + "\t"
+                                           + cardEntry.getTransDate() + "\t"
                                            + "- ALREADY COMPLETED");
                 continue; // entry already completed - skip it
             }
                 
             // ...search each entry in the spreadsheet for a matching order number
-            int foundRow = Spreadsheet.findItemNumber (cardEntry.order_num);
+            int foundRow = Spreadsheet.findItemNumber (cardEntry.getOrderNumber());
             if (foundRow <= 0) {
                 GUILogPanel.outputInfoMsg(MsgType.INFO, 
-                                      '\t' + cardEntry.order_num + "\t"
-                                           + Utils.cvtAmountToString(cardEntry.amount) + "\t"
-                                           + cardEntry.trans_date + "\t"
+                                      '\t' + cardEntry.getOrderNumber() + "\t"
+                                           + Utils.cvtAmountToString(cardEntry.getAmount()) + "\t"
+                                           + cardEntry.getTransDate() + "\t"
                                            + "- NOT FOUND");
                 continue; // order number not found in spreadsheet, skip this entry
             }
@@ -392,7 +438,7 @@ public class PdfReader {
             CardTransaction cardEntry = transactionList.get(ix);
 
             // ...search each entry in the spreadsheet for a matching order number
-            int foundRow = Spreadsheet.findItemNumber (cardEntry.order_num);
+            int foundRow = Spreadsheet.findItemNumber (cardEntry.getOrderNumber());
             if (foundRow <= 0) {
                 continue; // order number not found in spreadsheet, skip this entry
             }
@@ -401,13 +447,13 @@ public class PdfReader {
             Integer iTotalCost = Spreadsheet.getTotalCost (foundRow);
             Integer iPayment   = Spreadsheet.getPaymentAmount (foundRow);
             Integer iRefund    = Spreadsheet.getRefundAmount (foundRow);
-            GUILogPanel.outputInfoMsg(MsgType.INFO, "found match to: " + cardEntry.order_num);
+            GUILogPanel.outputInfoMsg(MsgType.INFO, "found match to: " + cardEntry.getOrderNumber());
 
             // if Payment (or Refund) already has a value in the spreadsheet entry, the
             // charge on the card must have been split for multiple items 
             // (should only happen on multi-item entries, but have seen it on single items once)
             // So add the new charge amount to the current entry value to get the total paid (or refunded).
-            boolean bPayment = (cardEntry.amount >= 0);
+            boolean bPayment = (cardEntry.getAmount() >= 0);
             String strTransType;
             Integer iAmtAdj;
             if (bPayment) {
@@ -430,7 +476,7 @@ public class PdfReader {
             // add the payment amount from the credit card sheet to the current amount
             //  either paid or received. and update the Payment/Refund column accordingly.
             // 'iTotalAmt' is then the current total of payments/refund for the order.
-            int iTotalAmt = cardEntry.amount + iAmtAdj;
+            int iTotalAmt = cardEntry.getAmount() + iAmtAdj;
             if (bPayment) {
                 Spreadsheet.setSpreadsheetPayment (foundRow, iTotalAmt);
             } else {
@@ -458,14 +504,14 @@ public class PdfReader {
                         Spreadsheet.setSpreadsheetPending (foundRow, iRemaining);
                         GUILogPanel.outputInfoMsg(MsgType.INFO,
                                 "Total cost: "   + Utils.cvtAmountToString(iTotalCost) +
-                                "Payment: "      + Utils.cvtAmountToString(cardEntry.amount) +
+                                "Payment: "      + Utils.cvtAmountToString(cardEntry.getAmount()) +
                                 "Prev balance: " + Utils.cvtAmountToString(iAmtAdj) +
                                 "Remainder: "    + Utils.cvtAmountToString(iRemaining));
                     }
                 }
             }
 
-            for (int count = 0; Spreadsheet.getOrderNumber(foundRow + count).contentEquals(cardEntry.order_num); count++) {
+            for (int count = 0; Spreadsheet.getOrderNumber(foundRow + count).contentEquals(cardEntry.getOrderNumber()); count++) {
                 // mark row with color of the month to mark as complete
                 Spreadsheet.highlightOrderInfo(foundRow + count, bPayment, bRemaining, colorOfMonth);
                 if (count > 0)
@@ -473,12 +519,12 @@ public class PdfReader {
             }
 
             GUILogPanel.outputInfoMsg(MsgType.NORMAL, 
-                          '\t' + strTransType + '\t' + cardEntry.order_num + '\t'
-                               + Utils.cvtAmountToString(cardEntry.amount) + "\t"
-                               + cardEntry.trans_date );
+                          '\t' + strTransType + '\t' + cardEntry.getOrderNumber() + '\t'
+                               + Utils.cvtAmountToString(cardEntry.getAmount()) + "\t"
+                               + cardEntry.getTransDate() );
 
             // mark card transaction entry as complete
-            cardEntry.completed = true;
+            cardEntry.setCompleted();
         }
             
         // this will be the 1st payment entry in the spreadsheet that was found

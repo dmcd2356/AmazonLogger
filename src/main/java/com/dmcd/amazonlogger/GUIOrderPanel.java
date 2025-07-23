@@ -72,21 +72,23 @@ public class GUIOrderPanel {
         msgInfo.clear();
         // these are gathered by the YOUR ORDERS selection
         msgInfo.put(Column.DateOrdered  , new MsgControl (10, "N", TextColor.Blue));
-        msgInfo.put(Column.OrderNumber  , new MsgControl (19, "B", TextColor.Red));
-        msgInfo.put(Column.Total        , new MsgControl ( 7, "N", TextColor.Gold));
+        msgInfo.put(Column.OrderNumber  , new MsgControl (19, "B", TextColor.DkVio));
+        msgInfo.put(Column.Total        , new MsgControl ( 7, "N", TextColor.Black));
         msgInfo.put(Column.DateDelivered, new MsgControl (10, "N", TextColor.Blue));
         msgInfo.put(Column.ItemIndex    , new MsgControl ( 6, "N", TextColor.Black));
         msgInfo.put(Column.Qty          , new MsgControl ( 2, "N", TextColor.Black));
         msgInfo.put(Column.Description  , new MsgControl (50, "N", TextColor.DkVio));
         // these are gathered by the INVOICE selection
         msgInfo.put(Column.ItemPrice    , new MsgControl ( 7, "N", TextColor.Green));
-//        msgInfo.put(Column.PreTaxCost   , new MsgControl ( 7, "N", TextColor.Green));
         msgInfo.put(Column.Tax          , new MsgControl ( 5, "N", TextColor.Green));
-//        msgInfo.put(Column.Pending      , new MsgControl ( 7, "I", TextColor.Green));
-//        msgInfo.put(Column.Payment      , new MsgControl ( 7, "I", TextColor.Green));
-//        msgInfo.put(Column.Refund       , new MsgControl ( 7, "B", TextColor.Green));
         msgInfo.put(Column.Seller       , new MsgControl (20, "N", TextColor.Green));
-//        msgInfo.put(Column.CreditCard   , new MsgControl (20, "I", TextColor.Black));
+        // these are gathered or computed by the PDF file
+        msgInfo.put(Column.Payment      , new MsgControl ( 7, "I", TextColor.Blue));
+        // these are read from the spreadsheet file for balancing
+        msgInfo.put(Column.Refund       , new MsgControl ( 7, "B", TextColor.Blue));
+        msgInfo.put(Column.Pending      , new MsgControl ( 7, "I", TextColor.Blue));
+        // also from spreadsheet: Total & ItemPrice (ItemPrice is really Paid, but the spreadsheet
+        //   entry is Payment, which is already used)
     }
 
     public static void init() {
@@ -133,18 +135,18 @@ public class GUIOrderPanel {
         }
 
         clearMessages();
-        printText (Column.DateOrdered  , "Order date"  , true, false);        
-        printText (Column.OrderNumber  , "Order number", true, false);        
-        printText (Column.Total        , "Tot cost"    , true, false);        
-        printText (Column.ItemIndex    , "Index"       , true, false);        
-        printText (Column.Qty          , "Qty"         , true, false);        
-        printText (Column.DateDelivered, "Del date"    , true, false);        
-        printText (Column.ItemPrice    , "Cost"        , true, false);
-        printText (Column.Tax          , "Tax"         , true, false);
-        printText (Column.Seller       , "Seller"      , true, false);
-        printText (Column.Description  , "Description" , true, true);
-        print ("___________________________________________________________________________________________________________________________________________________________________________________________________" + NEWLINE,
-                TextColor.Black, false, false, Color.WHITE);
+        printText (Column.DateOrdered  , "Order date"  , true);        
+        printText (Column.OrderNumber  , "Order number", true);        
+        printText (Column.Total        , "Tot cost"    , true);        
+        printText (Column.ItemIndex    , "Index"       , true);        
+        printText (Column.Qty          , "Qty"         , true);        
+        printText (Column.DateDelivered, "Del date"    , true);        
+        printText (Column.ItemPrice    , "Cost"        , true);
+        printText (Column.Tax          , "Tax"         , true);
+        printText (Column.Seller       , "Seller"      , true);
+        printText (Column.Description  , "Description" , true);
+        printNewLine();
+        printSeparator(190, "_");
     }
     
     /**
@@ -160,19 +162,77 @@ public class GUIOrderPanel {
 
         int itemCount = orderInfo.getItemCount();
         for (int ix = 0; ix < itemCount; ix++) {
-            printItem (Column.DateOrdered  , orderInfo, ix, bInvalid, false);        
-            printItem (Column.OrderNumber  , orderInfo, ix, bInvalid, false);        
-            printItem (Column.Total        , orderInfo, ix, bInvalid, false);        
-            printItem (Column.ItemIndex    , orderInfo, ix, bInvalid, false);        
-            printItem (Column.Qty          , orderInfo, ix, bInvalid, false);        
-            printItem (Column.DateDelivered, orderInfo, ix, bInvalid, false);        
-            printItem (Column.ItemPrice    , orderInfo, ix, bInvalid, false);
-            printItem (Column.Tax          , orderInfo, ix, bInvalid, false);
-            printItem (Column.Seller       , orderInfo, ix, bInvalid, false);
-            printItem (Column.Description  , orderInfo, ix, bInvalid, true);
+            printOrderItem (Column.DateOrdered  , orderInfo, ix, bInvalid);        
+            printOrderItem (Column.OrderNumber  , orderInfo, ix, bInvalid);        
+            printOrderItem (Column.Total        , orderInfo, ix, bInvalid);        
+            printOrderItem (Column.ItemIndex    , orderInfo, ix, bInvalid);        
+            printOrderItem (Column.Qty          , orderInfo, ix, bInvalid);        
+            printOrderItem (Column.DateDelivered, orderInfo, ix, bInvalid);        
+            printOrderItem (Column.ItemPrice    , orderInfo, ix, bInvalid);
+            printOrderItem (Column.Tax          , orderInfo, ix, bInvalid);
+            printOrderItem (Column.Seller       , orderInfo, ix, bInvalid);
+            printOrderItem (Column.Description  , orderInfo, ix, bInvalid);
+            printNewLine();
         }
     }
 
+    /**
+     * display the header for the PDF Balancing.
+     * 
+     * @param bClear - true if clear the display before outputting header
+     */
+    public static void printBalanceHeader(boolean bClear) {
+        if (! GUIMain.isGUIMode()) {
+            return;
+        }
+
+        // if this is the first entry, clear the screen
+        if (bClear) {
+            clearMessages();
+        }
+        print ("User name ", TextColor.Black, true, false, Color.WHITE);
+        printText (Column.DateOrdered  , "Order date"  , true);
+        printText (Column.OrderNumber  , "Order number", true);
+        printText (Column.Payment      , "Payment"     , true);
+        printText (Column.ItemPrice    , "Paid"        , true, TextColor.Green); // using this name for Paid, since there isn't a correct name
+        printText (Column.Total        , "Total"       , true, TextColor.Green);
+        printText (Column.Pending      , "Pending"     , true, TextColor.Green);
+        printText (Column.Refund       , "Refund"      , true, TextColor.Green);
+        printNewLine();
+        printSeparator(100, "_");;
+    }
+
+    /**
+     * displays the order information.
+     * 
+     * @param tabName   - name of the tab selection
+     * @param entry     - the card transaction info to display
+     */
+    public static void printBalance (String tabName, CardTransaction entry) {
+        if (! GUIMain.isGUIMode() || entry == null) {
+            return;
+        }
+
+        tabName = Utils.padRight(tabName, 10);
+        print (tabName, TextColor.Black, true, false, Color.WHITE);
+        printBalanceItem (Column.DateOrdered  , entry);        
+        printBalanceItem (Column.OrderNumber  , entry);        
+        printBalanceItem (Column.Payment      , entry);        
+        printBalanceItem (Column.ItemPrice    , entry); // using this name for Paid, since there isn't a correct name
+        printBalanceItem (Column.Total        , entry);        
+        printBalanceItem (Column.Pending      , entry);        
+        printBalanceItem (Column.Refund       , entry);        
+        printNewLine();
+    }
+
+    /**
+     * gets the string value for the specified order.
+     * 
+     * @param orderInfo - the order contents
+     * @param colName   - the selected entry desired
+     * 
+     * @return the string value of the selected order entry
+     */
     private static String getOrderEntry (AmazonOrder orderInfo, Column colName) {
         String entry = null;
         switch (colName) {
@@ -196,22 +256,22 @@ public class GUIOrderPanel {
                 if (cost != null) {
                     entry = Utils.cvtAmountToString(cost);
                 }
-                if (entry != null) {
-                    // this will align the dec pt by aligning it to the right
-                    int fieldlen = msgInfo.get(colName).getFieldSize();
-                    entry = Utils.padLeft(entry, fieldlen);
-                }
+//                if (entry != null) {
+//                    // this will align the dec pt by aligning it to the right
+//                    int fieldlen = msgInfo.get(colName).getFieldSize();
+//                    entry = Utils.padLeft(entry, fieldlen);
+//                }
                 break;
             case Tax:
                 cost = orderInfo.getTaxCost();
                 if (cost != null) {
                     entry = Utils.cvtAmountToString(cost);
                 }
-                if (entry != null) {
-                    // this will align the dec pt by aligning it to the right
-                    int fieldlen = msgInfo.get(colName).getFieldSize();
-                    entry = Utils.padLeft(entry, fieldlen);
-                }
+//                if (entry != null) {
+//                    // this will align the dec pt by aligning it to the right
+//                    int fieldlen = msgInfo.get(colName).getFieldSize();
+//                    entry = Utils.padLeft(entry, fieldlen);
+//                }
                 break;
             default:
                 break;
@@ -219,6 +279,15 @@ public class GUIOrderPanel {
         return entry;
     }
     
+    /**
+     * gets the string value for the specified item in the order.
+     * 
+     * @param orderInfo - the order contents
+     * @param colName   - the selected entry desired
+     * @param ix        - the item number within the order
+     * 
+     * @return the string value of the selected order entry
+     */
     private static String getOrderItemEntry (AmazonOrder orderInfo, Column colName, int ix) {
         String entry = null;
         if (ix >= orderInfo.getItemCount()) {
@@ -263,15 +332,80 @@ public class GUIOrderPanel {
         }
         return entry;
     }
-    
+
+    /**
+     * gets the string value for the specified PDF transaction item.
+     * 
+     * @param orderInfo - the transaction contents
+     * @param colName   - the selected entry desired
+     * 
+     * @return the string value of the selected transaction entry
+     */
+    private static String getBalanceEntry (CardTransaction transInfo, Column colName) {
+        String entry = null;
+        switch (colName) {
+            case OrderNumber:
+                entry = transInfo.getOrderNumber();
+                break;
+            case DateOrdered:
+                entry = transInfo.getTransDate();
+                break;
+            case Payment:
+                Integer cost = transInfo.getAmount();
+                if (cost != null) {
+                    entry = Utils.cvtAmountToString(cost);
+                }
+                break;
+            case ItemPrice:
+                // using this name for Paid, since there isn't a correct name
+                entry = transInfo.getPaid();
+                break;
+            case Pending:
+                entry = transInfo.getPending();
+                break;
+            case Total:
+                entry = transInfo.getTotal();
+                break;
+            case Refund:
+                entry = transInfo.getRefund();
+                break;
+            default:
+                break;
+        }
+        return entry;
+    }
+
+    /**
+     * adds the required padding to fill the field size of the entry.
+     * 
+     * @param colName - identifies the data being passed
+     * @param entry   - the entry value
+     * 
+     * @return the entry value padded to the field size, with an extra gap for spacing
+     */
     private static String padEntry (Column colName, String entry) {
         if (entry == null) {
             entry = "null";
         }
         MsgControl font = msgInfo.get(colName);
         if (font != null) {
-            int fieldLen = font.getFieldSize() + FIELD_GAP; // add the gap between fields
-            entry = Utils.padRight(entry, fieldLen);
+            switch (colName) {
+                case Total:
+                case Tax:
+                case Payment:
+                case Pending:
+                case Refund:
+                    // right-justify dollar amounts to align dec pt, so pad to left.
+                    entry = Utils.padLeft (entry, font.getFieldSize());
+                    break;
+                default:
+                    // all others, do left-justify, so pad to right.
+                    entry = Utils.padRight(entry, font.getFieldSize());
+                    break;
+            }
+
+            // the spacing between fields always goes to the right.
+            entry = Utils.padRight(entry, font.getFieldSize() + FIELD_GAP);
         }
         return entry;
     }
@@ -283,9 +417,8 @@ public class GUIOrderPanel {
      * @param orderInfo - the order information to display
      * @param ix        - index of item in order (if more than 1)
      * @param bInvalid  - true if entry is already listed in the spreadsheet
-     * @param term      - true if end of line
      */
-    private static void printItem (Spreadsheet.Column colName, AmazonOrder orderInfo, int ix, boolean bInvalid, boolean term) {
+    private static void printOrderItem (Spreadsheet.Column colName, AmazonOrder orderInfo, int ix, boolean bInvalid) {
         if (! GUIMain.isGUIMode()) {
             return;
         }
@@ -329,9 +462,6 @@ public class GUIOrderPanel {
             entry = entry.substring(0, maxlen);
         }
         entry = padEntry (colName, entry);
-        if (term) {
-            entry = entry + NEWLINE;
-        }
         
         if (msgFont.contentEquals("B") || msgFont.contentEquals("BI")) {
             bBold = true;
@@ -351,20 +481,105 @@ public class GUIOrderPanel {
     }
 
     /**
+     * displays the specified item.
+     * 
+     * @param tabName   - the name of the tab selection
+     * @param colName   - the name of the item we are placing
+     * @param transInfo - the transaction entry info to display
+     * @param term      - true if end of line
+     */
+    private static void printBalanceItem (Spreadsheet.Column colName, CardTransaction transInfo) {
+        if (! GUIMain.isGUIMode()) {
+            return;
+        }
+
+        boolean bError = false;
+        boolean bBold = false;
+        boolean bItalic = false;
+
+        String entry = getBalanceEntry (transInfo, colName);
+        if (entry == null) {
+            entry = "null";
+            bError = true;
+        }
+        
+        MsgControl font = msgInfo.get(colName);
+        String    msgFont  = "N";
+        TextColor msgColor = TextColor.Black;
+        if (font != null) {
+            msgColor = font.getColor();
+            msgFont  = font.getFont();
+        }
+
+        if (colName == Spreadsheet.Column.Payment && entry.indexOf('-') >= 0) {
+            msgColor = TextColor.Red;
+        }
+        
+        // limit the field data to the max field size + field gap size - 1
+        int maxlen = msgInfo.get(colName).getFieldSize();
+        if (entry.length() > maxlen) {
+            entry = entry.substring(0, maxlen);
+        }
+        entry = padEntry (colName, entry);
+        
+        if (msgFont.contentEquals("B") || msgFont.contentEquals("BI")) {
+            bBold = true;
+        }
+        if (msgFont.contentEquals("I") || msgFont.contentEquals("BI")) {
+            bItalic = true;
+        }
+
+        // get background color
+        Color bkColor = Color.WHITE;
+        if (bError) {
+            bkColor = Color.YELLOW;
+        }
+        print (entry, msgColor, bBold, bItalic, bkColor);
+    }
+
+    /**
      * displays the specified text in selected columns.
      * 
      * @param colName   - the name of the item we are placing
      * @param text      - text to display
-     * @param term      - true if end of line
      */
-    private static void printText (Spreadsheet.Column colName, String text, boolean bBold, boolean term) {
+    private static void printText (Spreadsheet.Column colName, String text, boolean bBold) {
         text = padEntry (colName, text);
-        if (term) {
-            text += NEWLINE;
-        }
         print (text, TextColor.Black, bBold, false, Color.WHITE);
     }
 
+    /**
+     * displays the specified text in selected columns.
+     * 
+     * @param colName   - the name of the item we are placing
+     * @param text      - text to display
+     */
+    private static void printText (Spreadsheet.Column colName, String text, boolean bBold, TextColor color) {
+        text = padEntry (colName, text);
+        print (text, color, bBold, false, Color.WHITE);
+    }
+
+    /**
+     * prints a separator line between entries.
+     */
+    public static void printNewLine() {
+        print (NEWLINE, TextColor.Black, false, false, Color.WHITE);
+    }
+
+    /**
+     * prints a separator line between entries.
+     * 
+     * @param count   - the number of times to repeat the line pattern
+     * @param pattern - the string pattern of the line to create
+     */
+    private static void printSeparator (int count, String pattern) {
+        String line = "";
+        for (int ix = 0; ix < count; ix++) {
+            line = line + pattern;
+        }
+        print (line + NEWLINE, TextColor.Black, false, false, Color.WHITE);
+    }
+    
     /**
      * displays a line of text.
      * 

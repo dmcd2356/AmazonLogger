@@ -126,7 +126,7 @@ public class OpenDoc {
      * @return the current sheet selection index (-1 if no selection)
      */
     public static int getSheetSelection() {
-        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "currently tab selection: " + sheetIx + " = '" + sheetSel.getName() + "'");
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "current tab selection: " + sheetIx + " = '" + sheetSel.getName() + "'");
         return sheetIx;
     }
     
@@ -193,6 +193,23 @@ public class OpenDoc {
         return sheetArray.get(ix).getName();
     }
 
+    /**
+     * get the selected sheet.
+     * 
+     * @param tabName - name of the tab for the sheet
+     * 
+     * @return the selected sheet (null if not found)
+     */
+    private static Sheet getSheetByName (String tabName) {
+        for (int ix = 0; ix < sheetArray.size(); ix++) {
+            Sheet sheet = sheetArray.get(ix);
+            if (sheet.getName().contentEquals(tabName)) {
+                return sheet;
+            }
+        }
+        return null;
+    }
+    
     /**
      * get the state of whether the specified cell location is not defined (null).
      * 
@@ -278,7 +295,79 @@ public class OpenDoc {
         }
 
         String strVal = sheetSel.getCellAt(col,row).getTextValue();
-        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + strVal);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + strVal);
+        return strVal;
+    }
+    
+    /**
+     * finds the first row in the spreadsheet that contains the specified entry.
+     * 
+     * @param tabName  - name of the tab selection to search
+     * @param col      - column in which to search
+     * @param startRow - starting row to start searching
+     * @param entry    - the string value to search for
+     * 
+     * @return the row of the 1st occurrence of the order number in the spreadsheet
+     * 
+     * @throws ParserException
+     */
+    public static int findColumnEntry (String tabName, int col, int startRow, String entry) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        Sheet sheet = getSheetByName (tabName);
+        if (sheet == null) {
+            throw new ParserException(functionId + "invalid selection for tab name");
+        }
+        int rowIx = -1;
+        for (int row = startRow; row < sheet.getRowCount(); row++) {
+            String cellValue = OpenDoc.getCellTextValue(tabName, col, row);
+            if (cellValue.isBlank()) {
+                GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Order not found. Exiting at row " + row);
+                break;
+            }
+            if (cellValue.contentEquals(entry)) {
+                rowIx = row;
+                break;
+            }
+        }
+        return rowIx;
+    }
+    
+    /**
+     * get the value of the col & row on the current sheet.
+     * 
+     * @param tabName - the sheet tab to use
+     * @param col - the column selection
+     * @param row - the row selection
+     * 
+     * @return string value at specified location (empty string if cell is empty)
+     * 
+     * @throws ParserException
+     */
+    public static String getCellTextValue (String tabName, int col, int row) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        Sheet sheet = getSheetByName (tabName);
+        if (sheet == null) {
+            throw new ParserException(functionId + "invalid selection for tab name");
+        }
+        int rowSize = sheet.getRowCount();
+        int colSize = sheet.getColumnCount();
+        if (row >= rowSize) {
+            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
+        }
+        if (col >= colSize) {
+            throw new ParserException(functionId + "col " + col + " exceeds max: " + colSize);
+        }
+
+        String strVal = "";
+        if (sheet.getCellAt(col,row) != null) {
+            strVal = sheet.getCellAt(col,row).getTextValue();
+            if (strVal == null) {
+                strVal = "";
+            }
+        }
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "read  tab " + tabName + " row " + row + " col " + col + " <- " + strVal);
         return strVal;
     }
     
@@ -312,7 +401,7 @@ public class OpenDoc {
             throw new ParserException(functionId + "col " + col + " row " + row + " cell value is null");
         }
         BigDecimal bdValue = (BigDecimal) objVal;
-        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + objVal.toString());
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + objVal.toString());
         return bdValue;
     }
     

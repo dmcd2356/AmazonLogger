@@ -111,7 +111,7 @@ public class Spreadsheet {
      * 
      * @throws ParserException
      */
-    private static Integer getColumn (Column colName) throws ParserException {
+    public static Integer getColumn (Column colName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (hmSheetColumns.isEmpty()) {
