@@ -301,14 +301,13 @@ public class PdfReader {
                         // add in the corresponding order info from the spreadsheet
                         int row = OpenDoc.findColumnEntry (strTab, col, 2, trans.getOrderNumber());
                         if (row >= 0) {
-                            trans.setPaid   (OpenDoc.getCellTextValue (strTab, 
-                                    Spreadsheet.getColumn(Spreadsheet.Column.Payment), row));
-                            trans.setTotal  (OpenDoc.getCellTextValue (strTab, 
-                                    Spreadsheet.getColumn(Spreadsheet.Column.Total)  , row));
-                            trans.setPending(OpenDoc.getCellTextValue (strTab, 
-                                    Spreadsheet.getColumn(Spreadsheet.Column.Pending), row));
-                            trans.setRefund (OpenDoc.getCellTextValue (strTab, 
-                                    Spreadsheet.getColumn(Spreadsheet.Column.Refund) , row));
+                            ArrayList<Spreadsheet.Column> cols = new ArrayList<>();
+                            cols.add(Spreadsheet.Column.Total);
+                            cols.add(Spreadsheet.Column.Payment);
+                            cols.add(Spreadsheet.Column.Pending);
+                            cols.add(Spreadsheet.Column.Refund);
+                            ArrayList<String> rowData = Spreadsheet.getRowValues(strTab, row, cols);
+                            trans.setSpreadsheetEntries(row, rowData, cols);
                         }
                         GUIOrderPanel.printBalance (strTab, trans);
                     }

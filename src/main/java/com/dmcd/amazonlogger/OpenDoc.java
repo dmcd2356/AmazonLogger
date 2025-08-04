@@ -200,7 +200,7 @@ public class OpenDoc {
      * 
      * @return the selected sheet (null if not found)
      */
-    private static Sheet getSheetByName (String tabName) {
+    public static Sheet getSheetByName (String tabName) {
         for (int ix = 0; ix < sheetArray.size(); ix++) {
             Sheet sheet = sheetArray.get(ix);
             if (sheet.getName().contentEquals(tabName)) {
@@ -208,6 +208,46 @@ public class OpenDoc {
             }
         }
         return null;
+    }
+    
+    /**
+     * get the selected row of selected sheet.
+     * 
+     * @param tabName - name of the tab for the sheet
+     * @param row     - row to return data from
+     * @param colNum  - number of columns to return
+     * 
+     * @return the list of string entries for the selected row (empty string for any empty cells)
+     * 
+     * @throws ParserException
+     */
+    public static ArrayList<String> getSheetByName (String tabName, int row, int colNum) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        ArrayList<String> rowList = new ArrayList<>();
+        Sheet sheet = getSheetByName(tabName);
+        if (sheet != null) {
+            int rowSize = sheet.getRowCount();
+            int colSize = sheet.getColumnCount();
+            if (row >= rowSize) {
+                throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
+            }
+            if (colNum > colSize) {
+                colNum = colSize;
+            }
+            // build up the response string of entries in the row
+            for (int ix = 0; ix < colNum; ix++) {
+                String strVal = "";
+                if (sheet.getCellAt(ix,row) != null) {
+                    strVal = sheet.getCellAt(ix,row).getTextValue();
+                    if (strVal == null) {
+                        strVal = "";
+                    }
+                }
+                rowList.add(strVal);
+            }
+        }
+        return rowList;
     }
     
     /**

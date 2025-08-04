@@ -4,7 +4,6 @@
  */
 package com.dmcd.amazonlogger;
 
-import com.dmcd.amazonlogger.Spreadsheet.Column;
 import java.awt.Color;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
@@ -30,21 +29,27 @@ public class GUIOrderPanel {
     private static JTextPane    txtPane = null;
 
     // this holds the font color, type, etc for the message types
-    private static final HashMap<Spreadsheet.Column, MsgControl> msgInfo  = new HashMap<>();
+    private static final HashMap<Column, MsgControl> msgInfo  = new HashMap<>();
 
     private final class MsgControl {
         private final Integer   fieldSize;    // size of the field on the display
+        private final char      justify;      // justification in field: L, R, C
         private final String    font;         // whether the displayed message is Normal, Bold, Italic, or both
         private final TextColor color;        // color to use for the text on the screen
         
-        MsgControl (int size, String font, TextColor color) {
+        MsgControl (int size, char just, String font, TextColor color) {
             this.fieldSize = size;
+            this.justify   = just;
             this.font      = font;       // N=normal, I=italic, B=Bold, BI=Bold+Italic
             this.color     = color;
         }
         
         public int getFieldSize() {
             return this.fieldSize;
+        }
+        
+        public char getFieldJust() {
+            return this.justify;
         }
         
         public String getFont() {
@@ -57,8 +62,31 @@ public class GUIOrderPanel {
     }
     
     // this is the spacing used between fireld
-    private static final int FIELD_GAP = 3;
+    private static final int FIELD_GAP = 4;
     
+    // these are similar to the entries in Spreadsheet, since they refer to those
+    // entities in some cases, but there are additional ones added for PDF file output.
+    // These are used to identify the item being displayed, and are used in
+    //  specifying the characteristics (e.g. the field length) for that entry.
+    private static enum Column { 
+        DateOrdered,
+        OrderNumber, 
+        Total, 
+        DateDelivered, 
+        ItemIndex,
+        Qty, 
+        Description, 
+        ItemPrice, 
+        Paid, 
+        Pending, 
+        Payment, 
+        Refund, 
+        Tax,
+        Seller,
+        UserName,
+        Row,
+    };
+
     private enum TextColor {
         Black, White, LtGrey, DkGrey, DkRed, Red, LtRed, Orange, Brown,
         Yellow, Gold, Green, Cyan, LtBlue, Blue, Violet, DkVio;
@@ -71,24 +99,26 @@ public class GUIOrderPanel {
 
         msgInfo.clear();
         // these are gathered by the YOUR ORDERS selection
-        msgInfo.put(Column.DateOrdered  , new MsgControl (10, "N", TextColor.Blue));
-        msgInfo.put(Column.OrderNumber  , new MsgControl (19, "B", TextColor.DkVio));
-        msgInfo.put(Column.Total        , new MsgControl ( 7, "N", TextColor.Black));
-        msgInfo.put(Column.DateDelivered, new MsgControl (10, "N", TextColor.Blue));
-        msgInfo.put(Column.ItemIndex    , new MsgControl ( 6, "N", TextColor.Black));
-        msgInfo.put(Column.Qty          , new MsgControl ( 2, "N", TextColor.Black));
-        msgInfo.put(Column.Description  , new MsgControl (50, "N", TextColor.DkVio));
+        msgInfo.put(Column.DateOrdered  , new MsgControl (10, 'C', "N", TextColor.Blue));
+        msgInfo.put(Column.OrderNumber  , new MsgControl (19, 'L', "B", TextColor.DkVio));
+        msgInfo.put(Column.Total        , new MsgControl ( 7, 'R', "N", TextColor.Black));
+        msgInfo.put(Column.DateDelivered, new MsgControl (10, 'C', "N", TextColor.Blue));
+        msgInfo.put(Column.ItemIndex    , new MsgControl ( 6, 'L', "N", TextColor.Black));
+        msgInfo.put(Column.Qty          , new MsgControl ( 2, 'L', "N", TextColor.Black));
+        msgInfo.put(Column.Description  , new MsgControl (50, 'L', "N", TextColor.DkVio));
         // these are gathered by the INVOICE selection
-        msgInfo.put(Column.ItemPrice    , new MsgControl ( 7, "N", TextColor.Green));
-        msgInfo.put(Column.Tax          , new MsgControl ( 5, "N", TextColor.Green));
-        msgInfo.put(Column.Seller       , new MsgControl (20, "N", TextColor.Green));
+        msgInfo.put(Column.ItemPrice    , new MsgControl ( 7, 'R', "N", TextColor.Green));
+        msgInfo.put(Column.Tax          , new MsgControl ( 5, 'R', "N", TextColor.Green));
+        msgInfo.put(Column.Seller       , new MsgControl (20, 'L', "N", TextColor.Green));
         // these are gathered or computed by the PDF file
-        msgInfo.put(Column.Payment      , new MsgControl ( 7, "I", TextColor.Blue));
-        // these are read from the spreadsheet file for balancing
-        msgInfo.put(Column.Refund       , new MsgControl ( 7, "B", TextColor.Blue));
-        msgInfo.put(Column.Pending      , new MsgControl ( 7, "I", TextColor.Blue));
-        // also from spreadsheet: Total & ItemPrice (ItemPrice is really Paid, but the spreadsheet
-        //   entry is Payment, which is already used)
+        msgInfo.put(Column.Paid         , new MsgControl ( 7, 'R', "I", TextColor.Blue));
+        msgInfo.put(Column.UserName     , new MsgControl (12, 'L', "B", TextColor.Black));
+        msgInfo.put(Column.Row          , new MsgControl ( 4, 'L', "N", TextColor.Black));
+        // these are read from the spreadsheet file for PDFbalancing
+        msgInfo.put(Column.Payment      , new MsgControl ( 7, 'R', "N", TextColor.Green));
+        msgInfo.put(Column.Refund       , new MsgControl ( 7, 'R', "B", TextColor.Blue));
+        msgInfo.put(Column.Pending      , new MsgControl ( 7, 'R', "I", TextColor.Blue));
+        // also from spreadsheet: Total, which is already listed above
     }
 
     public static void init() {
@@ -190,16 +220,18 @@ public class GUIOrderPanel {
         if (bClear) {
             clearMessages();
         }
-        print ("User name ", TextColor.Black, true, false, Color.WHITE);
+//        print ("User name ", TextColor.Black, true, false, Color.WHITE);
+        printText (Column.UserName     , "User name"   , true);
+        printText (Column.Row          , "Row"         , true);
         printText (Column.DateOrdered  , "Order date"  , true);
         printText (Column.OrderNumber  , "Order number", true);
-        printText (Column.Payment      , "Payment"     , true);
-        printText (Column.ItemPrice    , "Paid"        , true, TextColor.Green); // using this name for Paid, since there isn't a correct name
+        printText (Column.Paid         , "Paid"        , true);
+        printText (Column.Payment      , "Payment"     , true, TextColor.Green);
         printText (Column.Total        , "Total"       , true, TextColor.Green);
         printText (Column.Pending      , "Pending"     , true, TextColor.Green);
         printText (Column.Refund       , "Refund"      , true, TextColor.Green);
         printNewLine();
-        printSeparator(100, "_");;
+        printSeparator(120, "_");
     }
 
     /**
@@ -213,15 +245,17 @@ public class GUIOrderPanel {
             return;
         }
 
-        tabName = Utils.padRight(tabName, 10);
-        print (tabName, TextColor.Black, true, false, Color.WHITE);
-        printBalanceItem (Column.DateOrdered  , entry);        
-        printBalanceItem (Column.OrderNumber  , entry);        
-        printBalanceItem (Column.Payment      , entry);        
-        printBalanceItem (Column.ItemPrice    , entry); // using this name for Paid, since there isn't a correct name
-        printBalanceItem (Column.Total        , entry);        
-        printBalanceItem (Column.Pending      , entry);        
-        printBalanceItem (Column.Refund       , entry);        
+//        tabName = Utils.padRight(tabName, 10);
+//        print (tabName, TextColor.Black, true, false, Color.WHITE);
+        printBalanceItem (tabName, Column.UserName     , entry);        
+        printBalanceItem (tabName, Column.Row          , entry);        
+        printBalanceItem (tabName, Column.DateOrdered  , entry);        
+        printBalanceItem (tabName, Column.OrderNumber  , entry);        
+        printBalanceItem (tabName, Column.Paid         , entry);        
+        printBalanceItem (tabName, Column.Payment      , entry);
+        printBalanceItem (tabName, Column.Total        , entry);        
+        printBalanceItem (tabName, Column.Pending      , entry);        
+        printBalanceItem (tabName, Column.Refund       , entry);        
         printNewLine();
     }
 
@@ -256,22 +290,12 @@ public class GUIOrderPanel {
                 if (cost != null) {
                     entry = Utils.cvtAmountToString(cost);
                 }
-//                if (entry != null) {
-//                    // this will align the dec pt by aligning it to the right
-//                    int fieldlen = msgInfo.get(colName).getFieldSize();
-//                    entry = Utils.padLeft(entry, fieldlen);
-//                }
                 break;
             case Tax:
                 cost = orderInfo.getTaxCost();
                 if (cost != null) {
                     entry = Utils.cvtAmountToString(cost);
                 }
-//                if (entry != null) {
-//                    // this will align the dec pt by aligning it to the right
-//                    int fieldlen = msgInfo.get(colName).getFieldSize();
-//                    entry = Utils.padLeft(entry, fieldlen);
-//                }
                 break;
             default:
                 break;
@@ -344,20 +368,22 @@ public class GUIOrderPanel {
     private static String getBalanceEntry (CardTransaction transInfo, Column colName) {
         String entry = null;
         switch (colName) {
+            case Row:
+                entry = transInfo.getRow().toString();
+                break;
             case OrderNumber:
                 entry = transInfo.getOrderNumber();
                 break;
             case DateOrdered:
                 entry = transInfo.getTransDate();
                 break;
-            case Payment:
+            case Paid:
                 Integer cost = transInfo.getAmount();
                 if (cost != null) {
                     entry = Utils.cvtAmountToString(cost);
                 }
                 break;
-            case ItemPrice:
-                // using this name for Paid, since there isn't a correct name
+            case Payment:
                 entry = transInfo.getPaid();
                 break;
             case Pending:
@@ -389,18 +415,18 @@ public class GUIOrderPanel {
         }
         MsgControl font = msgInfo.get(colName);
         if (font != null) {
-            switch (colName) {
-                case Total:
-                case Tax:
-                case Payment:
-                case Pending:
-                case Refund:
+            switch (font.getFieldJust()) {
+                case 'R':
                     // right-justify dollar amounts to align dec pt, so pad to left.
                     entry = Utils.padLeft (entry, font.getFieldSize());
                     break;
-                default:
-                    // all others, do left-justify, so pad to right.
+                case 'L':
+                    // do left-justify, so pad to right.
                     entry = Utils.padRight(entry, font.getFieldSize());
+                    break;
+                default:
+                    // else, must be center-justify, pad half to the left
+                    entry = Utils.padCenter(entry, font.getFieldSize());
                     break;
             }
 
@@ -418,7 +444,7 @@ public class GUIOrderPanel {
      * @param ix        - index of item in order (if more than 1)
      * @param bInvalid  - true if entry is already listed in the spreadsheet
      */
-    private static void printOrderItem (Spreadsheet.Column colName, AmazonOrder orderInfo, int ix, boolean bInvalid) {
+    private static void printOrderItem (Column colName, AmazonOrder orderInfo, int ix, boolean bInvalid) {
         if (! GUIMain.isGUIMode()) {
             return;
         }
@@ -444,7 +470,7 @@ public class GUIOrderPanel {
                     bError = true;
                     break;
             }
-        } else if (colName == Spreadsheet.Column.Qty && entry.contentEquals("0")) {
+        } else if (colName == Column.Qty && entry.contentEquals("0")) {
             bError = true;
         }
         
@@ -486,9 +512,8 @@ public class GUIOrderPanel {
      * @param tabName   - the name of the tab selection
      * @param colName   - the name of the item we are placing
      * @param transInfo - the transaction entry info to display
-     * @param term      - true if end of line
      */
-    private static void printBalanceItem (Spreadsheet.Column colName, CardTransaction transInfo) {
+    private static void printBalanceItem (String tabName, Column colName, CardTransaction transInfo) {
         if (! GUIMain.isGUIMode()) {
             return;
         }
@@ -497,10 +522,15 @@ public class GUIOrderPanel {
         boolean bBold = false;
         boolean bItalic = false;
 
-        String entry = getBalanceEntry (transInfo, colName);
-        if (entry == null) {
-            entry = "null";
-            bError = true;
+        String entry;
+        if (colName == Column.UserName) {
+            entry = tabName;
+        } else {
+            entry = getBalanceEntry (transInfo, colName);
+            if (entry == null) {
+                entry = "null";
+                bError = true;
+            }
         }
         
         MsgControl font = msgInfo.get(colName);
@@ -511,7 +541,8 @@ public class GUIOrderPanel {
             msgFont  = font.getFont();
         }
 
-        if (colName == Spreadsheet.Column.Payment && entry.indexOf('-') >= 0) {
+        // this item we highlight a debit by setting the text color to red
+        if (colName == Column.Paid && entry.indexOf('-') >= 0) {
             msgColor = TextColor.Red;
         }
         
@@ -543,7 +574,7 @@ public class GUIOrderPanel {
      * @param colName   - the name of the item we are placing
      * @param text      - text to display
      */
-    private static void printText (Spreadsheet.Column colName, String text, boolean bBold) {
+    private static void printText (Column colName, String text, boolean bBold) {
         text = padEntry (colName, text);
         print (text, TextColor.Black, bBold, false, Color.WHITE);
     }
@@ -554,7 +585,7 @@ public class GUIOrderPanel {
      * @param colName   - the name of the item we are placing
      * @param text      - text to display
      */
-    private static void printText (Spreadsheet.Column colName, String text, boolean bBold, TextColor color) {
+    private static void printText (Column colName, String text, boolean bBold, TextColor color) {
         text = padEntry (colName, text);
         print (text, color, bBold, false, Color.WHITE);
     }

@@ -1231,6 +1231,41 @@ public class Spreadsheet {
     }
     
     /**
+     * get the value of selected columns of the row of the specified sheet.
+     * 
+     * @param tabName  - the sheet tab to use
+     * @param row      - the row selection
+     * @param cols     - the array of column entries to get
+     * 
+     * @return array of strings at specified locations (empty cells reported as empty string)
+     * 
+     * @throws ParserException
+     */
+    public static ArrayList<String> getRowValues (String tabName, int row, ArrayList<Column> cols) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        // read the pertanent values for the selected row and sheet
+        ArrayList<String> rowData = OpenDoc.getSheetByName (tabName, row, Column.values().length);
+        if (rowData.isEmpty()) {
+            throw new ParserException(functionId + "invalid row selection");
+        }
+        if (cols == null || cols.isEmpty()) {
+            throw new ParserException(functionId + "column selection is empty");
+        }
+
+        ArrayList<String> rowValues = new ArrayList<>();
+        for (int ix = 0; ix < cols.size(); ix++) {
+            int colSelect = getColumn(cols.get(ix));
+            if (colSelect >= rowData.size()) {
+                throw new ParserException(functionId + "cols[" + ix + "] = " + colSelect + " exceeds max: " + rowData.size());
+            }
+            rowValues.add(rowData.get(colSelect));
+        }
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "read tab " + tabName + " row " + row + " entries: " + rowValues.toString());
+        return rowValues;
+    }
+    
+    /**
      * selects the spreadsheet file to access.
      * 
      * @param ssFile - file to use (optional - will ask user if not supplied)

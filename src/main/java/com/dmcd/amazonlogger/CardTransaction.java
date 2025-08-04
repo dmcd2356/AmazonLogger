@@ -4,6 +4,8 @@
  */
 package com.dmcd.amazonlogger;
 
+import java.util.ArrayList;
+
 /**
  *
  * @author dan
@@ -20,7 +22,8 @@ public class CardTransaction {
     private Integer amount;         // the amount of the transaction in cents (credits are -, debits are +)
     private String  vendor;         // the vendor name
     // from the spreadsheet
-    private String  paid;           // the amount paid for the item
+    private Integer row;            // the spreadsheet row containing the entry
+    private String  payment;        // the amount paid for the item
     private String  pending;        // amount pending (payment or refund)
     private String  total;          // the total for the order
     private String  refund;         // the amount refunded
@@ -48,30 +51,43 @@ public class CardTransaction {
         this.order_num = orderNum;
     }
         
-    public void modifyAmount (Integer amount) {
-        this.amount += amount;
-    }
-        
-    public void setPaid (String amount) {
-        this.paid = amount;
-    }
-        
-    public void setPending (String amount) {
-        this.pending = amount;
-    }
-        
-    public void setTotal (String amount) {
-        this.total = amount;
-    }
-        
-    public void setRefund (String amount) {
-        this.refund = amount;
-    }
-        
     public void setCompleted() {
         this.completed = true;
     }
         
+    public void modifyAmount (Integer amount) {
+        this.amount += amount;
+    }
+    
+    public void setSpreadsheetEntries(int row, ArrayList<String> rowInfo, ArrayList<Spreadsheet.Column> col) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (rowInfo.size() != col.size()) {
+            throw new ParserException(functionId + "row " + row + " data has incorrect number of entries: " + rowInfo.size() + ", col size = " + col.size());
+        }
+        this.row = row + 1; // the spreadsheet shoes based on 1st line = 1, the index is zero-based
+        for (int ix = 0; ix < col.size(); ix++) {
+            Spreadsheet.Column colName = col.get(ix);
+            String rowValue = rowInfo.get(ix);
+            switch (colName) {
+                case Total:
+                    this.total = rowValue;
+                    break;
+                case Payment:
+                    this.payment = rowValue;
+                    break;
+                case Pending:
+                    this.pending = rowValue;
+                    break;
+                case Refund:
+                    this.refund = rowValue;
+                    break;
+                default:
+                    throw new ParserException(functionId + "row " + row + " has invalid column selection: " + colName);
+            }
+        }
+    }
+    
     public String getOrderNumber() {
         return this.order_num;
     }
@@ -89,7 +105,7 @@ public class CardTransaction {
     }
         
     public String getPaid () {
-        return this.paid;
+        return this.payment;
     }
         
     public String getPending () {
@@ -103,7 +119,11 @@ public class CardTransaction {
     public String getRefund () {
         return this.refund;
     }
-        
+    
+    public Integer getRow() {
+        return this.row;
+    }
+    
     public boolean isAmazonEntry() {
         return this.amazonEntry;
     }
