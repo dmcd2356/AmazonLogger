@@ -220,7 +220,6 @@ public class GUIOrderPanel {
         if (bClear) {
             clearMessages();
         }
-//        print ("User name ", TextColor.Black, true, false, Color.WHITE);
         printText (Column.UserName     , "User name"   , true);
         printText (Column.Row          , "Row"         , true);
         printText (Column.DateOrdered  , "Order date"  , true);
@@ -245,17 +244,15 @@ public class GUIOrderPanel {
             return;
         }
 
-//        tabName = Utils.padRight(tabName, 10);
-//        print (tabName, TextColor.Black, true, false, Color.WHITE);
-        printBalanceItem (tabName, Column.UserName     , entry);        
-        printBalanceItem (tabName, Column.Row          , entry);        
-        printBalanceItem (tabName, Column.DateOrdered  , entry);        
-        printBalanceItem (tabName, Column.OrderNumber  , entry);        
-        printBalanceItem (tabName, Column.Paid         , entry);        
-        printBalanceItem (tabName, Column.Payment      , entry);
-        printBalanceItem (tabName, Column.Total        , entry);        
-        printBalanceItem (tabName, Column.Pending      , entry);        
-        printBalanceItem (tabName, Column.Refund       , entry);        
+        printBalanceItem (Column.UserName     , entry);        
+        printBalanceItem (Column.Row          , entry);        
+        printBalanceItem (Column.DateOrdered  , entry);        
+        printBalanceItem (Column.OrderNumber  , entry);        
+        printBalanceItem (Column.Paid         , entry);        
+        printBalanceItem (Column.Payment      , entry);
+        printBalanceItem (Column.Total        , entry);        
+        printBalanceItem (Column.Pending      , entry);        
+        printBalanceItem (Column.Refund       , entry);        
         printNewLine();
     }
 
@@ -286,16 +283,10 @@ public class GUIOrderPanel {
                 }
                 break;
             case Total:
-                Integer cost = orderInfo.getTotalCost();
-                if (cost != null) {
-                    entry = Utils.cvtAmountToString(cost);
-                }
+                entry = Utils.cvtAmountToString(orderInfo.getTotalCost());
                 break;
             case Tax:
-                cost = orderInfo.getTaxCost();
-                if (cost != null) {
-                    entry = Utils.cvtAmountToString(cost);
-                }
+                entry = Utils.cvtAmountToString(orderInfo.getTaxCost());
                 break;
             default:
                 break;
@@ -340,10 +331,7 @@ public class GUIOrderPanel {
                 }
                 break;
             case ItemPrice:
-                Integer cost = item.getItemCost();
-                if (cost != null) {
-                    entry = Utils.cvtAmountToString(cost);
-                }
+                entry = Utils.cvtAmountToString(item.getItemCost());
                 break;
             case Seller:
                 entry = item.getSeller();
@@ -378,13 +366,10 @@ public class GUIOrderPanel {
                 entry = transInfo.getTransDate();
                 break;
             case Paid:
-                Integer cost = transInfo.getAmount();
-                if (cost != null) {
-                    entry = Utils.cvtAmountToString(cost);
-                }
+                entry = Utils.cvtAmountToString(transInfo.getAmount());
                 break;
             case Payment:
-                entry = transInfo.getPaid();
+                entry = transInfo.getPayment();
                 break;
             case Pending:
                 entry = transInfo.getPending();
@@ -509,11 +494,10 @@ public class GUIOrderPanel {
     /**
      * displays the specified item.
      * 
-     * @param tabName   - the name of the tab selection
      * @param colName   - the name of the item we are placing
      * @param transInfo - the transaction entry info to display
      */
-    private static void printBalanceItem (String tabName, Column colName, CardTransaction transInfo) {
+    private static void printBalanceItem (Column colName, CardTransaction transInfo) {
         if (! GUIMain.isGUIMode()) {
             return;
         }
@@ -524,7 +508,7 @@ public class GUIOrderPanel {
 
         String entry;
         if (colName == Column.UserName) {
-            entry = tabName;
+            entry = transInfo.getTabName();
         } else {
             entry = getBalanceEntry (transInfo, colName);
             if (entry == null) {

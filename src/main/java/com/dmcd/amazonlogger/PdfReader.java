@@ -276,8 +276,7 @@ public class PdfReader {
         }
 
         // find the valid entries for each user
-        ArrayList<CardTransaction> cardList;
-        boolean bFirstTime = true;
+        ArrayList<CardTransaction> cardList = new ArrayList<>();
         for (int ix = 0; ix < Spreadsheet.getTabCount(); ix++) {
             String strTab = Spreadsheet.getTabName(ix);
             if (tabSelect.indexOf(strTab) >= 0) {
@@ -291,28 +290,52 @@ public class PdfReader {
             } else {
                 mapList.put(strTab, cardList);
 
-                // now output info to the GUI display
-                if (GUIMain.isGUIMode()) {
-                    GUIOrderPanel.printBalanceHeader(bFirstTime);
-                    bFirstTime = false;
-                    int col = Spreadsheet.getColumn(Spreadsheet.Column.OrderNumber);
-                    for (int cardix = 0; cardix < cardList.size(); cardix++) {
-                        CardTransaction trans = cardList.get(cardix);
-                        // add in the corresponding order info from the spreadsheet
-                        int row = OpenDoc.findColumnEntry (strTab, col, 2, trans.getOrderNumber());
-                        if (row >= 0) {
-                            ArrayList<Spreadsheet.Column> cols = new ArrayList<>();
-                            cols.add(Spreadsheet.Column.Total);
-                            cols.add(Spreadsheet.Column.Payment);
-                            cols.add(Spreadsheet.Column.Pending);
-                            cols.add(Spreadsheet.Column.Refund);
-                            ArrayList<String> rowData = Spreadsheet.getRowValues(strTab, row, cols);
-                            trans.setSpreadsheetEntries(row, rowData, cols);
-                        }
-                        GUIOrderPanel.printBalance (strTab, trans);
+                // add in the corresponding order info from the spreadsheet
+                int col = Spreadsheet.getColumn(Spreadsheet.Column.OrderNumber);
+                for (int cardix = 0; cardix < cardList.size(); cardix++) {
+                    CardTransaction trans = cardList.get(cardix);
+                    int row = OpenDoc.findColumnEntry (strTab, col, 2, trans.getOrderNumber());
+                    if (row >= 0) {
+                        ArrayList<Spreadsheet.Column> cols = new ArrayList<>();
+                        cols.add(Spreadsheet.Column.Total);
+                        cols.add(Spreadsheet.Column.Payment);
+                        cols.add(Spreadsheet.Column.Pending);
+                        cols.add(Spreadsheet.Column.Refund);
+                        ArrayList<String> rowData = Spreadsheet.getRowValues(strTab, row, cols);
+                        trans.setSpreadsheetEntries(strTab, row, rowData, cols);
                     }
-                    GUIOrderPanel.printNewLine();
                 }
+            }
+        }
+
+        // re-order the entries based on the row numbers
+        for (int ix = 0; ix < Spreadsheet.getTabCount(); ix++) {
+            cardList = mapList.get(Spreadsheet.getTabName(ix));
+            for (int cardix_1 = 0; cardix_1 < cardList.size() - 1; cardix_1++) {
+                for (int cardix_2 = cardix_1 + 1; cardix_2 < cardList.size(); cardix_2++) {
+                    CardTransaction entry_1 = cardList.get(cardix_1);
+                    CardTransaction entry_2 = cardList.get(cardix_2);
+                    if (entry_2.getRow() < entry_1.getRow()) {
+                        cardList.set(cardix_1, entry_2);
+                        cardList.set(cardix_2, entry_1);
+                    }
+                }
+            }
+        }
+        
+        // now output info to the GUI display
+        if (GUIMain.isGUIMode()) {
+            boolean bFirstTime = true;
+            for (int ix = 0; ix < Spreadsheet.getTabCount(); ix++) {
+                String strTab = Spreadsheet.getTabName(ix);
+                cardList = mapList.get(strTab);
+                GUIOrderPanel.printBalanceHeader(bFirstTime);
+                bFirstTime = false;
+                for (int cardix = 0; cardix < cardList.size(); cardix++) {
+                    CardTransaction trans = cardList.get(cardix);
+                    GUIOrderPanel.printBalance (strTab, trans);
+                }
+                GUIOrderPanel.printNewLine();
             }
         }
         

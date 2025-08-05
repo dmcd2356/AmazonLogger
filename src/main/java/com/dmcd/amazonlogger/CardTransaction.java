@@ -22,6 +22,7 @@ public class CardTransaction {
     private Integer amount;         // the amount of the transaction in cents (credits are -, debits are +)
     private String  vendor;         // the vendor name
     // from the spreadsheet
+    private String  tab_name;       // name of the spreadsheet tab
     private Integer row;            // the spreadsheet row containing the entry
     private String  payment;        // the amount paid for the item
     private String  pending;        // amount pending (payment or refund)
@@ -59,12 +60,13 @@ public class CardTransaction {
         this.amount += amount;
     }
     
-    public void setSpreadsheetEntries(int row, ArrayList<String> rowInfo, ArrayList<Spreadsheet.Column> col) throws ParserException {
+    public void setSpreadsheetEntries(String tabName, int row, ArrayList<String> rowInfo, ArrayList<Spreadsheet.Column> col) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (rowInfo.size() != col.size()) {
             throw new ParserException(functionId + "row " + row + " data has incorrect number of entries: " + rowInfo.size() + ", col size = " + col.size());
         }
+        this.tab_name = tabName;
         this.row = row + 1; // the spreadsheet shoes based on 1st line = 1, the index is zero-based
         for (int ix = 0; ix < col.size(); ix++) {
             Spreadsheet.Column colName = col.get(ix);
@@ -87,7 +89,11 @@ public class CardTransaction {
             }
         }
     }
-    
+
+    public String getTabName() {
+        return this.tab_name;
+    }
+        
     public String getOrderNumber() {
         return this.order_num;
     }
@@ -104,7 +110,7 @@ public class CardTransaction {
         return this.amount;
     }
         
-    public String getPaid () {
+    public String getPayment () {
         return this.payment;
     }
         

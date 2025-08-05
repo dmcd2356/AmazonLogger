@@ -239,17 +239,22 @@ public class Utils {
     * 
     *  @return the corresponding dollar amount as a string (e.g. 12.56 or -123.00)
     */
-    public static String cvtAmountToString (int amtCents) {
+    public static String cvtAmountToString (Integer amtCents) {
+        if (amtCents == null) {
+            return null;
+        }
+
         String strAmt;
         int amtDollers = amtCents / 100;
         amtCents = amtCents % 100;
         if (amtCents < 0) {
             amtCents = -1 * amtCents;
         }
-        if (amtCents < 10)
+        if (amtCents < 10) {
             strAmt = amtDollers + ".0" + amtCents;
-        else
+        } else {
             strAmt = amtDollers + "." + amtCents;
+        }
         return strAmt;
     }
 
