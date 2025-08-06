@@ -17,20 +17,22 @@ public class CardTransaction {
     
     private static final String CLASS_NAME = CardTransaction.class.getSimpleName();
     
-    private String  trans_date;     // the date of the transaction
-    private String  order_num;      // the Amazon order number
-    private Integer amount;         // the amount of the transaction in cents (credits are -, debits are +)
-    private String  vendor;         // the vendor name
-    // from the spreadsheet
-    private String  tab_name;       // name of the spreadsheet tab
-    private Integer row;            // the spreadsheet row containing the entry
-    private String  payment;        // the amount paid for the item
-    private String  pending;        // amount pending (payment or refund)
-    private String  total;          // the total for the order
-    private String  refund;         // the amount refunded
-    // statuc 
-    private boolean completed;      // true when the item has been found in the spreadsheet
-    private boolean amazonEntry;    // true if entry is an Amazon type
+    // these are extracted from the PDF file
+    private final String  trans_date;   // the date of the transaction
+    private       String  order_num;    // the Amazon order number
+    private       Integer amount;       // the amount of the transaction in cents (credits are -, debits are +)
+    private final String  vendor;       // the vendor name
+    // these are extracted from the spreadsheet
+    private String  tab_name;           // name of the spreadsheet tab
+    private Integer row;                // the spreadsheet row containing the entry
+    private Integer items;              // number of items in the order
+    private String  payment;            // the amount paid for the item
+    private String  pending;            // amount pending (payment or refund)
+    private String  total;              // the total for the order
+    private String  refund;             // the amount refunded
+    // status values
+    private       boolean completed;    // true when the item has been found in the spreadsheet
+    private final boolean amazonEntry;  // true if entry is an Amazon type
         
     CardTransaction (String strDate, String strVendor, Integer amount) {
         this.completed  = false;
@@ -51,7 +53,8 @@ public class CardTransaction {
     public void setOrderNumber (String orderNum) {
         this.order_num = orderNum;
     }
-        
+
+    // this is called when the listed entry has been balanced in the spreadsheet
     public void setCompleted() {
         this.completed = true;
     }
@@ -67,7 +70,7 @@ public class CardTransaction {
             throw new ParserException(functionId + "row " + row + " data has incorrect number of entries: " + rowInfo.size() + ", col size = " + col.size());
         }
         this.tab_name = tabName;
-        this.row = row + 1; // the spreadsheet shoes based on 1st line = 1, the index is zero-based
+        this.row = row;
         for (int ix = 0; ix < col.size(); ix++) {
             Spreadsheet.Column colName = col.get(ix);
             String rowValue = rowInfo.get(ix);
@@ -109,7 +112,7 @@ public class CardTransaction {
     public Integer getAmount() {
         return this.amount;
     }
-        
+
     public String getPayment () {
         return this.payment;
     }
@@ -124,6 +127,26 @@ public class CardTransaction {
         
     public String getRefund () {
         return this.refund;
+    }
+    
+    public Integer getIntPayment () throws ParserException {
+        String value = this.payment;
+        return (value == null || value.isEmpty()) ? 0 : Utils.getAmountValue(value);
+    }
+        
+    public Integer getIntPending () throws ParserException {
+        String value = this.pending;
+        return (value == null || value.isEmpty()) ? 0 : Utils.getAmountValue(value);
+    }
+        
+    public Integer getIntTotal () throws ParserException {
+        String value = this.total;
+        return (value == null || value.isEmpty()) ? 0 : Utils.getAmountValue(value);
+    }
+        
+    public Integer getIntRefund () throws ParserException {
+        String value = this.refund;
+        return (value == null || value.isEmpty()) ? 0 : Utils.getAmountValue(value);
     }
     
     public Integer getRow() {

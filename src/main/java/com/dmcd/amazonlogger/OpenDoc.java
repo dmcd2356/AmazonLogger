@@ -101,6 +101,8 @@ public class OpenDoc {
         sheetSel.setRowCount(row, -1);
         sheetSel.ensureColumnCount(col);
         sheetSel.ensureRowCount(row);
+        col = sheetSel.getColumnCount();
+        row = sheetSel.getRowCount();
         GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "sheet '" + getSheetName() + "' new size: cols " + col + " rows " + row);
     }
     
@@ -524,10 +526,17 @@ public class OpenDoc {
             throw new ParserException(functionId + "col " + col + " exceeds max: " + colSize);
         }
 
-        sheetSel.getCellAt(col,row).setBackgroundColor(color);
-
+        MutableCell cell = sheetSel.getCellAt(col,row);
         String hexColor = String.format("0x%06x", color.getRGB());
-        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "set color " + OpenDoc.getSheetName() + " row " + row + " col " + col + " RGB -> " + hexColor);
+        if (cell != null) {
+            try {
+                cell.setBackgroundColor(color);
+                GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "set color " + OpenDoc.getSheetName() +
+                        " row " + row + " col " + col + " RGB -> " + hexColor);
+            } catch (org.jdom.IllegalDataException exMsg) {
+                GUILogPanel.outputInfoMsg(MsgType.WARN, "ERROR on setCellColor: col " + col + ", row " + row + ", color = " + hexColor);
+            }
+        }
     }
     
     /**    

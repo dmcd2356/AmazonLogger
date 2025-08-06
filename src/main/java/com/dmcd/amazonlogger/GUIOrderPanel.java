@@ -69,10 +69,11 @@ public class GUIOrderPanel {
     // These are used to identify the item being displayed, and are used in
     //  specifying the characteristics (e.g. the field length) for that entry.
     private static enum Column { 
-        DateOrdered,
         OrderNumber, 
+        DateOrdered,
+        DateDelivered,
+        DatePaid,
         Total, 
-        DateDelivered, 
         ItemIndex,
         Qty, 
         Description, 
@@ -107,6 +108,7 @@ public class GUIOrderPanel {
         msgInfo.put(Column.Qty          , new MsgControl ( 2, 'L', "N", TextColor.Black));
         msgInfo.put(Column.Description  , new MsgControl (50, 'L', "N", TextColor.DkVio));
         // these are gathered by the INVOICE selection
+        msgInfo.put(Column.DatePaid     , new MsgControl (10, 'C', "N", TextColor.Blue));
         msgInfo.put(Column.ItemPrice    , new MsgControl ( 7, 'R', "N", TextColor.Green));
         msgInfo.put(Column.Tax          , new MsgControl ( 5, 'R', "N", TextColor.Green));
         msgInfo.put(Column.Seller       , new MsgControl (20, 'L', "N", TextColor.Green));
@@ -222,13 +224,13 @@ public class GUIOrderPanel {
         }
         printText (Column.UserName     , "User name"   , true);
         printText (Column.Row          , "Row"         , true);
-        printText (Column.DateOrdered  , "Order date"  , true);
+        printText (Column.DatePaid     , "Date paid"   , true);
         printText (Column.OrderNumber  , "Order number", true);
         printText (Column.Paid         , "Paid"        , true);
-        printText (Column.Payment      , "Payment"     , true, TextColor.Green);
         printText (Column.Total        , "Total"       , true, TextColor.Green);
-        printText (Column.Pending      , "Pending"     , true, TextColor.Green);
+        printText (Column.Payment      , "Payment"     , true, TextColor.Green);
         printText (Column.Refund       , "Refund"      , true, TextColor.Green);
+        printText (Column.Pending      , "Pending"     , true, TextColor.Green);
         printNewLine();
         printSeparator(120, "_");
     }
@@ -246,13 +248,13 @@ public class GUIOrderPanel {
 
         printBalanceItem (Column.UserName     , entry);        
         printBalanceItem (Column.Row          , entry);        
-        printBalanceItem (Column.DateOrdered  , entry);        
+        printBalanceItem (Column.DatePaid     , entry);        
         printBalanceItem (Column.OrderNumber  , entry);        
         printBalanceItem (Column.Paid         , entry);        
-        printBalanceItem (Column.Payment      , entry);
         printBalanceItem (Column.Total        , entry);        
-        printBalanceItem (Column.Pending      , entry);        
+        printBalanceItem (Column.Payment      , entry);
         printBalanceItem (Column.Refund       , entry);        
+        printBalanceItem (Column.Pending      , entry);        
         printNewLine();
     }
 
@@ -357,12 +359,17 @@ public class GUIOrderPanel {
         String entry = null;
         switch (colName) {
             case Row:
-                entry = transInfo.getRow().toString();
+                Integer row = transInfo.getRow();
+                if (row != null) {
+                    // the displayed row is based on 1st line = 1, but the index is zero-based,
+                    //  so add 1 for the deiplay.
+                    entry = Integer.toString(row + 1);
+                }
                 break;
             case OrderNumber:
                 entry = transInfo.getOrderNumber();
                 break;
-            case DateOrdered:
+            case DatePaid:
                 entry = transInfo.getTransDate();
                 break;
             case Paid:

@@ -278,39 +278,40 @@ public class PdfReader {
         // find the valid entries for each user
         ArrayList<CardTransaction> cardList = new ArrayList<>();
         for (int ix = 0; ix < Spreadsheet.getTabCount(); ix++) {
-            String strTab = Spreadsheet.getTabName(ix);
-            if (tabSelect.indexOf(strTab) >= 0) {
+            String tabName = Spreadsheet.getTabName(ix);
+            if (tabSelect.indexOf(tabName) >= 0) {
                 // skip entry if this tab has already been processed
-                GUILogPanel.outputInfoMsg(MsgType.INFO, "Skipping " + strTab + "'s list, since it was already balanced");
+                GUILogPanel.outputInfoMsg(MsgType.INFO, "Skipping " + tabName + "'s list, since it was already balanced");
                 continue;
             }
-            cardList = checkForNewEntries (strTab, transactionList);
+            cardList = checkForNewEntries (tabName, transactionList);
             if (cardList.isEmpty()) {
-                GUILogPanel.outputInfoMsg(MsgType.INFO, "No entries usable in " + strTab + "'s list...");
+                GUILogPanel.outputInfoMsg(MsgType.INFO, "No entries usable in " + tabName + "'s list...");
             } else {
-                mapList.put(strTab, cardList);
+                mapList.put(tabName, cardList);
 
                 // add in the corresponding order info from the spreadsheet
                 int col = Spreadsheet.getColumn(Spreadsheet.Column.OrderNumber);
                 for (int cardix = 0; cardix < cardList.size(); cardix++) {
                     CardTransaction trans = cardList.get(cardix);
-                    int row = OpenDoc.findColumnEntry (strTab, col, 2, trans.getOrderNumber());
+                    int row = OpenDoc.findColumnEntry (tabName, col, 2, trans.getOrderNumber());
                     if (row >= 0) {
                         ArrayList<Spreadsheet.Column> cols = new ArrayList<>();
                         cols.add(Spreadsheet.Column.Total);
                         cols.add(Spreadsheet.Column.Payment);
                         cols.add(Spreadsheet.Column.Pending);
                         cols.add(Spreadsheet.Column.Refund);
-                        ArrayList<String> rowData = Spreadsheet.getRowValues(strTab, row, cols);
-                        trans.setSpreadsheetEntries(strTab, row, rowData, cols);
+                        ArrayList<String> rowData = Spreadsheet.getRowValues(tabName, row, cols);
+                        trans.setSpreadsheetEntries(tabName, row, rowData, cols);
                     }
                 }
             }
         }
 
         // re-order the entries based on the row numbers
-        for (int ix = 0; ix < Spreadsheet.getTabCount(); ix++) {
-            cardList = mapList.get(Spreadsheet.getTabName(ix));
+        for (HashMap.Entry<String, ArrayList<CardTransaction>> entry : mapList.entrySet()) {
+            String tabName = entry.getKey();
+            cardList = entry.getValue();
             for (int cardix_1 = 0; cardix_1 < cardList.size() - 1; cardix_1++) {
                 for (int cardix_2 = cardix_1 + 1; cardix_2 < cardList.size(); cardix_2++) {
                     CardTransaction entry_1 = cardList.get(cardix_1);
@@ -326,14 +327,14 @@ public class PdfReader {
         // now output info to the GUI display
         if (GUIMain.isGUIMode()) {
             boolean bFirstTime = true;
-            for (int ix = 0; ix < Spreadsheet.getTabCount(); ix++) {
-                String strTab = Spreadsheet.getTabName(ix);
-                cardList = mapList.get(strTab);
+            for (HashMap.Entry<String, ArrayList<CardTransaction>> entry : mapList.entrySet()) {
+                String tabName = entry.getKey();
+                cardList = entry.getValue();
                 GUIOrderPanel.printBalanceHeader(bFirstTime);
                 bFirstTime = false;
                 for (int cardix = 0; cardix < cardList.size(); cardix++) {
                     CardTransaction trans = cardList.get(cardix);
-                    GUIOrderPanel.printBalance (strTab, trans);
+                    GUIOrderPanel.printBalance (tabName, trans);
                 }
                 GUIOrderPanel.printNewLine();
             }
@@ -359,11 +360,41 @@ public class PdfReader {
 
         String strPdfName = Utils.getFileRootname(pdfFile);
 
+        boolean bFirstTime = true;
         for (HashMap.Entry<String, ArrayList<CardTransaction>> entry : mapList.entrySet()) {
             String tabName = entry.getKey();
-            ArrayList<CardTransaction> list = entry.getValue();
-            balanceSpreadsheetEntries(tabName, list, strPdfName);
+            ArrayList<CardTransaction> cardList = entry.getValue();
+
+            // perform the balances
+            balanceSpreadsheetEntries(tabName, cardList, strPdfName);
+
+            // update the spreadsheet info and display
+            GUIOrderPanel.printBalanceHeader(bFirstTime);
+            bFirstTime = false;
+            int col = Spreadsheet.getColumn(Spreadsheet.Column.OrderNumber);
+            for (int cardix = 0; cardix < cardList.size(); cardix++) {
+                CardTransaction trans = cardList.get(cardix);
+                int row = OpenDoc.findColumnEntry (tabName, col, 2, trans.getOrderNumber());
+                if (row >= 0) {
+                    ArrayList<Spreadsheet.Column> cols = new ArrayList<>();
+                    cols.add(Spreadsheet.Column.Total);
+                    cols.add(Spreadsheet.Column.Payment);
+                    cols.add(Spreadsheet.Column.Pending);
+                    cols.add(Spreadsheet.Column.Refund);
+                    ArrayList<String> rowData = Spreadsheet.getRowValues(tabName, row, cols);
+                    trans.setSpreadsheetEntries(tabName, row, rowData, cols);
+
+                    // update the display data
+                    GUIOrderPanel.printBalance (tabName, trans);
+                }
+            }
+            GUIOrderPanel.printNewLine();
         }
+
+
+        // update display of last balance performed
+        String lastBalance = Spreadsheet.showLastLineInfo();
+        GUIMain.showLastBalance(lastBalance);
     }
     
     /**
@@ -459,16 +490,14 @@ public class PdfReader {
         for (int ix = 0; ix < transactionList.size(); ix++) {
             CardTransaction cardEntry = transactionList.get(ix);
 
-            // ...search each entry in the spreadsheet for a matching order number
-            int foundRow = Spreadsheet.findItemNumber (cardEntry.getOrderNumber());
-            if (foundRow <= 0) {
-                continue; // order number not found in spreadsheet, skip this entry
-            }
+            // get the starting row for the order number and the number of items (rows) in the order
+            int firstRow = cardEntry.getRow();
+            int itemCount = Spreadsheet.getNumberOfItems(firstRow);
                     
             // get the info for the row in the spreadsheet
-            Integer iTotalCost = Spreadsheet.getTotalCost (foundRow);
-            Integer iPayment   = Spreadsheet.getPaymentAmount (foundRow);
-            Integer iRefund    = Spreadsheet.getRefundAmount (foundRow);
+            Integer iTotalCost = cardEntry.getIntTotal();
+            Integer iPayment   = cardEntry.getIntPayment();
+            Integer iRefund    = cardEntry.getIntRefund();
             GUILogPanel.outputInfoMsg(MsgType.INFO, "found match to: " + cardEntry.getOrderNumber());
 
             // if Payment (or Refund) already has a value in the spreadsheet entry, the
@@ -488,21 +517,17 @@ public class PdfReader {
 
             // 'iAmtAdj' is the payment or refund amount that is currently specified
             //  in the corresponding spreadsheet column, in cents
-            if (iAmtAdj != null) {
-                GUILogPanel.outputInfoMsg(MsgType.INFO, "adjustment amount from current cell: "
+            GUILogPanel.outputInfoMsg(MsgType.INFO, "adjustment amount from current cell: "
                                             + Utils.cvtAmountToString(iAmtAdj));
-            } else {
-                iAmtAdj = 0;
-            }
 
             // add the payment amount from the credit card sheet to the current amount
             //  either paid or received. and update the Payment/Refund column accordingly.
             // 'iTotalAmt' is then the current total of payments/refund for the order.
             int iTotalAmt = cardEntry.getAmount() + iAmtAdj;
             if (bPayment) {
-                Spreadsheet.setSpreadsheetPayment (foundRow, iTotalAmt);
+                Spreadsheet.setSpreadsheetPayment (firstRow, iTotalAmt);
             } else {
-                Spreadsheet.setSpreadsheetRefund (foundRow, iTotalAmt);
+                Spreadsheet.setSpreadsheetRefund (firstRow, iTotalAmt);
             }
 
             // check if the payment is complete. it's possible that there were multiple
@@ -512,18 +537,18 @@ public class PdfReader {
             boolean bRemaining = false;
             if (bPayment) {
                 // save the lowest row selection in which we had a payment match
-                firstPaymentRow = foundRow < firstPaymentRow ? foundRow : firstPaymentRow;
+                firstPaymentRow = firstRow < firstPaymentRow ? firstRow : firstPaymentRow;
 
                 // 'iTotalCost' is the total cost (in cents) of the order from the spreadsheet,
                 //   but is only found on the 1st entry of the order.
-                if (iTotalCost != null) {
+                if (cardEntry.getTotal() != null && ! cardEntry.getTotal().isEmpty()) {
                     // check if the total amount has been accounted for
                     // 'iTotalCost' is the total cost of the order from the spreadsheet,
                     //   but is only found on the 1st entry of the order.
                     int iRemaining = iTotalCost - iTotalAmt;
                     if (iRemaining != 0) {
                         bRemaining = true;
-                        Spreadsheet.setSpreadsheetPending (foundRow, iRemaining);
+                        Spreadsheet.setSpreadsheetPending (firstRow, iRemaining);
                         GUILogPanel.outputInfoMsg(MsgType.INFO,
                                 "Total cost: "   + Utils.cvtAmountToString(iTotalCost) +
                                 "Payment: "      + Utils.cvtAmountToString(cardEntry.getAmount()) +
@@ -533,9 +558,9 @@ public class PdfReader {
                 }
             }
 
-            for (int count = 0; Spreadsheet.getOrderNumber(foundRow + count).contentEquals(cardEntry.getOrderNumber()); count++) {
-                // mark row with color of the month to mark as complete
-                Spreadsheet.highlightOrderInfo(foundRow + count, bPayment, bRemaining, colorOfMonth);
+            // mark row with color of the month to mark as complete
+            for (int count = 0; count < itemCount; count++) {
+                Spreadsheet.highlightOrderInfo(firstRow + count, bPayment, bRemaining, colorOfMonth);
                 if (count > 0)
                     GUILogPanel.outputInfoMsg(MsgType.INFO, "       (index " + count + ")");
             }

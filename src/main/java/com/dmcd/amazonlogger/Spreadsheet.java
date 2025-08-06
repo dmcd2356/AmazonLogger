@@ -33,12 +33,16 @@ public class Spreadsheet {
 
     private static final String CLASS_NAME = Spreadsheet.class.getSimpleName();
     
+    private static final Integer MAX_DESCRIPT_LEN = 80;     // the max length of description to place in spreadsheet
+    private static final Integer ROW_EXTENSION = 100;       // the number of row entries in the spreadsheet to add beyond the max needed
+    
     private static final String SKIP_AMOUNT = "-";          // the value to use for Total amount if entry is omitted
     private static final String RETURN_DATE = "RETURN";     // the date value to use for Delivered if item was returned
 
     private static Integer  iSheetYear = null;              // the year value the spreadsheet is marked as
     private static int      firstRow = -1;                  // the first row following the header
     private static int      lastValidColumn = 0;            // the column index of the last valid entry
+    private static Integer  currentSheetIx = null;          // the current sheet selection
 
     // the map of column names to column indices in the sheet
     private static final HashMap<Column, Integer> hmSheetColumns = new HashMap<>();
@@ -101,6 +105,54 @@ public class Spreadsheet {
         }
         return null;
     }
+
+    /**
+     * resizes the current sheet based on current column and row usage.
+     * This is to be used for the case when the header is checked for standard Amazon columns.
+     * 
+     * @param rowExtension - the number of rows to be added
+     * 
+     * @throws ParserException 
+     */
+    public static void resizeSheet (int rowExtension) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (currentSheetIx == null) {
+            throw new ParserException(functionId + "Sheet not currently selected");
+        }
+        if (currentSheetIx < 0 || currentSheetIx >= tabNames.size()) {
+            throw new ParserException(functionId + "Invalid sheet selection " + currentSheetIx);
+        }
+
+        // determine the current actual row usage
+        int curSize = OpenDoc.getRowSize();
+        int curUsage = Spreadsheet.getLastRowIndex();
+        if (curUsage < 0) {
+            curUsage = curSize;
+        }
+
+        // if the current row size isn't large enough to accomodate the new length,
+        //  increase it appropriately.
+        if (rowExtension <= 0) {
+            // the case where we are initializing and haven't yet found the max usage:
+            // -> find the max usage & set size to that value plus a little more.
+            rowExtension = curUsage + ROW_EXTENSION;
+        } else if (curSize > curUsage + rowExtension) {
+            // the case where the current size can accomodate the current increase:
+            // -> don't increase it
+            rowExtension = curSize;
+        } else {
+            // the case where we need an increase to accomodate the new data:
+            // -> increase the length by the greater of the request or our min extension increase
+            rowExtension = (rowExtension > ROW_EXTENSION) ? rowExtension : ROW_EXTENSION;
+        }
+
+        try {
+            OpenDoc.setSize(Column.values().length, rowExtension);
+        } catch (IOException exMsh) {
+            GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "Error in resizing sheet for tab: " + getTabName(currentSheetIx));
+        }
+    }
     
     /**
      * returns the corresponding column index for the specified column name in the spreadsheet.
@@ -147,13 +199,15 @@ public class Spreadsheet {
      * This sets corresponding column index values for each Column name definition
      *  (which matches the column names in the header section of the spreadsheet file).
      * 
+     * @param numSheets    - the number of sheets in use
+     * @param bCheckHeader - true if header to be checked for valid values & resizing applied
      * @throws ParserException
      */
-    private static void setupColumns (boolean bHeader) throws ParserException {
+    private static void setupColumns (int numSheets, boolean bCheckHeader) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         hmSheetColumns.clear();
-        if (! bHeader) {
+        if (! bCheckHeader) {
             GUILogPanel.outputInfoMsg(MsgType.SSHEET, "No header check performed on spreadsheet");
             return;
         }
@@ -229,6 +283,15 @@ public class Spreadsheet {
             throw new ParserException(functionId + "Header column missing required entry(ies): " + (12 - count));
         }
         
+        // resize spreadsheet image to reasonable amount
+        if (bCheckHeader) {
+            for (int ix = 0; ix < numSheets; ix++) {
+                OpenDoc.setSheetSelection(ix);
+                currentSheetIx = ix;
+                resizeSheet(0);
+            }
+        }
+
         GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Header columns successfully placed in columns");
     }
 
@@ -710,8 +773,13 @@ public class Spreadsheet {
                 String strVal = (ix + 1) + " of " + order.getItemCount();
                 if (setSpreadsheetString (row, strOrdNum, bOverwrite, true, Column.ItemIndex, strVal) < 0)  return ix;
             }
+            // shorten the description placed in the spreadsheet if it is exceedingly long
+            String descript = item.getDescription();
+            if (descript.length() > MAX_DESCRIPT_LEN) {
+                descript = descript.substring(0, MAX_DESCRIPT_LEN - 1);
+            }
             if (setSpreadsheetInteger (row, strOrdNum, bOverwrite, true,  Column.Qty,           item.getQuantity())    <= 0) return ix;
-            if (setSpreadsheetString  (row, strOrdNum, bOverwrite, true,  Column.Description, item.getDescription()) <= 0) return ix;
+            if (setSpreadsheetString  (row, strOrdNum, bOverwrite, true,  Column.Description, descript)              <= 0) return ix;
             if (setSpreadsheetCost    (row, strOrdNum, bOverwrite, false, Column.ItemPrice,     item.getItemCost())    <  0) return ix;
             if (setSpreadsheetString  (row, strOrdNum, bOverwrite, false, Column.Seller,      item.getSeller())      <  0) return ix;
         }
@@ -833,6 +901,29 @@ public class Spreadsheet {
     }
 
     /**
+     * returns the number of items listed for the given row.
+     * 
+     * @return the number of items for the order (0 if row is not 1st entry)
+     * 
+     * @param row - the row to check for number of entries
+     * 
+     * @throws ParserException
+     */
+    public static int getNumberOfItems (int row) throws ParserException {
+        int col = getColumn(Column.ItemIndex);
+        String count = OpenDoc.getCellTextValue(col, row);
+        if (count == null || count.isEmpty()) {
+            return 1;
+        }
+        if (! count.startsWith("1 of ")) {
+            return 0;
+        }
+        count = count.substring(5);
+        Integer value = Integer.valueOf(count);
+        return value;
+    }
+
+    /**
      * indicates if the selected sheet of the spreadsheet is empty.
      * (excluding the header info)
      * 
@@ -935,6 +1026,7 @@ public class Spreadsheet {
 
         // restore selection to what it was on entry
         OpenDoc.setSheetSelection(curSheet);
+        currentSheetIx = curSheet;
         return bFound;
     }
 
@@ -995,6 +1087,7 @@ public class Spreadsheet {
 
         // restore selection to what it was on entry
         OpenDoc.setSheetSelection(curSheet);
+        currentSheetIx = curSheet;
         return lastdate;
     }
     /**
@@ -1054,6 +1147,7 @@ public class Spreadsheet {
             }
         }
         OpenDoc.setSheetSelection(sheetNum);
+        currentSheetIx = sheetNum;
 
         PropertiesFile.setPropertiesItem(Property.SpreadsheetTab, name);
     }
@@ -1354,7 +1448,7 @@ public class Spreadsheet {
         }
 
         // check if spreadsheet header is valid and setup column selections if so
-        setupColumns(bCheckHeader);
+        setupColumns(numSheets, bCheckHeader);
         
         // check to see what year this spreadsheet is for (we will only add entries for that year)
         if (bCheckHeader) {
@@ -1390,6 +1484,7 @@ public class Spreadsheet {
 
         for (int ix = 0; ix < numSheets; ix++) {
             OpenDoc.setSheetSelection(ix);
+            currentSheetIx = curSheet;
             if (! isSheetEmpty()) {
                 String tab   = OpenDoc.getSheetName();
                 Integer row  = getLastRowIndex();
@@ -1402,7 +1497,7 @@ public class Spreadsheet {
                 GUIMain.setLastLineInfo (ix + 1, tab, row.toString(), order, date, desc);
 
                 // get the last credit card balance for each tab
-                String balance = Spreadsheet.getLastCreditCardEntry();
+                String balance = getLastCreditCardEntry();
                 if (balance != null) {
                     lastBalance += tab + ": " + balance + "   ";
                 }
@@ -1411,6 +1506,7 @@ public class Spreadsheet {
         
         // remember to save the original sheet selection
         OpenDoc.setSheetSelection(curSheet);
+        currentSheetIx = curSheet;
         return lastBalance;
     }
     
