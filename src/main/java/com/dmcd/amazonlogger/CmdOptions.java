@@ -655,6 +655,7 @@ public class CmdOptions {
                     if (file.exists()) {
                         throw new ParserException(functionId + "File already exists: " + file.getAbsolutePath());
                     }
+                    Spreadsheet.setFileSelection(file);
                     OpenDoc.fileCreate (file, tabName, arrList);
                     break;
                 case "-stest":
@@ -676,6 +677,7 @@ public class CmdOptions {
                     if (file.exists()) {
                         throw new ParserException(functionId + "File already exists: " + file.getAbsolutePath());
                     }
+                    Spreadsheet.setFileSelection(file);
                     OpenDoc.fileCreate (file, tabList, headList);
                     break;
                 case "-saddtab":
@@ -757,7 +759,8 @@ public class CmdOptions {
                     break;
                 case "-save":
                     // save the spreadsheet and reload so another spreadsheet change can be made
-                    OpenDoc.saveToFile(null);
+                    File ssFile = Spreadsheet.getFileSelection();
+                    OpenDoc.saveToFile(ssFile, null);
                     break;
                 case "-date":
                     String strDate = getStringValue(cmdLine, 0);
@@ -783,7 +786,7 @@ public class CmdOptions {
                     String ssPath = Utils.getPathFromPropertiesFile(PropertiesFile.Property.SpreadsheetPath);
                     String ssFname = PropertiesFile.getPropertiesItem(PropertiesFile.Property.SpreadsheetFile, "");
                     if (ssPath != null && ssFname != null) {
-                        File ssFile = new File(ssPath + "/" + ssFname);
+                        ssFile = new File(ssPath + "/" + ssFname);
                         Spreadsheet.selectSpreadsheet(ssFile);
                         Spreadsheet.loadSheets(numTabs, bCheckHeader);
                     }
@@ -805,7 +808,8 @@ public class CmdOptions {
                         throw new ParserException(functionId + "Null argument value");
                     }
                     OpenDoc.setSize(iCol, iRow);
-                    OpenDoc.saveToFile(null);
+                    ssFile = Spreadsheet.getFileSelection();
+                    OpenDoc.saveToFile(ssFile, null);
                     break;
                 case "-find":
                     String order = getStringValue(cmdLine, 0);

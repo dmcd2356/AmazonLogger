@@ -580,7 +580,8 @@ public class PdfReader {
         }
 
         // save the data to the spreadsheet file
-        OpenDoc.saveToFile(sheetName);
+        File ssFile = Spreadsheet.getFileSelection();
+        OpenDoc.saveToFile(ssFile, sheetName);
     }
 
 }

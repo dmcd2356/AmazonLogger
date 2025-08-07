@@ -43,6 +43,7 @@ public class Spreadsheet {
     private static int      firstRow = -1;                  // the first row following the header
     private static int      lastValidColumn = 0;            // the column index of the last valid entry
     private static Integer  currentSheetIx = null;          // the current sheet selection
+    private static File     spreadsheetFile;                // the spreadsheet file
 
     // the map of column names to column indices in the sheet
     private static final HashMap<Column, Integer> hmSheetColumns = new HashMap<>();
@@ -80,6 +81,7 @@ public class Spreadsheet {
         iSheetYear = null;
         firstRow = -1;
         lastValidColumn = 0;
+        spreadsheetFile = null;
     }
 
     /**
@@ -110,18 +112,16 @@ public class Spreadsheet {
      * resizes the current sheet based on current column and row usage.
      * This is to be used for the case when the header is checked for standard Amazon columns.
      * 
+     * @param tabName      - the selected sheet tab name
      * @param rowExtension - the number of rows to be added
      * 
      * @throws ParserException 
      */
-    public static void resizeSheet (int rowExtension) throws ParserException {
+    public static void resizeSheet (String tabName, int rowExtension) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (currentSheetIx == null) {
-            throw new ParserException(functionId + "Sheet not currently selected");
-        }
-        if (currentSheetIx < 0 || currentSheetIx >= tabNames.size()) {
-            throw new ParserException(functionId + "Invalid sheet selection " + currentSheetIx);
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
         }
 
         // determine the current actual row usage
@@ -150,7 +150,7 @@ public class Spreadsheet {
         try {
             OpenDoc.setSize(Column.values().length, rowExtension);
         } catch (IOException exMsh) {
-            GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "Error in resizing sheet for tab: " + getTabName(currentSheetIx));
+            GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "Error in resizing sheet for tab: " + tabName);
         }
     }
     
@@ -211,6 +211,9 @@ public class Spreadsheet {
             GUILogPanel.outputInfoMsg(MsgType.SSHEET, "No header check performed on spreadsheet");
             return;
         }
+        
+        // we will use the 1st sheet to determine the validity of the columns and assume others are the same
+        OpenDoc.setSheetSelection(0);
         
         // search the first column in the first 5 rows of the spreadsheet for
         // one of the column names (only need to search 1st 4 columns)
@@ -287,8 +290,7 @@ public class Spreadsheet {
         if (bCheckHeader) {
             for (int ix = 0; ix < numSheets; ix++) {
                 OpenDoc.setSheetSelection(ix);
-                currentSheetIx = ix;
-                resizeSheet(0);
+                resizeSheet(getTabName(ix), 0);
             }
         }
 
@@ -309,6 +311,9 @@ public class Spreadsheet {
     private static String getStringValue (Column colEnum, int row) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         String strValue = "";
         int rowSize = OpenDoc.getRowSize();
         if (row >= rowSize) {
@@ -339,6 +344,9 @@ public class Spreadsheet {
     private static Integer getIntegerValue (Column colEnum, int row, int iDecShift) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         Integer iValue = 0;
         Integer col = getColumn(colEnum);
         int rowSize = OpenDoc.getRowSize();
@@ -422,6 +430,9 @@ public class Spreadsheet {
     public static String getDateOrdered (int row) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         int rowSize = OpenDoc.getRowSize();
         if (row >= rowSize) {
             throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
@@ -523,6 +534,9 @@ public class Spreadsheet {
     private static int setSpreadsheetString (int row, String strOrdNum, boolean bOverwrite, boolean bIsRequired, Column colEnum, String strVal) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         // value not defined, just exit
         if (strVal == null)
             return 0;
@@ -570,6 +584,9 @@ public class Spreadsheet {
     private static int setSpreadsheetInteger (int row, String strOrdNum, boolean bOverwrite, boolean bIsRequired, Column colEnum, Integer iVal) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         // value not defined, just exit
         if (iVal == null)
             return 0;
@@ -617,6 +634,9 @@ public class Spreadsheet {
     private static int setSpreadsheetCost (int row, String strOrdNum, boolean bOverwrite, boolean bIsRequired, Column colEnum, Integer iVal) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         // value not defined, just exit
         if (iVal == null)
             return 0;
@@ -667,6 +687,9 @@ public class Spreadsheet {
     private static int setSpreadsheetDate (int row, String strOrdNum, boolean bOverwrite, boolean bIsRequired, Column colEnum, LocalDate date) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         // value not defined, just exit
         if (date == null)
             return 0;
@@ -713,6 +736,9 @@ public class Spreadsheet {
     public static int setSpreadsheetOrderInfo (int startRow, AmazonOrder order, boolean bOverwrite) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         // check for input errors
         if (startRow < 0 || order == null || order.isItemEmpty()) {
             return 0;
@@ -850,6 +876,9 @@ public class Spreadsheet {
     public static void highlightOrderInfo (int row, boolean bPayment, boolean bRemaining, Color colorOfMonth) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         int rowSize = OpenDoc.getRowSize();
         if (row >= rowSize) {
             throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
@@ -888,6 +917,11 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static int getLastRowIndex () throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         // find the first row in the current sheet that has a blank OrderNumber column
         int rowSize = OpenDoc.getRowSize();
         int col = getColumn(Column.OrderNumber);
@@ -910,6 +944,11 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static int getNumberOfItems (int row) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         int col = getColumn(Column.ItemIndex);
         String count = OpenDoc.getCellTextValue(col, row);
         if (count == null || count.isEmpty()) {
@@ -932,6 +971,11 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static boolean isSheetEmpty() throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         int col = getColumn(Column.OrderNumber);
         return OpenDoc.getCellTextValue(col, firstRow).isBlank();
     }
@@ -946,6 +990,11 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static int getItemCount (String strOrderNum) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         int count = -1;
         int rowSize = OpenDoc.getRowSize();
         int col = getColumn(Column.OrderNumber);
@@ -974,6 +1023,11 @@ public class Spreadsheet {
      * @throws ParserException
      */
     public static int findItemNumber (String strOrderNum) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         int rowSize = OpenDoc.getRowSize();
         GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Searching for " + strOrderNum + " in rows " + firstRow + " to " + rowSize);
         for (int row = firstRow; row < rowSize; row++) {
@@ -992,7 +1046,6 @@ public class Spreadsheet {
     /**
      * finds if the selected spreadsheet contains the credit card file name/date.
      * 
-     * @param sheetName  - the sheet to search
      * @param strPdfName - the credit card id (filename/date) to search for
      * 
      * @return true if the credit card entry was found
@@ -1000,12 +1053,8 @@ public class Spreadsheet {
      * @throws IOException 
      * @throws ParserException 
      */
-    public static boolean findCreditCardEntry (String sheetName, String strPdfName) throws IOException, ParserException {
+    private static boolean findCreditCardEntry (int tabIx, String strPdfName) throws IOException, ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        // load the spreadsheet sheets into memory for each account (save current tab selection)
-        int curSheet = OpenDoc.getSheetSelection();
-        selectSpreadsheetTab (sheetName);
 
         // find the last row in each sheet
         boolean bFound = false;
@@ -1018,15 +1067,12 @@ public class Spreadsheet {
             }
             if (cellValue != null && strPdfName.contentEquals(cellValue)) {
                 GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "'" + strPdfName +
-                                                    "' was already balanced in the spreadsheet for " + sheetName);
+                                                    "' was already balanced in the spreadsheet for " + tabNames.get(tabIx));
                 bFound = true;
                 break;
             }
         }
 
-        // restore selection to what it was on entry
-        OpenDoc.setSheetSelection(curSheet);
-        currentSheetIx = curSheet;
         return bFound;
     }
 
@@ -1044,28 +1090,28 @@ public class Spreadsheet {
         ArrayList<String> tabs = new ArrayList<>();
         
         for (int ix = 0; ix < tabNames.size(); ix++) {
-            String tabName = tabNames.get(ix);
-            if (findCreditCardEntry(tabName, strPdfName)) {
-                tabs.add(tabName);
+            OpenDoc.setSheetSelection (ix);
+            if (findCreditCardEntry(ix, strPdfName)) {
+                tabs.add(tabNames.get(ix));
             }
         }
+
+        // restore spreadsheet selection to current
+        if (currentSheetIx != null) {
+            OpenDoc.setSheetSelection (currentSheetIx);
+        }
+
         return tabs;
     }
     
     /**
-     * finds the last recorded date in the selected spreadsheet.
-     * 
-     * @param sheetName  - the sheet to search
+     * finds the last recorded date in the current spreadsheet.
      * 
      * @return the date (in MMDD format) of the last order in the sheet
      * 
      * @throws ParserException 
      */
-    public static String getLastDate (String sheetName) throws ParserException {
-        // load the spreadsheet sheets into memory for each account
-        int curSheet = OpenDoc.getSheetSelection();
-        selectSpreadsheetTab (sheetName);
-
+    public static String getLastDate () throws ParserException {
         // find the last row in each sheet
         String lastdate = null;
         try {
@@ -1085,21 +1131,20 @@ public class Spreadsheet {
             lastdate = null;
         }
 
-        // restore selection to what it was on entry
-        OpenDoc.setSheetSelection(curSheet);
-        currentSheetIx = curSheet;
         return lastdate;
     }
+    
     /**
      * returns the last credit card entry used for the current tab.
      * 
      * @return the last credit card id in the current sheet, null if none or error
      */
     public static String getLastCreditCardEntry () {
-        // find the last row in each sheet
         String cardid = "";
         try {
             int rowSize = OpenDoc.getRowSize();
+            
+            // search for the last credit card entry in sheet
             for (int row = firstRow; row < rowSize; row++) {
                 String cellValue = OpenDoc.getCellTextValue(getColumn(Column.CreditCard),row);
                 String cellOrder = OpenDoc.getCellTextValue(getColumn(Column.OrderNumber),row);
@@ -1166,6 +1211,9 @@ public class Spreadsheet {
     public static void putSpreadsheetRow (int col, int row, ArrayList<String> listVal) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         if (listVal == null || listVal.isEmpty()) {
             throw new ParserException(functionId + "selected sheet is null");
         }
@@ -1186,7 +1234,7 @@ public class Spreadsheet {
                 colsize = col + colLength;
             }
             OpenDoc.setSize(colsize, rowsize);
-            OpenDoc.saveToFile(null);
+            OpenDoc.saveToFile(spreadsheetFile, null);
         }
         
         // add the data
@@ -1209,6 +1257,9 @@ public class Spreadsheet {
     public static void putSpreadsheetCol (int col, int row, ArrayList<String> listVal) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         if (listVal == null || listVal.isEmpty()) {
             throw new ParserException(functionId + "selected sheet is null");
         }
@@ -1229,7 +1280,7 @@ public class Spreadsheet {
                 colsize = col + 1;
             }
             OpenDoc.setSize(colsize, rowsize);
-            OpenDoc.saveToFile(null);
+            OpenDoc.saveToFile(spreadsheetFile, null);
         }
         
         // add the data
@@ -1251,6 +1302,9 @@ public class Spreadsheet {
     public static void putSpreadsheetColorRow (int col, int row, ArrayList<Long> listVal) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         if (listVal == null || listVal.isEmpty()) {
             throw new ParserException(functionId + "selected sheet is null");
         }
@@ -1274,6 +1328,9 @@ public class Spreadsheet {
     public static void putSpreadsheetColorCol (int col, int row, ArrayList<Long> listVal) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         if (listVal == null || listVal.isEmpty()) {
             throw new ParserException(functionId + "selected sheet is null");
         }
@@ -1296,6 +1353,11 @@ public class Spreadsheet {
      * @throws IOException
      */
     public static ArrayList<String> getSpreadsheetRow (int col, int row, int count) throws ParserException, IOException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         ArrayList<String> listVal = new ArrayList<>();
         for (int ix = 0; ix < count; ix++) {
             listVal.add(OpenDoc.getCellTextValue (col + ix, row));
@@ -1316,6 +1378,11 @@ public class Spreadsheet {
      * @throws IOException
      */
     public static ArrayList<String> getSpreadsheetCol (int col, int row, int count) throws ParserException, IOException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (! OpenDoc.isSheetSelected()) {
+            throw new ParserException(functionId + "No sheet selection has been made");
+        }
         ArrayList<String> listVal = new ArrayList<>();
         for (int ix = 0; ix < count; ix++) {
             listVal.add(OpenDoc.getCellTextValue (col, row + ix));
@@ -1360,6 +1427,31 @@ public class Spreadsheet {
     }
     
     /**
+     * sets the file selection to use for the spreadsheet file.
+     * 
+     * @param file  - the spreadsheet file to read from
+     * 
+     * @throws ParserException
+     */
+    public static void setFileSelection (File file) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (file == null) {
+            throw new ParserException(functionId + "Spreadsheet file is not defined");
+        }
+        spreadsheetFile = file;
+    }
+
+    /**
+     * gets the spreadsheet file selection.
+     * 
+     * @return the spreadsheet file selection
+     */
+    public static File getFileSelection () {
+        return spreadsheetFile;
+    }
+
+    /**
      * selects the spreadsheet file to access.
      * 
      * @param ssFile - file to use (optional - will ask user if not supplied)
@@ -1391,7 +1483,7 @@ public class Spreadsheet {
 
             ssFile = new File(filename.getAbsolutePath());
         }
-        OpenDoc.setFileSelection(ssFile);
+        setFileSelection(ssFile);
 
         // check the properties of the spreadsheet file chosen
         GUIMain.setSpreadsheetSelection(ssFile.getAbsolutePath());
@@ -1417,6 +1509,7 @@ public class Spreadsheet {
         // reset the orders lists
         AmazonParser.initLists();
         tabNames.clear();
+        currentSheetIx = null;
     }
 
     /**
@@ -1441,7 +1534,7 @@ public class Spreadsheet {
 
         // load the specified number of tabs of the spreadsheet into memory
         tabNames.clear();
-        OpenDoc.loadFromFile (numSheets);
+        OpenDoc.loadFromFile (spreadsheetFile, numSheets);
         numSheets = OpenDoc.getNumberOfSheets();
         for (int ix = 0; ix < numSheets; ix++) {
             tabNames.add(OpenDoc.getSheetName(ix));
@@ -1475,16 +1568,21 @@ public class Spreadsheet {
         GUIMain.showLastBalance(lastBalance);
     }
 
+    /**
+     * gets the last line info from each active sheet and displays on GUI.
+     * (returns the sheet selection to previous selection upon exit)
+     * 
+     * @return a String containing the last credit card pdf file balanced in each active sheet
+     * 
+     * @throws ParserException 
+     */
     public static String showLastLineInfo() throws ParserException {
         String lastBalance = "";
         int numSheets = OpenDoc.getNumberOfSheets();
         numSheets = (numSheets > 2) ? 2 : numSheets;
 
-        int curSheet = OpenDoc.getSheetSelection();
-
         for (int ix = 0; ix < numSheets; ix++) {
             OpenDoc.setSheetSelection(ix);
-            currentSheetIx = curSheet;
             if (! isSheetEmpty()) {
                 String tab   = OpenDoc.getSheetName();
                 Integer row  = getLastRowIndex();
@@ -1504,9 +1602,11 @@ public class Spreadsheet {
             }
         }
         
-        // remember to save the original sheet selection
-        OpenDoc.setSheetSelection(curSheet);
-        currentSheetIx = curSheet;
+        // restore sheet selection
+        if (currentSheetIx != null) {
+            OpenDoc.setSheetSelection(currentSheetIx);
+        }
+        
         return lastBalance;
     }
     
@@ -1536,7 +1636,7 @@ public class Spreadsheet {
         }
 
         // save the initial spreadsheet file
-        OpenDoc.saveToFile(tabName);
+        OpenDoc.saveToFile(spreadsheetFile, tabName);
         
         int rows = OpenDoc.getRowSize();
         int cols = OpenDoc.getColSize();
@@ -1551,7 +1651,7 @@ public class Spreadsheet {
      * @throws IOException 
      */
     public static void makeBackupCopy(String backupId) throws IOException {
-        File ssFile = OpenDoc.getFileSelection();
+        File ssFile = spreadsheetFile;
         String filePath  = Utils.getFilePath(ssFile);
         String fnameRoot = Utils.getFileRootname(ssFile);
         String fnameExt  = Utils.getFileExtension(ssFile);

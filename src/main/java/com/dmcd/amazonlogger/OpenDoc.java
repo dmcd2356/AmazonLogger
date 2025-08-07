@@ -25,19 +25,24 @@ public class OpenDoc {
     private static final String CLASS_NAME = OpenDoc.class.getSimpleName();
     private static final String INDENT = "     ";
     
-    private static File  spreadsheetFile;               // the spreadsheet file
     private static Sheet sheetSel = null;               // the current spreadsheet tab selection
-    private static int   sheetIx = -1;                  // the current spreadsheet selection index
     private static final ArrayList<Sheet> sheetArray = new ArrayList<>(); // the list of sheets (tabs) loaded in memory
 
     /**
      * initializes all the static parameters
      */
     public static void init() {
-        spreadsheetFile = null;
         sheetSel = null;
-        sheetIx = -1;
         sheetArray.clear();
+    }
+
+    /**
+     * determines if a sheet has been selected
+     * 
+     * @return true if a sheet has been selected
+     */
+    public static boolean isSheetSelected() {
+        return sheetSel != null;
     }
 
     /**
@@ -109,44 +114,20 @@ public class OpenDoc {
     /**
      * sets the file selection to use for the spreadsheet file.
      * 
-     * @param file  - the spreadsheet file to read from
-     * 
-     * @throws ParserException
-     */
-    public static void setFileSelection (File file) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (file == null) {
-            throw new ParserException(functionId + "Spreadsheet file is not defined");
-        }
-        spreadsheetFile = file;
-    }
-
-    /**
-     * returns the current sheet selection index value.
-     * 
-     * @return the current sheet selection index (-1 if no selection)
-     */
-    public static int getSheetSelection() {
-        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "current tab selection: " + sheetIx + " = '" + sheetSel.getName() + "'");
-        return sheetIx;
-    }
-    
-    /**
-     * sets the file selection to use for the spreadsheet file.
-     * 
      * @param sheetNum  - the sheet selection to use
      * 
      * @throws ParserException
      */
-    public static void setSheetSelection (int sheetNum) throws ParserException {
+    public static void setSheetSelection (Integer sheetNum) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
+        if (sheetNum == null) {
+            throw new ParserException(functionId + "Sheet selection is null");
+        }
         if (sheetNum >= sheetArray.size()) {
             throw new ParserException(functionId + "tab index " + sheetNum + " exceeds max tabs: " + sheetArray.size());
         }
 
-        sheetIx = sheetNum;
         if (sheetNum >= 0) {
             sheetSel = sheetArray.get(sheetNum);
 //            if (sheetSel.getName() == null || sheetSel.getName().isEmpty()) {
@@ -156,15 +137,6 @@ public class OpenDoc {
         } else {
             GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "tab selection disabled");
         }
-    }
-
-    /**
-     * gets the file selection to use for the spreadsheet file.
-     * 
-     * @return the current spreadsheet file selection
-     */
-    public static File getFileSelection () {
-        return spreadsheetFile;
     }
 
     /**
@@ -570,17 +542,18 @@ public class OpenDoc {
     /**
      * reads the specified number of spreadsheet tabs into memory for accessing the data.
      * 
-     * @param numSheets    - number of sheets (tabs) to load into memory
-     *                       (0 to reload the current number of sheets selected)
+     * @param file      - the file to load from
+     * @param numSheets - number of sheets (tabs) to load into memory
+     *                    (0 to reload the current number of sheets selected)
      * 
      * @return true if successful
      * 
      * @throws ParserException
      */
-    public static boolean loadFromFile (int numSheets) throws ParserException {
+    public static boolean loadFromFile (File file, int numSheets) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (spreadsheetFile == null) {
+        if (file == null) {
             throw new ParserException(functionId + "Spreadsheet file is not defined");
         }
 
@@ -600,7 +573,7 @@ public class OpenDoc {
         for (int ix = 0; ix < numSheets; ix++) {
             Sheet sheet;
             try {
-                SpreadSheet spreadsheet = SpreadSheet.createFromFile(spreadsheetFile);
+                SpreadSheet spreadsheet = SpreadSheet.createFromFile(file);
                 sheet = spreadsheet.getSheet(ix);
                 sheetArray.add(sheet);
             } catch (IOException ex) {
@@ -620,40 +593,43 @@ public class OpenDoc {
     /**
      * saves the modified spreadsheet data written to the spreadsheet file.
      * 
+     * @param file  - the file to load from
+     * 
      * @throws ParserException
      * @throws IOException 
      */
-    public static void saveToFileAllSheets () throws ParserException, IOException {
+    public static void saveToFileAllSheets (File file) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        if (spreadsheetFile == null) {
+        if (file == null) {
             throw new ParserException(functionId + "Spreadsheet file is not defined");
         }
         
         for (int ix = 0; ix < sheetArray.size(); ix++) {
             Sheet sheet = sheetArray.get(ix);
-            sheet.getSpreadSheet().saveAs(spreadsheetFile);
+            sheet.getSpreadSheet().saveAs(file);
             GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Saving sheet " + ix + " '" + sheet.getName() + "' to file: "
                                         + sheet.getRowCount() + " rows, "
                                         + sheet.getColumnCount() + " cols");
         }
         
         // reload the spreadsheet sheets into memory, or we lose the info for one of the tabs
-        loadFromFile (0);
+        loadFromFile (file, 0);
     }
 
     /**
      * saves the modified spreadsheet data written to the spreadsheet file.
      * 
+     * @param file    - the file to save to
      * @param tabName - name of tab to update (null if use current one)
      * 
      * @throws ParserException
      * @throws IOException 
      */
-    public static void saveToFile (String tabName) throws ParserException, IOException {
+    public static void saveToFile (File file, String tabName) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
-        if (spreadsheetFile == null) {
+        if (file == null) {
             throw new ParserException(functionId + "Spreadsheet file is not defined");
         }
         
@@ -662,13 +638,13 @@ public class OpenDoc {
             int ix = findSheetByName (tabName);
             sheet = sheetArray.get(ix);
         }
-        sheet.getSpreadSheet().saveAs(spreadsheetFile);
+        sheet.getSpreadSheet().saveAs(file);
         GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Saving sheet '" + sheet.getName() + "' to file: "
                                     + sheet.getRowCount() + " rows, "
                                     + sheet.getColumnCount() + " cols");
         
         // reload all spreadsheet sheets into memory, or we can lose the info for one of the tabs
-        loadFromFile (0);
+        loadFromFile (file, 0);
     }
 
     /**
@@ -694,9 +670,6 @@ public class OpenDoc {
             throw new ParserException(functionId + "Array list is blank");
         }
         
-        // save the file selection
-        setFileSelection (file);
-        
         // create the spreadsheet image and save sheets in our memory image of the sheets (sheetArray)
         TableModel model = new DefaultTableModel(null, arrList.toArray());
         SpreadSheet sSheet = SpreadSheet.createEmpty(model);
@@ -710,7 +683,7 @@ public class OpenDoc {
         sheetArray.add(sheetSel);
 
         // save the initial spreadsheet file
-        saveToFile(null);
+        saveToFile(file, null);
         
         int rows = getRowSize();
         int cols = getColSize();
@@ -743,9 +716,6 @@ public class OpenDoc {
             throw new ParserException(functionId + "Header list is blank");
         }
         
-        // save the file selection
-        setFileSelection (file);
-        
         // create the spreadsheet image and save sheets in our memory image of the sheets (sheetArray)
         TableModel model = new DefaultTableModel(null, headerList.toArray());
         SpreadSheet sSheet = SpreadSheet.createEmpty(model);
@@ -772,7 +742,7 @@ public class OpenDoc {
         }
         
         // save the initial spreadsheet file
-        saveToFileAllSheets();
+        saveToFileAllSheets(file);
     }
     
     /**

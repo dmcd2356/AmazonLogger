@@ -242,15 +242,14 @@ public class AmazonParser {
             if (bUpdate) {
                 // update display that shows the last entries in the spreadsheet
                 Spreadsheet.showLastLineInfo();
-                Spreadsheet.selectSpreadsheetTab (strSheetSel);
                 Integer newLastLine = Spreadsheet.getLastRowIndex();
             
                 // make a backup copy of the current file before saving new one.
                 Spreadsheet.makeBackupCopy("-web-bak");
                 
                 // now save the updates to the file
-                OpenDoc.saveToFile(strSheetSel);
-                Spreadsheet.selectSpreadsheetTab (strSheetSel);
+                File ssFile = Spreadsheet.getFileSelection();
+                OpenDoc.saveToFile(ssFile, strSheetSel);
                 Integer actLastLine = Spreadsheet.getLastRowIndex();
                 
                 // TODO: verify the updates took place (last lines are correct) before clearing display
@@ -394,7 +393,7 @@ public class AmazonParser {
         }
         
         // get the last date in the listing from the current spreadsheet
-        String strDate = Spreadsheet.getLastDate (strSheetSel);
+        String strDate = Spreadsheet.getLastDate ();
         Integer lastOrderDate = DateFormat.cvtSSDateToInteger(strDate, false);
         
         GUILogPanel.outputInfoMsg (MsgType.PARSER, "Checking validity of the " + newList.size() + " orders in the list from year " + ssYear + "...");
