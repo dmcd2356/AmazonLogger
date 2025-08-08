@@ -499,14 +499,14 @@ public class OpenDoc {
         }
 
         MutableCell cell = sheetSel.getCellAt(col,row);
-        String hexColor = String.format("0x%06x", color.getRGB());
         if (cell != null) {
+            String hexColor = String.format("0x%06x", color.getRGB());
+            String message = OpenDoc.getSheetName() + " row " + row + " col " + col + " RGB -> " + hexColor;
             try {
                 cell.setBackgroundColor(color);
-                GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "set color " + OpenDoc.getSheetName() +
-                        " row " + row + " col " + col + " RGB -> " + hexColor);
+                GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "set color " + message);
             } catch (org.jdom.IllegalDataException exMsg) {
-                GUILogPanel.outputInfoMsg(MsgType.WARN, "ERROR on setCellColor: col " + col + ", row " + row + ", color = " + hexColor);
+                GUILogPanel.outputInfoMsg(MsgType.WARN, "ERROR on setCellColor: " + message);
             }
         }
     }

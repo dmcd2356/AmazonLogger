@@ -276,7 +276,7 @@ public class PdfReader {
         }
 
         // find the valid entries for each user
-        ArrayList<CardTransaction> cardList = new ArrayList<>();
+        ArrayList<CardTransaction> cardList;
         for (int ix = 0; ix < Spreadsheet.getTabCount(); ix++) {
             String tabName = Spreadsheet.getTabName(ix);
             if (tabSelect.indexOf(tabName) >= 0) {
@@ -291,26 +291,12 @@ public class PdfReader {
                 mapList.put(tabName, cardList);
 
                 // add in the corresponding order info from the spreadsheet
-                int col = Spreadsheet.getColumn(Spreadsheet.Column.OrderNumber);
-                for (int cardix = 0; cardix < cardList.size(); cardix++) {
-                    CardTransaction trans = cardList.get(cardix);
-                    int row = OpenDoc.findColumnEntry (tabName, col, 2, trans.getOrderNumber());
-                    if (row >= 0) {
-                        ArrayList<Spreadsheet.Column> cols = new ArrayList<>();
-                        cols.add(Spreadsheet.Column.Total);
-                        cols.add(Spreadsheet.Column.Payment);
-                        cols.add(Spreadsheet.Column.Pending);
-                        cols.add(Spreadsheet.Column.Refund);
-                        ArrayList<String> rowData = Spreadsheet.getRowValues(tabName, row, cols);
-                        trans.setSpreadsheetEntries(tabName, row, rowData, cols);
-                    }
-                }
+                addSpreadsheetInfoToTransaction (tabName, cardList);
             }
         }
 
         // re-order the entries based on the row numbers
         for (HashMap.Entry<String, ArrayList<CardTransaction>> entry : mapList.entrySet()) {
-            String tabName = entry.getKey();
             cardList = entry.getValue();
             for (int cardix_1 = 0; cardix_1 < cardList.size() - 1; cardix_1++) {
                 for (int cardix_2 = cardix_1 + 1; cardix_2 < cardList.size(); cardix_2++) {
@@ -324,23 +310,77 @@ public class PdfReader {
             }
         }
         
+        // re-order the entries that have the same order number by putting payment entries first
+        for (HashMap.Entry<String, ArrayList<CardTransaction>> entry : mapList.entrySet()) {
+            cardList = entry.getValue();
+            for (int cardix_1 = 0; cardix_1 < cardList.size() - 1; cardix_1++) {
+                for (int cardix_2 = cardix_1 + 1; cardix_2 < cardList.size(); cardix_2++) {
+                    CardTransaction entry_1 = cardList.get(cardix_1);
+                    CardTransaction entry_2 = cardList.get(cardix_2);
+                    // if same order number, but 2nd amount is payment and 1st amount is refund, swap
+                    if (entry_2.getOrderNumber().contentEquals(entry_1.getOrderNumber()) &&
+                        entry_2.getAmount() >= 0 && entry_1.getAmount() < 0) {
+                        cardList.set(cardix_1, entry_2);
+                        cardList.set(cardix_2, entry_1);
+                    }
+                }
+            }
+        }
+        
         // now output info to the GUI display
+        displaySpreadsheetChanges();
+        
+        return ! mapList.isEmpty();
+    }
+
+    /**
+     * adds the spreadsheet info to the card transactions for each order being balanced.
+     * 
+     * @param tabName  - name of tab being processed
+     * @param cardList - list of card transactions from the PDF file (this will be updated)
+     * 
+     * @throws ParserException 
+     */
+    private static void addSpreadsheetInfoToTransaction (String tabName, ArrayList<CardTransaction> cardList) throws ParserException {
+        int col = Spreadsheet.getColumn(Spreadsheet.Column.OrderNumber);
+        for (int cardix = 0; cardix < cardList.size(); cardix++) {
+            CardTransaction trans = cardList.get(cardix);
+            int row = OpenDoc.findColumnEntry (tabName, col, 2, trans.getOrderNumber());
+            if (row >= 0) {
+                ArrayList<Spreadsheet.Column> cols = new ArrayList<>();
+                cols.add(Spreadsheet.Column.ItemIndex);
+                cols.add(Spreadsheet.Column.Total);
+                cols.add(Spreadsheet.Column.Payment);
+                cols.add(Spreadsheet.Column.Pending);
+                cols.add(Spreadsheet.Column.Refund);
+                ArrayList<String> rowData = Spreadsheet.getRowValues(tabName, row, cols);
+                trans.setSpreadsheetEntries(tabName, row, rowData, cols);
+            }
+        }
+    }
+    
+    /**
+     * if in GUI mode, updates the display to show the PDF credit card entries
+     *   that will change the spreadsheet.
+     */
+    private static void displaySpreadsheetChanges() {
         if (GUIMain.isGUIMode()) {
+            ArrayList<CardTransaction> cardList;
             boolean bFirstTime = true;
             for (HashMap.Entry<String, ArrayList<CardTransaction>> entry : mapList.entrySet()) {
                 String tabName = entry.getKey();
                 cardList = entry.getValue();
                 GUIOrderPanel.printBalanceHeader(bFirstTime);
                 bFirstTime = false;
+                String lastOrderNum = "";
                 for (int cardix = 0; cardix < cardList.size(); cardix++) {
                     CardTransaction trans = cardList.get(cardix);
-                    GUIOrderPanel.printBalance (tabName, trans);
+                    GUIOrderPanel.printBalance (tabName, trans, lastOrderNum);
+                    lastOrderNum = trans.getOrderNumber();
                 }
                 GUIOrderPanel.printNewLine();
             }
         }
-        
-        return ! mapList.isEmpty();
     }
 
     /**
@@ -360,7 +400,6 @@ public class PdfReader {
 
         String strPdfName = Utils.getFileRootname(pdfFile);
 
-        boolean bFirstTime = true;
         for (HashMap.Entry<String, ArrayList<CardTransaction>> entry : mapList.entrySet()) {
             String tabName = entry.getKey();
             ArrayList<CardTransaction> cardList = entry.getValue();
@@ -368,29 +407,12 @@ public class PdfReader {
             // perform the balances
             balanceSpreadsheetEntries(tabName, cardList, strPdfName);
 
-            // update the spreadsheet info and display
-            GUIOrderPanel.printBalanceHeader(bFirstTime);
-            bFirstTime = false;
-            int col = Spreadsheet.getColumn(Spreadsheet.Column.OrderNumber);
-            for (int cardix = 0; cardix < cardList.size(); cardix++) {
-                CardTransaction trans = cardList.get(cardix);
-                int row = OpenDoc.findColumnEntry (tabName, col, 2, trans.getOrderNumber());
-                if (row >= 0) {
-                    ArrayList<Spreadsheet.Column> cols = new ArrayList<>();
-                    cols.add(Spreadsheet.Column.Total);
-                    cols.add(Spreadsheet.Column.Payment);
-                    cols.add(Spreadsheet.Column.Pending);
-                    cols.add(Spreadsheet.Column.Refund);
-                    ArrayList<String> rowData = Spreadsheet.getRowValues(tabName, row, cols);
-                    trans.setSpreadsheetEntries(tabName, row, rowData, cols);
-
-                    // update the display data
-                    GUIOrderPanel.printBalance (tabName, trans);
-                }
-            }
-            GUIOrderPanel.printNewLine();
+            // copy updated spreadsheet info into card transactions for GUI display
+            addSpreadsheetInfoToTransaction (tabName, cardList);
         }
 
+        // now update info to the GUI display
+        displaySpreadsheetChanges();
 
         // update display of last balance performed
         String lastBalance = Spreadsheet.showLastLineInfo();
@@ -459,11 +481,10 @@ public class PdfReader {
     * 
     * @throws ParserException
     * @throws IOException
-    * @throws NumberFormatException
     */
     private static void balanceSpreadsheetEntries(String sheetName,
                                               ArrayList<CardTransaction> transactionList,
-                                              String strPdfName) throws ParserException, IOException, NumberFormatException {
+                                              String strPdfName) throws ParserException, IOException {
 
         // get the highlight color (changes monthly)
         int month = 0;
@@ -487,14 +508,15 @@ public class PdfReader {
         GUILogPanel.outputInfoMsg(MsgType.INFO, "spreadsheet " + sheetName + " last row: " + lastRow);
 
         // search the spreadsheet for each order found in the credit card statement
+        // (these should already be arranged in order of rows, from smallest to largest)
         for (int ix = 0; ix < transactionList.size(); ix++) {
             CardTransaction cardEntry = transactionList.get(ix);
 
             // get the starting row for the order number and the number of items (rows) in the order
             int firstRow = cardEntry.getRow();
-            int itemCount = Spreadsheet.getNumberOfItems(firstRow);
-                    
+            
             // get the info for the row in the spreadsheet
+            Integer itemCount  = cardEntry.getItemCount();
             Integer iTotalCost = cardEntry.getIntTotal();
             Integer iPayment   = cardEntry.getIntPayment();
             Integer iRefund    = cardEntry.getIntRefund();

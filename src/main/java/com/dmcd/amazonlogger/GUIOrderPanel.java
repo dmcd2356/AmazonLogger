@@ -115,7 +115,7 @@ public class GUIOrderPanel {
         // these are gathered or computed by the PDF file
         msgInfo.put(Column.Paid         , new MsgControl ( 7, 'R', "I", TextColor.Blue));
         msgInfo.put(Column.UserName     , new MsgControl (12, 'L', "B", TextColor.Black));
-        msgInfo.put(Column.Row          , new MsgControl ( 4, 'L', "N", TextColor.Black));
+        msgInfo.put(Column.Row          , new MsgControl ( 7, 'L', "N", TextColor.Black));
         // these are read from the spreadsheet file for PDFbalancing
         msgInfo.put(Column.Payment      , new MsgControl ( 7, 'R', "N", TextColor.Green));
         msgInfo.put(Column.Refund       , new MsgControl ( 7, 'R', "B", TextColor.Blue));
@@ -238,23 +238,27 @@ public class GUIOrderPanel {
     /**
      * displays the order information.
      * 
-     * @param tabName   - name of the tab selection
-     * @param entry     - the card transaction info to display
+     * @param tabName      - name of the tab selection
+     * @param entry        - the card transaction info to display
+     * @param lastOrderNum - the last order number processed
      */
-    public static void printBalance (String tabName, CardTransaction entry) {
+    public static void printBalance (String tabName, CardTransaction entry, String lastOrderNum) {
         if (! GUIMain.isGUIMode() || entry == null) {
             return;
         }
 
-        printBalanceItem (Column.UserName     , entry);        
-        printBalanceItem (Column.Row          , entry);        
-        printBalanceItem (Column.DatePaid     , entry);        
-        printBalanceItem (Column.OrderNumber  , entry);        
-        printBalanceItem (Column.Paid         , entry);        
-        printBalanceItem (Column.Total        , entry);        
-        printBalanceItem (Column.Payment      , entry);
-        printBalanceItem (Column.Refund       , entry);        
-        printBalanceItem (Column.Pending      , entry);        
+        // get a flag that indicates if the item has the same order number as the last (additional entry)
+        boolean bRepeat = lastOrderNum.contentEquals(entry.getOrderNumber());
+        
+        printBalanceItem (Column.UserName     , entry, bRepeat);        
+        printBalanceItem (Column.Row          , entry, bRepeat);        
+        printBalanceItem (Column.DatePaid     , entry, bRepeat);        
+        printBalanceItem (Column.OrderNumber  , entry, bRepeat);        
+        printBalanceItem (Column.Paid         , entry, bRepeat);        
+        printBalanceItem (Column.Total        , entry, bRepeat);        
+        printBalanceItem (Column.Payment      , entry, bRepeat);
+        printBalanceItem (Column.Refund       , entry, bRepeat);        
+        printBalanceItem (Column.Pending      , entry, bRepeat);
         printNewLine();
     }
 
@@ -359,11 +363,16 @@ public class GUIOrderPanel {
         String entry = null;
         switch (colName) {
             case Row:
-                Integer row = transInfo.getRow();
+                Integer row   = transInfo.getRow();
+                Integer items = transInfo.getItemCount();
                 if (row != null) {
                     // the displayed row is based on 1st line = 1, but the index is zero-based,
                     //  so add 1 for the deiplay.
-                    entry = Integer.toString(row + 1);
+                    row += 1;
+                    entry = Integer.toString(row);
+                    if (items > 1) {
+                        entry += "-" + Integer.toString(row + items - 1);
+                    }
                 }
                 break;
             case OrderNumber:
@@ -503,8 +512,9 @@ public class GUIOrderPanel {
      * 
      * @param colName   - the name of the item we are placing
      * @param transInfo - the transaction entry info to display
+     * @param bRepeat   - true if this entry has the same order number as the last
      */
-    private static void printBalanceItem (Column colName, CardTransaction transInfo) {
+    private static void printBalanceItem (Column colName, CardTransaction transInfo, boolean bRepeat) {
         if (! GUIMain.isGUIMode()) {
             return;
         }
@@ -521,6 +531,23 @@ public class GUIOrderPanel {
             if (entry == null) {
                 entry = "null";
                 bError = true;
+            }
+            if (bRepeat) {
+                switch (colName) {
+                    case OrderNumber:
+                    case Row:
+                    case Total:
+                        entry = "---";
+                        break;
+                    case Payment:
+                    case Refund:
+                        if (! entry.isBlank()) {
+                            entry = "---";
+                        }
+                        break;
+                    default:
+                        break;
+                }
             }
         }
         

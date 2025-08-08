@@ -75,6 +75,16 @@ public class CardTransaction {
             Spreadsheet.Column colName = col.get(ix);
             String rowValue = rowInfo.get(ix);
             switch (colName) {
+                case ItemIndex:
+                    Integer count = 0;
+                    if (rowValue == null || rowValue.isEmpty()) {
+                        count = 1;
+                    } else if (rowValue.startsWith("1 of ")) {
+                        rowValue = rowValue.substring(5);
+                        count  = Integer.valueOf(rowValue);
+                    }
+                    this.items = count;
+                    break;
                 case Total:
                     this.total = rowValue;
                     break;
@@ -111,6 +121,10 @@ public class CardTransaction {
         
     public Integer getAmount() {
         return this.amount;
+    }
+
+    public Integer getItemCount() {
+        return this.items;
     }
 
     public String getPayment () {

@@ -462,6 +462,8 @@ public final class GUIMain extends JFrame implements ActionListener {
         try {
             String strFlags = Utils.toHexWordValue (intValue);
             PropertiesFile.setPropertiesItem(Property.MsgEnable, strFlags);
+            GUILogPanel.setMsgEnable(intValue);
+            // setMessageFlags(intValue);
         } catch (ParserException exMsg) {
             // ignore the error
         }
@@ -899,9 +901,9 @@ public final class GUIMain extends JFrame implements ActionListener {
     }
 
     /**
-     * sets all debug message flags at one time - ONLY FOR COMMAND LINE USE (NON-GUI)!!!
+     * sets all debug message flags
      * 
-     * @param debugFlags
+     * @param debugFlags - the bit value of each message to be enabled is set to 1
      */
     public static void setMessageFlags (int debugFlags) {
         // save the debug settings

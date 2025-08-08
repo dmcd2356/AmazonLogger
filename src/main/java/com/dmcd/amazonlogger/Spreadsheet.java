@@ -883,7 +883,8 @@ public class Spreadsheet {
         if (row >= rowSize) {
             throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
         }
-        // check if item is marked as returned
+        
+        // check if item is marked as returned (DateDelivered column will be marked as "RETURN" instead of date
         int col = getColumn(Column.DateDelivered);
         String strVal = OpenDoc.getCellTextValue(col, row);
         boolean bReturn = strVal.contentEquals(RETURN_DATE);
@@ -891,21 +892,23 @@ public class Spreadsheet {
         if (bPayment) {
             // for a payment entry...
             for (col = 0; col <= lastValidColumn; col++) {
-                if (col == getColumn(Column.Refund) && bReturn) {
-                    // skip highlighting the Refund column if item is marked as a return.
-                    // this will be filled in when the refund is found in the card ledger.
-                } else if (col == getColumn(Column.Pending) && bRemaining) {
-                    // skip highlighting the Pending column if the total amount did not match
-                } else {
-                    if (! OpenDoc.isCellEmpty(col, row)) {
-                        OpenDoc.setCellColor(col, row, colorOfMonth);
-                    }
+                // skip highlighting the DateDelivered & Refund column if item is marked as a return.
+                // this will be filled in when the refund is found in the card ledger.
+                if (bReturn && (col == getColumn(Column.Refund)  ||
+                                col == getColumn(Column.DateDelivered))) {
+                    continue;
                 }
+                // also, don't highlight the Pending column if the total amount did not match
+                if (bRemaining && col == getColumn(Column.Pending)) {
+                    continue;
+                }
+                // else, highlight the cell
+                OpenDoc.setCellColor(col, row, colorOfMonth);
             }
         } else {
             // for refunds, always mark the refund column as done
-            col = getColumn(Column.Refund);
-            OpenDoc.setCellColor(col, row, colorOfMonth);
+            OpenDoc.setCellColor(getColumn(Column.Refund)       , row, colorOfMonth);
+            OpenDoc.setCellColor(getColumn(Column.DateDelivered), row, colorOfMonth);
         }
     }
     
@@ -932,34 +935,6 @@ public class Spreadsheet {
             }
         }
         return -1;
-    }
-
-    /**
-     * returns the number of items listed for the given row.
-     * 
-     * @return the number of items for the order (0 if row is not 1st entry)
-     * 
-     * @param row - the row to check for number of entries
-     * 
-     * @throws ParserException
-     */
-    public static int getNumberOfItems (int row) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (! OpenDoc.isSheetSelected()) {
-            throw new ParserException(functionId + "No sheet selection has been made");
-        }
-        int col = getColumn(Column.ItemIndex);
-        String count = OpenDoc.getCellTextValue(col, row);
-        if (count == null || count.isEmpty()) {
-            return 1;
-        }
-        if (! count.startsWith("1 of ")) {
-            return 0;
-        }
-        count = count.substring(5);
-        Integer value = Integer.valueOf(count);
-        return value;
     }
 
     /**
