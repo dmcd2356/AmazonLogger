@@ -82,6 +82,7 @@ public class Spreadsheet {
         firstRow = -1;
         lastValidColumn = 0;
         spreadsheetFile = null;
+        OpenDoc.init();             // reset the OpenDoc params
     }
 
     /**
@@ -1080,6 +1081,24 @@ public class Spreadsheet {
     }
     
     /**
+     * finds the first row in the spreadsheet that contains the specified entry.
+     * 
+     * @param tabName  - name of the tab selection to search
+     * @param colName  - name of the column in which to search
+     * @param startRow - starting row to start searching
+     * @param entry    - the string value to search for
+     * 
+     * @return the row of the 1st occurrence of the order number in the spreadsheet
+     * 
+     * @throws ParserException
+     */
+    public static int findColumnEntry (String tabName, Column colName, int startRow, String entry) throws ParserException {
+        int col = Spreadsheet.getColumn(Spreadsheet.Column.OrderNumber);
+        int row = OpenDoc.findColumnEntry (tabName, col, startRow, entry);
+        return row;
+    }
+    
+    /**
      * finds the last recorded date in the current spreadsheet.
      * 
      * @return the date (in MMDD format) of the last order in the sheet
@@ -1141,7 +1160,20 @@ public class Spreadsheet {
     /**    
      * sets the spreadsheet tab selection for many of the spreadsheet functions to use.
      * 
+     * @param sheetNum - the index of the spreadsheet tab to select
+     * 
+     * @throws ParserException
+     */
+    public static void setTabIndex (int sheetNum) throws ParserException {
+        OpenDoc.setSheetSelection(sheetNum);
+        currentSheetIx = sheetNum;
+    }
+    
+    /**    
+     * sets the spreadsheet tab selection for many of the spreadsheet functions to use.
+     * 
      * @param name - the name (or number) of the spreadsheet tab
+     * 
      * @throws ParserException
      */
     public static void selectSpreadsheetTab (String name) throws ParserException {
@@ -1209,7 +1241,7 @@ public class Spreadsheet {
                 colsize = col + colLength;
             }
             OpenDoc.setSize(colsize, rowsize);
-            OpenDoc.saveToFile(spreadsheetFile, null);
+            Spreadsheet.saveSheet(spreadsheetFile, null);
         }
         
         // add the data
@@ -1255,7 +1287,7 @@ public class Spreadsheet {
                 colsize = col + 1;
             }
             OpenDoc.setSize(colsize, rowsize);
-            OpenDoc.saveToFile(spreadsheetFile, null);
+            Spreadsheet.saveSheet(spreadsheetFile, null);
         }
         
         // add the data
@@ -1544,6 +1576,35 @@ public class Spreadsheet {
     }
 
     /**
+     * saves the specified sheet of the spreadsheet image to the spreadsheet file.
+     * It also reloads all tabs of the file into the memory image to keep from losing one.
+     * 
+     * @param file    - the file to save to
+     * @param tabName - name of tab to update (null to use current selection)
+     * 
+     * @throws ParserException
+     * @throws IOException 
+     */
+    public static void saveSheet (File file, String tabName) throws ParserException, IOException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        // get the index of the sheet to save
+        Integer index = currentSheetIx;
+        if (tabName != null) {
+            index = OpenDoc.findSheetByName(tabName);
+            if (index < 0) {
+                throw new ParserException(functionId + "Spreadsheet tab name not found: " + tabName);
+            }
+        }
+        
+        // save the selected sheet image to the file
+        OpenDoc.saveToFile(file, index);
+        
+        // reload all spreadsheet sheets into memory, or we can lose the info for one of the tabs
+        OpenDoc.loadFromFile (file, 0);
+    }
+    
+    /**
      * gets the last line info from each active sheet and displays on GUI.
      * (returns the sheet selection to previous selection upon exit)
      * 
@@ -1591,10 +1652,12 @@ public class Spreadsheet {
      * @param tabName - name to call tab selection
      * @param arrList - the list of column names to place
      * 
+     * @return the index of the new tab
+     * 
      * @throws ParserException
      * @throws IOException
      */
-    public static void addTab (String tabName, ArrayList<String> arrList) throws ParserException, IOException {
+    public static int addTab (String tabName, ArrayList<String> arrList) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (tabName == null || tabName.isBlank()) {
@@ -1602,7 +1665,7 @@ public class Spreadsheet {
         }
 
         // create a new tab for the current spreadsheet image
-        OpenDoc.addTab(tabName);
+        int tabIx = OpenDoc.addTab(tabName);
         
         // set the initial size of our spreadsheet to the size of the array and add the data
         // and add the initial column data.
@@ -1611,11 +1674,8 @@ public class Spreadsheet {
         }
 
         // save the initial spreadsheet file
-        OpenDoc.saveToFile(spreadsheetFile, tabName);
-        
-        int rows = OpenDoc.getRowSize();
-        int cols = OpenDoc.getColSize();
-        GUILogPanel.outputInfoMsg(MsgType.INFO, "Spreadsheet size: cols = " + cols + ", rows = " + rows);
+        Spreadsheet.saveSheet(spreadsheetFile, tabName);
+        return tabIx;
     }
     
     /**

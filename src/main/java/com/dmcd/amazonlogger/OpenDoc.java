@@ -587,68 +587,38 @@ public class OpenDoc {
         
         // init tab selection to first sheet
         setSheetSelection(0);
+        
+        int rows = getRowSize();
+        int cols = getColSize();
+        GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Spreadsheet size: cols = " + cols + ", rows = " + rows);
         return true;
     }
 
     /**
      * saves the modified spreadsheet data written to the spreadsheet file.
      * 
-     * @param file  - the file to load from
-     * 
-     * @throws ParserException
-     * @throws IOException 
-     */
-    public static void saveToFileAllSheets (File file) throws ParserException, IOException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-        
-        if (file == null) {
-            throw new ParserException(functionId + "Spreadsheet file is not defined");
-        }
-        
-        for (int ix = 0; ix < sheetArray.size(); ix++) {
-            Sheet sheet = sheetArray.get(ix);
-            sheet.getSpreadSheet().saveAs(file);
-            GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Saving sheet " + ix + " '" + sheet.getName() + "' to file: "
-                                        + sheet.getRowCount() + " rows, "
-                                        + sheet.getColumnCount() + " cols");
-        }
-        
-        // reload the spreadsheet sheets into memory, or we lose the info for one of the tabs
-        loadFromFile (file, 0);
-    }
-
-    /**
-     * saves the modified spreadsheet data written to the spreadsheet file.
-     * 
      * @param file    - the file to save to
-     * @param tabName - name of tab to update (null if use current one)
+     * @param index   - index of tab to update
      * 
      * @throws ParserException
      * @throws IOException 
      */
-    public static void saveToFile (File file, String tabName) throws ParserException, IOException {
+    public static void saveToFile (File file, Integer index) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (file == null) {
             throw new ParserException(functionId + "Spreadsheet file is not defined");
         }
         
-        Sheet sheet = sheetSel;
-        if (tabName != null) {
-            int ix = findSheetByName (tabName);
-            sheet = sheetArray.get(ix);
-        }
+        Sheet sheet = sheetArray.get(index);
         sheet.getSpreadSheet().saveAs(file);
         GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Saving sheet '" + sheet.getName() + "' to file: "
                                     + sheet.getRowCount() + " rows, "
                                     + sheet.getColumnCount() + " cols");
-        
-        // reload all spreadsheet sheets into memory, or we can lose the info for one of the tabs
-        loadFromFile (file, 0);
     }
 
     /**
-     * creates a spreadsheet file that has the specified column header.
+     * creates a spreadsheet image that has the specified column header.
      * 
      * THIS VERSION ALLOWS EXPANSION AND ADDING TABS, BUT DATA IS NEVER WRITTEN
      * TO THE NEW TABS, JUST THE TAB NAME. BUT DATA IS WRITTEN TO THE INITIAL SHEET.
@@ -660,7 +630,7 @@ public class OpenDoc {
      * @throws ParserException
      * @throws IOException
      */
-    public static void fileCreate (File file, String name, ArrayList<String> arrList) throws ParserException, IOException {
+    public static void ssImageCreate (File file, String name, ArrayList<String> arrList) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (file == null) {
@@ -681,17 +651,10 @@ public class OpenDoc {
         // set array of sheets to just this one
         sheetArray.clear();
         sheetArray.add(sheetSel);
-
-        // save the initial spreadsheet file
-        saveToFile(file, null);
-        
-        int rows = getRowSize();
-        int cols = getColSize();
-        GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Spreadsheet size: cols = " + cols + ", rows = " + rows);
     }
     
     /**
-     * creates a spreadsheet file that has the specified column header.
+     * creates a spreadsheet image that has the specified column header.
      * 
      * THIS VERSION DEFINES MULTIPLE TABS CORRECTLY, BUT DOES NOT ALLOW EXPANSIOM OF
      * ROWS OR COLUMNS AND DOES NOT PLACE ANY CONTENT IN THE CELLS.
@@ -703,7 +666,7 @@ public class OpenDoc {
      * @throws ParserException
      * @throws IOException
      */
-    public static void fileCreate (File file, ArrayList<String> tabList, ArrayList<String> headerList) throws ParserException, IOException {
+    public static void ssImageCreate (File file, ArrayList<String> tabList, ArrayList<String> headerList) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (file == null) {
@@ -740,19 +703,28 @@ public class OpenDoc {
             int cols = getColSize();
             GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "sheet[" + ix + "] '" + nextSheet.getName() + "' size: cols = " + cols + ", rows = " + rows);
         }
-        
-        // save the initial spreadsheet file
-        saveToFileAllSheets(file);
     }
-    
+/*
+        Sheet sheet = sheetSel;
+        if (tabName != null) {
+            int ix = findSheetByName (tabName);
+            sheet = sheetArray.get(ix);
+        }
+        sheet.getSpreadSheet().saveAs(file);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, INDENT + "Saving sheet '" + sheet.getName() + "' to file: "
+                                    + sheet.getRowCount() + " rows, "
+                                    + sheet.getColumnCount() + " cols");
+*/    
     /**
      * adds a new tab to the current spreadsheet file.
      * 
      * @param tabName - name to call tab selection
      * 
+     * @return the index of the new tab
+     * 
      * @throws ParserException
      */
-    public static void addTab (String tabName) throws ParserException {
+    public static int addTab (String tabName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (tabName == null || tabName.isBlank()) {
@@ -766,6 +738,7 @@ public class OpenDoc {
         
         // save the entry in our array of sheets
         sheetArray.add(sheetSel);
+        return sSheet.getSheetCount() - 1;
     }
     
 //    /**

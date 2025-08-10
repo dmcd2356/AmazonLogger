@@ -57,55 +57,16 @@ public class PdfReader {
         return mapList.get(tabSelect).get(ix);
     }
     
-    private static Integer isValidEntry (String line) throws ParserException {
-        Integer amountVal = null;
-
-        // line must have min number of chars in it
-        Integer amountIx = line.length();
-        if (amountIx <= 16) {
-            return amountVal;
-        }
-        
-        // this is checking for the date section and the gap preceding the vendor name
-        boolean bValid = true;
-        for (int ix = 0; ix < 9; ix++) {
-            char c = line.charAt(ix);
-            if ((ix < 2 && (c < '0' || c > '9')) ||
-                (ix == 2 && c != '/') ||
-                (ix > 2 && ix < 5 && (c < '0' || c > '9')) ||
-                (ix >= 5 && c != ' ') ) {
-                bValid = false;
-                break;
-            }
-        }
-
-        // this is checking for the cost at the end of the string
-        if (bValid) {
-            while (line.charAt(amountIx - 1) != ' ') {
-                char c = line.charAt(amountIx - 1);
-                if (c != '.' && c != '-' && (c < '0' || c > '9')) {
-                    bValid = false;
-                    break;
-                }
-                amountIx--;
-            }
-            String amountStr = line.substring(amountIx);
-            amountVal = Utils.getAmountValue(amountStr);
-        }
-        
-        return amountVal;
-    }
-    
     /**
-    * loads the selected PDF file and reads its contents into a String array.
-    * 
-    * @param pFile - the name of the pdf file to load (null to run user interface to request file)
-    * 
-    * @throws ParserException
-    * @throws IOException
-    * @throws SAXException
-    * @throws TikaException
-    */
+     * loads the selected PDF file and reads its contents into a String array.
+     * 
+     * @param pFile - the name of the pdf file to load (null to run user interface to request file)
+     * 
+     * @throws ParserException
+     * @throws IOException
+     * @throws SAXException
+     * @throws TikaException
+     */
     public static void readPdfContents (File pFile) throws IOException, ParserException, SAXException, TikaException {
 
         pdfFile = pFile;
@@ -175,20 +136,20 @@ public class PdfReader {
     }
 
     /**
-    * parses the credit card credits and debits from the PDF file.
-    *  This extracts vital info from the credit card file for Amazon charges
-    *    and refunds and saves it in an array.
-    *  It then looks for the entries in the spreadsheet file for the corresponding
-    *   order numbers and modifies the spreadsheet file to highlight the rows that
-    *   match up with the charges/credits.
-    * 
-    * It assumes the pdf file data has been placed in the array 'contents'.
-    * 
-    * @return true if entries were added to the list of items to balance, false if not
-    * 
-    * @throws ParserException
-    * @throws IOException
-    */
+     * parses the credit card credits and debits from the PDF file.
+     *  This extracts vital info from the credit card file for Amazon charges
+     *    and refunds and saves it in an array.
+     *  It then looks for the entries in the spreadsheet file for the corresponding
+     *   order numbers and modifies the spreadsheet file to highlight the rows that
+     *   match up with the charges/credits.
+     * 
+     * It assumes the pdf file data has been placed in the array 'contents'.
+     * 
+     * @return true if entries were added to the list of items to balance, false if not
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
     public boolean processData () throws ParserException, IOException {
         // get the name of the selected file, minus the file extension
         String strPdfName = Utils.getFileRootname(pdfFile);
@@ -334,56 +295,6 @@ public class PdfReader {
     }
 
     /**
-     * adds the spreadsheet info to the card transactions for each order being balanced.
-     * 
-     * @param tabName  - name of tab being processed
-     * @param cardList - list of card transactions from the PDF file (this will be updated)
-     * 
-     * @throws ParserException 
-     */
-    private static void addSpreadsheetInfoToTransaction (String tabName, ArrayList<CardTransaction> cardList) throws ParserException {
-        int col = Spreadsheet.getColumn(Spreadsheet.Column.OrderNumber);
-        for (int cardix = 0; cardix < cardList.size(); cardix++) {
-            CardTransaction trans = cardList.get(cardix);
-            int row = OpenDoc.findColumnEntry (tabName, col, 2, trans.getOrderNumber());
-            if (row >= 0) {
-                ArrayList<Spreadsheet.Column> cols = new ArrayList<>();
-                cols.add(Spreadsheet.Column.ItemIndex);
-                cols.add(Spreadsheet.Column.Total);
-                cols.add(Spreadsheet.Column.Payment);
-                cols.add(Spreadsheet.Column.Pending);
-                cols.add(Spreadsheet.Column.Refund);
-                ArrayList<String> rowData = Spreadsheet.getRowValues(tabName, row, cols);
-                trans.setSpreadsheetEntries(tabName, row, rowData, cols);
-            }
-        }
-    }
-    
-    /**
-     * if in GUI mode, updates the display to show the PDF credit card entries
-     *   that will change the spreadsheet.
-     */
-    private static void displaySpreadsheetChanges() {
-        if (GUIMain.isGUIMode()) {
-            ArrayList<CardTransaction> cardList;
-            boolean bFirstTime = true;
-            for (HashMap.Entry<String, ArrayList<CardTransaction>> entry : mapList.entrySet()) {
-                String tabName = entry.getKey();
-                cardList = entry.getValue();
-                GUIOrderPanel.printBalanceHeader(bFirstTime);
-                bFirstTime = false;
-                String lastOrderNum = "";
-                for (int cardix = 0; cardix < cardList.size(); cardix++) {
-                    CardTransaction trans = cardList.get(cardix);
-                    GUIOrderPanel.printBalance (tabName, trans, lastOrderNum);
-                    lastOrderNum = trans.getOrderNumber();
-                }
-                GUIOrderPanel.printNewLine();
-            }
-        }
-    }
-
-    /**
      * makes the changes to the spreadsheet file to add in the balancing info from the pdf file.
      * 
      * @throws ParserException
@@ -417,6 +328,54 @@ public class PdfReader {
         // update display of last balance performed
         String lastBalance = Spreadsheet.showLastLineInfo();
         GUIMain.showLastBalance(lastBalance);
+    }
+    
+    /**
+     * checks if the current line from the PDF file is a valid transaction listing.
+     * 
+     * @param line - the line read from the PDF file
+     * 
+     * @return the amount (in cents) of the transaction found (null if not a transaction)
+     * 
+     * @throws ParserException 
+     */
+    private static Integer isValidEntry (String line) throws ParserException {
+        Integer amountVal = null;
+
+        // line must have min number of chars in it
+        Integer amountIx = line.length();
+        if (amountIx <= 16) {
+            return amountVal;
+        }
+        
+        // this is checking for the date section and the gap preceding the vendor name
+        boolean bValid = true;
+        for (int ix = 0; ix < 9; ix++) {
+            char c = line.charAt(ix);
+            if ((ix < 2 && (c < '0' || c > '9')) ||
+                (ix == 2 && c != '/') ||
+                (ix > 2 && ix < 5 && (c < '0' || c > '9')) ||
+                (ix >= 5 && c != ' ') ) {
+                bValid = false;
+                break;
+            }
+        }
+
+        // this is checking for the cost at the end of the string
+        if (bValid) {
+            while (line.charAt(amountIx - 1) != ' ') {
+                char c = line.charAt(amountIx - 1);
+                if (c != '.' && c != '-' && (c < '0' || c > '9')) {
+                    bValid = false;
+                    break;
+                }
+                amountIx--;
+            }
+            String amountStr = line.substring(amountIx);
+            amountVal = Utils.getAmountValue(amountStr);
+        }
+        
+        return amountVal;
     }
     
     /**
@@ -467,21 +426,70 @@ public class PdfReader {
         return newList;
     }
             
-    /*********************************************************************
-    ** parses the credit card credits and debits from the PDF file.
-    *  This extracts vital info from the credit card file for Amazon charges
-    *    and refunds and saves it in an array.
-    *  It then looks for the entries in the spreadsheet file for the corresponding
-    *    order numbers and modifies the spreadsheet file to highlight the rows that
-    *    match up with the charges/credits.
-    * 
-    * @param sheetName       - the name of the tab selection for the sheet
-    * @param transactionList - the list of credit card transactions pulled from the PDF file
-    * @param strPdfName      - the name of the PDF file
-    * 
-    * @throws ParserException
-    * @throws IOException
-    */
+    /**
+     * adds the spreadsheet info to the card transactions for each order being balanced.
+     * 
+     * @param tabName  - name of tab being processed
+     * @param cardList - list of card transactions from the PDF file (this will be updated)
+     * 
+     * @throws ParserException 
+     */
+    private static void addSpreadsheetInfoToTransaction (String tabName, ArrayList<CardTransaction> cardList) throws ParserException {
+        for (int cardix = 0; cardix < cardList.size(); cardix++) {
+            CardTransaction trans = cardList.get(cardix);
+            int row = Spreadsheet.findColumnEntry (tabName, Spreadsheet.Column.OrderNumber, 2, trans.getOrderNumber());
+            if (row >= 0) {
+                ArrayList<Spreadsheet.Column> cols = new ArrayList<>();
+                cols.add(Spreadsheet.Column.ItemIndex);
+                cols.add(Spreadsheet.Column.Total);
+                cols.add(Spreadsheet.Column.Payment);
+                cols.add(Spreadsheet.Column.Pending);
+                cols.add(Spreadsheet.Column.Refund);
+                ArrayList<String> rowData = Spreadsheet.getRowValues(tabName, row, cols);
+                trans.setSpreadsheetEntries(tabName, row, rowData, cols);
+            }
+        }
+    }
+    
+    /**
+     * if in GUI mode, updates the display to show the PDF credit card entries
+     *   that will change the spreadsheet.
+     */
+    private static void displaySpreadsheetChanges() {
+        if (GUIMain.isGUIMode()) {
+            ArrayList<CardTransaction> cardList;
+            boolean bFirstTime = true;
+            for (HashMap.Entry<String, ArrayList<CardTransaction>> entry : mapList.entrySet()) {
+                String tabName = entry.getKey();
+                cardList = entry.getValue();
+                GUIOrderPanel.printBalanceHeader(bFirstTime);
+                bFirstTime = false;
+                String lastOrderNum = "";
+                for (int cardix = 0; cardix < cardList.size(); cardix++) {
+                    CardTransaction trans = cardList.get(cardix);
+                    GUIOrderPanel.printBalance (tabName, trans, lastOrderNum);
+                    lastOrderNum = trans.getOrderNumber();
+                }
+                GUIOrderPanel.printNewLine();
+            }
+        }
+    }
+
+    /**
+     * parses the credit card credits and debits from the PDF file.
+     *  This extracts vital info from the credit card file for Amazon charges
+     *    and refunds and saves it in an array.
+     *  It then looks for the entries in the spreadsheet file for the corresponding
+     *    order numbers and modifies the spreadsheet file to highlight the rows that
+     *    match up with the charges/credits.
+     * 
+     * @param sheetName       - the name of the tab selection for the sheet
+     * @param transactionList - the list of credit card transactions pulled from the PDF file
+     * @param strPdfName      - the name of the PDF file
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
     private static void balanceSpreadsheetEntries(String sheetName,
                                               ArrayList<CardTransaction> transactionList,
                                               String strPdfName) throws ParserException, IOException {
@@ -505,7 +513,8 @@ public class PdfReader {
 
         // find the last row in the selected sheet. the next line is where we will add entries
         int lastRow = Spreadsheet.getLastRowIndex();
-        GUILogPanel.outputInfoMsg(MsgType.INFO, "spreadsheet " + sheetName + " last row: " + lastRow);
+        int startingRow = transactionList.get(0).getRow();
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "spreadsheet " + sheetName + " last row: " + lastRow + ", first item: row " + startingRow);
 
         // search the spreadsheet for each order found in the credit card statement
         // (these should already be arranged in order of rows, from smallest to largest)
@@ -595,7 +604,21 @@ public class PdfReader {
             // mark card transaction entry as complete
             cardEntry.setCompleted();
         }
-            
+        
+        // check for any entries in spreadsheet that are in the range processed that had no charge
+        //  associated with it (because of using points or whatever) and mark these as complete
+        //  as well, since they will not end up in the ledger.
+        boolean bNoCharge = false;
+        for (int ix = startingRow; ix < lastRow; ix++) {
+            Integer total = Spreadsheet.getTotalCost(ix);
+            if ((total == null && bNoCharge) || (total != null && total == 0)) {
+                Spreadsheet.highlightOrderInfo(ix, false, false, colorOfMonth);
+                bNoCharge = true;
+            } else {
+                bNoCharge = false;
+            }
+        }
+        
         // this will be the 1st payment entry in the spreadsheet that was found
         if (firstPaymentRow != 999999) {
             Spreadsheet.setSpreadsheetCreditCard(firstPaymentRow, strPdfName);
@@ -603,7 +626,7 @@ public class PdfReader {
 
         // save the data to the spreadsheet file
         File ssFile = Spreadsheet.getFileSelection();
-        OpenDoc.saveToFile(ssFile, sheetName);
+        Spreadsheet.saveSheet(ssFile, sheetName);
     }
 
 }

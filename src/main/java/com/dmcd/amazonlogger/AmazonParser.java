@@ -249,7 +249,7 @@ public class AmazonParser {
                 
                 // now save the updates to the file
                 File ssFile = Spreadsheet.getFileSelection();
-                OpenDoc.saveToFile(ssFile, strSheetSel);
+                Spreadsheet.saveSheet(ssFile, strSheetSel);
                 Integer actLastLine = Spreadsheet.getLastRowIndex();
                 
                 // TODO: verify the updates took place (last lines are correct) before clearing display

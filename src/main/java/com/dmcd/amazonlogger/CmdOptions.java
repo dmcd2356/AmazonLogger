@@ -655,8 +655,13 @@ public class CmdOptions {
                     if (file.exists()) {
                         throw new ParserException(functionId + "File already exists: " + file.getAbsolutePath());
                     }
+                    // create the spreadsheet file image
                     Spreadsheet.setFileSelection(file);
-                    OpenDoc.fileCreate (file, tabName, arrList);
+                    OpenDoc.ssImageCreate (file, tabName, arrList);
+                    
+                    // now save the image to the spreadsheet file
+                    Spreadsheet.setTabIndex(0);
+                    Spreadsheet.saveSheet(file, null);
                     break;
                 case "-stest":
                     pathtype = Utils.PathType.Spreadsheet;
@@ -677,8 +682,18 @@ public class CmdOptions {
                     if (file.exists()) {
                         throw new ParserException(functionId + "File already exists: " + file.getAbsolutePath());
                     }
+                    // create the spreadsheet file image
                     Spreadsheet.setFileSelection(file);
-                    OpenDoc.fileCreate (file, tabList, headList);
+                    OpenDoc.ssImageCreate (file, tabList, headList);
+                    
+                    // save all sheets of the spreadsheet file
+                    for (int ix = 0; ix < tabList.size(); ix++) {
+                        OpenDoc.saveToFile (file, ix);
+                    }
+        
+                    // reload the spreadsheet sheets into memory, or we lose the info for one of the tabs
+                    Spreadsheet.setTabIndex(0);
+                    OpenDoc.loadFromFile (file, 0);
                     break;
                 case "-saddtab":
                     tabName = getStringValue(cmdLine, 0);
@@ -686,7 +701,8 @@ public class CmdOptions {
                         arrList = getStringArray(cmdLine, 1);
                     else
                         arrList = null;
-                    Spreadsheet.addTab(tabName, arrList);
+                    int tabIx = Spreadsheet.addTab(tabName, arrList);
+                    Spreadsheet.setTabIndex(tabIx);
                     break;
                 case "-load":
                     Integer numTabs      = getUnsignedValue(cmdLine, 0);
@@ -760,7 +776,7 @@ public class CmdOptions {
                 case "-save":
                     // save the spreadsheet and reload so another spreadsheet change can be made
                     File ssFile = Spreadsheet.getFileSelection();
-                    OpenDoc.saveToFile(ssFile, null);
+                    Spreadsheet.saveSheet(ssFile, null);
                     break;
                 case "-date":
                     String strDate = getStringValue(cmdLine, 0);
@@ -809,7 +825,7 @@ public class CmdOptions {
                     }
                     OpenDoc.setSize(iCol, iRow);
                     ssFile = Spreadsheet.getFileSelection();
-                    OpenDoc.saveToFile(ssFile, null);
+                    Spreadsheet.saveSheet(ssFile, null);
                     break;
                 case "-find":
                     String order = getStringValue(cmdLine, 0);

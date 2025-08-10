@@ -207,7 +207,6 @@ public class ScriptThread implements Runnable {
         LoopStruct.resetStack();    // reset the loop stack
         Subroutine.resetStack();    // reset subroutine stack
         Spreadsheet.init();         // reset spreadsheet params
-        OpenDoc.init();             // reset the OpenDoc params
         GUIMain.elapsedTimerDisable();  // stop the timer for the timestamp
         GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "Resetting program index to begining");
         netCmdIndex = 0;            // reset the command pointer to the begining

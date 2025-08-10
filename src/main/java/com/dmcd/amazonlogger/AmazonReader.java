@@ -42,7 +42,6 @@ public class AmazonReader {
         FileIO.init();          // reset the File settings
         Variables.resetVariables();  // reset all variable values back to default
         Spreadsheet.init();     // reset spreadsheet params
-        OpenDoc.init();         // reset the OpenDoc params
         GUIMain.elapsedTimerDisable();    // stop the timer for the timestamp
         GUILogPanel.outputInfoMsg(MsgType.PROGRAM, "Resetting program index to begining");
         commandIndex = 0;       // reset the command pointer to the begining
