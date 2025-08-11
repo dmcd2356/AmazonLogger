@@ -132,8 +132,14 @@ public class AmazonParser {
                         newList = parseOrd.parseOrders(eClipType, line, eKeyId);
                         AmazonOrder newOrder = newList.get(0); // there should only be 1 order entry in the list
 
-                        // add the new order to the current orders we have accumulated
-                        addDetailsToList (newOrder);
+                        if (amazonList.isEmpty()) {
+                            amazonList.add(newOrder);
+                        } else {
+                            // add the new order to the current orders we have accumulated
+//                            addDetailsToList (newOrder);
+                            insertOrderInList (newOrder);
+                        }
+
                         // update the current order info
                         updateOrderListing(amazonList);
                     } catch (ParserException exMsg) {
@@ -363,6 +369,44 @@ public class AmazonParser {
         }
     }
 
+    /**
+     * adds the specified AmazonOrder entry into the current Amazon list.
+     * The entry order number is searched for in the current Amazon list and, if found,
+     *  updates the entry with the new contents.
+     * If not found, the entry is inserted based on the date. It is assumed the Amazon list
+     *  is currently ordered by earliest to latest date.
+     * 
+     * @param newEntry - the entry to add
+     * 
+     * @return 
+     */
+    private void insertOrderInList (AmazonOrder newEntry) throws ParserException {
+        // search for order number match & replace entry with new entry if found
+        String orderNumber  = newEntry.getOrderNumber();
+        for (int ix = 0; ix < amazonList.size(); ix++) {
+            AmazonOrder listEntry = amazonList.get(ix);
+            if (listEntry.getOrderNumber().contentEquals(orderNumber)) {
+                amazonList.set(ix, newEntry);
+                return;
+            }
+        }
+
+        // order number not found...
+        // search for 1st order date that is greater (more recent) than the new entry and
+        // insert the new entry before that one.
+        LocalDate orderDate = newEntry.getOrderDate();
+        for (int ix = 0; ix < amazonList.size(); ix++) {
+            AmazonOrder listEntry = amazonList.get(ix);
+            if (listEntry.getOrderDate().isAfter(orderDate)) {
+                amazonList.add(ix, newEntry);
+                return;
+            }
+        }
+        
+        // obviously, this order entry must be the most recent, so let's add to end of list
+        amazonList.addLast(newEntry);
+    }
+    
     /**
      * adds the specified AmazonOrder list to another.
      * The lists as they are read from the web pages are from newest entry to oldest.

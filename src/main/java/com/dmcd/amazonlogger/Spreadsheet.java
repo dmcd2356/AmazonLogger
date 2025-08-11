@@ -1602,6 +1602,16 @@ public class Spreadsheet {
         
         // reload all spreadsheet sheets into memory, or we can lose the info for one of the tabs
         OpenDoc.loadFromFile (file, 0);
+
+        // resize spreadsheet image to reasonable amount
+        int numSheets = OpenDoc.getNumberOfSheets();
+        for (int ix = 0; ix < numSheets; ix++) {
+            OpenDoc.setSheetSelection(ix);
+            resizeSheet(getTabName(ix), 0);
+        }
+
+        // reset sheet selection to current
+        OpenDoc.setSheetSelection(currentSheetIx);
     }
     
     /**
