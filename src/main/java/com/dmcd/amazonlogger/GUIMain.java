@@ -278,6 +278,16 @@ public final class GUIMain extends JFrame implements ActionListener {
         cbox_debug .setSelected(true);
         cbox_props .setSelected(true);
 
+        // display tool tips
+        btn_select.setToolTipText("Use this button to select the spreadsheet file (.ods) to make changes to.");
+        btn_clipboard.setToolTipText("Use this button to add the current clipboard contents to the list of Amazon orders.");
+        btn_update.setToolTipText("Use this button to save the Amazon orders currently collected to the spreadsheet file.");
+        btn_pdf.setToolTipText("Use this button to select the PDF file containing the Payments and Refunds issued by the credit card.");
+        btn_balance.setToolTipText("Use this button to save the PDF Payments and Refunds currently loaded to the spreadsheet file.");
+        btn_clear.setToolTipText("Use this button to clear the information in the currently selected tab");
+        btn_copy.setToolTipText("Use this button to copy to clipbaord the information in the currently selected tab");
+        btn_print.setToolTipText("Use this button to save the information in the currently selected tab to the file debug.log in the spreadsheet directory.");
+        
         if (bUseGUI) {
             setVisible(true);
         }
