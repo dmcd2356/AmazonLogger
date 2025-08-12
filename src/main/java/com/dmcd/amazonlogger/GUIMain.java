@@ -316,6 +316,10 @@ public final class GUIMain extends JFrame implements ActionListener {
              }
             else if (e.getSource() == btn_clipboard) {
                 outputSeparatorLine("PARSE CLIPBOARD");
+                // make sure we have set the update/undo button to UPDATE and disabled
+                btn_update.setText("Update File");
+                btn_update.setVisible(false);
+                
                 // read the clipboard info and parse the data to extract the orders
                 AmazonParser amazonParser = new AmazonParser();
                 boolean bSuccess = amazonParser.parseWebData();
@@ -325,15 +329,32 @@ public final class GUIMain extends JFrame implements ActionListener {
                 }
             }
             else if (e.getSource() == btn_update) {
-                outputSeparatorLine("UPDATE FROM CLIPS");
-                // update the spreadsheet from the orders read from the clipboard
-                AmazonParser.updateSpreadsheet();
-                
-                // erase the UPDATE button until we read in more data
-                btn_update.setVisible(false);
+                if (btn_update.getText().contentEquals("Update File")) {
+                    // update the spreadsheet file from the clipboard orders
+                    outputSeparatorLine("UPDATE FROM CLIPS");
+                    // update the spreadsheet from the orders read from the clipboard
+                    boolean bSuccess = AmazonParser.updateSpreadsheet();
+
+                    if (bSuccess && Spreadsheet.checkIfBackupCopy(Spreadsheet.BackupType.Order)) {
+                        btn_update.setText("Undo");
+                    } else {
+                        // erase the UPDATE button until we read in more data
+                        btn_update.setVisible(false);
+                    }
+                } else {
+                    // restore the spreadsheet from the backup file
+                    outputSeparatorLine("RESTORED FROM BACKUP FILE");
+                    Spreadsheet.restoreBackupCopy(Spreadsheet.BackupType.Order);
+                    btn_update.setText("Update File");
+                    btn_update.setVisible(false);
+                }
             }
             else if (e.getSource() == btn_pdf) {
                 outputSeparatorLine("PARSE PDF");
+                // make sure we have set the balance/undo button to BALANCE and disabled
+                btn_balance.setText("Balance");
+                btn_balance.setVisible(false);
+                
                 // read and process the PDF file for orders that are in the spreadsheet
                 PdfReader pdfReader = new PdfReader();
                 if (pdfReader == null) {
@@ -347,12 +368,25 @@ public final class GUIMain extends JFrame implements ActionListener {
                 }
             }
             else if (e.getSource() == btn_balance) {
-                outputSeparatorLine("BALANCE FROM PDF");
-                // add the balancing info from the PDF file to the spreadsheet
-                PdfReader.balanceSpreadsheet();
+                if (btn_balance.getText().contentEquals("Balance")) {
+                    // update the spreadsheet from pdf file
+                    outputSeparatorLine("BALANCE FROM PDF");
+                    // add the balancing info from the PDF file to the spreadsheet
+                    boolean bSuccess = PdfReader.balanceSpreadsheet();
 
-                // erase the BALANCE button until we read in more data
-                btn_balance.setVisible(false);
+                    if (bSuccess && Spreadsheet.checkIfBackupCopy(Spreadsheet.BackupType.Balance)) {
+                        btn_balance.setText("Undo");
+                    } else {
+                        // erase the BALANCE button until we read in more data
+                        btn_balance.setVisible(false);
+                    }
+                } else {
+                    // restore the spreadsheet from the backup file
+                    outputSeparatorLine("RESTORED FROM BACKUP FILE");
+                    Spreadsheet.restoreBackupCopy(Spreadsheet.BackupType.Balance);
+                    btn_balance.setText("Balance");
+                    btn_balance.setVisible(false);
+                }
             }
         } catch (ParserException | IOException | SAXException | TikaException ex) {
             String msg = ex.getMessage();

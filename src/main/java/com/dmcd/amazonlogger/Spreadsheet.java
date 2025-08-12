@@ -72,6 +72,12 @@ public class Spreadsheet {
         Seller,         // (optional) 
     };
 
+    // these are the types of changes to the spreadsheet file that create backups of the old file
+    public static enum BackupType {
+        Order,      // an order update from one or more clipboards
+        Balance,    // a balance update from a pdf file
+    }
+    
     /**
      * initializes all the static parameters
      */
@@ -994,7 +1000,7 @@ public class Spreadsheet {
      * 
      * @param strOrderNum - the order number to find
      * 
-     * @return the row of the 1st occurrence of the order number in the spreadsheet
+     * @return the row of the 1st occurrence of the order number in the spreadsheet (-1 if not found)
      * 
      * @throws ParserException
      */
@@ -1687,15 +1693,58 @@ public class Spreadsheet {
         Spreadsheet.saveSheet(spreadsheetFile, tabName);
         return tabIx;
     }
+
+    /**
+     * determines if a backup copy of the current spreadsheet file is available.
+     * 
+     * @param backupId - the type of backup to check
+     * 
+     * @return true if the backup file exists
+     */
+    public static boolean checkIfBackupCopy(BackupType backupId) {
+        String fileExt;
+        switch (backupId) {
+            case Order   -> fileExt = "-web-bak";
+            case Balance -> fileExt = "-pdf-bak";
+            default -> {
+                return false;
+            }
+        }
+        
+        File ssFile = spreadsheetFile;
+        String filePath  = Utils.getFilePath(ssFile);
+        String fnameRoot = Utils.getFileRootname(ssFile);
+        String fnameExt  = Utils.getFileExtension(ssFile);
+        String fname = filePath + "/" + fnameRoot + fileExt + fnameExt;
+
+        // find the backup file name
+        File file = new File(fname);
+        boolean bValid = file.isFile();
+        if (bValid) {
+            GUILogPanel.outputInfoMsg(MsgType.INFO, "Backup file found: " + fname);
+        } else {
+            GUILogPanel.outputInfoMsg(MsgType.INFO, "Backup file not found: " + fname);
+        }
+        return bValid;
+    }
     
     /**
      * creates a backup copy of the current spreadsheet file selection.
      * 
-     * @param backupId - the addendum to add to the end of the filename for the backup file name
+     * @param backupId - the type of backup being performed
      * 
-     * @throws IOException 
+     * @return true if successful
      */
-    public static void makeBackupCopy(String backupId) throws IOException {
+    public static boolean makeBackupCopy(BackupType backupId) {
+        String fileExt;
+        switch (backupId) {
+            case Order   -> fileExt = "-web-bak";
+            case Balance -> fileExt = "-pdf-bak";
+            default -> {
+                return false;
+            }
+        }
+        
         File ssFile = spreadsheetFile;
         String filePath  = Utils.getFilePath(ssFile);
         String fnameRoot = Utils.getFileRootname(ssFile);
@@ -1704,11 +1753,66 @@ public class Spreadsheet {
         // make a backup copy of the current file before saving.
         GUILogPanel.outputInfoMsg(MsgType.INFO, "Path to spreadsheet file: " + filePath);
         GUILogPanel.outputInfoMsg(MsgType.INFO, "Name of spreadsheet file: " + fnameRoot + fnameExt);
-        GUILogPanel.outputInfoMsg(MsgType.INFO, "Creating backup of spreadsheet as: " + fnameRoot + backupId + fnameExt);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Name of backup file to save to: " + fnameRoot + fileExt + fnameExt);
 
         Path srcPath = FileSystems.getDefault().getPath(filePath, fnameRoot + fnameExt);
-        Path dstPath = FileSystems.getDefault().getPath(filePath, fnameRoot + backupId + fnameExt);
-        Files.copy(srcPath, dstPath, StandardCopyOption.REPLACE_EXISTING);
+        Path dstPath = FileSystems.getDefault().getPath(filePath, fnameRoot + fileExt + fnameExt);
+
+        try {
+            Files.copy(srcPath, dstPath, StandardCopyOption.REPLACE_EXISTING);
+            return true;
+        } catch (IOException exMsg) {
+            GUILogPanel.outputInfoMsg(MsgType.WARN, exMsg.getMessage());
+        }
+        return false;
+    }
+    
+    /**
+     * restores a backup copy of the current spreadsheet file selection.
+     * 
+     * @param backupId - the type of backup being restored
+     * 
+     * @return true if successful
+     */
+    public static boolean restoreBackupCopy(BackupType backupId) {
+        String fileExt;
+        switch (backupId) {
+            case Order   -> fileExt = "-web-bak";
+            case Balance -> fileExt = "-pdf-bak";
+            default -> {
+                return false;
+            }
+        }
+        
+        File ssFile = spreadsheetFile;
+        String filePath  = Utils.getFilePath(ssFile);
+        String fnameRoot = Utils.getFileRootname(ssFile);
+        String fnameExt  = Utils.getFileExtension(ssFile);
+
+        // make a backup copy of the current file before saving.
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Path to spreadsheet file: " + filePath);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Name of spreadsheet file: " + fnameRoot + fnameExt);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Name of backup file to restore from: " + fnameRoot + fileExt + fnameExt);
+
+        Path srcPath = FileSystems.getDefault().getPath(filePath, fnameRoot + fileExt + fnameExt);
+        Path dstPath = FileSystems.getDefault().getPath(filePath, fnameRoot + fnameExt);
+        
+        boolean bStatus = checkIfBackupCopy(backupId);
+        if (! bStatus) {
+            return false;
+        }
+        try {
+            Files.copy(srcPath, dstPath, StandardCopyOption.REPLACE_EXISTING);
+            // now delete the backup copy, since it was already restored
+            File file = new File(filePath + "/" + fnameRoot + fileExt + fnameExt);
+            file.delete();
+            bStatus = true;
+        } catch (IOException exMsg) {
+            GUILogPanel.outputInfoMsg(MsgType.WARN, exMsg.getMessage());
+            bStatus = false;
+        }
+        
+        return bStatus;
     }
     
 }

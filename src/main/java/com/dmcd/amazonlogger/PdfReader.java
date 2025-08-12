@@ -297,16 +297,18 @@ public class PdfReader {
     /**
      * makes the changes to the spreadsheet file to add in the balancing info from the pdf file.
      * 
+     * @return true if file was updated
+     * 
      * @throws ParserException
      * @throws java.io.IOException
      */
-    public static void balanceSpreadsheet() throws IOException, ParserException {
+    public static boolean balanceSpreadsheet() throws IOException, ParserException {
         // something changed - so first make a backup copy of the current file before saving.
         if (! mapList.isEmpty()) {
-            Spreadsheet.makeBackupCopy("-pdf-bak");
+            Spreadsheet.makeBackupCopy(Spreadsheet.BackupType.Balance);
         } else {
             GUILogPanel.outputInfoMsg(MsgType.WARN, "No changes were made.");
-            return;
+            return false;
         }
 
         String strPdfName = Utils.getFileRootname(pdfFile);
@@ -328,6 +330,7 @@ public class PdfReader {
         // update display of last balance performed
         String lastBalance = Spreadsheet.showLastLineInfo();
         GUIMain.showLastBalance(lastBalance);
+        return true;
     }
     
     /**
@@ -612,7 +615,7 @@ public class PdfReader {
         for (int ix = startingRow; ix < lastRow; ix++) {
             Integer total = Spreadsheet.getTotalCost(ix);
             if ((total == null && bNoCharge) || (total != null && total == 0)) {
-                Spreadsheet.highlightOrderInfo(ix, false, false, colorOfMonth);
+                Spreadsheet.highlightOrderInfo(ix, true, false, colorOfMonth);
                 bNoCharge = true;
             } else {
                 bNoCharge = false;

@@ -159,15 +159,18 @@ public class AmazonParser {
     /**
      * updates the spreadsheet file with the lists of AmazonOrders
      * 
+     * @return true if the spreadsheet file was updated and the old file was saved to backup.
+     * 
      * @throws ParserException
      * @throws IOException
      */
-    public static void updateSpreadsheet () throws ParserException, IOException {
+    public static boolean updateSpreadsheet () throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
+        boolean bSuccess = false;
         if (amazonList.isEmpty()) {
             GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "nothing to update");
-            return;
+            return bSuccess;
         }
 
         // no tab selection made. If GUI mode, let the user choose. Else this is a failure.
@@ -207,13 +210,10 @@ public class AmazonParser {
             // find the starting point: the oldest entry in the list that isn't in the spreadsheet already
             boolean bUpdate = false;
             int ixOldest = -1;
-            if (! amazonList.isEmpty()) {
-                // find date of oldest valid entry to be added
-                for (int ix = 0; ix < amazonList.size(); ix++) {
-                    if (! amazonList.get(ix).isInvalidDate()) {
-                        ixOldest = ix;
-                        break;
-                    }
+            for (int ix = 0; ix < amazonList.size(); ix++) {
+                if (! amazonList.get(ix).isInvalidDate()) {
+                    ixOldest = ix;
+                    break;
                 }
             }
             if (ixOldest < 0) {
@@ -230,16 +230,23 @@ public class AmazonParser {
                 GUILogPanel.outputInfoMsg(MsgType.INFO, "Date of oldest entry in page:      "
                                             + DateFormat.convertDateToString(dateEnd, false) + " (" + endDate + ")");
 
-                // to get the entries in chronological order, start with the last entry and work backwards.
-                // let's proceed from the item number that matched and loop backwards to the more recent entries.
-                int row = lastRow;
+                // copy the entries to the spreadsheet image.
+                int appendRow = lastRow; // this is where we append any new listings
                 for (int ixOrder = ixOldest; ixOrder < amazonList.size(); ixOrder++) {
                     AmazonOrder order = amazonList.get(ixOrder);
+                    String orderNumber = order.getOrderNumber();
                     showItemListing(ixOrder, order);
-                        
-                    // output order item(s) to spreadsheet
-                    int count = Spreadsheet.setSpreadsheetOrderInfo (row, order, true);
-                    row += count;
+
+                    // first, check if any of the entries is already in the spreadsheet.
+                    // if so, we will simply overwrite them and remove them from the list to append.
+                    int foundRow = Spreadsheet.findItemNumber(orderNumber); // this will be any we are overwriting
+                    if (foundRow >= 0) {
+                        Spreadsheet.setSpreadsheetOrderInfo (foundRow, order, true);
+                    } else {
+                        // otherwise, append entry to end of spreadsheet listings
+                        int count = Spreadsheet.setSpreadsheetOrderInfo (appendRow, order, true);
+                        appendRow += count;
+                    }
                     bUpdate = true;
                 }
             }
@@ -251,7 +258,7 @@ public class AmazonParser {
                 Integer newLastLine = Spreadsheet.getLastRowIndex();
             
                 // make a backup copy of the current file before saving new one.
-                Spreadsheet.makeBackupCopy("-web-bak");
+                Spreadsheet.makeBackupCopy(Spreadsheet.BackupType.Order);
                 
                 // now save the updates to the file
                 File ssFile = Spreadsheet.getFileSelection();
@@ -264,6 +271,7 @@ public class AmazonParser {
                 } else {
                     GUIOrderPanel.clearMessages();
                 }
+                bSuccess = true;
             } else {
                 GUILogPanel.outputInfoMsg(MsgType.WARN, "NOTE: No order entries were valid to add to spreadsheet");
                 GUIOrderPanel.clearMessages();
@@ -278,6 +286,8 @@ public class AmazonParser {
         } catch (IOException ex) {
             throw new IOException(functionId + ex.getMessage());
         }
+        
+        return bSuccess;
     }
 
     /**
@@ -560,72 +570,6 @@ public class AmazonParser {
         return finalList;
     }
 
-    /**
-     * adds the specified AmazonOrder list containing detail info to amazonList.
-     * If amazonList is not empty, this will search for a match to the order number and
-     *  and its additional info to that entry, if found.
-     * If not found, it will find the location in the array in which to place it to keep
-     *  entries in order of oldest to newest dates.
-     * If amazonList is empty, it simply adds the entry to it.
-     * 
-     * @param entry - the detailed order info
-     * 
-     * @return true if entry was added, false if an entry was modified or not added
-     */
-    private boolean addDetailsToList (AmazonOrder newOrder) throws ParserException {
-        String orderNum = newOrder.getOrderNumber();
-        LocalDate orderDate = newOrder.getOrderDate();
-        int length = amazonList.size();
-        boolean bFound = false;
-
-        if (strSheetSel == null) {
-            // no tab selection made. If GUI mode, let the user choose. Else this is a failure.
-            userSelectSpreadsheetTab();
-            Spreadsheet.selectSpreadsheetTab (strSheetSel);
-        }
-        
-        if (! amazonList.isEmpty()) {
-            int newDate = DateFormat.convertDateToInteger (orderDate, false);
-            int index = findOrderNumberInList (orderNum, amazonList);
-            if (index >= 0) {
-                // update the added info not included in order info
-                AmazonOrder entry = amazonList.get(index);
-                entry.addDetails (newOrder);
-                GUILogPanel.outputInfoMsg(MsgType.PARSER, "modified order # " + orderNum + " in order list");
-                return false;
-            }
-            
-            if (newDate >= 0) {
-                // find location to add entry to list
-                for (int ix = 0; ix < length; ix++) {
-                    int entryDate = DateFormat.convertDateToInteger (amazonList.get(ix).getOrderDate(), false);
-                    if (newDate <= entryDate) {
-                        amazonList.add(ix, newOrder);
-                        GUILogPanel.outputInfoMsg(MsgType.PARSER, "inserted order # " + orderNum + " into order list at index " + ix);
-                        length = ix;
-                        bFound = true;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        boolean bEntryAdded = true;
-        if (! bFound) {
-            // date is past all entries, so add to end of list
-            amazonList.add(newOrder);
-            GUILogPanel.outputInfoMsg(MsgType.PARSER, "added order # " + orderNum + " to order list at index " + length);
-        }
-        
-        // new entry added, check if the item is already in the spreadsheet
-        if (Spreadsheet.findItemNumber(orderNum) >= 0) {
-            amazonList.get(length).setInvalidDate();
-            bEntryAdded = false;
-        }
-        
-        return bEntryAdded;
-    }
-    
     /**
      * finds the specified order number entry in the list
      * 
