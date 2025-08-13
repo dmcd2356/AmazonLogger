@@ -153,7 +153,7 @@ public final class GUIMain extends JFrame implements ActionListener {
         lbl_select    = addLabel("", x_col2, y_row, 500, true);
         y_row += LINE_SPACING;
         btn_clipboard = addButton("Read Clip"  , x_col1, y_row, false, null);
-        btn_update    = addButton("Update File", x_col2, y_row, false, null);
+        btn_update    = addButton("Update"     , x_col2, y_row, false, null);
         y_row += LINE_SPACING;
         btn_pdf       = addButton("Read Pdf"   , x_col1, y_row, false, null);
         btn_balance   = addButton("Balance"    , x_col2, y_row, false, null);
@@ -281,12 +281,12 @@ public final class GUIMain extends JFrame implements ActionListener {
         // display tool tips
         btn_select.setToolTipText("Use this button to select the spreadsheet file (.ods) to make changes to.");
         btn_clipboard.setToolTipText("Use this button to add the current clipboard contents to the list of Amazon orders.");
-        btn_update.setToolTipText("Use this button to save the Amazon orders currently collected to the spreadsheet file.");
         btn_pdf.setToolTipText("Use this button to select the PDF file containing the Payments and Refunds issued by the credit card.");
-        btn_balance.setToolTipText("Use this button to save the PDF Payments and Refunds currently loaded to the spreadsheet file.");
         btn_clear.setToolTipText("Use this button to clear the information in the currently selected tab");
         btn_copy.setToolTipText("Use this button to copy to clipbaord the information in the currently selected tab");
         btn_print.setToolTipText("Use this button to save the information in the currently selected tab to the file debug.log in the spreadsheet directory.");
+        updateButtonMode ("Update", false, false);
+        updateButtonMode ("Balance", false, false);
         
         if (bUseGUI) {
             setVisible(true);
@@ -327,43 +327,40 @@ public final class GUIMain extends JFrame implements ActionListener {
             else if (e.getSource() == btn_clipboard) {
                 outputSeparatorLine("PARSE CLIPBOARD");
                 // make sure we have set the update/undo button to UPDATE and disabled
-                btn_update.setText("Update File");
-                btn_update.setVisible(false);
+                updateButtonMode ("Update", false, false);
                 
                 // read the clipboard info and parse the data to extract the orders
                 AmazonParser amazonParser = new AmazonParser();
                 boolean bSuccess = amazonParser.parseWebData();
                 if (bSuccess) {
                     // if there is now data in the Orders list, enable the UPDATE button
-                    btn_update.setVisible(true);
+                    updateButtonMode ("Update", false, true);
                 }
             }
             else if (e.getSource() == btn_update) {
-                if (btn_update.getText().contentEquals("Update File")) {
+                if (! btn_update.getText().contentEquals("Undo")) {
                     // update the spreadsheet file from the clipboard orders
                     outputSeparatorLine("UPDATE FROM CLIPS");
                     // update the spreadsheet from the orders read from the clipboard
                     boolean bSuccess = AmazonParser.updateSpreadsheet();
 
                     if (bSuccess && Spreadsheet.checkIfBackupCopy(Spreadsheet.BackupType.Order)) {
-                        btn_update.setText("Undo");
+                        updateButtonMode ("Update", true, true);
                     } else {
                         // erase the UPDATE button until we read in more data
-                        btn_update.setVisible(false);
+                        updateButtonMode ("Update", false, false);
                     }
                 } else {
                     // restore the spreadsheet from the backup file
                     outputSeparatorLine("RESTORED FROM BACKUP FILE");
                     Spreadsheet.restoreBackupCopy(Spreadsheet.BackupType.Order);
-                    btn_update.setText("Update File");
-                    btn_update.setVisible(false);
+                    updateButtonMode ("Update", false, false);
                 }
             }
             else if (e.getSource() == btn_pdf) {
                 outputSeparatorLine("PARSE PDF");
                 // make sure we have set the balance/undo button to BALANCE and disabled
-                btn_balance.setText("Balance");
-                btn_balance.setVisible(false);
+                updateButtonMode ("Balance", false, false);
                 
                 // read and process the PDF file for orders that are in the spreadsheet
                 PdfReader pdfReader = new PdfReader();
@@ -374,28 +371,27 @@ public final class GUIMain extends JFrame implements ActionListener {
                 boolean bSuccess = pdfReader.processData();
                 if (bSuccess) {
                     // if there is now data to be balanced, enable the BALANCE button
-                    btn_balance.setVisible(true);
+                    updateButtonMode ("Balance", false, true);
                 }
             }
             else if (e.getSource() == btn_balance) {
-                if (btn_balance.getText().contentEquals("Balance")) {
+                if (! btn_balance.getText().contentEquals("Undo")) {
                     // update the spreadsheet from pdf file
                     outputSeparatorLine("BALANCE FROM PDF");
                     // add the balancing info from the PDF file to the spreadsheet
                     boolean bSuccess = PdfReader.balanceSpreadsheet();
 
                     if (bSuccess && Spreadsheet.checkIfBackupCopy(Spreadsheet.BackupType.Balance)) {
-                        btn_balance.setText("Undo");
+                        updateButtonMode ("Balance", true, true);
                     } else {
                         // erase the BALANCE button until we read in more data
-                        btn_balance.setVisible(false);
+                        updateButtonMode ("Balance", false, false);
                     }
                 } else {
                     // restore the spreadsheet from the backup file
                     outputSeparatorLine("RESTORED FROM BACKUP FILE");
                     Spreadsheet.restoreBackupCopy(Spreadsheet.BackupType.Balance);
-                    btn_balance.setText("Balance");
-                    btn_balance.setVisible(false);
+                    updateButtonMode ("Balance", false, false);
                 }
             }
         } catch (ParserException | IOException | SAXException | TikaException ex) {
@@ -410,6 +406,33 @@ public final class GUIMain extends JFrame implements ActionListener {
         }
     }
 
+    private static void updateButtonMode (String buttonName, boolean bUndo, boolean bEnable) {
+        switch (buttonName) {
+            case "Update":
+                if (bUndo) {
+                    btn_update.setText("Undo");
+                    btn_update.setToolTipText("Use this button to Undo last Amazon orders changes.");
+                } else {
+                    btn_update.setText("Update");
+                    btn_update.setToolTipText("Use this button to save the Amazon orders currently collected to the spreadsheet file.");
+                }
+                btn_update.setVisible(bEnable);
+                break;
+            case "Balance":
+                if (bUndo) {
+                    btn_balance.setText("Undo");
+                    btn_balance.setToolTipText("Use this button to Undo last PDF Payments and Refunds changes.");
+                } else {
+                    btn_balance.setText("Balance");
+                    btn_balance.setToolTipText("Use this button to save the PDF Payments and Refunds currently loaded to the spreadsheet file.");
+                }
+                btn_balance.setVisible(bEnable);
+                break;
+            default:
+                break;
+        }
+    }
+    
     /**
      * executes the action specified by the 'action' input and which tab is currently active.
      * 

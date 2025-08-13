@@ -185,6 +185,47 @@ public class OpenDoc {
     }
     
     /**
+     * get the cell value of the col & row on the selected sheet.
+     * 
+     * @param tabName - the sheet tab to use (null if use currently selected sheet)
+     * @param col - the column selection
+     * @param row - the row selection
+     * 
+     * @return cell contents at specified location
+     * 
+     * @throws ParserException
+     */
+    private static MutableCell getCellContents (String tabName, int col, int row) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        Sheet sheet;
+        if (tabName != null) {
+            sheet = getSheetByName (tabName);
+            if (sheet == null) {
+                throw new ParserException(functionId + "sheet tab name not found: " + tabName);
+            }
+        } else {
+            sheet = sheetSel;
+            if (sheet == null) {
+                throw new ParserException(functionId + "no sheet selection for spreadsheet");
+            }
+            tabName = sheet.getName();
+        }
+
+        // verify the column and row are valid for sheet size
+        int rowSize = sheet.getRowCount();
+        int colSize = sheet.getColumnCount();
+        if (row >= rowSize) {
+            throw new ParserException(functionId + "sheet " + tabName + " row " + row + " exceeds max: " + rowSize);
+        }
+        if (col >= colSize) {
+            throw new ParserException(functionId + "sheet " + tabName + "col " + col + " exceeds max: " + colSize);
+        }
+
+        return sheet.getCellAt(col,row);
+    }
+    
+    /**
      * get the selected row of selected sheet.
      * 
      * @param tabName - name of the tab for the sheet
@@ -195,31 +236,20 @@ public class OpenDoc {
      * 
      * @throws ParserException
      */
-    public static ArrayList<String> getSheetByName (String tabName, int row, int colNum) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
+    public static ArrayList<String> getRowArray (String tabName, int row, int colNum) throws ParserException {
         ArrayList<String> rowList = new ArrayList<>();
-        Sheet sheet = getSheetByName(tabName);
-        if (sheet != null) {
-            int rowSize = sheet.getRowCount();
-            int colSize = sheet.getColumnCount();
-            if (row >= rowSize) {
-                throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
-            }
-            if (colNum > colSize) {
-                colNum = colSize;
-            }
-            // build up the response string of entries in the row
-            for (int ix = 0; ix < colNum; ix++) {
-                String strVal = "";
-                if (sheet.getCellAt(ix,row) != null) {
-                    strVal = sheet.getCellAt(ix,row).getTextValue();
-                    if (strVal == null) {
-                        strVal = "";
-                    }
+
+        // build up the response string of entries in the row
+        for (int ix = 0; ix < colNum; ix++) {
+            String strVal = "";
+            MutableCell cell = getCellContents(tabName, ix, row);
+            if (cell != null) {
+                strVal = cell.getTextValue();
+                if (strVal == null) {
+                    strVal = "";
                 }
-                rowList.add(strVal);
             }
+            rowList.add(strVal);
         }
         return rowList;
     }
@@ -231,12 +261,14 @@ public class OpenDoc {
      * @param row - the row selection
      * 
      * @return true if cell is empty
+     * 
+     * @throws ParserException
      */
-    public static boolean isCellEmpty (int col, int row) {
-        MutableCell cell = sheetSel.getCellAt(col,row);
+    public static boolean isCellEmpty (int col, int row) throws ParserException {
+        MutableCell cell = getCellContents(null, col, row);
         return cell == null;
     }
-    
+
     /**
      * get the object type of the col & row on the current sheet.
      * 
@@ -250,20 +282,12 @@ public class OpenDoc {
     public static String getCellObjectType (int col, int row) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "no sheet selection for spreadsheet");
-        }
-        int rowSize = sheetSel.getRowCount();
-        int colSize = sheetSel.getColumnCount();
-        if (row >= rowSize) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
-        }
-        if (col >= colSize) {
-            throw new ParserException(functionId + "col " + col + " exceeds max: " + colSize);
-        }
-
         String strVal = "null";
-        Object object = sheetSel.getCellAt(col,row).getValue();
+        MutableCell cell = getCellContents(null, col, row);
+        if (cell == null) {
+            return strVal;
+        }
+        Object object = cell.getValue();
         if (object != null) {
             Class oClass = object.getClass();
             strVal = oClass.getName();
@@ -289,27 +313,44 @@ public class OpenDoc {
      * @param col - the column selection
      * @param row - the row selection
      * 
-     * @return string value at specified location
+     * @return string value at specified location (empty string if cell is empty)
      * 
      * @throws ParserException
      */
     public static String getCellTextValue (int col, int row) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "no sheet selection for spreadsheet");
+        String strVal = "";
+        MutableCell cell = getCellContents(null, col, row);
+        if (cell != null) {
+            strVal = cell.getTextValue();
+            if (strVal == null) {
+                strVal = "";
+            }
         }
-        int rowSize = sheetSel.getRowCount();
-        int colSize = sheetSel.getColumnCount();
-        if (row >= rowSize) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- '" + strVal + "'");
+        return strVal;
+    }
+    
+    /**
+     * get the value of the col & row on the selected sheet.
+     * 
+     * @param tabName - the sheet tab to use
+     * @param col - the column selection
+     * @param row - the row selection
+     * 
+     * @return string value at specified location (empty string if cell is empty)
+     * 
+     * @throws ParserException
+     */
+    public static String getCellTextValue (String tabName, int col, int row) throws ParserException {
+        String strVal = "";
+        MutableCell cell = getCellContents(tabName, col, row);
+        if (cell != null) {
+            strVal = cell.getTextValue();
+            if (strVal == null) {
+                strVal = "";
+            }
         }
-        if (col >= colSize) {
-            throw new ParserException(functionId + "col " + col + " exceeds max: " + colSize);
-        }
-
-        String strVal = sheetSel.getCellAt(col,row).getTextValue();
-        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + strVal);
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- '" + strVal + "'");
         return strVal;
     }
     
@@ -348,44 +389,6 @@ public class OpenDoc {
     }
     
     /**
-     * get the value of the col & row on the current sheet.
-     * 
-     * @param tabName - the sheet tab to use
-     * @param col - the column selection
-     * @param row - the row selection
-     * 
-     * @return string value at specified location (empty string if cell is empty)
-     * 
-     * @throws ParserException
-     */
-    public static String getCellTextValue (String tabName, int col, int row) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        Sheet sheet = getSheetByName (tabName);
-        if (sheet == null) {
-            throw new ParserException(functionId + "invalid selection for tab name");
-        }
-        int rowSize = sheet.getRowCount();
-        int colSize = sheet.getColumnCount();
-        if (row >= rowSize) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
-        }
-        if (col >= colSize) {
-            throw new ParserException(functionId + "col " + col + " exceeds max: " + colSize);
-        }
-
-        String strVal = "";
-        if (sheet.getCellAt(col,row) != null) {
-            strVal = sheet.getCellAt(col,row).getTextValue();
-            if (strVal == null) {
-                strVal = "";
-            }
-        }
-        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "read  tab " + tabName + " row " + row + " col " + col + " <- " + strVal);
-        return strVal;
-    }
-    
-    /**
      * get the integer value of the col & row on the current sheet.
      * 
      * @param col - the column selection
@@ -398,19 +401,11 @@ public class OpenDoc {
     public static BigDecimal getCellNumericValue (int col, int row) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "no sheet selection for spreadsheet");
+        Object objVal = null;
+        MutableCell cell = getCellContents(null, col, row);
+        if (cell != null) {
+            objVal = cell.getValue();
         }
-        int rowSize = sheetSel.getRowCount();
-        int colSize = sheetSel.getColumnCount();
-        if (row >= rowSize) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
-        }
-        if (col >= colSize) {
-            throw new ParserException(functionId + "col " + col + " exceeds max: " + colSize);
-        }
-
-        Object objVal = sheetSel.getCellAt(col,row).getValue();
         if (objVal == null) {
             throw new ParserException(functionId + "col " + col + " row " + row + " cell value is null");
         }
@@ -433,40 +428,33 @@ public class OpenDoc {
     public static void setCellValue (int col, int row, Object objVal) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "no sheet selection for spreadsheet");
+        MutableCell cell = getCellContents(null, col, row);
+        if (cell == null) {
+            throw new ParserException(functionId + "cell at col " + col + " row " + row + " is null");
         }
-        int rowSize = sheetSel.getRowCount();
-        int colSize = sheetSel.getColumnCount();
-        if (row >= rowSize) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
-        }
-        if (col >= colSize) {
-            throw new ParserException(functionId + "col " + col + " exceeds max: " + colSize);
-        }
-
+        
         if (objVal == null) {
-            sheetSel.getCellAt(col,row).clearValue();
+            cell.clearValue();
             return;
         }
 
         String strClass = objVal.getClass().getName();
         if (! strClass.contentEquals("java.lang.String")) {
             // if value is not a String, save it as it is
-            sheetSel.getCellAt(col, row).setValue(objVal);
+            cell.setValue(objVal);
         } else {
             // if it is a String, check if it is either a Long or Integer and convert
             String text = objVal.toString();
             try {
                 Long iValue = Utils.getLongOrUnsignedValue(text);
-                sheetSel.getCellAt(col, row).setValue(iValue);
+                cell.setValue(iValue);
                 strClass = "java.lang.Long";
             } catch (ParserException exMsg) {
                 // if not an Integer but the value is enclosed in quotes, remove them
                 if (text.charAt(0) == '"' && text.charAt(text.length()-1) == '"') {
                     text = text.substring(1, text.length()-1);
                 }
-                sheetSel.getCellAt(col, row).setValue(text);
+                cell.setValue(text);
             }
         }
 
@@ -484,21 +472,7 @@ public class OpenDoc {
      * @throws ParserException
      */
     public static void setCellColor (int col, int row, Color color) throws ParserException {
-        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
-
-        if (sheetSel == null) {
-            throw new ParserException(functionId + "no sheet selection for spreadsheet");
-        }
-        int rowSize = sheetSel.getRowCount();
-        int colSize = sheetSel.getColumnCount();
-        if (row >= rowSize) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
-        }
-        if (col >= colSize) {
-            throw new ParserException(functionId + "col " + col + " exceeds max: " + colSize);
-        }
-
-        MutableCell cell = sheetSel.getCellAt(col,row);
+        MutableCell cell = getCellContents(null, col, row);
         if (cell != null) {
             String hexColor = String.format("0x%06x", color.getRGB());
             String message = OpenDoc.getSheetName() + " row " + row + " col " + col + " RGB -> " + hexColor;

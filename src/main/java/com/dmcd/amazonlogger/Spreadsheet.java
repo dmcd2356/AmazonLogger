@@ -1419,7 +1419,7 @@ public class Spreadsheet {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         // read the pertanent values for the selected row and sheet
-        ArrayList<String> rowData = OpenDoc.getSheetByName (tabName, row, Column.values().length);
+        ArrayList<String> rowData = OpenDoc.getRowArray (tabName, row, Column.values().length);
         if (rowData.isEmpty()) {
             throw new ParserException(functionId + "invalid row selection");
         }

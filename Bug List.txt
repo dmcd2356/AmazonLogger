@@ -1,10 +1,8 @@
-KNOWN BUGS:
- - BUG: adding rows to new tab created with -saddtab does not put any data in the tab, although the tab and name are created.
- - BUG: get rid of the OCR data that is output when it is run (not sure why this is occurring)
- - BUG: eliminate duplicate text data on OCR scan (not sure why this is occurring)
+BUGLIST:
 
-TODO:
-
-FUTURE:
- - add a Fixed Point Parameter value (use Integer for mantissa, add an Integer value for decimal & one for # of digits)
+ - BUG: Spreadsheet.addTab - adding rows to new tab created with -saddtab command does not put any data in the tab, although the tab and name are created.
+ - BUG: OCRReader.run - get rid of the OCR data that is output when it is run (not sure why this is occurring)
+ - BUG: OCRReader.run - eliminate duplicate text data on OCR scan (not sure why this is occurring)
+ - BUG: OpenDoc.setCellColor - setting background color of spreadsheet cells sometimes flags an error from opendocuments indicating a NULL entry (although inputs passed are all valid)
+ - BUG: When parsing an order from the clipboard, sometimes there is only 1 description line which causes it to miss catching it. If a "Delivered" entry is found, should use the prev line as the description.
 
