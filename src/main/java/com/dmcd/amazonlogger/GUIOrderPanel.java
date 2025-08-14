@@ -319,7 +319,7 @@ public class GUIOrderPanel {
             case ItemIndex:
                 Integer itemCount = orderInfo.getItemCount();
                 if (itemCount > 1) {
-                    entry = ix + " of " + itemCount;
+                    entry = (ix + 1) + " of " + itemCount;
                 } else {
                     entry = "  -";
                 }
