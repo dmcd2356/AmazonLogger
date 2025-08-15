@@ -33,8 +33,8 @@ public class Spreadsheet {
 
     private static final String CLASS_NAME = Spreadsheet.class.getSimpleName();
     
-    private static final Integer MAX_DESCRIPT_LEN = 80;     // the max length of description to place in spreadsheet
-    private static final Integer ROW_EXTENSION = 100;       // the number of row entries in the spreadsheet to add beyond the max needed
+    private static final int MAX_DESCRIPT_LEN = 80;         // the max length of description to place in spreadsheet
+    private static final int ROW_EXTENSION = 100;           // the number of row entries in the spreadsheet to add beyond the max needed
     
     private static final String SKIP_AMOUNT = "-";          // the value to use for Total amount if entry is omitted
     private static final String RETURN_DATE = "RETURN";     // the date value to use for Delivered if item was returned

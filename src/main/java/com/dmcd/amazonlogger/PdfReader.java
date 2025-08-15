@@ -33,7 +33,7 @@ public class PdfReader {
 
     private static File pdfFile = null;
     private static ArrayList<String> contents = new ArrayList<>();  // the contents of the pdf file read
-    private static HashMap<String, ArrayList<CardTransaction>> mapList = new HashMap<>();
+    private static final HashMap<String, ArrayList<CardTransaction>> mapList = new HashMap<>();
 
 
     public PdfReader () {
@@ -374,8 +374,10 @@ public class PdfReader {
                 }
                 amountIx--;
             }
-            String amountStr = line.substring(amountIx);
-            amountVal = Utils.getAmountValue(amountStr);
+            if (bValid) {
+                String amountStr = line.substring(amountIx);
+                amountVal = Utils.getAmountValue(amountStr);
+            }
         }
         
         return amountVal;

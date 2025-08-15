@@ -445,31 +445,19 @@ public final class GUIMain extends JFrame implements ActionListener {
             Tabs tabSelect = panelId.get(ix);
             if (tabSelect == Tabs.ORDER) {
                 switch (action) {
-                    case CLEAR:
-                        GUIOrderPanel.clearMessages();
-                        break;
-                    case COPY:
-                        GUIOrderPanel.saveToClipboard();
-                        break;
-                    case PRINT:
-                        GUIOrderPanel.saveDebugToFile();
-                        break;
-                    default:
-                        break;
+                    case CLEAR -> GUIOrderPanel.clearMessages();
+                    case COPY  -> GUIOrderPanel.saveToClipboard();
+                    case PRINT -> GUIOrderPanel.saveDebugToFile();
+                    default -> {
+                    }
                 }
             } else {
                 switch (action) {
-                    case CLEAR:
-                        GUILogPanel.clearMessages();
-                        break;
-                    case COPY:
-                        GUILogPanel.saveToClipboard();
-                        break;
-                    case PRINT:
-                        GUILogPanel.saveDebugToFile();
-                        break;
-                    default:
-                        break;
+                    case CLEAR -> GUILogPanel.clearMessages();
+                    case COPY  -> GUILogPanel.saveToClipboard();
+                    case PRINT -> GUILogPanel.saveDebugToFile();
+                    default -> {
+                    }
                 }
             }
         }

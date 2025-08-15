@@ -136,6 +136,12 @@ public class PropertiesFile {
      * @return the value associated with the property
      */
     public static String getPropertiesItem (Property tag, String dflt) {
+        if (tag == null) {
+            errorMsg("tag value was null");
+            return dflt;
+        }
+
+        // if properties file does not exist, return the default value
         if (props == null) {
             return dflt;
         }
@@ -168,6 +174,11 @@ public class PropertiesFile {
      * @return the value associated with the property
      */
     public static Integer getPropertiesItem (Property tag, Integer dflt) {
+        if (tag == null) {
+            errorMsg("tag value was null");
+            return dflt;
+        }
+
         // if properties file does not exist, return the default value
         if (props == null) {
             return dflt;
@@ -210,6 +221,11 @@ public class PropertiesFile {
      * @param value - the value to set the property to
      */
     public static void setPropertiesItem (Property tag, String value) {
+        if (tag == null) {
+            errorMsg("tag value was null");
+            return;
+        }
+
         // save changes to properties file
         if (props == null) {
             return;

@@ -37,6 +37,22 @@ public class OpenDoc {
     }
 
     /**
+     * creates the debug text format for showing the sheet column and row.
+     * 
+     * @param col     - the column selection
+     * @param row     - the row selection
+     * @param tabName - the sheet tab name (null if use current selected sheet)
+     * 
+     * @return a string containing the name of the sheet tab and the column and row selection
+     */
+    private static String showSelectionn(int col, int row, String tabName) {
+        if (tabName == null) {
+            tabName = sheetSel.getName();
+        }
+        return "sheet '" + tabName + "' col " + col + " row " + row;
+    }
+    
+    /**
      * determines if a sheet has been selected
      * 
      * @return true if a sheet has been selected
@@ -130,9 +146,6 @@ public class OpenDoc {
 
         if (sheetNum >= 0) {
             sheetSel = sheetArray.get(sheetNum);
-//            if (sheetSel.getName() == null || sheetSel.getName().isEmpty()) {
-//                sheetSel.setName("" + sheetNum);
-//            }
             GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "tab " + sheetNum + " selection: '" + sheetSel.getName() + "'");
         } else {
             GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "tab selection disabled");
@@ -165,6 +178,27 @@ public class OpenDoc {
         }
 
         return sheetArray.get(ix).getName();
+    }
+
+    /**
+     * get the name of the selected tab.
+     * 
+     * @param ix   - the tab number to check (1st entry is ix of 0)
+     * @param name - the name to set the tab entry to
+     * 
+     * @throws ParserException
+     */
+    public static void setSheetName (int ix, String name) throws ParserException {
+        String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
+
+        if (ix >= sheetArray.size()) {
+            throw new ParserException(functionId + "tab index " + ix + " exceeds max tabs: " + sheetArray.size());
+        }
+
+        if (name == null) {
+            name = "" + ix;
+        }
+        sheetArray.get(ix).setName(name);
     }
 
     /**
@@ -301,7 +335,7 @@ public class OpenDoc {
                     strVal = "String";
                     break;
                 default:
-                    throw new ParserException(functionId + "col " + col + " row " + row + " has non-numeric cell format: " + strVal);
+                    throw new ParserException(functionId + showSelectionn(col, row, null) + " has non-numeric cell format: " + strVal);
             }
         }
         return strVal;
@@ -326,7 +360,7 @@ public class OpenDoc {
                 strVal = "";
             }
         }
-        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- '" + strVal + "'");
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + showSelectionn(col, row, null) + " <- '" + strVal + "'");
         return strVal;
     }
     
@@ -350,7 +384,7 @@ public class OpenDoc {
                 strVal = "";
             }
         }
-        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- '" + strVal + "'");
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + showSelectionn(col, row, tabName) + " <- '" + strVal + "'");
         return strVal;
     }
     
@@ -407,10 +441,10 @@ public class OpenDoc {
             objVal = cell.getValue();
         }
         if (objVal == null) {
-            throw new ParserException(functionId + "col " + col + " row " + row + " cell value is null");
+            throw new ParserException(functionId + showSelectionn(col, row, null) + ": cell value is null");
         }
         BigDecimal bdValue = (BigDecimal) objVal;
-        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + "read  tab " + sheetSel.getName() + " row " + row + " col " + col + " <- " + objVal.toString());
+        GUILogPanel.outputInfoMsg(MsgType.DEBUG, INDENT + showSelectionn(col, row, null) + " <- " + objVal.toString());
         return bdValue;
     }
     
@@ -430,7 +464,7 @@ public class OpenDoc {
 
         MutableCell cell = getCellContents(null, col, row);
         if (cell == null) {
-            throw new ParserException(functionId + "cell at col " + col + " row " + row + " is null");
+            throw new ParserException(functionId + showSelectionn(col, row, null) + ": cell is null");
         }
         
         if (objVal == null) {
@@ -458,8 +492,8 @@ public class OpenDoc {
             }
         }
 
-        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "write tab " + OpenDoc.getSheetName()
-                + " row " + row + " col " + col + " -> " + objVal.toString() + " (type " + strClass + ")");
+        GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + showSelectionn(col, row, null)
+                + " -> " + objVal.toString() + " (type " + strClass + ")");
     }
     
     /**
@@ -475,7 +509,7 @@ public class OpenDoc {
         MutableCell cell = getCellContents(null, col, row);
         if (cell != null) {
             String hexColor = String.format("0x%06x", color.getRGB());
-            String message = OpenDoc.getSheetName() + " row " + row + " col " + col + " RGB -> " + hexColor;
+            String message = showSelectionn(col, row, null) + " RGB -> " + hexColor;
             try {
                 cell.setBackgroundColor(color);
                 GUILogPanel.outputInfoMsg(MsgType.SSHEET, INDENT + "set color " + message);

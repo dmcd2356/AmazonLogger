@@ -55,7 +55,7 @@ public class AmazonParser {
      *  It then determines which page of the spreadsheet the page referred to and
      *   appends the data to the end of that spreadsheet page.
      * 
-     * @returns true if there is info in the Orders list
+     * @return true if there is info in the Orders list
      * 
      * @throws ParserException
      * @throws IOException

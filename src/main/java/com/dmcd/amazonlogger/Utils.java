@@ -36,6 +36,10 @@ public class Utils {
     public static String padLeft (String entry, int length) {
         String padding = "                                                  ";
 
+        if (entry == null) {
+            return null;
+        }
+        
         // a minimum of 1 space will always be enforced
         if (length <= entry.length()) {
             return entry;
@@ -63,6 +67,10 @@ public class Utils {
     public static String padRight (String entry, int length) {
         String padding = "                                                  ";
 
+        if (entry == null) {
+            return null;
+        }
+        
         // a minimum of 1 space will always be enforced
         if (length <= entry.length()) {
             return entry;
@@ -91,6 +99,10 @@ public class Utils {
     public static String padCenter (String entry, int length) {
         String padding = "                                        ";
 
+        if (entry == null) {
+            return null;
+        }
+        
         // a minimum of 1 space will always be enforced
         if (length <= entry.length()) {
             return entry + " ";
@@ -160,8 +172,7 @@ public class Utils {
     *  @param str    - the string containing the digits to convert
     *  @param length - the maximum string length to read (0 means use full string length)
     * 
-    *  @return the corresponding integer value (always >= 0)
-    *          -1 if invalid format
+    *  @return the corresponding unsigned integer value (-1 if invalid format)
     */
     public static int getIntegerValue (String str, int length) {
         // check for empty string
@@ -203,6 +214,10 @@ public class Utils {
      * @return the modified string value
      */
     public static String formatNetworkString (String value) {
+        if (value == null) {
+            return "";
+        }
+        
         value = ScriptThread.limitNetworkString(value);
         String response = "";
         int offset1 = value.indexOf('\n');
@@ -452,7 +467,7 @@ public class Utils {
     }
 
     /**
-     * converts a String hexadecimal unsigned value or 64-bit signed Integer value to a Long
+     * converts a String hexadecimal unsigned value or 64-bit signed Integer value to a Long.
      * 
      * @param strValue - value to convert
      * 
@@ -463,6 +478,9 @@ public class Utils {
     public static Long getLongOrUnsignedValue (String strValue) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
+        if (strValue == null) {
+            throw new ParserException(functionId + "Input string was null");
+        }
         Long longVal = 0L;
         try {
             Integer iVal = Utils.getHexValue (strValue);
@@ -478,7 +496,7 @@ public class Utils {
     }
 
     /**
-     * converts a String value to an Integer
+     * converts a String value to an Integer.
      * 
      * @param strValue - value to convert
      * 
@@ -635,6 +653,9 @@ public class Utils {
     public static String getPathFromPropertiesFile (PropertiesFile.Property tag) {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
+        if (tag == null)
+            return "";
+        
         String validPath = null;
         String pathName = PropertiesFile.getPropertiesItem(tag, "");
         if (pathName != null && !pathName.isEmpty()) {
@@ -754,7 +775,7 @@ public class Utils {
      * test if a file name is valid
      * 
      * @param fname     - name of the file (referenced from base path)
-     * @param type      - the file extension allowed (null of blank if don't check)
+     * @param type      - the file extension allowed (null or empty means don't check)
      * @param filetype  - name of file type (only used for debug msgs & can be null)
      * @param bWritable - true if check if file is writable (else only check if readable)
      * 
@@ -765,6 +786,9 @@ public class Utils {
     public static File checkFilename (String fname, String type, PathType filetype, boolean bWritable) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
+        if (filetype == null) {
+            filetype = PathType.Test;
+        }
         if (type != null && !type.isBlank() && !fname.endsWith(type)) {
             throw new ParserException(functionId + "Invalid " + filetype + " filename: " + fname);
         }
@@ -936,10 +960,8 @@ public class Utils {
 
     /**
      * prints the call stack trace for debugging
-     * 
-     * @param msg - the error message to print
      */
-    public static void printCallTrace(String msg) {
+    public static void printCallTrace() {
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
         StringBuilder traceBuilder = new StringBuilder();
         for (StackTraceElement element : stackTraceElements) {

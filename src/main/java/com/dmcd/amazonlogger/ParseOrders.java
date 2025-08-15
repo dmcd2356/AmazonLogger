@@ -112,7 +112,6 @@ public class ParseOrders {
 
         boolean bSkipRead = false;
         String lastLine = "";
-        Integer qtyValue = null;
 
         // init the array list of Amazon transactions
         ArrayList<AmazonOrder> amazonList = new ArrayList<>();
@@ -205,11 +204,6 @@ public class ParseOrders {
             //   IT WILL END WHE  A NEW 'ORDER_NUMBER' IS FOUND.
             //--------------------------------------------------------------------------------
 
-            // this will allow multiple descriptions in the ORDERS case for multiple items in an order.
-            if (AmazonParser.ClipTyp.ORDERS == type) {
-                bDelDate = true;
-            }
-            
             // If we have 2 lines of sufficient length in a row that match, except
             //  possibly for the last couple of chars, this must be the description.
             // The 1st line will have a space and the quantity added to it and the
@@ -218,17 +212,16 @@ public class ParseOrders {
             //  but not the second. So if the 2nd entry exceeds 125, just snip it off.
             if (Keyword.KeyTyp.NONE == keywordInfo.orderId && bOrdNumber && bOrdDate) {
                 GUILogPanel.outputInfoMsg (MsgType.DEBUG, "Description check");
-                qtyValue = 1;
+                Integer qtyValue = 1;
                 int linelen = line.length();
                 int prevlen = lastLine.length();
-                int lineValue = 0;
                 
                 // check if the quantity was put on a separate line between the 2 lines of description.
                 // if we have an intervening line that is simply a numeric value <= 99,
                 //  let's assume it is the quantity and the next line should be the match for the description.
                 // if it's not a numeric, we stick to prev rule of 2 matching line.
                 if (linelen <= 2) { // Qty will be range of 2 - 99
-                    lineValue = isLineAnInteger(line);
+                    int lineValue = isLineAnInteger(line);
                     if (lineValue > 0) {
                         line = readLine();
                         if (line == null) {
@@ -380,7 +373,7 @@ public class ParseOrders {
      * @return the value of the line entry, or 0 if line was not correct integer format
      */
     private static int isLineAnInteger (String line) {
-        int value = 0;
+        int value;
         int lineLen = line.length();
         if (lineLen == 0 || line.charAt(0) == '-') {
             return 0;
@@ -388,7 +381,7 @@ public class ParseOrders {
         try {
             value = Integer.parseInt(line);
         } catch (NumberFormatException exMsg) {
-            return 0;
+            value = 0;
         }
         return value;
     }

@@ -25,8 +25,8 @@ public class Keyword {
 
 
     public class KeywordInfo {
-        private KeyTyp  eKeyId;         // keyword id
-        private int     keyLength;      // length of keyword
+        private final KeyTyp  eKeyId;         // keyword id
+        private final int     keyLength;      // length of keyword
         
         public KeywordInfo (String keyword, KeyTyp id) {
             eKeyId = id;
@@ -73,7 +73,6 @@ public class Keyword {
         putKeywordInfo ("Grand Total:"              , KeyTyp.TOTAL_COST);       // cost of order (with taxes & shipping)
         putKeywordInfo ("Sold by:"                  , KeyTyp.SELLER);           // seller
         putKeywordInfo ("Supplied by:"              , KeyTyp.SUPPLIER);         // supplier
-//        putKeywordInfo ("$"                         , KeyTyp.ITEM_COST);        // cost of item
         putKeywordInfo ("Total before tax:"         , KeyTyp.GROSS_COST);       // cost of order (before taxes & shipping)
         putKeywordInfo ("Estimated tax to be collected:", KeyTyp.TAXES);        // cost of tax
         putKeywordInfo ("Shipping & Handling:"      , KeyTyp.SHIPPING_COST);    // cost of shipping

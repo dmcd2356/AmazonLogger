@@ -22,6 +22,7 @@ public class CardTransaction {
     private       String  order_num;    // the Amazon order number
     private       Integer amount;       // the amount of the transaction in cents (credits are -, debits are +)
     private final String  vendor;       // the vendor name
+
     // these are extracted from the spreadsheet
     private String  tab_name;           // name of the spreadsheet tab
     private Integer row;                // the spreadsheet row containing the entry
@@ -30,6 +31,7 @@ public class CardTransaction {
     private String  pending;            // amount pending (payment or refund)
     private String  total;              // the total for the order
     private String  refund;             // the amount refunded
+
     // status values
     private       boolean completed;    // true when the item has been found in the spreadsheet
     private final boolean amazonEntry;  // true if entry is an Amazon type
@@ -41,13 +43,9 @@ public class CardTransaction {
         this.amount     = amount;
 
         // now let's check for Amazon receipts only
-        if (this.vendor.contentEquals("AMAZON MKT") ||
-            this.vendor.contentEquals("AMZN Mktp ") ||
-            this.vendor.contentEquals("Amazon.com") ) {
-            this.amazonEntry = true;
-        } else {
-            this.amazonEntry = false;
-        }
+        this.amazonEntry = this.vendor.contentEquals("AMAZON MKT") ||
+                           this.vendor.contentEquals("AMZN Mktp ") ||
+                           this.vendor.contentEquals("Amazon.com");
     }
         
     public void setOrderNumber (String orderNum) {
