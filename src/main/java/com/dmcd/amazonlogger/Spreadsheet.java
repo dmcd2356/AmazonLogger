@@ -46,7 +46,7 @@ public class Spreadsheet {
     private static File     spreadsheetFile;                // the spreadsheet file
 
     // the map of column names to column indices in the sheet
-    private static final HashMap<Column, Integer> hmSheetColumns = new HashMap<>();
+    private static final HashMap<String, Integer> hmSheetColumns = new HashMap<>();
     
     // list of the tab names of the spreadsheet
     private static final ArrayList<String> tabNames = new ArrayList<>();
@@ -160,6 +160,21 @@ public class Spreadsheet {
             GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "Error in resizing sheet for tab: " + tabName);
         }
     }
+
+    /**
+     * resizes all sheets in the current image based on current column and row usage.
+     * This is to be used for the case when the header is checked for standard Amazon columns.
+     * 
+     * @throws ParserException 
+     */
+    public static void resizeSheets() throws ParserException {
+        // resize spreadsheet image to reasonable amount
+        int numSheets = OpenDoc.getNumberOfSheets();
+        for (int ix = 0; ix < numSheets; ix++) {
+            OpenDoc.setSheetSelection(ix);
+            resizeSheet(getTabName(ix), 0);
+        }
+    }
     
     /**
      * returns the corresponding column index for the specified column name in the spreadsheet.
@@ -170,15 +185,15 @@ public class Spreadsheet {
      * 
      * @throws ParserException
      */
-    public static Integer getColumn (Column colName) throws ParserException {
+    private static Integer getColumn (Column colName) throws ParserException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
         if (hmSheetColumns.isEmpty()) {
             throw new ParserException(functionId + "Error in locating column header information");
         }
-        Set<Entry<Column, Integer>> entrySet = hmSheetColumns.entrySet();
-        for (Entry<Column, Integer> entry : entrySet) {
-            if (entry.getKey() == colName)
+        Set<Entry<String, Integer>> entrySet = hmSheetColumns.entrySet();
+        for (Entry<String, Integer> entry : entrySet) {
+            if (entry.getKey().contentEquals(colName.toString()))
                 return entry.getValue();
         }
         return null;
@@ -265,11 +280,11 @@ public class Spreadsheet {
                 String strName = colEnum.name();
                 if (colHeader.equalsIgnoreCase(strName)) {
                     // check if entry already placed
-                    if (hmSheetColumns.containsKey(colEnum)) {
+                    if (hmSheetColumns.containsKey(colEnum.toString())) {
                         throw new ParserException(functionId + "Header column duplicate entry: " + colHeader);
                     }
                     GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Found header column: " + col + " -> " + colHeader);
-                    hmSheetColumns.put(colEnum, col);
+                    hmSheetColumns.put(colEnum.toString(), col);
                     maxColValue = col;
                     bFound = true;
                     break;
@@ -286,9 +301,9 @@ public class Spreadsheet {
         int count = hmSheetColumns.size();
         lastValidColumn = maxColValue;
         GUILogPanel.outputInfoMsg(MsgType.SSHEET, "Total entries in header: " + count);
-        if (hmSheetColumns.containsKey(Column.Seller)) count--;
-        if (hmSheetColumns.containsKey(Column.PreTaxCost)) count--;
-        if (hmSheetColumns.containsKey(Column.Tax)) count--;
+        if (hmSheetColumns.containsKey(Column.Seller.toString())) count--;
+        if (hmSheetColumns.containsKey(Column.PreTaxCost.toString())) count--;
+        if (hmSheetColumns.containsKey(Column.Tax.toString())) count--;
         if (count < 12) {
             throw new ParserException(functionId + "Header column missing required entry(ies): " + (12 - count));
         }
@@ -356,38 +371,38 @@ public class Spreadsheet {
         }
         Integer iValue = 0;
         Integer col = getColumn(colEnum);
-        int rowSize = OpenDoc.getRowSize();
-        if (row >= rowSize) {
-            throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
-        }
-        
-        // get the multiplier value (if any)
-        BigDecimal bdMult = BigDecimal.TEN;
-        int iMult;
-        switch (iDecShift) {
-            default:
-                GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "dec shift out of range: " + iDecShift + " (limit = { 0 - 3 }");
-                // fall through...
-            case 0:
-                iMult = 1;
-                bdMult = null;
-                break;
-            case 1:
-                iMult = 10;
-                bdMult = BigDecimal.TEN;
-                break;
-            case 2:
-                iMult = 100;
-                bdMult = bdMult.multiply(bdMult);
-                break;
-            case 3:
-                iMult = 1000;
-                bdMult = bdMult.multiply(bdMult);
-                bdMult = bdMult.multiply(bdMult);
-                break;
-        }
-
         if (col != null) {
+            int rowSize = OpenDoc.getRowSize();
+            if (row >= rowSize) {
+                throw new ParserException(functionId + "row " + row + " exceeds max: " + rowSize);
+            }
+
+            // get the multiplier value (if any)
+            BigDecimal bdMult = BigDecimal.TEN;
+            int iMult;
+            switch (iDecShift) {
+                default:
+                    GUILogPanel.outputInfoMsg(MsgType.WARN, functionId + "dec shift out of range: " + iDecShift + " (limit = { 0 - 3 }");
+                    // fall through...
+                case 0:
+                    iMult = 1;
+                    bdMult = null;
+                    break;
+                case 1:
+                    iMult = 10;
+                    bdMult = BigDecimal.TEN;
+                    break;
+                case 2:
+                    iMult = 100;
+                    bdMult = bdMult.multiply(bdMult);
+                    break;
+                case 3:
+                    iMult = 1000;
+                    bdMult = bdMult.multiply(bdMult);
+                    bdMult = bdMult.multiply(bdMult);
+                    break;
+            }
+
             String type = OpenDoc.getCellObjectType(col,row);
             if (type != null) {
                 switch (type) {
@@ -1535,6 +1550,69 @@ public class Spreadsheet {
     }
 
     /**
+     * creates a spreadsheet image that has the specified column header.
+     * 
+     * THIS VERSION ALLOWS EXPANSION AND ADDING TABS, BUT DATA IS NEVER WRITTEN
+     * TO THE NEW TABS, JUST THE TAB NAME. BUT DATA IS WRITTEN TO THE INITIAL SHEET.
+     * 
+     * @param file     - the file to create as a spreadsheet
+     * @param tabName  - name of the tab
+     * @param headList - the header to place as 1st row in sheet (defines the column size)
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
+    public static void createSheet (File file, String tabName, ArrayList<String> headList) throws ParserException, IOException {
+        // create the spreadsheet file image
+        Spreadsheet.setFileSelection(file);
+        OpenDoc.ssImageCreate (file, tabName, headList);
+        
+        // save the column definitions
+        hmSheetColumns.clear();
+        for (int ix = 0; ix < headList.size(); ix++) {
+            hmSheetColumns.put(headList.get(ix), 0);
+        }
+        
+        // now save the image to the spreadsheet file
+        Spreadsheet.setTabIndex(0);
+        Spreadsheet.saveSheet(file, null);
+    }
+
+    /**
+     * creates a spreadsheet image that has the specified column header.
+     * 
+     * THIS VERSION DEFINES MULTIPLE TABS CORRECTLY, BUT DOES NOT ALLOW EXPANSIOM OF
+     * ROWS OR COLUMNS AND DOES NOT PLACE ANY CONTENT IN THE CELLS.
+     * 
+     * @param file     - the file to create as a spreadsheet
+     * @param tabList  - the list of names for the tabs
+     * @param headList - the header to place as 1st row in sheet (defines the column size)
+     * 
+     * @throws ParserException
+     * @throws IOException
+     */
+    public static void createSheet (File file, ArrayList<String> tabList, ArrayList<String> headList) throws ParserException, IOException {
+        // create the spreadsheet file image
+        Spreadsheet.setFileSelection(file);
+        OpenDoc.ssImageCreate (file, tabList, headList);
+                    
+        // save the column definitions
+        hmSheetColumns.clear();
+        for (int ix = 0; ix < headList.size(); ix++) {
+            hmSheetColumns.put(headList.get(ix), 0);
+        }
+        
+        // save all sheets of the spreadsheet file
+        for (int ix = 0; ix < tabList.size(); ix++) {
+            OpenDoc.saveToFile (file, ix);
+        }
+        
+        // reload the spreadsheet sheets into memory, or we lose the info for one of the tabs
+        Spreadsheet.setTabIndex(0);
+        OpenDoc.loadFromFile (file, 0);
+    }
+    
+    /**
      * reads the specified number of spreadsheet tabs into memory for accessing the data.
      * 
      * @param numSheets    - number of sheets (tabs) to load into memory
@@ -1574,11 +1652,11 @@ public class Spreadsheet {
             }
             iSheetYear = iYear;
             GUILogPanel.outputInfoMsg(MsgType.INFO, "Spreadsheet year: " + iSheetYear);
-        }
 
-        // get the last line of each tab and display info on main GUI screen
-        String lastBalance = showLastLineInfo();
-        GUIMain.showLastBalance(lastBalance);
+            // get the last line of each tab and display info on main GUI screen
+            String lastBalance = showLastLineInfo();
+            GUIMain.showLastBalance(lastBalance);
+        }
     }
 
     /**
@@ -1608,13 +1686,6 @@ public class Spreadsheet {
         
         // reload all spreadsheet sheets into memory, or we can lose the info for one of the tabs
         OpenDoc.loadFromFile (file, 0);
-
-        // resize spreadsheet image to reasonable amount
-        int numSheets = OpenDoc.getNumberOfSheets();
-        for (int ix = 0; ix < numSheets; ix++) {
-            OpenDoc.setSheetSelection(ix);
-            resizeSheet(getTabName(ix), 0);
-        }
 
         // reset sheet selection to current
         OpenDoc.setSheetSelection(currentSheetIx);

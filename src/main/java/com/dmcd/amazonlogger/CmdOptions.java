@@ -635,11 +635,12 @@ public class CmdOptions {
                     break;
                 case "-snew":
                     String tabName;
+                    ArrayList<String> headList;
                     pathtype = Utils.PathType.Spreadsheet;
-                    fname   = getStringValue(cmdLine, 0);
-                    tabName = getStringValue(cmdLine, 1);
-                    arrList = getStringArray(cmdLine, 2);
-                    if (tabName == null || arrList == null) {
+                    fname    = getStringValue(cmdLine, 0);
+                    tabName  = getStringValue(cmdLine, 1);
+                    headList = getStringArray(cmdLine, 2);
+                    if (tabName == null || headList == null) {
                         throw new ParserException(functionId + "Null argument value");
                     }
                     if (fname == null || fname.isBlank()) {
@@ -655,17 +656,12 @@ public class CmdOptions {
                     if (file.exists()) {
                         throw new ParserException(functionId + "File already exists: " + file.getAbsolutePath());
                     }
-                    // create the spreadsheet file image
-                    Spreadsheet.setFileSelection(file);
-                    OpenDoc.ssImageCreate (file, tabName, arrList);
-                    
-                    // now save the image to the spreadsheet file
-                    Spreadsheet.setTabIndex(0);
-                    Spreadsheet.saveSheet(file, null);
+                    // create the spreadsheet file image and save image to the specified file
+                    Spreadsheet.createSheet (file, tabName, headList);
                     break;
                 case "-stest":
                     pathtype = Utils.PathType.Spreadsheet;
-                    ArrayList<String> tabList, headList;
+                    ArrayList<String> tabList;
                     fname    = getStringValue(cmdLine, 0);
                     tabList  = getStringArray(cmdLine, 1);
                     headList = getStringArray(cmdLine, 2);
@@ -682,18 +678,8 @@ public class CmdOptions {
                     if (file.exists()) {
                         throw new ParserException(functionId + "File already exists: " + file.getAbsolutePath());
                     }
-                    // create the spreadsheet file image
-                    Spreadsheet.setFileSelection(file);
-                    OpenDoc.ssImageCreate (file, tabList, headList);
-                    
-                    // save all sheets of the spreadsheet file
-                    for (int ix = 0; ix < tabList.size(); ix++) {
-                        OpenDoc.saveToFile (file, ix);
-                    }
-        
-                    // reload the spreadsheet sheets into memory, or we lose the info for one of the tabs
-                    Spreadsheet.setTabIndex(0);
-                    OpenDoc.loadFromFile (file, 0);
+                    // create the spreadsheet file image and save image to the specified file
+                    Spreadsheet.createSheet (file, tabList, headList);
                     break;
                 case "-saddtab":
                     tabName = getStringValue(cmdLine, 0);

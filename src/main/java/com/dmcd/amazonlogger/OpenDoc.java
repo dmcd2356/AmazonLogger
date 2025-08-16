@@ -631,25 +631,25 @@ public class OpenDoc {
      * THIS VERSION ALLOWS EXPANSION AND ADDING TABS, BUT DATA IS NEVER WRITTEN
      * TO THE NEW TABS, JUST THE TAB NAME. BUT DATA IS WRITTEN TO THE INITIAL SHEET.
      * 
-     * @param file    - the file to create as a spreadsheet
-     * @param name    - name of the tab
-     * @param arrList - the header to place as 1st row in sheet (defines the column size)
+     * @param file     - the file to create as a spreadsheet
+     * @param name     - name of the tab
+     * @param headList - the header to place as 1st row in sheet (defines the column size)
      * 
      * @throws ParserException
      * @throws IOException
      */
-    public static void ssImageCreate (File file, String name, ArrayList<String> arrList) throws ParserException, IOException {
+    public static void ssImageCreate (File file, String name, ArrayList<String> headList) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (file == null) {
             throw new ParserException(functionId + "Spreadsheet file is not defined");
         }
-        if (arrList == null || arrList.isEmpty()) {
+        if (headList == null || headList.isEmpty()) {
             throw new ParserException(functionId + "Array list is blank");
         }
         
         // create the spreadsheet image and save sheets in our memory image of the sheets (sheetArray)
-        TableModel model = new DefaultTableModel(null, arrList.toArray());
+        TableModel model = new DefaultTableModel(null, headList.toArray());
         SpreadSheet sSheet = SpreadSheet.createEmpty(model);
         
         // make this sheet the current selection and set its name
@@ -667,14 +667,14 @@ public class OpenDoc {
      * THIS VERSION DEFINES MULTIPLE TABS CORRECTLY, BUT DOES NOT ALLOW EXPANSIOM OF
      * ROWS OR COLUMNS AND DOES NOT PLACE ANY CONTENT IN THE CELLS.
      * 
-     * @param file       - the file to create as a spreadsheet
-     * @param tabList    - the list of names for the tabs
-     * @param headerList - the header to place as 1st row in sheet (defines the column size)
+     * @param file     - the file to create as a spreadsheet
+     * @param tabList  - the list of names for the tabs
+     * @param headList - the header to place as 1st row in sheet (defines the column size)
      * 
      * @throws ParserException
      * @throws IOException
      */
-    public static void ssImageCreate (File file, ArrayList<String> tabList, ArrayList<String> headerList) throws ParserException, IOException {
+    public static void ssImageCreate (File file, ArrayList<String> tabList, ArrayList<String> headList) throws ParserException, IOException {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
         
         if (file == null) {
@@ -683,18 +683,18 @@ public class OpenDoc {
         if (tabList == null || tabList.isEmpty()) {
             throw new ParserException(functionId + "Tab list is blank");
         }
-        if (headerList == null || headerList.isEmpty()) {
+        if (headList == null || headList.isEmpty()) {
             throw new ParserException(functionId + "Header list is blank");
         }
         
         // create the spreadsheet image and save sheets in our memory image of the sheets (sheetArray)
-        TableModel model = new DefaultTableModel(null, headerList.toArray());
+        TableModel model = new DefaultTableModel(null, headList.toArray());
         SpreadSheet sSheet = SpreadSheet.createEmpty(model);
         
         // make this sheet the current selection and set its name
         sheetSel = sSheet.getSheet(0);
         sheetSel.setName(tabList.getFirst());
-        setSize (headerList.size(), 1000);
+        setSize (headList.size(), 1000);
         
         // save the array of sheets
         Sheet nextSheet;

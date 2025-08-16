@@ -263,6 +263,7 @@ public class AmazonParser {
                 // now save the updates to the file
                 File ssFile = Spreadsheet.getFileSelection();
                 Spreadsheet.saveSheet(ssFile, strSheetSel);
+                Spreadsheet.resizeSheets();
                 Integer actLastLine = Spreadsheet.getLastRowIndex();
                 
                 // TODO: verify the updates took place (last lines are correct) before clearing display

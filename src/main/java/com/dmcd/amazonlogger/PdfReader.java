@@ -632,6 +632,7 @@ public class PdfReader {
         // save the data to the spreadsheet file
         File ssFile = Spreadsheet.getFileSelection();
         Spreadsheet.saveSheet(ssFile, sheetName);
+        Spreadsheet.resizeSheets();
     }
 
 }
