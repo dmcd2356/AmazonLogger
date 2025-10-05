@@ -175,6 +175,17 @@ public class Spreadsheet {
             resizeSheet(getTabName(ix), 0);
         }
     }
+
+    /**
+     * restores the sheet selection to the current stored index value.
+     * 
+     * @throws ParserException 
+     */
+    public static void restoreSheetSelection() throws ParserException {
+        if (currentSheetIx != null) {
+            OpenDoc.setSheetSelection(currentSheetIx);
+        }
+    }
     
     /**
      * returns the corresponding column index for the specified column name in the spreadsheet.

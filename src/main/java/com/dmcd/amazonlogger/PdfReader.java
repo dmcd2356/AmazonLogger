@@ -633,6 +633,7 @@ public class PdfReader {
         File ssFile = Spreadsheet.getFileSelection();
         Spreadsheet.saveSheet(ssFile, sheetName);
         Spreadsheet.resizeSheets();
+        Spreadsheet.restoreSheetSelection();
     }
 
 }
