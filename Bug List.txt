@@ -3,6 +3,6 @@ BUGLIST:
  - BUG: Spreadsheet.addTab - adding rows to new tab created with -saddtab command does not put any data in the tab, although the tab and name are created.
  - BUG: OCRReader.run - get rid of the OCR data that is output when it is run (not sure why this is occurring)
  - BUG: OCRReader.run - eliminate duplicate text data on OCR scan (not sure why this is occurring)
- - BUG: OpenDoc.setCellColor - setting background color of spreadsheet cells sometimes flags an error from opendocuments indicating a NULL entry (although inputs passed are all valid)
+ - BUG: OpenDoc.setCellColor - setting background color of spreadsheet cells sometimes flags an error from opendocuments indicating a NULL entry (although inputs passed are all valid) - see folder: Amazon/Testing/Test_cases/Cell_Background_Change_Failure
  - BUG: When parsing an order from the clipboard, sometimes there is only 1 description line which causes it to miss catching it. If a "Delivered" entry is found, should use the prev line as the description.
 

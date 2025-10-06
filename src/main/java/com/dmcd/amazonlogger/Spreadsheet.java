@@ -1794,14 +1794,18 @@ public class Spreadsheet {
         }
         
         File ssFile = spreadsheetFile;
-        String filePath  = Utils.getFilePath(ssFile);
+        String filePath  = Utils.getFilePath(ssFile) + "/backup/";
         String fnameRoot = Utils.getFileRootname(ssFile);
         String fnameExt  = Utils.getFileExtension(ssFile);
-        String fname = filePath + "/" + fnameRoot + fileExt + fnameExt;
+        String fname = filePath + fnameRoot + fileExt + fnameExt;
 
-        // find the backup file name
-        File file = new File(fname);
-        boolean bValid = file.isFile();
+        // check for backup directory and if the file is present
+        File file = new File(filePath);
+        boolean bValid = file.isDirectory();
+        if (bValid) {
+            file = new File(fname);
+            bValid = file.isFile();
+        }
         if (bValid) {
             GUILogPanel.outputInfoMsg(MsgType.INFO, "Backup file found: " + fname);
         } else {
@@ -1831,14 +1835,22 @@ public class Spreadsheet {
         String filePath  = Utils.getFilePath(ssFile);
         String fnameRoot = Utils.getFileRootname(ssFile);
         String fnameExt  = Utils.getFileExtension(ssFile);
+        String backupPath = filePath + "/backup/";
 
+        // if backup directory not found, create one
+        File file = new File(backupPath);
+        boolean bValid = file.isDirectory();
+        if (! bValid) {
+            file.mkdir();
+        }
+        
         // make a backup copy of the current file before saving.
         GUILogPanel.outputInfoMsg(MsgType.INFO, "Path to spreadsheet file: " + filePath);
         GUILogPanel.outputInfoMsg(MsgType.INFO, "Name of spreadsheet file: " + fnameRoot + fnameExt);
-        GUILogPanel.outputInfoMsg(MsgType.INFO, "Name of backup file to save to: " + fnameRoot + fileExt + fnameExt);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Name of backup file to save to: " + "backup/" + fnameRoot + fileExt + fnameExt);
 
         Path srcPath = FileSystems.getDefault().getPath(filePath, fnameRoot + fnameExt);
-        Path dstPath = FileSystems.getDefault().getPath(filePath, fnameRoot + fileExt + fnameExt);
+        Path dstPath = FileSystems.getDefault().getPath(backupPath, fnameRoot + fileExt + fnameExt);
 
         try {
             Files.copy(srcPath, dstPath, StandardCopyOption.REPLACE_EXISTING);
@@ -1870,13 +1882,14 @@ public class Spreadsheet {
         String filePath  = Utils.getFilePath(ssFile);
         String fnameRoot = Utils.getFileRootname(ssFile);
         String fnameExt  = Utils.getFileExtension(ssFile);
+        String backupPath = filePath + "/backup/";
 
         // make a backup copy of the current file before saving.
         GUILogPanel.outputInfoMsg(MsgType.INFO, "Path to spreadsheet file: " + filePath);
         GUILogPanel.outputInfoMsg(MsgType.INFO, "Name of spreadsheet file: " + fnameRoot + fnameExt);
-        GUILogPanel.outputInfoMsg(MsgType.INFO, "Name of backup file to restore from: " + fnameRoot + fileExt + fnameExt);
+        GUILogPanel.outputInfoMsg(MsgType.INFO, "Name of backup file to restore from: " + "backup/" + fnameRoot + fileExt + fnameExt);
 
-        Path srcPath = FileSystems.getDefault().getPath(filePath, fnameRoot + fileExt + fnameExt);
+        Path srcPath = FileSystems.getDefault().getPath(backupPath, fnameRoot + fileExt + fnameExt);
         Path dstPath = FileSystems.getDefault().getPath(filePath, fnameRoot + fnameExt);
         
         boolean bStatus = checkIfBackupCopy(backupId);
@@ -1886,7 +1899,7 @@ public class Spreadsheet {
         try {
             Files.copy(srcPath, dstPath, StandardCopyOption.REPLACE_EXISTING);
             // now delete the backup copy, since it was already restored
-            File file = new File(filePath + "/" + fnameRoot + fileExt + fnameExt);
+            File file = new File(backupPath + fnameRoot + fileExt + fnameExt);
             file.delete();
             bStatus = true;
         } catch (IOException exMsg) {
