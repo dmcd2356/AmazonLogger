@@ -5,9 +5,6 @@
 package com.dmcd.amazonlogger;
 
 import java.awt.Color;
-import java.awt.Toolkit;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.StringSelection;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -18,7 +15,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 import javax.swing.JTextPane;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
@@ -124,6 +120,15 @@ public class GUILogPanel {
     }
 
     /**
+     * returns the textPane info.
+     * 
+     * @return text info from textPane
+     */
+    public static String getMessages() {
+        return txtPane.getText();
+    }
+    
+    /**
      * sets the flag to enable/disable log messages to the network.
      * If disabled, only ERROR and WARN messages will be sent.
      * 
@@ -163,31 +168,6 @@ public class GUILogPanel {
         return bitValue;
     }
 
-    /**
-     * saves the debug log information to the system clipboard.
-     */
-    public static void saveToClipboard() {
-        String textToCopy = txtPane.getText();
-        StringSelection stringSelection = new StringSelection(textToCopy);
-        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-        clipboard.setContents(stringSelection, null);
-    }
-    
-    /**
-     * saves the debug log information to the debug file selection.
-     */
-    public static void saveDebugToFile () {
-        PrintWriter debugFile = GUIMain.getDebugOutputFile();
-        if (debugFile != null) {
-            debugFile.println("=== " + GUILogPanel.getCurrentDateTime() + " ============================================================");
-            String textToCopy = txtPane.getText();
-            Stream<String> lines = textToCopy.lines();
-            lines.forEach(debugFile::println);
-            debugFile.flush();
-            debugFile.close();
-        }
-    }
-    
     /**
      * opens the specified test output file (non-GUI use) and places an initial
      *  header line in it.

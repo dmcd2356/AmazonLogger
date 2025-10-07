@@ -16,6 +16,9 @@ import com.dmcd.amazonlogger.PropertiesFile.Property;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Font;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -23,6 +26,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.stream.Stream;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
@@ -52,7 +56,8 @@ public final class GUIMain extends JFrame implements ActionListener {
     private static long         elapsedStart = 0;       // hold start of elapsed time for running from file
     private static long         prevElapsed = 0;        // hold current elapsed time for pause durations
     private static boolean      showElapsed = false;    // indicates if elapsed time to be displayed in logs
-    private static PrintWriter  debugFile = null;       // the log file for non-network mode
+    private static String       debugFileName = null;   // the file name for debug log file (non-network mode)
+    private static PrintWriter  debugFilePrint = null;  // the PrintWriter file for writing to debug file
 
     // Components of the Form
     private static Container c;
@@ -222,7 +227,7 @@ public final class GUIMain extends JFrame implements ActionListener {
         y_row += LINE_SPACING;
         btn_copy  = addButton("Copy text" , x_col1, y_row, true, TabAction.COPY);
         y_row += LINE_SPACING;
-        btn_print = addButton("Print text", x_col1, y_row, false, TabAction.PRINT);
+        btn_print = addButton("Save text" , x_col1, y_row, false, TabAction.PRINT);
 
         // NEXT COLUMN OF BOTTOM PANEL: CHECKBOX OF LOG MESSAGE ENABLES
         int x_cbox_offset = 250;        // x location for checkboxes
@@ -315,7 +320,7 @@ public final class GUIMain extends JFrame implements ActionListener {
                 Spreadsheet.loadSheets(2, true);
         
                 // get the name of the file to store debug info to (if defined)
-                boolean bSuccess = setDebugOutputFile(PropertiesFile.getPropertiesItem(Property.DebugFileOut, ""));
+                boolean bSuccess = setDebugOutputFile();
                 if (bSuccess) {
                     btn_print.setVisible(true);
                 }
@@ -446,16 +451,16 @@ public final class GUIMain extends JFrame implements ActionListener {
             if (tabSelect == Tabs.ORDER) {
                 switch (action) {
                     case CLEAR -> GUIOrderPanel.clearMessages();
-                    case COPY  -> GUIOrderPanel.saveToClipboard();
-                    case PRINT -> GUIOrderPanel.saveDebugToFile();
+                    case COPY  -> saveToClipboard(GUIOrderPanel.getMessages());
+                    case PRINT -> writeDebugOutputFile(GUIOrderPanel.getMessages());
                     default -> {
                     }
                 }
             } else {
                 switch (action) {
                     case CLEAR -> GUILogPanel.clearMessages();
-                    case COPY  -> GUILogPanel.saveToClipboard();
-                    case PRINT -> GUILogPanel.saveDebugToFile();
+                    case COPY  -> saveToClipboard(GUILogPanel.getMessages());
+                    case PRINT -> writeDebugOutputFile(GUILogPanel.getMessages());
                     default -> {
                     }
                 }
@@ -468,6 +473,38 @@ public final class GUIMain extends JFrame implements ActionListener {
      */
     private static void clearErrorMsg () {
         lbl_error_msg.setText("");
+    }
+    
+    /**
+     * saves the debug log information to the system clipboard.
+     * 
+     * @param textToCopy - the lines of text to output
+     */
+    private static void saveToClipboard (String textToCopy) {
+        StringSelection stringSelection = new StringSelection(textToCopy);
+        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        clipboard.setContents(stringSelection, null);
+    }
+    
+    /**
+     * outputs lines of text to the file writer that is used for debug output in GUI mode.
+     * 
+     * @param textToCopy - the lines of text to output
+     */
+    private static void writeDebugOutputFile(String textToCopy) {
+        // create a new file if one doesn't already exist
+        try {
+            GUILogPanel.outputInfoMsg (MsgType.NORMAL, "Creating debug file: " + debugFileName);
+            File newFile = new File(debugFileName);
+            newFile.createNewFile();
+            debugFilePrint = new PrintWriter(debugFileName);
+            Stream<String> lines = textToCopy.lines();
+            lines.forEach(debugFilePrint::println);
+            debugFilePrint.flush();
+            debugFilePrint.close();
+        } catch (IOException ex) {
+            // file inaccessible
+        }
     }
     
     private static String formatLastLine (String tab, String line, String order, String date, String desc) {
@@ -887,70 +924,52 @@ public final class GUIMain extends JFrame implements ActionListener {
     }
     
     /**
-     * returns access to the file writer that is used for debug output in GUI mode.
-     * 
-     * @return the file to use when the PRINT button is pressed in the GUI
-     */
-    public static PrintWriter getDebugOutputFile() {
-        return debugFile;
-    }
-    
-    /**
      * specifies the debug output file to use.
      * This is the file to save the displayed GUI debug information to
      *  when the SAVE key is pressed.
      * 
-     * @param fname - debug output file name
-     * 
      * @return true if successful
      */    
-    public static boolean setDebugOutputFile (String fname) {
+    public static boolean setDebugOutputFile () {
         String functionId = CLASS_NAME + "." + Utils.getCurrentMethodName() + ": ";
 
-        if (! GUIMain.isGUIMode())
+        if (! GUIMain.isGUIMode()) {
             return false;
-        
+        }
+
+        String ssPath = Utils.getPathFromPropertiesFile(PropertiesFile.Property.SpreadsheetPath);
+        String fname = PropertiesFile.getPropertiesItem(Property.DebugFileOut, "");
+        debugFileName = null;
+        debugFilePrint = null;
+
         if (fname == null || fname.isBlank()) {
             GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file failure: DebugFileOut entry missing from PropertiesFile");
-            debugFile = null;
             return false;
         }
-        int offset = fname.indexOf('/');
-        if (offset >= 0) {
+        else if (fname.indexOf('/') >= 0) {
             GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file failure: DebugFileOut contains path: " + fname + " (must be filename only)");
-            debugFile = null;
             return false;
         }
-        // we always put the file in the same location as where the spreadsheet file is
-        String ssPath = Utils.getPathFromPropertiesFile(PropertiesFile.Property.SpreadsheetPath);
-        if (ssPath == null) {
+        else if (ssPath == null) {
+            // we always put the file in the same location as where the spreadsheet file is
             GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file failure: SpreadsheetPath entry missing from PropertiesFile");
-            debugFile = null;
             return false;
         }
         File logPath = new File(ssPath);
         if (! logPath.isDirectory()) {
             GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file failure: SpreadsheetPath not a directory: " + ssPath);
-            debugFile = null;
             return false;
         }
-        fname = ssPath + "/" + fname;
-        File newFile = new File(fname);
+        File newFile = new File(ssPath + "/" + fname);
         if (newFile.isDirectory()) {
             GUILogPanel.outputInfoMsg (MsgType.WARN, functionId + "Debug file failure: DebugFileOut entry is a directory");
-            debugFile = null;
             return false;
         }
-        // create a new file or overwrite the existing one
-        try {
-            GUILogPanel.outputInfoMsg (MsgType.NORMAL, "Creating debug file: " + fname);
-            newFile.createNewFile();
-            debugFile = new PrintWriter(fname);
-        } catch (IOException ex) {
-            // file inaccessible
-            GUILogPanel.outputInfoMsg (MsgType.ERROR, functionId + "for file: " + fname + ", " + ex);
-            debugFile = null;
-            return false;
+        // delete any existing file
+        debugFileName = ssPath + "/" + fname;
+        if (newFile.isFile()) {
+            GUILogPanel.outputInfoMsg (MsgType.NORMAL, "Deleting current debug file: " + debugFileName);
+            newFile.delete();
         }
         return true;
     }

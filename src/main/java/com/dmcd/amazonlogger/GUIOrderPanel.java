@@ -5,13 +5,8 @@
 package com.dmcd.amazonlogger;
 
 import java.awt.Color;
-import java.awt.Toolkit;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.StringSelection;
-import java.io.PrintWriter;
 import java.time.LocalDate;
 import java.util.HashMap;
-import java.util.stream.Stream;
 import javax.swing.JTextPane;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
@@ -138,27 +133,12 @@ public class GUIOrderPanel {
     }
 
     /**
-     * saves the debug log information to the system clipboard.
+     * returns the textPane info.
+     * 
+     * @return text info from textPane
      */
-    public static void saveToClipboard() {
-        String textToCopy = txtPane.getText();
-        StringSelection stringSelection = new StringSelection(textToCopy);
-        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-        clipboard.setContents(stringSelection, null);
-    }
-    
-    /**
-     * saves the debug log information to the debug file selection.
-     */
-    public static void saveDebugToFile () {
-        PrintWriter debugFile = GUIMain.getDebugOutputFile();
-        if (debugFile != null) {
-            String textToCopy = txtPane.getText();
-            Stream<String> lines = textToCopy.lines();
-            lines.forEach(debugFile::println);
-            debugFile.flush();
-            debugFile.close();
-        }
+    public static String getMessages() {
+        return txtPane.getText();
     }
 
     public static void printOrderHeader() {
